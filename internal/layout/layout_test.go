@@ -89,9 +89,29 @@ func TestNeighbor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := tree.Neighbor(tt.from, tt.heading, screen)
+			got, ok := tree.Neighbor(tt.from, tt.heading, screen, nil)
 			if got != tt.want || ok != tt.wantOK {
 				t.Errorf("got (%d, %v), want (%d, %v)", got, ok, tt.want, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestNeighborPrefersThePaneFocusedMostRecently(t *testing.T) {
+	tree := threePanes(t)
+	tests := []struct {
+		name   string
+		recent []PaneID
+		want   PaneID
+	}{
+		{"the bottom pane, focused last", []PaneID{2, 3}, 3},
+		{"the top pane, focused last", []PaneID{3, 2}, 2},
+		{"the only one focused before", []PaneID{3}, 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, _ := tree.Neighbor(1, Right, screen, tt.recent); got != tt.want {
+				t.Errorf("got %d, want %d", got, tt.want)
 			}
 		})
 	}

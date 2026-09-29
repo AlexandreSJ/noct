@@ -24,6 +24,7 @@
 - Para sair do noct: `prefixo` + `q` e confirmar com `Enter` ou `q`, ou `Ctrl+D` duas vezes na home (o segundo enquanto a dica `ctrl+d again to quit` está visível).
 - Na home sem tabs, `p` e `s` abrem uma tab com o painel.
 - Tabs e painéis ilimitados; um terminal novo abre o shell do usuário (`$SHELL`) com a configuração dele, no diretório em que o `noct` foi aberto.
+- Mudar o foco pelas setas vai para o painel mais próximo naquela direção; entre painéis igualmente próximos (ex.: 2 sobre 3 à direita do 1), vai para o que teve o foco por último, como no i3, e só sem histórico para o mais alinhado. Assim, ir e voltar retorna ao painel de onde se saiu.
 - `prefixo` + `a` (ou `Alt+Shift` + setas ou `hjkl`) move o painel com foco como o `move` do i3: dentro de um grupo na direção da seta, troca de lugar com o vizinho ou entra nele, se o vizinho for um grupo; na borda do grupo, sai e fica ao lado dele. Ex.: com o painel 1 à esquerda e 2 sobre 3 à direita, mover o 2 para a esquerda deixa 1 | 2 | 3; mover de novo troca 2 e 1. Na borda da tab, `←`/`→` levam o painel para a tab anterior ou seguinte, ou para uma tab nova.
 - `prefixo` + `r` renomeia a tab; um nome vazio volta a seguir o título do painel com foco.
 - `prefixo` + `e` renomeia o painel com foco; um nome vazio volta ao título do programa.

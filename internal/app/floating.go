@@ -83,7 +83,7 @@ func (a *App) neighbor(t *tab, heading layout.Heading) (layout.PaneID, bool) {
 		if id, ok := nearestToward(over, from, heading); ok {
 			return id, true
 		}
-		return t.tree.Neighbor(t.focused, heading, area)
+		return t.tree.Neighbor(t.focused, heading, area, t.history)
 	}
 	var others []placedPane
 	for id, frame := range t.rects(area) {

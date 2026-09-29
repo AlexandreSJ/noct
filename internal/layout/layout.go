@@ -457,14 +457,16 @@ func areaOf(target, n *node, area image.Rectangle) (image.Rectangle, bool) {
 	return image.Rectangle{}, false
 }
 
-// Neighbor finds the closest pane in the given heading from the pane `from`, within area.
-func (t *Tree) Neighbor(from PaneID, heading Heading, area image.Rectangle) (PaneID, bool) {
+// Neighbor finds the closest pane in the given heading from the pane `from`, within area. Among
+// panes equally close, it picks the one focused most recently, as listed in recent (the most
+// recent last), so going back returns to the pane you came from; then the one best aligned.
+func (t *Tree) Neighbor(from PaneID, heading Heading, area image.Rectangle, recent []PaneID) (PaneID, bool) {
 	rects := t.Rects(area)
 	origin, ok := rects[from]
 	if !ok {
 		return 0, false
 	}
-	best, bestScore, found := PaneID(0), [2]int{}, false
+	best, bestScore, found := PaneID(0), [3]int{}, false
 	for _, pane := range t.Panes() {
 		if pane == from {
 			continue
@@ -473,7 +475,7 @@ func (t *Tree) Neighbor(from PaneID, heading Heading, area image.Rectangle) (Pan
 		if !ok {
 			continue
 		}
-		score := [2]int{gap, offset}
+		score := [3]int{gap, -(slices.Index(recent, pane) + 1), offset}
 		if !found || slices.Compare(score[:], bestScore[:]) < 0 {
 			best, bestScore, found = pane, score, true
 		}
