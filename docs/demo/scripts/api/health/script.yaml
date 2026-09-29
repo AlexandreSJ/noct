@@ -1,0 +1,10 @@
+description: Checks that the shop API answers
+run: |
+  sleep 0.3
+  printf 'GET https://{{.env}}.shop.test/health\n'
+  sleep 0.4
+  printf '200 OK  (12 ms)\n'
+params:
+  - name: env
+    choices: [dev, staging, prod]
+    default: staging

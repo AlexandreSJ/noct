@@ -1,0 +1,13 @@
+description: Places an order with the cart of the test user
+run: |
+  printf 'POST https://{{.env}}.shop.test/orders\n'
+  sleep 0.5
+  printf '201 Created\n'
+  printf 'order=1042\n'
+params:
+  - name: env
+    choices: [dev, staging, prod]
+    default: staging
+  - name: token
+    default: ""
+outputs: [order]

@@ -1,0 +1,305 @@
+package app
+
+import (
+	"image"
+
+	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
+
+	"github.com/AlexandreSJ/noct/internal/layout"
+)
+
+// mode decides where keys go.
+type mode int
+
+const (
+	normalMode     mode = iota // keys go to the focused view
+	commandMode                // after the prefix: noct commands
+	moveMode                   // arrows move the focused pane
+	promptMode                 // typing a line of text, such as a tab name
+	configMode                 // the config panel is open
+	confirmMode                // asking before doing something that cannot be undone
+	scrollMode                 // paging through the focused terminal's history
+	formMode                   // filling in a script's parameters
+	scriptFormMode             // editing a script's name, command line and description
+	resizeMode                 // arrows resize the focused pane
+	choiceMode                 // choosing one of a few things to do
+	finderMode                 // searching actions, scripts and tabs
+	infoMode                   // reading about something, such as a flow's step
+	mcpMode                    // AI approvals, connected clients and how to add noct to one
+)
+
+// shortcut is one command as listed in the popups and on the home screen.
+type shortcut struct {
+	keys  string
+	label string
+	// needsTab hides the command on the home screen, where there is nothing to act on.
+	needsTab bool
+}
+
+var commandShortcuts = []shortcut{
+	{"←↓↑→ hjkl", "focus", true},
+	{"tab", "change", true},
+	{"1-9", "go to tab", true},
+	{"t", "new tab", false},
+	{"p", "new panel", false},
+	{"s", "scripts panel", false},
+	{"i", "inspect flows", false},
+	{"v", "logs and calendar", false},
+	{"space", "search", false},
+	{"y", "MCP", false},
+	{"?", "program help", true},
+	{"a", "move", true},
+	{"n", "resize", true},
+	{"w", "stacked or split", true},
+	{"f", "fullscreen", true},
+	{"g", "floating panel", false},
+	{"r", "rename tab", true},
+	{"e", "rename panel", true},
+	{"[", "scroll history", true},
+	{"x", "close", true},
+	{"c", "config", false},
+	{"d", "detach", false},
+	{"q", "quit", false},
+	{"esc", "cancel", false},
+}
+
+var moveShortcuts = []shortcut{
+	{"←↓↑→ hjkl", "move pane", true},
+	{"esc", "done", true},
+}
+
+var resizeShortcuts = []shortcut{
+	{"← → h l", "narrower, wider", true},
+	{"↑ ↓ k j", "shorter, taller", true},
+	{"esc", "done", true},
+}
+
+// arrowHeadings take vim's hjkl as well as the arrows, everywhere noct moves something.
+var arrowHeadings = map[string]layout.Heading{
+	"left": layout.Left, "right": layout.Right, "up": layout.Up, "down": layout.Down,
+	"h": layout.Left, "l": layout.Right, "k": layout.Up, "j": layout.Down,
+}
+
+// actionKeys are the noct mode commands that act, as opposed to moving around.
+var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "?", "a", "n", "w", "f", "r", "e", "[", "x", "c", "d", "q"}
+
+var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
+
+func (a *App) handleKey(key uv.KeyPressEvent) {
+	a.statusMessage, a.notice = "", ""
+	if a.selection != nil && !a.selection.dragging {
+		a.selection = nil
+	}
+	switch a.mode {
+	case commandMode:
+		a.handleCommandKey(key)
+	case moveMode:
+		a.handleMoveKey(key)
+	case promptMode:
+		a.handlePromptKey(key)
+	case configMode:
+		a.handleConfigKey(key)
+	case confirmMode:
+		a.handleConfirmKey(key)
+	case scrollMode:
+		a.handleScrollKey(key)
+	case formMode:
+		a.handleFormKey(key)
+	case scriptFormMode:
+		a.handleScriptFormKey(key)
+	case resizeMode:
+		a.handleResizeKey(key)
+	case choiceMode:
+		a.handleChoiceKey(key)
+	case finderMode:
+		a.handleFinderKey(key)
+	case infoMode:
+		a.handleInfoKey(key)
+	case mcpMode:
+		a.handleMCPKey(key)
+	default:
+		a.handleNormalKey(key)
+	}
+}
+
+func (a *App) handleNormalKey(key uv.KeyPressEvent) {
+	if a.prefix.matches(key) {
+		a.mode = commandMode
+		return
+	}
+	if name, move, ok := a.shortcut.command(key); ok {
+		a.runShortcut(name, move)
+		return
+	}
+	if t := a.currentTab(); t != nil && !t.isEmpty() {
+		t.focusedView().SendKey(key)
+		return
+	}
+	a.handleHomeKey(key)
+}
+
+// handleCommandKey runs noct commands. Navigation keeps the mode on, so moving around takes a
+// single prefix; other commands end it. Unknown keys are ignored.
+func (a *App) handleCommandKey(key uv.KeyPressEvent) {
+	if key.MatchString("esc") || a.prefix.matches(key) {
+		a.mode = normalMode
+		return
+	}
+	name := key.String()
+	if a.currentTab() != nil && a.navigate(name) {
+		return
+	}
+	a.runAction(name)
+}
+
+func (a *App) navigate(name string) bool {
+	if heading, ok := arrowHeadings[name]; ok {
+		if heading == layout.Left || heading == layout.Right {
+			a.moveFocusAcrossTabs(heading)
+		} else {
+			a.moveFocus(heading)
+		}
+		return true
+	}
+	switch name {
+	case "tab":
+		a.selectTab(a.activeTab + 1)
+	case "shift+tab":
+		a.selectTab(a.activeTab - 1)
+	default:
+		index, ok := tabNumberKeys[name]
+		if ok {
+			a.selectTab(index)
+		}
+		return ok
+	}
+	return true
+}
+
+func (a *App) runAction(name string) {
+	switch name {
+	case "t":
+		a.openEmptyTab()
+		a.openPanel(a.startTerminal)
+	case "p":
+		a.openPanel(a.startTerminal)
+	case "s":
+		a.openPanel(a.startScripts)
+	case "i":
+		a.openPanel(a.startInspect)
+	case "v":
+		a.openPanel(a.startLogs)
+	case "g":
+		a.openFloating()
+	case "c":
+		a.openConfig()
+		return
+	case "d":
+		if a.client != nil {
+			a.detachClient("detached")
+		}
+	case "q":
+		a.askToConfirmWith("quit noct?", "q", func() { a.quitting = true })
+		return
+	case "space":
+		a.openFinder()
+		return
+	case "y":
+		a.openMCP()
+		return
+	case "?":
+		a.showHelp()
+		return
+	default:
+		a.runTabAction(name)
+		return
+	}
+	a.mode = normalMode
+}
+
+// runTabAction runs the commands that act on the current tab.
+func (a *App) runTabAction(name string) {
+	if a.currentTab() == nil {
+		return
+	}
+	switch name {
+	case "x":
+		a.closeFocused()
+		a.mode = normalMode
+	case "a":
+		if !a.currentTab().isEmpty() {
+			a.mode = moveMode
+		}
+	case "n":
+		if !a.currentTab().isEmpty() {
+			a.mode = resizeMode
+		}
+	case "f":
+		if !a.currentTab().isEmpty() {
+			a.toggleFullscreen()
+		}
+		a.mode = normalMode
+	case "w":
+		a.toggleStacked()
+		a.mode = normalMode
+	case "r":
+		a.startRename()
+	case "e":
+		a.startPaneRename()
+	case "[":
+		a.startScroll()
+	}
+}
+
+func (a *App) handleMoveKey(key uv.KeyPressEvent) {
+	name := key.String()
+	if heading, ok := arrowHeadings[name]; ok {
+		if a.currentTab() != nil {
+			a.moveFocusedPane(heading)
+		}
+		return
+	}
+	if name == "esc" || name == "enter" || a.prefix.matches(key) {
+		a.mode = normalMode
+	}
+}
+
+// availableShortcuts leaves out the commands that need a tab when none is open.
+func (a *App) availableShortcuts(shortcuts []shortcut) []shortcut {
+	if a.currentTab() != nil {
+		return shortcuts
+	}
+	var available []shortcut
+	for _, s := range shortcuts {
+		if !s.needsTab {
+			available = append(available, s)
+		}
+	}
+	return available
+}
+
+// drawShortcutsPopup lists the keys of the current mode in the middle of the screen, with an
+// optional note under them.
+func (a *App) drawShortcutsPopup(screen uv.Screen, title string, shortcuts []shortcut, note string) {
+	visible := a.availableShortcuts(shortcuts)
+	lines := len(visible)
+	if note != "" {
+		lines += 2
+	}
+	area := image.Rect(0, 0, a.size.X, a.size.Y)
+	inner := a.drawPanel(screen, centeredRect(area, 36, panelHeight(lines)), title)
+	for i, s := range visible {
+		drawRow(screen, inner, inner.Min.Y+i, s.keys, s.label, a.palette.panelText)
+	}
+	if note != "" {
+		drawCentered(screen, inner, inner.Max.Y-1, note, a.palette.panelMuted)
+	}
+}
+
+// shortcutNote reminds, in the commands popup, that the keys also work without the prefix.
+func (a *App) shortcutNote() string {
+	if a.shortcut.mods == 0 {
+		return ""
+	}
+	return "or " + a.shortcut.String() + " without prefix"
+}

@@ -1,0 +1,16 @@
+noct
+Copyright 2026 AlexandreSJ (https://github.com/AlexandreSJ)
+
+This product includes modified copies of the following software, each under
+the MIT License. Their license texts are kept in the listed folders.
+
+  Ultraviolet (https://github.com/charmbracelet/ultraviolet)
+  Copyright (c) 2025 Charmbracelet, Inc
+  third_party/ultraviolet/LICENSE
+
+  x/vt (https://github.com/charmbracelet/x/tree/main/vt)
+  Copyright (c) 2023 Charmbracelet, Inc.
+  third_party/vt/LICENSE
+
+The changes made by noct are marked with "noct:" comments and described in
+third_party/README.md.

@@ -1,0 +1,15 @@
+description: Shows where an order is; ships on the third look
+run: |
+  f="${TMPDIR:-/tmp}/noct-demo-order-{{.order}}"
+  n=$(( $(cat "$f" 2>/dev/null || echo 0) + 1 ))
+  echo "$n" > "$f"
+  printf 'GET https://{{.env}}.shop.test/orders/{{.order}}\n'
+  sleep 0.3
+  if [ "$n" -ge 3 ]; then rm -f "$f"; echo "status=shipped"; else echo "status=processing"; fi
+params:
+  - name: env
+    choices: [dev, staging, prod]
+    default: staging
+  - name: order
+    default: "1042"
+outputs: [status]

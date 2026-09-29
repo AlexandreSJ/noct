@@ -1,0 +1,34 @@
+description: Logs in, places an order and waits for it to ship
+params:
+  env: staging
+
+steps:
+  - id: health
+    script: api/health
+    with: {env: '{{.env}}'}
+
+  - id: login
+    script: api/login
+    with: {env: '{{.env}}'}
+
+  - id: order
+    script: api/order
+    with:
+      env: '{{.env}}'
+      token: '{{.steps.login.token}}'
+
+  - id: track
+    repeat:
+      until: '{{eq .steps.status.status "shipped"}}'
+      max: 5
+      every: 1s
+    steps:
+      - id: status
+        script: api/status
+        with:
+          env: '{{.env}}'
+          order: '{{.steps.order.order}}'
+
+  - if: '{{.steps.status.ok}}'
+    then:
+      - run: echo "checkout passed on {{.env}}"

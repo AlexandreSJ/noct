@@ -1,0 +1,14 @@
+description: Logs in and prints a session token
+run: |
+  printf 'POST https://{{.env}}.shop.test/login  user={{.user}}\n'
+  sleep 0.6
+  printf '200 OK\n'
+  printf 'token=eyJhbGciOiJIUzI1NiJ9.demo\n'
+params:
+  - name: env
+    choices: [dev, staging, prod]
+    default: staging
+  - name: user
+    default: qa@shop.test
+    remember: true
+outputs: [token]

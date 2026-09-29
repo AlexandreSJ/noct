@@ -1,0 +1,6 @@
+description: Fills the test database with users, products and carts
+run: |
+  for table in users products carts; do
+    sleep 0.3
+    printf 'seeding %-8s done\n' "$table"
+  done

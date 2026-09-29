@@ -1,0 +1,80 @@
+// Package logstore keeps what programs in panes print on disk, so it outlives the screen.
+package logstore
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"sync"
+)
+
+// Dir is noct's state directory: $XDG_STATE_HOME/noct, or ~/.local/state/noct.
+func Dir() string {
+	if dir := os.Getenv("XDG_STATE_HOME"); dir != "" {
+		return filepath.Join(dir, "noct")
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join(os.TempDir(), "noct-state")
+	}
+	return filepath.Join(home, ".local", "state", "noct")
+}
+
+// File is a log capped at a size: when full, it becomes path.1 (replacing the older one)
+// and a new file starts, so a chatty program never fills the disk.
+type File struct {
+	lock    sync.Mutex
+	path    string
+	file    *os.File
+	size    int64
+	maxSize int64
+}
+
+func Create(path string, maxSize int64) (*File, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, fmt.Errorf("creating the log directory: %w", err)
+	}
+	f := &File{path: path, maxSize: maxSize}
+	if err := f.open(); err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
+func (f *File) open() error {
+	file, err := os.OpenFile(f.path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return fmt.Errorf("opening log %s: %w", f.path, err)
+	}
+	f.file, f.size = file, 0
+	return nil
+}
+
+func (f *File) Write(p []byte) (int, error) {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+	if f.size+int64(len(p)) > f.maxSize && f.size > 0 {
+		if err := f.rotate(); err != nil {
+			return 0, err
+		}
+	}
+	n, err := f.file.Write(p)
+	f.size += int64(n)
+	return n, err
+}
+
+func (f *File) rotate() error {
+	if err := f.file.Close(); err != nil {
+		return fmt.Errorf("closing log %s: %w", f.path, err)
+	}
+	if err := os.Rename(f.path, f.path+".1"); err != nil {
+		return fmt.Errorf("rotating log %s: %w", f.path, err)
+	}
+	return f.open()
+}
+
+func (f *File) Close() error {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+	return f.file.Close()
+}
