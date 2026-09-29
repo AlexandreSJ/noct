@@ -150,10 +150,20 @@ func (e *Emulator) SendKey(k uv.KeyEvent) {
 			seq += "\x1b[2~"
 		case KeyPressEvent{Code: KeyDelete}:
 			seq += "\x1b[3~"
+		// noct: Home and End follow application cursor keys mode like the arrows. zsh (oh-my-zsh)
+		// turns the mode on and binds only ESC O H and ESC O F, so ESC [ H did nothing there.
 		case KeyPressEvent{Code: KeyHome}:
-			seq += "\x1b[H"
+			if ack {
+				seq += "\x1bOH"
+			} else {
+				seq += "\x1b[H"
+			}
 		case KeyPressEvent{Code: KeyEnd}:
-			seq += "\x1b[F"
+			if ack {
+				seq += "\x1bOF"
+			} else {
+				seq += "\x1b[F"
+			}
 		case KeyPressEvent{Code: KeyPgUp}:
 			seq += "\x1b[5~"
 		case KeyPressEvent{Code: KeyPgDown}:
