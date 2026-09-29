@@ -445,3 +445,11 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Saída do noct:** cada quadro vai como uma atualização sincronizada (`SetSynchronizedUpdates`), no lugar de esconder e mostrar o cursor. Mostrar ou esconder só é enviado quando muda. A cópia do `ultraviolet` escreve o movimento do cursor no mesmo write do quadro, e o `render` deixou de fazer o segundo `Render`/`Flush`.
 
 **Consequências.** Respostas a consultas feitas no meio de um quadro (`ESC[6n`) saem quando ele termina. Num terminal sem o mode 2026, o cursor pode ser visto andando durante o desenho de um quadro, já que não é mais escondido.
+
+## ADR-036 — Painéis de scripts e fluxos acompanham o disco
+
+**Contexto.** O inspect e o scripts panel liam os arquivos ao abrir. Um fluxo que a IA criava ou transformava em rascunho pelo MCP (que escreve os arquivos direto, ADR-033) só aparecia depois de fechar e abrir o painel.
+
+**Decisão.** Enquanto um inspect ou scripts panel aparece na tab atual, com um cliente conectado, o laço do daemon confere a cada segundo uma assinatura das pastas: nome, tamanho e data de cada arquivo, sem ler o conteúdo (até três níveis nas pastas de scripts, um na de fluxos). Só quando ela muda os scripts ou fluxos são relidos; scripts novos releem também os fluxos, que são conferidos contra eles. Um tick sem mudança não redesenha a tela. Sem `fsnotify`: seria uma dependência nova, precisaria de um watch por pasta de script e não pega mudanças em pastas ligadas que estejam em sistemas de arquivos como o 9p do WSL (`/mnt/c`), e a varredura custa poucos `stat`.
+
+**Consequências.** Uma mudança aparece em até um segundo. Painéis em outras tabs e o daemon sem cliente não olham o disco; ao voltar para eles, a próxima conferência os atualiza.

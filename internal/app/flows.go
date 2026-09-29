@@ -26,6 +26,7 @@ const stepHints = `# One step: script (with, capture, expect, on_fail), run (cap
 
 // reloadFlows reads the flows again, checking their scripts against the library.
 func (a *App) reloadFlows() {
+	a.flowsSignature = dirSignature([]string{flow.Dir()}, 1) // before reading: a change meanwhile shows next time
 	flows, err := flow.LoadAll(flow.Dir(), a.scripts.Find)
 	if err != nil {
 		a.statusMessage = err.Error()

@@ -82,6 +82,8 @@ No modo noct:
 
 Scripts são abertos pelo scripts panel (`s`) ou pela busca (`Space`), e fluxos pelo inspect (`i`), não por teclas próprias no modo noct.
 
+O scripts panel e o inspect acompanham o disco enquanto aparecem na tab atual: a cada segundo, o noct compara nomes, tamanhos e datas dos arquivos de scripts e fluxos e só os relê quando algo mudou. Um rascunho que a IA escreve pelo MCP, ou uma edição fora do noct, aparece sem fechar e abrir o painel (ADR-036).
+
 ## Atalhos diretos
 
 Um segundo modificador, por padrão `Alt` (ADR-024), roda os comandos do modo noct sem o prefixo (ADR-020):

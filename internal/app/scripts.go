@@ -24,6 +24,7 @@ func (a *App) scriptsDir() string {
 
 // reloadScripts reads the library again, after it may have changed on disk.
 func (a *App) reloadScripts() {
+	a.scriptsSignature = dirSignature(a.scriptDirs(), scriptsDepth) // before reading: a change meanwhile shows next time
 	a.scripts = script.LoadLibrary(a.scriptsDir(), a.config.ScriptFolders, a.workDir)
 	a.sortScripts()
 }

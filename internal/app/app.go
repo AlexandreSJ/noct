@@ -87,6 +87,8 @@ type App struct {
 	scripts script.Library
 	// scriptsLoaded counts library loads, so panels know when what they cached is stale.
 	scriptsLoaded int
+	// scriptsSignature and flowsSignature sum up the files as last read (see checkLibrary).
+	scriptsSignature, flowsSignature string
 	// expanded are the folders open in the scripts panels, by path; folders start closed.
 	expanded map[string]bool
 	versions *script.Versions
@@ -180,6 +182,8 @@ func (a *App) loop() error {
 	a.pruneLogs()
 	prune := time.NewTicker(pruneInterval)
 	defer prune.Stop()
+	libraryCheck := time.NewTicker(libraryCheckInterval)
+	defer libraryCheck.Stop()
 	for !a.quitting {
 		select {
 		case event := <-a.clientEvents():
@@ -197,6 +201,10 @@ func (a *App) loop() error {
 			task()
 		case <-prune.C:
 			a.pruneLogs()
+		case <-libraryCheck.C:
+			if a.client == nil || !a.checkLibrary() {
+				continue // nothing new to draw
+			}
 		case <-a.homeTick:
 			a.advanceHomeArt()
 		case <-a.homeHintExpired:
