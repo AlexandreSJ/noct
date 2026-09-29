@@ -175,3 +175,45 @@ func TestClearingTheBottomKeepsTheLastUnchangedLine(t *testing.T) {
 		t.Fatalf("the line above the cleared ones starts with %v, want k", cell)
 	}
 }
+
+// writeRecorder keeps each write apart, to tell what reached the terminal together.
+type writeRecorder struct{ writes []string }
+
+func (w *writeRecorder) Write(p []byte) (int, error) {
+	w.writes = append(w.writes, string(p))
+	return len(p), nil
+}
+
+// noct: the cursor goes with the frame that moves it, in the same synchronized update. It used
+// to wait in the renderer until the next frame, lagging one change behind.
+func TestFrameCarriesTheCursorInOneSynchronizedWrite(t *testing.T) {
+	out := &writeRecorder{}
+	screen := uv.NewTerminalScreen(out, uv.Environ{"TERM=xterm-256color"})
+	_ = screen.Resize(renderWidth, renderHeight)
+	_ = screen.EnterAltScreen()
+	_ = screen.SetSynchronizedUpdates(true)
+	_ = screen.ShowCursor() // once, as noct only sends it when it changes
+	// The first frame also enters the alternate screen.
+	for i, x := range []int{3, 7} {
+		out.writes = nil
+		_ = screen.SetCursorPosition(x, 2)
+		err := screen.Display(uv.DrawableFunc(func(s uv.Screen, _ uv.Rectangle) {
+			s.SetCell(x+10, 5, &uv.Cell{Content: "x", Width: 1})
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(out.writes) != 1 {
+			t.Fatalf("frame took %d writes, want 1: %q", len(out.writes), out.writes)
+		}
+		frame := out.writes[0]
+		replay := vt.NewEmulator(renderWidth, renderHeight)
+		_, _ = replay.WriteString(frame)
+		if got := replay.CursorPosition(); got.X != x || got.Y != 2 {
+			t.Errorf("cursor at %v after the frame, want (%d, 2): %q", got, x, frame)
+		}
+		if !strings.HasPrefix(frame, "\x1b[?2026h") || !strings.HasSuffix(frame, "\x1b[?2026l") || i > 0 && strings.Contains(frame, "\x1b[?25") {
+			t.Errorf("frame is not one synchronized update: %q", frame)
+		}
+	}
+}

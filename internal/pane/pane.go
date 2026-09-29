@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/AlexandreSJ/noct/third_party/vt"
@@ -18,6 +19,9 @@ import (
 
 // inputQueueSize bounds how many input chunks wait for the program to read them.
 const inputQueueSize = 256
+
+// syncTimeout is how long a synchronized frame may keep the screen waiting, as in Alacritty.
+const syncTimeout = 150 * time.Millisecond
 
 type Options struct {
 	Argv []string
@@ -60,6 +64,11 @@ type Pane struct {
 	graphicsSplitter   kittygfx.Splitter
 	onTerminalGraphics func(commands []byte)
 	log                io.WriteCloser
+
+	// outputLock keeps output in order between the reader and the synchronized frame timeout.
+	outputLock  sync.Mutex
+	syncGate    syncGate
+	syncTimeout *time.Timer
 }
 
 func Start(opts Options) (*Pane, error) {
@@ -100,15 +109,13 @@ func (p *Pane) pumpOutputToScreen(onScreenChange func(), onExit func(exitCode in
 		n, err := p.process.Read(buf)
 		if n > 0 {
 			p.writeLog(buf[:n])
-			p.handleOutput(buf[:n])
-			if onScreenChange != nil {
-				onScreenChange()
-			}
+			p.showOutput(buf[:n], onScreenChange)
 		}
 		if err != nil {
 			break
 		}
 	}
+	p.releaseFrame(onScreenChange)
 	exitCode := p.process.Wait()
 	p.Close()
 	if p.log != nil {
@@ -127,6 +134,47 @@ func (p *Pane) writeLog(output []byte) {
 	if _, err := p.log.Write(output); err != nil {
 		_ = p.log.Close()
 		p.log = nil
+	}
+}
+
+// showOutput puts output on the screen, except a synchronized frame still being drawn: that one
+// waits for its end, or for syncTimeout.
+func (p *Pane) showOutput(data []byte, onScreenChange func()) {
+	p.outputLock.Lock()
+	defer p.outputLock.Unlock()
+	ready := p.syncGate.feed(data)
+	switch {
+	case !p.syncGate.pending():
+		if p.syncTimeout != nil {
+			p.syncTimeout.Stop()
+			p.syncTimeout = nil
+		}
+	case p.syncTimeout == nil:
+		p.syncTimeout = time.AfterFunc(syncTimeout, func() { p.releaseFrame(onScreenChange) })
+	case len(ready) > 0:
+		p.syncTimeout.Reset(syncTimeout) // a frame ended; the one held now gets its own time
+	}
+	p.screenOutput(ready, onScreenChange)
+}
+
+// releaseFrame shows the output held back, when the frame took too long or the program ended.
+func (p *Pane) releaseFrame(onScreenChange func()) {
+	p.outputLock.Lock()
+	defer p.outputLock.Unlock()
+	if p.syncTimeout != nil {
+		p.syncTimeout.Stop()
+		p.syncTimeout = nil
+	}
+	p.screenOutput(p.syncGate.release(), onScreenChange)
+}
+
+func (p *Pane) screenOutput(data []byte, onScreenChange func()) {
+	if len(data) == 0 {
+		return
+	}
+	p.handleOutput(data)
+	if onScreenChange != nil {
+		onScreenChange()
 	}
 }
 

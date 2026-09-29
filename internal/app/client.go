@@ -49,6 +49,9 @@ type client struct {
 func newClient(c connection) *client {
 	screen := uv.NewTerminalScreen(c.conn.Writer(), c.hello.Env)
 	screen.SetColorProfile(colorprofile.Profile(c.hello.ColorProfile))
+	// Each frame goes as one synchronized update (mode 2026) instead of hiding the cursor while
+	// drawing and showing it again, which blinks it; terminals without the mode ignore it.
+	_ = screen.SetSynchronizedUpdates(true) // only records the setting
 	keysReader, keysWriter := io.Pipe()
 	ctx, cancel := context.WithCancel(context.Background())
 	cl := &client{

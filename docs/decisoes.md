@@ -112,7 +112,7 @@ Formato: contexto → decisão → consequências. Decisões novas são acrescen
 - `vt.Emulator.Close` tem condição de corrida com um `Read` pendente. O `pane` nunca chama `Close`; ele acorda o leitor com uma escrita vazia.
 - `vt.Emulator.SendKey` não codifica teclas de navegação com modificadores (`Ctrl+←`, `Shift+↑`) e descarta texto com `Shift`. O `pane` codifica essas teclas (`internal/pane/keys.go`).
 - Fechar o PTY com uma leitura pendente não encerra o programa. `pty.Close` envia SIGHUP ao grupo de processos, como o tmux.
-- `TerminalScreen.Flush` do `ultraviolet` põe o movimento do cursor no buffer do renderer depois de esse buffer já ter sido escrito, então o cursor só chega ao terminal no quadro seguinte: ele fica sempre um passo atrás (a seta anda, o cursor não). O noct chama `Render` e `Flush` de novo depois de cada `Display` (`internal/app/draw.go`), o que não desenha nada novo e só envia o movimento pendente. Um teste e2e cobre.
+- `TerminalScreen.Flush` do `ultraviolet` põe o movimento do cursor no buffer do renderer depois de esse buffer já ter sido escrito, então o cursor só chega ao terminal no quadro seguinte: ele fica sempre um passo atrás (a seta anda, o cursor não). O noct chamava `Render` e `Flush` de novo depois de cada `Display`; desde a ADR-035 a cópia em `third_party/` escreve o movimento junto com o quadro. Um teste e2e cobre.
 
 **Vazão.** O perfil mostra dois pontos quentes: `ultraviolet.Buffer.DeleteLineArea` copia a tela inteira célula por célula a cada linha rolada, e `vt.Scrollback.Push` desloca todo o histórico a cada linha quando ele está cheio. Corrigir os dois numa cópia local levou o emulador de 1,9 para 5,9 MB/s. O restante vem de alocar uma string por caractere impresso e exige mudanças mais profundas no emulador.
 
@@ -435,3 +435,13 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Formulário `p`:** o formulário de parâmetros dos scripts passou a servir aos dois (título, prévia e envio por quem abre). Os valores de um fluxo ficam no `params.json` com a chave `flow:<nome>`; `r` roda com eles e abre o formulário quando falta um obrigatório.
 
 **Consequências.** Um fluxo com `prompt` não serve para triggers, porque ninguém responde. Uma variável com o mesmo nome de um param o esconde até o fim da execução. O `explore2` usa `awk` para as contas (aceita decimais, que `$(( ))` não aceita) e um texto com `'` quebra a linha de shell do `check`, porque templates entram na linha sem aspas próprias.
+
+## ADR-035 — Synchronized output (mode 2026) nos painéis e na saída
+
+**Contexto.** Com o opencode num painel, o cursor piscava enquanto a IA pensava. Cada quadro do spinner chega como `ESC[?2026h ESC[?25l …desenho… CUP ESC[?25h ESC[?2026l`. O emulador ignora o mode 2026, e o noct desenha até 60 vezes por segundo quando chega saída: pegando o quadro no meio, via o cursor escondido ou na posição do spinner. Na saída do próprio noct, cada flush ia entre `ESC[?25l` e `ESC[?25h`, e o movimento do cursor ia num segundo write (o contorno da ADR-011), com o cursor visível no último ponto desenhado entre os dois. O caminho WSL → ConPTY → Alacritty deixava esses estados intermediários à vista.
+
+**Decisão.**
+- **Painéis:** o `pane` segura a saída de um quadro sincronizado, de `ESC[?2026h` a `ESC[?2026l`, e a passa inteira ao emulador (`internal/pane/sync.go`). Um marcador cortado entre duas leituras também é reconhecido. Um quadro que não termina em 150 ms (o tempo do Alacritty) ou passa de 1 MiB vai como está. A saída continua indo para o log na hora. Só a forma literal dos marcadores conta, que é a que os programas usam.
+- **Saída do noct:** cada quadro vai como uma atualização sincronizada (`SetSynchronizedUpdates`), no lugar de esconder e mostrar o cursor. Mostrar ou esconder só é enviado quando muda. A cópia do `ultraviolet` escreve o movimento do cursor no mesmo write do quadro, e o `render` deixou de fazer o segundo `Render`/`Flush`.
+
+**Consequências.** Respostas a consultas feitas no meio de um quadro (`ESC[6n`) saem quando ele termina. Num terminal sem o mode 2026, o cursor pode ser visto andando durante o desenho de um quadro, já que não é mais escondido.

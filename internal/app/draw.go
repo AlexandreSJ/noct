@@ -18,15 +18,6 @@ func (a *App) render() error {
 	if err := a.screen.Display(uv.DrawableFunc(a.draw)); err != nil {
 		return fmt.Errorf("drawing screen: %w", err)
 	}
-	// Display queues the cursor move after writing the frame, so it would only leave with the
-	// next frame and the cursor would always lag one change behind (ADR-011). Rendering again
-	// draws nothing new and moves the queued cursor move out; flushing sends it.
-	if err := a.screen.Render(); err != nil {
-		return fmt.Errorf("placing the cursor: %w", err)
-	}
-	if err := a.screen.Flush(); err != nil {
-		return fmt.Errorf("placing the cursor: %w", err)
-	}
 	return nil
 }
 
@@ -127,11 +118,12 @@ func (s themedScreen) SetCell(x, y int, cell *uv.Cell) {
 	s.Screen.SetCell(x, y, cell)
 }
 
-// placeCursor puts the real cursor where the focused program has it, or hides it.
+// placeCursor puts the real cursor where the focused program has it, or hides it. Showing or
+// hiding is sent only when it changes: a program redrawing a spinner would blink it otherwise.
 func (a *App) placeCursor() {
 	t := a.currentTab()
 	if t == nil || t.isEmpty() || a.mode != normalMode && a.mode != commandMode && a.mode != moveMode {
-		_ = a.screen.HideCursor() // cursor visibility is cosmetic
+		a.hideCursor()
 		return
 	}
 	position, visible := t.focusedView().Cursor()
@@ -139,11 +131,19 @@ func (a *App) placeCursor() {
 	content := contentRect(frame)
 	cursor := content.Min.Add(position)
 	if !visible || !cursor.In(content) {
-		_ = a.screen.HideCursor()
+		a.hideCursor()
 		return
 	}
 	_ = a.screen.SetCursorPosition(cursor.X, cursor.Y)
-	_ = a.screen.ShowCursor()
+	if !a.screen.CursorVisible() {
+		_ = a.screen.ShowCursor()
+	}
+}
+
+func (a *App) hideCursor() {
+	if a.screen.CursorVisible() {
+		_ = a.screen.HideCursor() // cursor visibility is cosmetic
+	}
 }
 
 func (a *App) drawTabBar(screen uv.Screen) {

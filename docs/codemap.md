@@ -22,6 +22,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/logstore/entries.go` | Logs by day, each with a flow run's result beside it: listing, line counts, removing, pruning by age and total size, readable sizes |
 | `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, exit code, foreground program |
 | `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing, mouse modes and forwarding |
+| `internal/pane/sync.go` | Holds back a synchronized-output frame (mode 2026) until it ends, so it never shows half drawn |
 | `internal/pane/images.go` | Writes image placeholder cells at the cursor and moves it as kitty does |
 | `internal/pane/keys.go` | Key encodings the emulator lacks (modified navigation keys) |
 | `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks (one pane shown, the others folded to a row), move, remove, rects, directional focus, draggable dividers |

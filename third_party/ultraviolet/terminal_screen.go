@@ -178,6 +178,9 @@ func (s *TerminalScreen) Flush() error {
 			s.rend.MoveTo(0, y)
 		}
 	}
+	// noct: Render already wrote the renderer's buffer, so the move above waited there for the
+	// next frame and the cursor lagged one change behind. Writing it out sends it with this one.
+	_ = s.rend.Flush() // writes to s.buf, a bytes.Buffer, which cannot fail
 
 	var buf bytes.Buffer
 	buf.Grow(s.buf.Len())
