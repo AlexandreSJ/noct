@@ -60,12 +60,13 @@ func newSession(t *testing.T) *session {
 	return s
 }
 
-// attach runs noct inside a pane, which plays the role of the user's terminal.
-func (s *session) attach(t *testing.T) (*pane.Pane, <-chan struct{}) {
+// attach runs noct inside a pane, which plays the role of the user's terminal; args choose the
+// session, as on the command line.
+func (s *session) attach(t *testing.T, args ...string) (*pane.Pane, <-chan struct{}) {
 	t.Helper()
 	exited := make(chan struct{})
 	outer, err := pane.Start(pane.Options{
-		Argv:   []string{s.binary},
+		Argv:   append([]string{s.binary}, args...),
 		Env:    s.env,
 		Size:   outerSize,
 		OnExit: func(int) { close(exited) },

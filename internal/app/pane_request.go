@@ -68,24 +68,38 @@ func (a *App) openRequestedPane(c connection) {
 // showPane brings a flow's run to the screen and focuses it, for a prompt that waits for the
 // user's answer there.
 func (a *App) showPane(args paneArgs) error {
-	t, id := a.tabOfPane(layout.PaneID(args.Pane))
+	s, t := a.paneOwner(layout.PaneID(args.Pane))
 	if t == nil {
 		return fmt.Errorf("there is no pane %d", args.Pane)
 	}
-	a.activeTab = slices.Index(a.tabs, t)
+	id := layout.PaneID(args.Pane)
+	if s != a.session {
+		a.switchSession(s)
+	}
+	a.session.activeTab = slices.Index(a.session.tabs, t)
 	a.focusPane(t, id)
 	a.notice = a.viewTitle(t, id) + " waits for your answer"
 	return nil
 }
 
-// tabOfPane finds the tab a pane is in.
+// tabOfPane finds the tab a pane is in, in any session.
 func (a *App) tabOfPane(id layout.PaneID) (*tab, layout.PaneID) {
-	for _, t := range a.tabs {
-		if _, ok := t.views[id]; ok {
-			return t, id
-		}
+	if _, t := a.paneOwner(id); t != nil {
+		return t, id
 	}
 	return nil, 0
+}
+
+// paneOwner finds the session and the tab a pane is in.
+func (a *App) paneOwner(id layout.PaneID) (*session, *tab) {
+	for _, s := range a.sessions {
+		for _, t := range s.tabs {
+			if _, ok := t.views[id]; ok {
+				return s, t
+			}
+		}
+	}
+	return nil, nil
 }
 
 // orTile is the pane when it is a tile of the tab, or the tile a new pane would split.

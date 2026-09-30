@@ -35,7 +35,7 @@ func requestPane(t *testing.T, a *App, req ipc.PaneRequest) <-chan ipc.Exit {
 // A step's pane opens beside the run that asked, and its exit code goes back when it ends.
 func TestPaneRequestWaitsForTheExitCode(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2), newTab(3, &fakeView{}))
-	a.activeTab = 1
+	a.session.activeTab = 1
 	l := recordLaunches(a)
 	answers := requestPane(t, a, ipc.PaneRequest{Command: "make test", Dir: "/tmp", Title: "build", Near: 2, Wait: true})
 	program := l.last(t)
@@ -43,8 +43,8 @@ func TestPaneRequestWaitsForTheExitCode(t *testing.T) {
 		t.Fatalf("started %+v", program)
 	}
 	// It opens in the asking run's tab, focused there, without changing the tab on screen.
-	if asking := a.tabs[0]; len(asking.views) != 3 || asking.focused == 1 || asking.focused == 2 || a.activeTab != 1 {
-		t.Errorf("tab of the run: %d panes, focus %d; tab on screen %d", len(asking.views), asking.focused, a.activeTab)
+	if asking := a.session.tabs[0]; len(asking.views) != 3 || asking.focused == 1 || asking.focused == 2 || a.session.activeTab != 1 {
+		t.Errorf("tab of the run: %d panes, focus %d; tab on screen %d", len(asking.views), asking.focused, a.session.activeTab)
 	}
 	program.onExit(5)
 	if exit := <-answers; exit.Reason != ipc.PaneExited || exit.Code != 5 {
@@ -69,10 +69,10 @@ func TestPaneRequestInTheBackgroundAnswersAtOnce(t *testing.T) {
 // A flow's prompt waits for the user: its run's tab comes to the screen, with the run focused.
 func TestAttentionShowsTheRunThatAsks(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2), newTab(3, &fakeView{}))
-	a.activeTab = 1
+	a.session.activeTab = 1
 	answerOf(t, ask(t, a, "attention", paneArgs{Pane: 2}), nil)
-	if a.activeTab != 0 || a.tabs[0].focused != 2 {
-		t.Errorf("tab on screen %d, focus %d", a.activeTab, a.tabs[0].focused)
+	if a.session.activeTab != 0 || a.session.tabs[0].focused != 2 {
+		t.Errorf("tab on screen %d, focus %d", a.session.activeTab, a.session.tabs[0].focused)
 	}
 	if !strings.Contains(a.notice, "waits for your answer") {
 		t.Errorf("notice = %q", a.notice)

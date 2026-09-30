@@ -6,7 +6,9 @@ Keep this table current: add a row when you add a package or a main file, and fi
 
 | Path | Responsibility |
 |---|---|
-| `cmd/noct/main.go` | Entry point: `noct` (attach, starting the daemon), `noct quit`, `noct daemon`, dispatch of the script commands |
+| `cmd/noct/main.go` | Entry point: `noct` (attach to the last session, starting the daemon), dispatch of the session commands, `noct quit`, `noct daemon`, dispatch of the script commands |
+| `cmd/noct/sessions.go` | `noct attach`/`a`/`att`/`-a`, `noct new`, `noct sessions`, `noct kill`: sessions by name, asking the running workspace or, without one, reading `sessions.json` |
+| `cmd/noct/sessions_test.go` | End-to-end tests of sessions: two sessions apart, a missing one refused, a session opened again after quit in its shell's directory, kill without noct running |
 | `cmd/noct/mcp.go` | `noct mcp`: the MCP server on stdin and stdout, with the audit log and the daemon as its workspace |
 | `cmd/noct/mcp_test.go` | End-to-end test of `noct mcp`: an AI runs a flow in a real workspace and reads its result and pane |
 | `cmd/noct/scripts.go` | `noct ls`, `noct check`, `noct -s`: scripts in the current terminal, without the daemon |
@@ -20,16 +22,20 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/daemon/daemon.go` | Run the daemon; start it in the background when needed |
 | `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs |
 | `internal/logstore/entries.go` | Logs by day, each with a flow run's result beside it: listing, line counts, removing, pruning by age and total size, readable sizes |
-| `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, exit code, foreground program |
+| `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, exit code, foreground program, current directory |
 | `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing, mouse modes and forwarding |
 | `internal/pane/sync.go` | Holds back a synchronized-output frame (mode 2026) until it ends, so it never shows half drawn |
 | `internal/pane/images.go` | Writes image placeholder cells at the cursor and moves it as kitty does |
 | `internal/pane/keys.go` | Key encodings the emulator lacks (modified navigation keys) |
+| `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again, names, what the command line lists |
+| `internal/layout/shape.go` | A tree as plain data (`Shape`) and building it again under new pane IDs |
 | `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks (one pane shown, the others folded to a row), move, remove, rects, directional focus, draggable dividers |
-| `internal/app/app.go` | App state, event loop, frame pacing, attach/detach, config loading, shutdown |
+| `internal/app/app.go` | App state, event loop, frame pacing, attach (to the session asked for)/detach, config loading, shutdown |
+| `internal/app/sessions.go` | Sessions: create, switch, close (keeping the layout), delete, rename; saving them and opening a closed one again; the command line's list and delete |
+| `internal/app/sessions_popup.go` | Sessions popup (prefix+o): the sessions by last use, keys to open, create, rename, close and delete |
 | `internal/app/client.go` | Daemon side of an attached terminal: decoding its keys, drawing to it, greeting connections |
 | `internal/app/scroll.go` | Scroll mode through a terminal's history |
-| `internal/app/workspace.go` | Starting programs in panes, tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach |
+| `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach (in any session) |
 | `internal/app/view.go` | The `view` interface a pane shows: a terminal or a noct panel |
 | `internal/app/scripts_panel.go` | Scripts panel: list with versions, details and notes, keys to run, edit, create, delete |
 | `internal/app/scripts.go` | Script actions: reload the library, run (form or not) as a tracked run with its log and exit code, create, edit in the configured editor, rename, delete |
@@ -54,7 +60,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/scope.go` | The inspect's scope pane (variables of the selected block with their last values) and the variable picker of template prompts (ctrl+v) |
 | `internal/app/flows.go` | Flow actions: create, run and test steps (as tracked runs), add, edit in the editor, move and remove steps, what a step does and its kept output |
 | `internal/app/shortcut.go` | Direct shortcuts: modifier + noct mode key without the prefix, modifier + shift + arrows to move |
-| `internal/app/mouse.go` | Mouse: tab and pane clicks, dragging dividers, wheel scrolling, forwarding to views that take it |
+| `internal/app/mouse.go` | Mouse: tab and pane clicks, dragging dividers, wheel scrolling (over the tab bar, changing tab), forwarding to views that take it |
 | `internal/app/editor.go` | Program settings (editor, file manager): choices found on the system or a custom command; opening a folder |
 | `internal/app/script_form.go` | Script form: name and program typed in place, command line, description, params and notes each edited alone in the editor |
 | `internal/app/selection.go` | Selecting text with the mouse in one pane, across scrolling, highlighting and copying it (OSC 52) |
@@ -65,7 +71,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/tab.go` | A tab: its views, pane names, focus history, floating panes, fullscreen, visible frames, size rules |
 | `internal/app/floating.go` | Floating panes: opening, keyboard moves and resizes, mouse drags, focus navigation over both layers |
 | `internal/app/resize.go` | Resize mode (prefix+n): arrows grow or shrink the focused tile or floating pane |
-| `internal/app/draw.go` | Frame drawing: tab bar, panes (folded ones as a title row), mode overlays, cursor placement |
+| `internal/app/draw.go` | Frame drawing: panes (folded ones as a title row), the tab bar's status, mode overlays, cursor placement |
+| `internal/app/tabbar.go` | Tab bar: names cut to fit, scrolling that keeps the active tab in view, marks for hidden tabs, which tab a click or the wheel selects |
 | `internal/app/images.go` | Image support detection, outer image ids, cell size, forwarding to the terminal |
 | `internal/app/environment.go` | Shell and environment given to pane programs |
 | `internal/app/theme.go` | Predefined themes and the palette of styles derived from them |

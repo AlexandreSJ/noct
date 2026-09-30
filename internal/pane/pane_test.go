@@ -1,6 +1,8 @@
 package pane
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -213,4 +215,28 @@ func TestFullHistoryKeepsTheNewestLines(t *testing.T) {
 	if live := screenText(p); !strings.Contains(live, "10050") {
 		t.Errorf("live screen:\n%s", live)
 	}
+}
+
+func TestPaneDirFollowsTheProgram(t *testing.T) {
+	if _, err := os.Stat("/proc/self/cwd"); err != nil {
+		t.Skip("the system does not tell a process's directory")
+	}
+	dir := t.TempDir()
+	p, _ := startTestPane(t, "cd "+dir+" && printf ready && sleep 5")
+	deadline := time.Now().Add(testTimeout)
+	for !strings.Contains(screenText(p), "ready") && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got, _ := filepath.EvalSymlinks(p.Dir()); got != mustEvalSymlinks(t, dir) {
+		t.Errorf("Dir() = %q, want %q", p.Dir(), dir)
+	}
+}
+
+func mustEvalSymlinks(t *testing.T, path string) string {
+	t.Helper()
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resolved
 }

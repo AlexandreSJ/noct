@@ -46,7 +46,8 @@ func letter(r rune) uv.KeyPressEvent {
 
 func testApp(t *testing.T, tabs ...*tab) *App {
 	t.Helper()
-	a := &App{tabs: tabs, size: image.Pt(100, 30), configPath: filepath.Join(t.TempDir(), "config.toml")}
+	current := &session{name: "1", tabs: tabs}
+	a := &App{session: current, sessions: []*session{current}, shells: make(map[layout.PaneID]bool), size: image.Pt(100, 30), configPath: filepath.Join(t.TempDir(), "config.toml")}
 	a.config = config.Default()
 	a.prefix, _ = prefixFromConfig(a.config.Prefix) // the default prefix is always valid
 	a.shortcut = shortcutFromConfig(a.config.Shortcut)
@@ -117,9 +118,9 @@ func TestArrowsCrossFromPanesIntoTabs(t *testing.T) {
 	}
 	for i, step := range steps {
 		press(a, step.key)
-		if a.activeTab != step.wantTab || focusedPaneID(a) != step.wantFocus {
+		if a.session.activeTab != step.wantTab || focusedPaneID(a) != step.wantFocus {
 			t.Fatalf("step %d: tab %d focus %d, want tab %d focus %d",
-				i, a.activeTab, focusedPaneID(a), step.wantTab, step.wantFocus)
+				i, a.session.activeTab, focusedPaneID(a), step.wantTab, step.wantFocus)
 		}
 	}
 }
@@ -127,12 +128,12 @@ func TestArrowsCrossFromPanesIntoTabs(t *testing.T) {
 func TestTabAndShiftTabChangeTabs(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2), sideBySideTab(3, 4), sideBySideTab(5, 6))
 	press(a, prefixPress, backTab)
-	if a.activeTab != 2 {
-		t.Fatalf("shift+tab from the first tab went to %d, want the last", a.activeTab)
+	if a.session.activeTab != 2 {
+		t.Fatalf("shift+tab from the first tab went to %d, want the last", a.session.activeTab)
 	}
 	press(a, tabPress)
-	if a.activeTab != 0 {
-		t.Errorf("tab from the last tab went to %d, want the first", a.activeTab)
+	if a.session.activeTab != 0 {
+		t.Errorf("tab from the last tab went to %d, want the first", a.session.activeTab)
 	}
 }
 
@@ -178,13 +179,13 @@ func TestMovePastTheEdgeCarriesThePaneToTheNextTab(t *testing.T) {
 	a.currentTab().focused = 2
 	press(a, prefixPress, letter('a'), rightPress)
 
-	if a.activeTab != 1 || focusedPaneID(a) != 2 {
-		t.Fatalf("tab %d focus %d, want pane 2 in the second tab", a.activeTab, focusedPaneID(a))
+	if a.session.activeTab != 1 || focusedPaneID(a) != 2 {
+		t.Fatalf("tab %d focus %d, want pane 2 in the second tab", a.session.activeTab, focusedPaneID(a))
 	}
 	if got := a.currentTab().tree.Panes(); got[0] != 2 || got[1] != 3 {
 		t.Errorf("panes %v, want the moved pane entering from the left", got)
 	}
-	if got := a.tabs[0].tree.Panes(); len(got) != 1 || got[0] != 1 {
+	if got := a.session.tabs[0].tree.Panes(); len(got) != 1 || got[0] != 1 {
 		t.Errorf("source tab kept %v", got)
 	}
 }
@@ -193,8 +194,8 @@ func TestMovePastTheLastTabOpensANewOne(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2))
 	a.currentTab().focused = 2
 	press(a, prefixPress, letter('a'), rightPress)
-	if len(a.tabs) != 2 || a.activeTab != 1 || focusedPaneID(a) != 2 {
-		t.Errorf("tabs=%d active=%d focus=%d", len(a.tabs), a.activeTab, focusedPaneID(a))
+	if len(a.session.tabs) != 2 || a.session.activeTab != 1 || focusedPaneID(a) != 2 {
+		t.Errorf("tabs=%d active=%d focus=%d", len(a.session.tabs), a.session.activeTab, focusedPaneID(a))
 	}
 }
 
@@ -227,8 +228,8 @@ func TestScriptsAndTerminalPanelsSplitTheTab(t *testing.T) {
 func TestNewTabOpensWithATerminal(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2))
 	press(a, prefixPress, letter('t'))
-	if len(a.tabs) != 2 || a.activeTab != 1 || len(a.currentTab().views) != 1 {
-		t.Fatalf("tabs=%d active=%d views=%d after prefix+t", len(a.tabs), a.activeTab, len(a.currentTab().views))
+	if len(a.session.tabs) != 2 || a.session.activeTab != 1 || len(a.currentTab().views) != 1 {
+		t.Fatalf("tabs=%d active=%d views=%d after prefix+t", len(a.session.tabs), a.session.activeTab, len(a.currentTab().views))
 	}
 	if _, ok := a.currentTab().focusedView().(*fakeView); !ok {
 		t.Error("the new tab's panel is not a terminal")
@@ -238,8 +239,8 @@ func TestNewTabOpensWithATerminal(t *testing.T) {
 func TestClosingTheLastPaneOfTheLastTabShowsHome(t *testing.T) {
 	a := testApp(t, newTab(1, &fakeView{}))
 	a.detachView(1)
-	if len(a.tabs) != 0 || a.quitting {
-		t.Fatalf("tabs=%d quitting=%v, want the home screen", len(a.tabs), a.quitting)
+	if len(a.session.tabs) != 0 || a.quitting {
+		t.Fatalf("tabs=%d quitting=%v, want the home screen", len(a.session.tabs), a.quitting)
 	}
 	press(a, letter('a'))
 	if !a.homeHintShown {
@@ -250,25 +251,25 @@ func TestClosingTheLastPaneOfTheLastTabShowsHome(t *testing.T) {
 func TestPanelFromHomeOpensATab(t *testing.T) {
 	a := testApp(t)
 	press(a, prefixPress, letter('s'))
-	if len(a.tabs) != 1 || len(a.currentTab().views) != 1 {
-		t.Errorf("tabs=%d after prefix+s at home", len(a.tabs))
+	if len(a.session.tabs) != 1 || len(a.currentTab().views) != 1 {
+		t.Errorf("tabs=%d after prefix+s at home", len(a.session.tabs))
 	}
 }
 
 func TestClosingTheLastPaneClosesTheTab(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2), newTab(3, &fakeView{}))
-	a.activeTab = 1
+	a.session.activeTab = 1
 	press(a, prefixPress, letter('x'))
-	if len(a.tabs) != 1 || a.activeTab != 0 || len(a.currentTab().views) != 2 {
-		t.Errorf("tabs=%d active=%d", len(a.tabs), a.activeTab)
+	if len(a.session.tabs) != 1 || a.session.activeTab != 0 || len(a.currentTab().views) != 2 {
+		t.Errorf("tabs=%d active=%d", len(a.session.tabs), a.session.activeTab)
 	}
 }
 
 func TestMovingTheLastPaneOutClosesItsTab(t *testing.T) {
 	a := testApp(t, newTab(1, &fakeView{}), sideBySideTab(2, 3))
 	press(a, prefixPress, letter('a'), rightPress)
-	if len(a.tabs) != 1 || focusedPaneID(a) != 1 || len(a.currentTab().views) != 3 {
-		t.Errorf("tabs=%d focus=%d views=%d", len(a.tabs), focusedPaneID(a), len(a.currentTab().views))
+	if len(a.session.tabs) != 1 || focusedPaneID(a) != 1 || len(a.currentTab().views) != 3 {
+		t.Errorf("tabs=%d focus=%d views=%d", len(a.session.tabs), focusedPaneID(a), len(a.currentTab().views))
 	}
 }
 
@@ -280,8 +281,8 @@ func TestTabCommandsNeedATab(t *testing.T) {
 		}
 	}
 	press(a, prefixPress, letter('x'))
-	if a.mode != commandMode || len(a.tabs) != 0 {
-		t.Errorf("mode %v tabs %d after a tab command at home", a.mode, len(a.tabs))
+	if a.mode != commandMode || len(a.session.tabs) != 0 {
+		t.Errorf("mode %v tabs %d after a tab command at home", a.mode, len(a.session.tabs))
 	}
 }
 
@@ -330,8 +331,8 @@ func TestCtrlDClosesTheScriptsPanel(t *testing.T) {
 	a := testApp(t)
 	press(a, prefixPress, letter('s'))
 	press(a, uv.KeyPressEvent{Code: 'd', Mod: uv.ModCtrl})
-	if len(a.tabs) != 0 {
-		t.Errorf("scripts panel still open: %d tabs", len(a.tabs))
+	if len(a.session.tabs) != 0 {
+		t.Errorf("scripts panel still open: %d tabs", len(a.session.tabs))
 	}
 }
 

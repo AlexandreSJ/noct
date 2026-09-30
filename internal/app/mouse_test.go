@@ -28,10 +28,10 @@ func click(a *App, x, y int) {
 
 func TestClickingATabSelectsIt(t *testing.T) {
 	a := testApp(t, newTab(1, &fakeView{}), newTab(2, &fakeView{}))
-	a.tabs[0].name, a.tabs[1].name = "one", "two"
+	a.session.tabs[0].name, a.session.tabs[1].name = "one", "two"
 	click(a, len(" 1 one  2 "), 0)
-	if a.activeTab != 1 {
-		t.Errorf("active tab %d after clicking the second label", a.activeTab)
+	if a.session.activeTab != 1 {
+		t.Errorf("active tab %d after clicking the second label", a.session.activeTab)
 	}
 }
 
@@ -86,7 +86,7 @@ func TestMouseOffIgnoresClicks(t *testing.T) {
 	a := testApp(t, newTab(1, &fakeView{}), newTab(2, &fakeView{}))
 	a.config.Mouse = false
 	click(a, 1, 0)
-	if a.activeTab != 0 {
+	if a.session.activeTab != 0 {
 		t.Error("a click selected a tab with the mouse off")
 	}
 }
@@ -119,8 +119,8 @@ func TestDirectShortcutsRunCommandsWithoutThePrefix(t *testing.T) {
 		t.Errorf("ctrl+alt+shift+left did not move the pane: %v", panes)
 	}
 	press(a, uv.KeyPressEvent{Code: 't', Mod: ctrlAlt})
-	if len(a.tabs) != 2 {
-		t.Errorf("ctrl+alt+t: %d tabs", len(a.tabs))
+	if len(a.session.tabs) != 2 {
+		t.Errorf("ctrl+alt+t: %d tabs", len(a.session.tabs))
 	}
 
 	focused := a.currentTab().focusedView().(*fakeView)
@@ -133,7 +133,7 @@ func TestDirectShortcutsRunCommandsWithoutThePrefix(t *testing.T) {
 	a.config.Shortcut.Ctrl, a.config.Shortcut.Alt = false, false
 	a.shortcut = shortcutFromConfig(a.config.Shortcut)
 	press(a, uv.KeyPressEvent{Code: 't', Mod: ctrlAlt})
-	if len(a.tabs) != 2 {
+	if len(a.session.tabs) != 2 {
 		t.Error("a shortcut ran while they are off")
 	}
 }

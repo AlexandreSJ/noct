@@ -4,7 +4,6 @@ import (
 	"image"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/AlexandreSJ/noct/internal/layout"
 )
@@ -117,7 +116,7 @@ func (a *App) handleClick(event uv.MouseEvent) {
 	}
 	if m.Y == 0 {
 		if index, ok := a.tabAt(m.X); ok {
-			a.activeTab = index
+			a.session.activeTab = index
 		}
 		return
 	}
@@ -182,14 +181,22 @@ func (a *App) dragDivider(m uv.Mouse) {
 	a.drag.tab.resizeViews(a.workspaceArea())
 }
 
-// handleWheel gives the wheel to a program or panel that takes the mouse; otherwise it scrolls
-// the terminal's history, entering scroll mode and leaving it back at the live screen.
+// handleWheel over the tab bar changes tab. Elsewhere it gives the wheel to a program or panel
+// that takes the mouse; otherwise it scrolls the terminal's history, entering scroll mode and
+// leaving it back at the live screen.
 func (a *App) handleWheel(event uv.MouseEvent) {
 	t := a.currentTab()
-	if t == nil || t.isEmpty() || (a.mode != normalMode && a.mode != scrollMode) {
+	if t == nil || (a.mode != normalMode && a.mode != scrollMode) {
 		return
 	}
 	m := event.Mouse()
+	if m.Y == 0 && (a.selection == nil || !a.selection.dragging) {
+		a.wheelTabs(m.Button)
+		return
+	}
+	if t.isEmpty() {
+		return
+	}
 	id, ok := t.paneAt(image.Pt(m.X, m.Y), a.workspaceArea())
 	if a.selection != nil && a.selection.dragging {
 		id, ok = a.selection.pane, true // while selecting, the wheel scrolls the selected pane
@@ -261,17 +268,4 @@ func relativeTo(event uv.MouseEvent, origin image.Point) uv.MouseEvent {
 		return uv.MouseMotionEvent(m)
 	}
 	return uv.MouseWheelEvent(m)
-}
-
-// tabAt is the tab whose label covers column x of the tab bar.
-func (a *App) tabAt(x int) (int, bool) {
-	start := 0
-	for index, t := range a.tabs {
-		end := start + ansi.StringWidth(a.tabBarLabel(index, t))
-		if x >= start && x < end {
-			return index, true
-		}
-		start = end
-	}
-	return 0, false
 }

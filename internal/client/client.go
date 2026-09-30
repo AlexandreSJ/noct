@@ -24,8 +24,15 @@ import (
 // variable cleared.
 const emergencyReset = "\x1b[?1049l\x1b[?2004l\x1b[?1002l\x1b[?1006l\x1b[?25h\x1b[0m\x1b]1337;SetUserVar=in_noct\x07"
 
-// Attach connects this terminal to the daemon until it detaches or quits, and returns why.
-func Attach(socketPath string) (reason string, err error) {
+// Target is the session to attach to: the one used last when Session is empty, or a new one.
+type Target struct {
+	Session string
+	New     bool
+}
+
+// Attach connects this terminal to a session of the daemon until it detaches or quits, and
+// returns why.
+func Attach(socketPath string, target Target) (reason string, err error) {
 	conn, err := ipc.Dial(socketPath)
 	if err != nil {
 		return "", fmt.Errorf("connecting to the noct daemon: %w", err)
@@ -41,6 +48,8 @@ func Attach(socketPath string) (reason string, err error) {
 		Dir:          dir,
 		Size:         terminalSize(stdout),
 		ColorProfile: byte(colorprofile.Detect(stdout, os.Environ())),
+		Session:      target.Session,
+		NewSession:   target.New,
 	}
 	state, err := term.MakeRaw(stdin.Fd())
 	if err != nil {
@@ -149,6 +158,9 @@ func writeOutput(conn *ipc.Conn, terminal io.Writer) (string, error) {
 		case ipc.KindExit:
 			var exit ipc.Exit
 			_ = json.Unmarshal(message.Payload, &exit) // an unreadable reason still ends the session
+			if exit.Refused {
+				return "", errors.New(exit.Reason)
+			}
 			return exit.Reason, nil
 		}
 	}

@@ -135,7 +135,11 @@ claude mcp add noct -- noct mcp
 
 | Comando | O que faz |
 |---|---|
-| `noct` | Conecta ao workspace, iniciando-o se preciso |
+| `noct` | Conecta à última sessão usada, iniciando o noct se preciso |
+| `noct attach <sessão>` (ou `a`, `att`, `-a`) | Conecta a uma sessão pelo nome |
+| `noct new [sessão]` | Cria uma sessão, com nome ou número, e conecta a ela |
+| `noct sessions` | Lista as sessões: aberta ou fechada, tabs, último uso |
+| `noct kill <sessão>` | Apaga uma sessão: os programas param e o layout é esquecido |
 | `noct -s <script> [nome=valor ...]` | Roda um script neste terminal |
 | `noct ls` | Lista os scripts, a versão do programa e a pasta |
 | `noct flow run <fluxo> [nome=valor ...]` | Roda um fluxo neste terminal, passo a passo |
@@ -144,13 +148,17 @@ claude mcp add noct -- noct mcp
 | `noct promote <fluxo ou script>` | Deixa rodar um rascunho que uma IA escreveu, depois de revisado |
 | `noct mcp` | Serve o noct a um cliente de IA por stdin e stdout |
 | `noct check` | Aponta os scripts e fluxos que não carregam |
-| `noct quit` | Fecha todos os painéis e encerra o workspace |
+| `noct quit` | Fecha todos os painéis e encerra o workspace; as sessões reabrem como estavam |
 
 `noct -h` mostra todas as opções.
 
 ## Sessões
 
-Seus programas continuam rodando quando você fecha o terminal ou desconecta com `Ctrl+Space` `d`: rode `noct` de novo para voltar a eles. `noct quit` fecha tudo.
+Seus programas continuam rodando quando você fecha o terminal ou desconecta com `Ctrl+Space` `d`: rode `noct` de novo para voltar a eles.
+
+Mantenha workspaces separados em sessões com nome: `noct new dev` cria uma, `noct attach dev` volta a ela, e `Ctrl+Space` `o` lista todas com o último uso de cada, para trocar, criar, renomear, fechar ou apagar. `noct` sozinho volta à última sessão usada.
+
+Uma sessão fechada, ou todas depois de `noct quit`, guarda suas tabs e painéis: reabri-la inicia os shells nos diretórios em que estavam e os painéis do noct onde estavam. Programas rodando dentro dos shells e execuções de scripts não voltam.
 
 O daemon continua rodando a versão com que começou. Depois de atualizar ou recompilar o noct, saia (`Ctrl+Space` `q`) e rode `noct` de novo; o noct lembra disso na barra de tabs quando percebe um binário mais novo.
 

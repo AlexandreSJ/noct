@@ -20,6 +20,7 @@ import (
 // PaneInfo describes a pane to the MCP server.
 type PaneInfo struct {
 	ID       int    `json:"id"`
+	Session  string `json:"session"`
 	Tab      int    `json:"tab"`
 	Title    string `json:"title"`
 	Focused  bool   `json:"focused"`
@@ -52,6 +53,7 @@ func (a *App) answerRequest(c connection) {
 	var input inputArgs
 	var command commandArgs
 	var run runArgs
+	var name sessionArgs
 	switch req.Action {
 	case "list_panes":
 		reply(a.paneInfos(), nil)
@@ -60,9 +62,15 @@ func (a *App) answerRequest(c connection) {
 	case "send_input":
 		reply(decoded(req, &input, func() (any, error) { return a.sendInput(input) }))
 	case "open_command":
+		a.openSession(a.session) // what an AI opens shows in the session on screen
 		reply(decoded(req, &command, func() (any, error) { return a.openCommand(command) }))
 	case "run":
+		a.openSession(a.session)
 		reply(decoded(req, &run, func() (any, error) { return a.runAsked(run) }))
+	case "sessions":
+		reply(a.sessionInfos(), nil)
+	case "delete_session":
+		reply(decoded(req, &name, func() (any, error) { return nil, a.deleteSessionNamed(name.Name) }))
 	case "attention":
 		reply(decoded(req, &pane, func() (any, error) { return nil, a.showPane(pane) }))
 	case "approve":
@@ -104,16 +112,18 @@ func decodeArgs(req *ipc.Request, into any) error {
 
 func (a *App) paneInfos() []PaneInfo {
 	infos := []PaneInfo{}
-	for i, t := range a.tabs {
-		if t.isEmpty() {
-			continue
-		}
-		for _, id := range slices.Sorted(maps.Keys(t.views)) {
-			size := contentSize(t.layoutFrame(id, a.workspaceArea()))
-			infos = append(infos, PaneInfo{
-				ID: int(id), Tab: i + 1, Title: a.viewTitle(t, id), Focused: id == t.focused,
-				Floating: t.floatingPane(id) != nil, Cols: size.Cols, Rows: size.Rows,
-			})
+	for _, s := range a.sessions {
+		for i, t := range s.tabs {
+			if t.isEmpty() {
+				continue
+			}
+			for _, id := range slices.Sorted(maps.Keys(t.views)) {
+				size := contentSize(t.layoutFrame(id, a.workspaceArea()))
+				infos = append(infos, PaneInfo{
+					ID: int(id), Session: s.name, Tab: i + 1, Title: a.viewTitle(t, id), Focused: id == t.focused,
+					Floating: t.floatingPane(id) != nil, Cols: size.Cols, Rows: size.Rows,
+				})
+			}
 		}
 	}
 	return infos

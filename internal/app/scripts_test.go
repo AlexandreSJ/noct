@@ -302,8 +302,8 @@ func TestFinderOpensScriptsAndActions(t *testing.T) {
 	press(a, prefixPress, letter(' '))
 	typeText(a, "new tab")
 	press(a, enterPress)
-	if len(a.tabs) != 2 {
-		t.Errorf("%d tabs after choosing new tab", len(a.tabs))
+	if len(a.session.tabs) != 2 {
+		t.Errorf("%d tabs after choosing new tab", len(a.session.tabs))
 	}
 }
 

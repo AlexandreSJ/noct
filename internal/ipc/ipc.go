@@ -17,7 +17,7 @@ import (
 
 // Version changes whenever messages change; a client and daemon of different versions refuse
 // to talk rather than misread each other.
-const Version = 2
+const Version = 3
 
 // maxPayload bounds one message, so a corrupted length cannot make a reader allocate gigabytes.
 const maxPayload = 16 << 20
@@ -99,6 +99,10 @@ type Hello struct {
 	Pane *PaneRequest `json:"pane,omitempty"`
 	// Request is what is asked, with Purpose Ask.
 	Request *Request `json:"request,omitempty"`
+	// Session is the session to attach to, with Purpose Attach: the one used last when empty.
+	Session string `json:"session,omitempty"`
+	// NewSession creates the session to attach to, named Session or numbered when that is empty.
+	NewSession bool `json:"new_session,omitempty"`
 }
 
 type Exit struct {
@@ -107,6 +111,9 @@ type Exit struct {
 	Code int `json:"code,omitempty"`
 	// Data is the answer to a request, with Reason RequestDone.
 	Data json.RawMessage `json:"data,omitempty"`
+	// Refused says the connection was turned down, and Reason why, as for a session that does
+	// not exist.
+	Refused bool `json:"refused,omitempty"`
 }
 
 type Message struct {

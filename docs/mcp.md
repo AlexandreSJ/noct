@@ -34,7 +34,7 @@ O protocolo é implementado à mão, sem SDK: `initialize` (versões `2025-06-18
 | `get_run` | Resultado **estruturado** de uma execução (abaixo); `wait_seconds` espera ela terminar | allow |
 | `search_logs` | Regex nos logs, por execução, nome ou dias, com linhas de contexto | allow |
 | `read_log` | Um log paginado, sem cores | allow |
-| `list_panes` / `read_pane` | Painéis abertos e o texto que um painel mostra agora | allow |
+| `list_panes` / `read_pane` | Painéis abertos, em todas as sessões abertas, e o texto que um painel mostra agora | allow |
 | `run` | Roda um script ou fluxo (não rascunho) num painel do workspace e devolve o `run_id`; `steps` testa só uma faixa de passos | allow |
 | `run_command` | Roda uma linha de shell qualquer num painel novo | **ask** |
 | `send_input` | Digita texto (e `Enter`) num painel existente | **ask** |

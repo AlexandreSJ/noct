@@ -21,6 +21,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/logstore"
 	"github.com/AlexandreSJ/noct/internal/pty"
 	"github.com/AlexandreSJ/noct/internal/script"
+	saved "github.com/AlexandreSJ/noct/internal/session"
 )
 
 // frameInterval caps rendering at about 60 frames per second; output only marks the screen dirty.
@@ -35,9 +36,18 @@ type App struct {
 	screen *uv.TerminalScreen
 	size   image.Point
 
-	tabs      []*tab
-	activeTab int
-	nextPane  layout.PaneID
+	// session is the one on screen, among sessions, the most recently used first.
+	session  *session
+	sessions []*session
+	nextPane layout.PaneID
+	// shells are the panes running the user's shell, which a session opens again.
+	shells map[layout.PaneID]bool
+	// sessionsPath keeps the sessions; sessionsSaved is what it holds, to write only changes.
+	sessionsPath  string
+	sessionsSaved saved.File
+	// sessionRows are the sessions popup's rows, fixed while it is open; sessionSelected is its row.
+	sessionRows     []*session
+	sessionSelected int
 
 	config     config.Config
 	configPath string
@@ -123,6 +133,8 @@ func New() *App {
 		screenChanged:    make(chan struct{}, 1),
 		loopTasks:        make(chan func()),
 		stopped:          make(chan struct{}),
+		shells:           make(map[layout.PaneID]bool),
+		sessionsPath:     saved.Path(),
 	}
 	a.workDir, _ = os.Getwd() // until a terminal attaches and reports its own
 	a.launch = a.startProgram
@@ -131,6 +143,7 @@ func New() *App {
 	a.loadConfig()
 	a.loadMemory()
 	a.reloadScripts()
+	a.loadSessions()
 	return a
 }
 
@@ -184,6 +197,8 @@ func (a *App) loop() error {
 	defer prune.Stop()
 	libraryCheck := time.NewTicker(libraryCheckInterval)
 	defer libraryCheck.Stop()
+	saveSessions := time.NewTicker(sessionSaveInterval)
+	defer saveSessions.Stop()
 	for !a.quitting {
 		select {
 		case event := <-a.clientEvents():
@@ -205,6 +220,8 @@ func (a *App) loop() error {
 			if a.client == nil || !a.checkLibrary() {
 				continue // nothing new to draw
 			}
+		case <-saveSessions.C:
+			a.saveSessions()
 		case <-a.homeTick:
 			a.advanceHomeArt()
 		case <-a.homeHintExpired:
@@ -243,6 +260,7 @@ func (a *App) handleConnection(c connection) {
 		_ = c.conn.SendJSON(ipc.KindExit, ipc.Exit{Reason: "quit"}) // best effort: the daemon stops either way
 		_ = c.conn.Close()
 	case ipc.OpenPane:
+		a.openSession(a.session) // what a run asks for shows in the session on screen
 		a.openRequestedPane(c)
 	case ipc.Ask:
 		a.answerRequest(c)
@@ -251,12 +269,22 @@ func (a *App) handleConnection(c connection) {
 	}
 }
 
-// attach makes c the workspace's terminal. One terminal is attached at a time: a new one takes
-// over from the previous.
+// attach makes c the workspace's terminal, showing the session it asks for. One terminal is
+// attached at a time: a new one takes over from the previous.
 func (a *App) attach(c connection) {
+	target, err := a.sessionToAttach(c.hello)
+	if err != nil {
+		_ = c.conn.SendJSON(ipc.KindExit, ipc.Exit{Reason: err.Error(), Refused: true}) // best effort: it is refused either way
+		_ = c.conn.Close()
+		return
+	}
 	if a.client != nil {
 		a.detachClient("attached from another terminal")
 	}
+	if size := c.hello.Size; size.Cols > 0 && size.Rows > 0 {
+		a.size = image.Pt(size.Cols, size.Rows) // shells a closed session starts again get their size at birth
+	}
+	a.switchSession(target)
 	a.client = newClient(c)
 	a.screen = a.client.screen
 	a.imagesEnabled = outerShowsPlaceholders(c.hello.Env)
@@ -279,6 +307,7 @@ func (a *App) attach(c connection) {
 
 // detachClient hands the terminal back to its shell; the workspace keeps running.
 func (a *App) detachClient(reason string) {
+	a.leaveSession()
 	a.client.end(reason)
 	a.client, a.screen = nil, nil
 	a.mode = normalMode
@@ -286,6 +315,7 @@ func (a *App) detachClient(reason string) {
 
 // dropClient forgets a client that disconnected on its own.
 func (a *App) dropClient() {
+	a.leaveSession()
 	a.client.close()
 	a.client, a.screen = nil, nil
 }
@@ -320,7 +350,7 @@ func (a *App) resize(size image.Point) error {
 	if err := a.screen.Resize(size.X, size.Y); err != nil {
 		return fmt.Errorf("resizing screen: %w", err)
 	}
-	for _, t := range a.tabs {
+	for _, t := range a.session.tabs {
 		t.resizeViews(a.workspaceArea())
 	}
 	return nil
@@ -332,10 +362,10 @@ func (a *App) workspaceArea() image.Rectangle {
 }
 
 func (a *App) currentTab() *tab {
-	if len(a.tabs) == 0 {
+	if len(a.session.tabs) == 0 {
 		return nil
 	}
-	return a.tabs[a.activeTab]
+	return a.session.tabs[a.session.activeTab]
 }
 
 // notifyScreenChanged is called by panes for every chunk of output; a pending notice is enough.
@@ -356,8 +386,9 @@ func (a *App) onLoop(task func()) {
 }
 
 func (a *App) shutdown() error {
+	a.leaveSession() // before the programs stop, while shells still tell their directories
 	close(a.stopped)
-	for _, t := range a.tabs {
+	for _, t := range a.session.tabs {
 		for _, v := range t.views {
 			v.Close()
 		}

@@ -26,6 +26,7 @@ const (
 	finderMode                 // searching actions, scripts and tabs
 	infoMode                   // reading about something, such as a flow's step
 	mcpMode                    // AI approvals, connected clients and how to add noct to one
+	sessionsMode               // the sessions: open, create, rename, close, delete
 )
 
 // shortcut is one command as listed in the popups and on the home screen.
@@ -47,6 +48,7 @@ var commandShortcuts = []shortcut{
 	{"v", "logs and calendar", false},
 	{"space", "search", false},
 	{"y", "MCP", false},
+	{"o", "sessions", false},
 	{"?", "program help", true},
 	{"a", "move", true},
 	{"n", "resize", true},
@@ -81,7 +83,7 @@ var arrowHeadings = map[string]layout.Heading{
 }
 
 // actionKeys are the noct mode commands that act, as opposed to moving around.
-var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "?", "a", "n", "w", "f", "r", "e", "[", "x", "c", "d", "q"}
+var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "[", "x", "c", "d", "q"}
 
 var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
 
@@ -117,6 +119,8 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 		a.handleInfoKey(key)
 	case mcpMode:
 		a.handleMCPKey(key)
+	case sessionsMode:
+		a.handleSessionsKey(key)
 	default:
 		a.handleNormalKey(key)
 	}
@@ -163,9 +167,9 @@ func (a *App) navigate(name string) bool {
 	}
 	switch name {
 	case "tab":
-		a.selectTab(a.activeTab + 1)
+		a.selectTab(a.session.activeTab + 1)
 	case "shift+tab":
-		a.selectTab(a.activeTab - 1)
+		a.selectTab(a.session.activeTab - 1)
 	default:
 		index, ok := tabNumberKeys[name]
 		if ok {
@@ -206,6 +210,9 @@ func (a *App) runAction(name string) {
 		return
 	case "y":
 		a.openMCP()
+		return
+	case "o":
+		a.openSessions()
 		return
 	case "?":
 		a.showHelp()

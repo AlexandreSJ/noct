@@ -398,6 +398,11 @@ func (p *Pane) ForegroundProgram() (string, bool) {
 	return p.process.ForegroundProgram()
 }
 
+// Dir is the directory the pane's program is in now, or "" when it cannot be told.
+func (p *Pane) Dir() string {
+	return p.process.Dir()
+}
+
 // Title is the title the program set with an escape sequence, or "" if none.
 func (p *Pane) Title() string {
 	return p.title.Load().(string)

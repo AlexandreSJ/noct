@@ -27,6 +27,7 @@
 - Mudar o foco pelas setas vai para o painel mais próximo naquela direção; entre painéis igualmente próximos (ex.: 2 sobre 3 à direita do 1), vai para o que teve o foco por último, como no i3, e só sem histórico para o mais alinhado. Assim, ir e voltar retorna ao painel de onde se saiu.
 - `prefixo` + `a` (ou `Alt+Shift` + setas ou `hjkl`) move o painel com foco como o `move` do i3: dentro de um grupo na direção da seta, troca de lugar com o vizinho ou entra nele, se o vizinho for um grupo; na borda do grupo, sai e fica ao lado dele. Ex.: com o painel 1 à esquerda e 2 sobre 3 à direita, mover o 2 para a esquerda deixa 1 | 2 | 3; mover de novo troca 2 e 1. Na borda da tab, `←`/`→` levam o painel para a tab anterior ou seguinte, ou para uma tab nova.
 - `prefixo` + `r` renomeia a tab; um nome vazio volta a seguir o título do painel com foco.
+- Quando as tabs não cabem na barra, os nomes longos são cortados com `…` numa mesma largura, a maior que deixa todas visíveis; nomes curtos ficam inteiros. Se nem com nomes de 6 colunas cabem, a barra rola e mostra só um trecho de tabs, sempre com a tab selecionada visível; `‹` e `›` nas pontas indicam tabs escondidas, e clicar neles seleciona a tab escondida mais próxima. A barra só rola quando a tab selecionada sairia dela, e deixa espaço à direita para o selo do modo e as mensagens.
 - `prefixo` + `e` renomeia o painel com foco; um nome vazio volta ao título do programa.
 - `prefixo` + `w` alterna o grupo do painel com foco entre dividido e **empilhado** (stacked), como no zellij e no i3: o painel com foco ocupa quase toda a altura e cada um dos outros vira uma linha com o título (`▸ nome`). Mudar o foco pela pilha (`↑↓`/`jk`, ou clicar num título) abre o painel que recebe o foco; um painel novo aberto no grupo entra na pilha. Os painéis dobrados mantêm o tamanho, sem redimensionar o programa (ADR-030).
 - Em todo lugar onde o noct move algo sem que se esteja digitando texto, `hjkl` valem como as setas: foco, mover, resize, rolagem, painéis e o inspect.
@@ -39,6 +40,17 @@
 - `prefixo` + `n` liga o modo resize: `→`/`↓` aumentam o painel com foco e `←`/`↑` diminuem, movendo a borda com o vizinho (ou, se ele é o último do grupo, com o anterior); `Esc` ou `Enter` terminam.
 - `prefixo` + `f` alterna o fullscreen: só o painel com foco aparece, ocupando a tab, e o título mostra `⛶ fullscreen`. É só visual: o layout continua o mesmo, e as setas navegam por ele, mostrando em tela cheia o painel que recebe o foco.
 - `prefixo` + `g` abre um terminal num **painel flutuante**, centralizado sobre os outros. Setas chegam nele a partir do painel embaixo do meio dele, e saem dele para o painel mais próximo naquela direção. Mover (`a`) desloca o painel flutuante; resize (`n`) muda o tamanho. Com o mouse: botão esquerdo na borda arrasta, botão direito na borda redimensiona por aquele lado, e clique dentro dá foco e o traz para a frente. Se o último painel fixo fecha, um flutuante vira o painel da tab (ADR-023).
+
+## Sessões
+
+Uma sessão é um conjunto de tabs com nome (ADR-037). O daemon guarda várias; o terminal conectado mostra uma, e as outras continuam rodando por trás.
+
+- `noct` volta à última sessão usada; `noct attach dev` (ou `a`, `att`, `-a`) entra na sessão `dev`, e `noct new [nome]` cria uma. Uma sessão que não existe é recusada, com a dica de `noct new`. `noct sessions` lista e `noct kill <nome>` apaga, com ou sem o noct rodando.
+- Nomes não têm espaços, porque são digitados depois de `noct attach`; sem nome, a sessão ganha o primeiro número livre.
+- Com mais de uma sessão, a barra de tabs mostra à direita a sessão na tela (`◆ dev`). A busca (`prefixo` + `Space`) também troca de sessão.
+- **Fechar** uma sessão para os programas dela e guarda o layout; **reabrir** inicia de novo os shells, cada um no diretório em que estava, e os painéis do noct (scripts, inspect, logs), nos mesmos lugares, com os nomes de tabs e painéis. Execuções, editores e programas que rodavam dentro dos shells não voltam; o layout se fecha sobre eles. A sessão na tela, ao fechar, dá lugar à usada antes dela; a única sessão não fecha.
+- `noct quit` (ou `prefixo` + `q`) grava todas as sessões antes de parar: o próximo `noct` reabre a última como estava. As sessões também são gravadas ao trocar, desconectar e a cada 30 s.
+- **Apagar** para os programas e esquece a sessão; apagar a da tela leva à usada antes dela, ou a uma nova.
 
 ## Atalhos: modo noct
 
@@ -73,7 +85,8 @@ No modo noct:
 | `q` | quit | Pergunta `quit noct?`: `Enter` ou `q` de novo saem, `Esc` cancela | pergunta | 0a |
 | `Esc` | cancel | Cancelar o modo noct | termina | 0 |
 | `[` | scroll history | Rolar o histórico do terminal com foco: `↑↓`/`jk` linha, `PgUp`/`PgDn` página, `g`/`Home` topo, `Shift+G`/`End` fim, `Esc` volta ao vivo | rolagem | 0b |
-| `d` | detach | Desconectar: o terminal volta ao shell e os programas continuam; `noct` reconecta | — | 0b |
+| `d` | detach | Desconectar: o terminal volta ao shell e os programas continuam; `noct` reconecta à mesma sessão | — | 0b |
+| `o` | sessions | Popup das sessões, da mais recente à mais antiga: aberta (`●`) ou fechada (`○`), tabs e último uso. `Enter` troca de sessão, `n` cria (vazio dá um número), `r` renomeia, `x` fecha (para os programas e guarda o layout), `d` apaga; ver [Sessões](#sessões) | sessões | 5 |
 | `?` | program help | Ajuda do programa em primeiro plano no terminal com foco; só com o shell, avisa e mantém o popup | termina | 1 |
 | `Space` | search | Busca fuzzy sobre scripts, ações e tabs | busca | 1 |
 | `o` | | Execuções | | 2 |
@@ -99,7 +112,7 @@ Um segundo modificador, por padrão `Alt` (ADR-024), roda os comandos do modo no
 
 Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios de mouse:
 
-- Clique na barra de tabs seleciona a tab; clique num painel dá foco a ele.
+- Clique na barra de tabs seleciona a tab; clique num painel dá foco a ele. A roda sobre a barra passa para a tab anterior (para cima ou para a esquerda) ou a seguinte (para baixo ou para a direita), parando na primeira e na última.
 - Arrastar a linha entre dois painéis (as duas bordas que se encontram) redimensiona os dois; o tamanho mínimo de um painel é respeitado.
 - Mensagens na barra de tabs seguem o tema: problemas na cor de atenção, avisos (`copied to the clipboard`, `opened …`) na cor de destaque.
 - A roda rola o histórico do terminal sob o mouse, entrando e saindo da rolagem sozinha. Dá para selecionar e copiar texto também durante a rolagem.
@@ -168,5 +181,3 @@ Como a imagem vira texto na grade, ela rola, é recortada pelas bordas do painel
 - Clicar/abrir URLs e caminhos de arquivo na saída.
 - Timestamps opcionais por linha nos logs.
 - Filtrar a saída de um painel por regex sem parar o processo.
-- Retomar a sessão exatamente como estava ao reconectar.
-- Barra de tabs com rolagem quando as tabs não cabem na largura.

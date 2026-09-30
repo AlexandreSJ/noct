@@ -43,6 +43,7 @@ Cada componente é um pacote Go em `internal/`, com interface pequena e testáve
 | `history` | (Não criado: o histórico ficou em `runs.json`, no pacote `script`, e no último resultado de cada fluxo; ADR-029) | — | 2 |
 | `policy` | Decidir se uma ação (da IA ou de trigger) roda, pede confirmação ou é negada | — | 3 |
 | `mcp` | Servidor MCP por stdio (protocolo próprio, sem SDK): ferramentas sobre scripts, fluxos, execuções e logs, e pedidos ao daemon para painéis, execuções e aprovações; política e auditoria (ADR-033) | `script`, `flow`, `logstore`, `config` | 3 |
+| `session` | Gravar e ler `sessions.json`: as tabs de cada sessão como formas de layout e os painéis que podem reabrir (ADR-037) | `layout`, `logstore` | 5 |
 | `catalog` | Manifestos de programas, detecção e adaptadores de gerenciadores de pacote | — | 4 |
 
 Desde a fase 0b, o `app` roda **dentro do daemon** (ADR-017), e o processo `noct` que o usuário abre é o `client`, um cliente fino.
@@ -80,7 +81,8 @@ Como no tmux, **o daemon desenha para o terminal do cliente** (ADR-017):
 - O cliente abre com um `Hello`: versão do protocolo, ambiente, tamanho em células e pixels, e o perfil de cores, que só ele consegue detectar.
 - Um cliente conectado por vez; conectar de outro terminal desconecta o anterior.
 - `prefixo` + `d` desconecta; sem cliente, os programas continuam rodando e nada é desenhado. `noct` reconecta.
-- `noct quit` fecha tudo e para o daemon. `noct` inicia o daemon sozinho quando ele não está rodando (`noct daemon`, numa sessão própria, com a saída em `daemon.log`).
+- O daemon guarda várias **sessões** (ADR-037), cada uma com suas tabs; o cliente conectado vê uma delas. O `Hello` diz qual (`Session`, ou `NewSession` para criar); sem nome, é a última usada. Uma sessão que não existe é recusada (`Exit.Refused`).
+- `noct quit` fecha tudo e para o daemon, depois de gravar as sessões em `sessions.json`; o próximo `noct` reabre a última. `noct` inicia o daemon sozinho quando ele não está rodando (`noct daemon`, numa sessão própria, com a saída em `daemon.log`).
 - Protocolo: 1 byte de tipo + 4 bytes de tamanho + conteúdo; `Hello`, `Resize` e `Exit` em JSON, `Input` e `Output` em bytes crus.
 
 ## Armazenamento (XDG)
@@ -93,6 +95,7 @@ Como no tmux, **o daemon desenha para o terminal do cliente** (ADR-017):
 | `~/.local/share/noct/catalog/` | Manifestos de ferramentas adicionados pelo usuário |
 | `~/.local/state/noct/logs/<data>/<hora>-pane<N>.log` | Saída crua de cada terminal, até 10 MiB + um arquivo `.1` com o anterior |
 | `~/.local/state/noct/daemon.log` | Mensagens do daemon |
+| `~/.local/state/noct/sessions.json` | As sessões: nome, criação, último uso e, por tab, o layout e os painéis que reabrem (shells com o diretório, painéis do noct) (ADR-037) |
 | `~/.local/state/noct/params.json`, `runs.json` | Últimos valores dos parâmetros; as últimas 1000 execuções de scripts (fase 1) |
 | `~/.local/state/noct/runs.json` | As últimas 1000 execuções de scripts e fluxos: quando, código de saída e log (ADR-029) |
 | `~/.local/state/noct/flows/<fluxo>.json` | Resultado da última execução de cada fluxo, passo a passo (ADR-028) |
@@ -104,7 +107,7 @@ Segredos nunca são gravados em scripts, fluxos, `params.json` nem em `runs.json
 
 ## Tratamento de erros
 
-- **Daemon cai:** processos filhos morrem com ele (como no tmux). Logs em disco sobrevivem; o cliente restaura o terminal sozinho e avisa; `noct` inicia um daemon novo.
+- **Daemon cai:** processos filhos morrem com ele (como no tmux). Logs em disco e as sessões gravadas até 30 s antes sobrevivem; o cliente restaura o terminal sozinho e avisa; `noct` inicia um daemon novo.
 - **Cliente cai** (janela fechada): nada acontece com os processos; `noct` reconecta.
 - **Passo de fluxo falha:** o fluxo para (padrão) ou segue, conforme `on_fail` do passo; o estado fica no histórico com o log.
 - **Programa ausente:** antes de rodar, o runner confere se os programas usados existem e avisa; a partir da fase 4, oferece instalar.

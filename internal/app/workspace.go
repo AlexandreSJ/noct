@@ -75,7 +75,16 @@ func (a *App) startProgram(p program, size pty.Size) (view, error) {
 
 // startTerminal opens the user's shell; the pane leaves its tab when the shell exits.
 func (a *App) startTerminal(id layout.PaneID, frame image.Rectangle) (view, error) {
-	return a.startInPane(id, frame, a.shellArgv, a.workDir, fmt.Sprintf("pane%d", id))
+	return a.startShell(id, frame, a.workDir)
+}
+
+// startShell opens the user's shell in dir, remembered as a shell so its session can open it again.
+func (a *App) startShell(id layout.PaneID, frame image.Rectangle, dir string) (view, error) {
+	v, err := a.startInPane(id, frame, a.shellArgv, dir, fmt.Sprintf("pane%d", id))
+	if err == nil {
+		a.shells[id] = true
+	}
+	return v, err
 }
 
 // startInPane runs argv in dir in the pane id, which leaves its tab when the program exits.
@@ -95,15 +104,15 @@ func (a *App) startScripts(id layout.PaneID, _ image.Rectangle) (view, error) {
 }
 
 func (a *App) openEmptyTab() {
-	a.tabs = append(a.tabs, newEmptyTab())
-	a.activeTab = len(a.tabs) - 1
+	a.session.tabs = append(a.session.tabs, newEmptyTab())
+	a.session.activeTab = len(a.session.tabs) - 1
 }
 
 func (a *App) selectTab(index int) {
-	if len(a.tabs) == 0 {
+	if len(a.session.tabs) == 0 {
 		return
 	}
-	a.activeTab = (index%len(a.tabs) + len(a.tabs)) % len(a.tabs)
+	a.session.activeTab = (index%len(a.session.tabs) + len(a.session.tabs)) % len(a.session.tabs)
 }
 
 // openPanel adds a pane to the current tab, splitting the focused pane. On the home screen it
@@ -118,7 +127,7 @@ func (a *App) openPanel(start viewStarter) {
 		v, err := start(id, a.workspaceArea())
 		if err != nil {
 			a.statusMessage = err.Error()
-			a.removeTabIfEmpty(t)
+			a.session.removeTabIfEmpty(t)
 			return
 		}
 		t.placeFirst(id, v)
@@ -195,12 +204,12 @@ func (a *App) moveFocusAcrossTabs(heading layout.Heading) {
 			return
 		}
 	}
-	next := a.activeTab + tabStep(heading)
-	if next < 0 || next >= len(a.tabs) {
+	next := a.session.activeTab + tabStep(heading)
+	if next < 0 || next >= len(a.session.tabs) {
 		return
 	}
-	a.activeTab = next
-	if entered := a.tabs[next]; !entered.isEmpty() {
+	a.session.activeTab = next
+	if entered := a.session.tabs[next]; !entered.isEmpty() {
 		entered.focus(entered.edgePane(heading))
 	}
 }
@@ -230,8 +239,8 @@ func (a *App) movePaneToAdjacentTab(heading layout.Heading) {
 	source := a.currentTab()
 	id, moved, name := source.focused, source.focusedView(), source.paneNames[source.focused]
 	var target *tab
-	if next := a.activeTab + tabStep(heading); next >= 0 && next < len(a.tabs) {
-		target = a.tabs[next]
+	if next := a.session.activeTab + tabStep(heading); next >= 0 && next < len(a.session.tabs) {
+		target = a.session.tabs[next]
 		if !target.isEmpty() && !canSplit(target.rects(a.workspaceArea())[target.edgePane(heading)], layout.SideBySide) {
 			a.statusMessage = "no room in that tab"
 			return
@@ -242,20 +251,20 @@ func (a *App) movePaneToAdjacentTab(heading layout.Heading) {
 
 	source.removeView(id)
 	source.resizeViews(a.workspaceArea())
-	a.removeTabIfEmpty(source)
+	a.session.removeTabIfEmpty(source)
 	if target == nil {
 		target = newEmptyTab()
 		if heading == layout.Right {
-			a.tabs = append(a.tabs, target)
+			a.session.tabs = append(a.session.tabs, target)
 		} else {
-			a.tabs = slices.Insert(a.tabs, 0, target)
+			a.session.tabs = slices.Insert(a.session.tabs, 0, target)
 		}
 	}
 	a.placeArriving(target, id, moved, heading)
 	if name != "" {
 		target.paneNames[id] = name
 	}
-	a.activeTab = slices.Index(a.tabs, target)
+	a.session.activeTab = slices.Index(a.session.tabs, target)
 	target.resizeViews(a.workspaceArea())
 }
 
@@ -289,29 +298,29 @@ func (a *App) closeFocused() {
 	v.Close()
 }
 
-// detachView takes a view out of whichever tab holds it; a tab left without panes closes.
+// detachView takes a view out of whichever tab holds it, in any session; a tab left without panes closes.
 // Unknown ids are ignored: a closed terminal still reports its exit later.
 func (a *App) detachView(id layout.PaneID) {
-	for _, t := range a.tabs {
-		if _, ok := t.views[id]; ok {
-			t.removeView(id)
-			t.resizeViews(a.workspaceArea())
-			a.removeTabIfEmpty(t)
-			return
-		}
+	delete(a.shells, id)
+	s, t := a.paneOwner(id)
+	if t == nil {
+		return
 	}
+	t.removeView(id)
+	t.resizeViews(a.workspaceArea())
+	s.removeTabIfEmpty(t)
 }
 
 // removeTabIfEmpty closes a tab without panes. The selection stays on the same tab, or moves to
 // the one that takes the closed tab's place; with no tabs left, the home screen shows.
-func (a *App) removeTabIfEmpty(t *tab) {
-	index := slices.Index(a.tabs, t)
+func (s *session) removeTabIfEmpty(t *tab) {
+	index := slices.Index(s.tabs, t)
 	if !t.isEmpty() || index < 0 {
 		return
 	}
-	a.tabs = slices.Delete(a.tabs, index, index+1)
-	if index < a.activeTab {
-		a.activeTab--
+	s.tabs = slices.Delete(s.tabs, index, index+1)
+	if index < s.activeTab {
+		s.activeTab--
 	}
-	a.activeTab = max(min(a.activeTab, len(a.tabs)-1), 0)
+	s.activeTab = max(min(s.activeTab, len(s.tabs)-1), 0)
 }

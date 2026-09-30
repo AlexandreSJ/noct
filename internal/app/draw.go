@@ -61,6 +61,8 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 		a.drawInfo(screen)
 	case mcpMode:
 		a.drawMCP(screen)
+	case sessionsMode:
+		a.drawSessions(screen)
 	}
 }
 
@@ -146,31 +148,35 @@ func (a *App) hideCursor() {
 	}
 }
 
-func (a *App) drawTabBar(screen uv.Screen) {
-	x := 0
-	for index, t := range a.tabs {
-		style := a.palette.tab
-		if index == a.activeTab {
-			style = a.palette.activeTab
-		}
-		x = drawText(screen, x, 0, a.size.X, a.tabBarLabel(index, t), style)
-	}
-	a.drawTabBarStatus(screen, x+2)
-}
-
-// tabBarLabel is how the tab bar shows a tab: its number and its name.
-func (a *App) tabBarLabel(index int, t *tab) string {
-	return fmt.Sprintf(" %d %s ", index+1, a.tabLabel(t))
-}
-
 // modeBadges name the mode in the tab bar while its panel is open.
 var modeBadges = map[mode]string{commandMode: " noct ", moveMode: " move ", resizeMode: " resize ", confirmMode: " confirm ", scrollMode: " scroll "}
 
 // drawTabBarStatus shows, right-aligned, the current mode and the latest message: a problem in
 // the theme's attention color, a notice in its accent.
 func (a *App) drawTabBarStatus(screen uv.Screen, minX int) {
-	badge := modeBadges[a.mode]
-	text, style := "", a.palette.status
+	badge, text, style := a.statusParts()
+	label := a.sessionTabBarLabel()
+	width := ansi.StringWidth(badge) + ansi.StringWidth(text) + ansi.StringWidth(label)
+	if width == 0 {
+		return
+	}
+	x := max(a.size.X-width, minX)
+	x = drawText(screen, x, 0, a.size.X, badge, a.palette.badge)
+	x = drawText(screen, x, 0, a.size.X, text, style)
+	drawText(screen, x, 0, a.size.X, label, a.palette.tab)
+}
+
+// sessionTabBarLabel names the session on screen, once there is more than one to tell apart.
+func (a *App) sessionTabBarLabel() string {
+	if len(a.sessions) < 2 {
+		return ""
+	}
+	return " ◆ " + a.session.name + " "
+}
+
+// statusParts are the mode's badge and the message the tab bar shows, with the message's style.
+func (a *App) statusParts() (badge, text string, style uv.Style) {
+	badge, style = modeBadges[a.mode], a.palette.status
 	switch {
 	case a.statusMessage != "":
 		text = " " + a.statusMessage + " "
@@ -179,13 +185,13 @@ func (a *App) drawTabBarStatus(screen uv.Screen, minX int) {
 	case len(a.approvals) > 0:
 		text = fmt.Sprintf(" ⚑ %d waiting for approval: prefix+y ", len(a.approvals))
 	}
-	width := ansi.StringWidth(badge) + ansi.StringWidth(text)
-	if width == 0 {
-		return
-	}
-	x := max(a.size.X-width, minX)
-	x = drawText(screen, x, 0, a.size.X, badge, a.palette.badge)
-	drawText(screen, x, 0, a.size.X, text, style)
+	return badge, text, style
+}
+
+// tabBarStatus is what drawTabBarStatus shows, for the tab bar to leave room for it.
+func (a *App) tabBarStatus() string {
+	badge, text, _ := a.statusParts()
+	return badge + text + a.sessionTabBarLabel()
 }
 
 func (a *App) tabLabel(t *tab) string {

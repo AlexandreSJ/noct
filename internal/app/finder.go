@@ -55,8 +55,13 @@ func (a *App) finderItems() []finderItem {
 			items = append(items, finderItem{label: s.label, kind: "prefix " + s.keys, open: func() { a.runAction(s.keys) }})
 		}
 	}
-	for i, t := range a.tabs {
+	for i, t := range a.session.tabs {
 		items = append(items, finderItem{label: "tab " + a.tabLabel(t), kind: "tab", open: func() { a.selectTab(i) }})
+	}
+	for _, s := range a.sessions {
+		if s != a.session {
+			items = append(items, finderItem{label: "session " + s.name, kind: "session", open: func() { a.switchSession(s) }})
+		}
 	}
 	return items
 }

@@ -11,7 +11,7 @@ func workspaceTools(d Deps) []Tool {
 	return []Tool{
 		{
 			Name: "list_panes", Title: "List panes", ReadOnly: true, Policy: config.PolicyAllow,
-			Description: "Lists the panes open in noct's workspace: id, tab, title, size, and which has the focus in its tab.",
+			Description: "Lists the panes open in noct's workspace, in every open session: id, session, tab, title, size, and which has the focus in its tab.",
 			Run:         d.forward("list_panes", func(v any) any { return map[string]any{"panes": v} }),
 		},
 		{

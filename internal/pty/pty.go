@@ -89,6 +89,19 @@ func (p *Process) ForegroundProgram() (string, bool) {
 	return name, name != ""
 }
 
+// Dir is the directory the program is in now, such as a shell after cd, or "" where the system
+// does not tell it (only Linux's /proc does).
+func (p *Process) Dir() string {
+	if p.exited.Load() {
+		return ""
+	}
+	dir, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", p.cmd.Process.Pid))
+	if err != nil {
+		return ""
+	}
+	return dir
+}
+
 // processName is the base name of the program a process runs, or "" if it cannot be read.
 func processName(pid int) string {
 	if cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid)); err == nil {

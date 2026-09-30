@@ -135,7 +135,11 @@ claude mcp add noct -- noct mcp
 
 | Command | What it does |
 |---|---|
-| `noct` | Attach to the workspace, starting it if needed |
+| `noct` | Attach to the session used last, starting noct if needed |
+| `noct attach <session>` (or `a`, `att`, `-a`) | Attach to a session by name |
+| `noct new [session]` | Start a session, named or numbered, and attach to it |
+| `noct sessions` | List the sessions: open or closed, tabs, last use |
+| `noct kill <session>` | Delete a session: its programs stop and its layout is forgotten |
 | `noct -s <script> [name=value ...]` | Run a script in this terminal |
 | `noct ls` | List the scripts, their program version and folder |
 | `noct flow run <flow> [name=value ...]` | Run a flow in this terminal, step by step |
@@ -144,13 +148,17 @@ claude mcp add noct -- noct mcp
 | `noct promote <flow or script>` | Let a draft an AI wrote run, once reviewed |
 | `noct mcp` | Serve noct to an AI client over stdin and stdout |
 | `noct check` | Report the scripts and flows that cannot be loaded |
-| `noct quit` | Close every pane and stop the workspace |
+| `noct quit` | Close every pane and stop the workspace; sessions open again as they were |
 
 `noct -h` shows every option.
 
 ## Sessions
 
-Your programs keep running when you close the terminal or detach with `Ctrl+Space` `d`: run `noct` again to get back to them. `noct quit` closes everything.
+Your programs keep running when you close the terminal or detach with `Ctrl+Space` `d`: run `noct` again to get back to them.
+
+Keep separate workspaces as named sessions: `noct new dev` starts one, `noct attach dev` comes back to it, and `Ctrl+Space` `o` lists them all with when each was last used, to switch, create, rename, close or delete them. Plain `noct` returns to the session you used last.
+
+A closed session, or every session after `noct quit`, keeps its tabs and panes: opening it again starts its shells in the directories they were in and its noct panels where they were. Programs running inside the shells, and script runs, do not come back.
 
 The daemon keeps running the version it started with. After updating or rebuilding noct, quit it (`Ctrl+Space` `q`) and run `noct` again; noct reminds you in the tab bar when it notices a newer binary.
 

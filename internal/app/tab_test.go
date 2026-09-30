@@ -58,10 +58,10 @@ func TestClosingATabKeepsANeighborSelected(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := testApp(t, newTab(1, &fakeView{}), newTab(2, &fakeView{}), newTab(3, &fakeView{}))
-			a.activeTab = tt.active
+			a.session.activeTab = tt.active
 			a.closeFocused()
-			if len(a.tabs) != 2 || a.activeTab != tt.wantActive {
-				t.Errorf("tabs=%d active=%d, want 2 and %d", len(a.tabs), a.activeTab, tt.wantActive)
+			if len(a.session.tabs) != 2 || a.session.activeTab != tt.wantActive {
+				t.Errorf("tabs=%d active=%d, want 2 and %d", len(a.session.tabs), a.session.activeTab, tt.wantActive)
 			}
 		})
 	}
@@ -69,9 +69,9 @@ func TestClosingATabKeepsANeighborSelected(t *testing.T) {
 
 func TestClosingABackgroundTabKeepsTheSelectedOne(t *testing.T) {
 	a := testApp(t, newTab(1, &fakeView{}), newTab(2, &fakeView{}), newTab(3, &fakeView{}))
-	a.activeTab = 2
+	a.session.activeTab = 2
 	a.detachView(1) // a program exited in the first tab
-	if len(a.tabs) != 2 || a.currentTab().focused != 3 {
-		t.Errorf("tabs=%d, selected pane %d, want 3", len(a.tabs), a.currentTab().focused)
+	if len(a.session.tabs) != 2 || a.currentTab().focused != 3 {
+		t.Errorf("tabs=%d, selected pane %d, want 3", len(a.session.tabs), a.currentTab().focused)
 	}
 }

@@ -61,8 +61,8 @@ func TestLastTileClosingLeavesTheFloatingPaneTiled(t *testing.T) {
 	f := openFloatingPane(t, a)
 	a.detachView(1)
 	tab := a.currentTab()
-	if len(a.tabs) != 1 || tab.tree == nil || !tab.tree.Contains(f.id) || len(tab.floating) != 0 {
-		t.Errorf("tabs %d, floating %d", len(a.tabs), len(tab.floating))
+	if len(a.session.tabs) != 1 || tab.tree == nil || !tab.tree.Contains(f.id) || len(tab.floating) != 0 {
+		t.Errorf("tabs %d, floating %d", len(a.session.tabs), len(tab.floating))
 	}
 }
 
