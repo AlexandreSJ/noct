@@ -148,8 +148,9 @@ func (a *App) hideCursor() {
 	}
 }
 
-// modeBadges name the mode in the tab bar while its panel is open.
-var modeBadges = map[mode]string{commandMode: " commands ", moveMode: " move ", resizeMode: " resize ", confirmMode: " confirm ", scrollMode: " scroll "}
+// modeBadges name the mode in the tab bar while its panel is open. Command mode has none: its
+// popup already says what it is.
+var modeBadges = map[mode]string{moveMode: " move ", resizeMode: " resize ", confirmMode: " confirm ", scrollMode: " scroll "}
 
 // drawTabBarStatus shows, right-aligned, the current mode and the latest message: a problem in
 // the theme's attention color, a notice in its accent.

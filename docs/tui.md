@@ -54,7 +54,7 @@ Uma sessão é um conjunto de tabs com nome (ADR-037). O daemon guarda várias; 
 
 ## Atalhos: modo noct
 
-A **tecla prefixo** (padrão `Ctrl+Space`, configurável) liga o **modo noct**. Um popup `commands` no centro da tela lista os comandos disponíveis, e o selo `commands` aparece na barra de tabs. Fora do modo, toda tecla vai direto para o painel, então programas como vim e Claude recebem todas as teclas.
+A **tecla prefixo** (padrão `Ctrl+Space`, configurável) liga o **modo noct**. Um popup `commands` no centro da tela lista os comandos disponíveis; ao contrário de mover, redimensionar e rolar, este modo não põe um selo na barra de tabs, porque o popup já diz qual é. Fora do modo, toda tecla vai direto para o painel, então programas como vim e Claude recebem todas as teclas.
 
 No modo noct:
 

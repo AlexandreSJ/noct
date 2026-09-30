@@ -115,11 +115,14 @@ func TestWheelOverTheTabBarChangesTab(t *testing.T) {
 }
 
 func TestTabBarLeavesRoomForTheMode(t *testing.T) {
+	if modeBadges[commandMode] != "" {
+		t.Error("command mode has a badge; its popup already names it")
+	}
 	a := manyTabs(t, 20)
 	a.session.activeTab = 19
-	a.mode = commandMode
+	a.mode = moveMode
 	spans := a.tabBar()
-	room := a.size.X - len(modeBadges[commandMode]) - 2
+	room := a.size.X - len(modeBadges[moveMode]) - 2
 	if end := spans[len(spans)-1].end; end > room {
 		t.Errorf("tabs end at %d, over the mode badge from %d", end, room)
 	}
