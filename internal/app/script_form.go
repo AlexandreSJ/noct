@@ -14,7 +14,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
-const scriptFormHints = "enter edit  tab next  ctrl+s save  esc cancel"
+const scriptFormHints = "{enter} edit  {tab} next  {ctrl+s} save  esc cancel"
 
 // The form's fields, in tab order: two typed on their line, then four parts edited in the editor,
 // each alone, shown in boxes two by two.
@@ -249,7 +249,7 @@ func (a *App) drawScriptForm(screen uv.Screen) {
 	a.drawPartBox(screen, image.Rect(middleX, boxes.Min.Y, boxes.Max.X, middleY), descriptionPart)
 	a.drawPartBox(screen, image.Rect(boxes.Min.X, middleY, middleX, boxes.Max.Y), paramsPart)
 	a.drawPartBox(screen, image.Rect(middleX, middleY, boxes.Max.X, boxes.Max.Y), notesPart)
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, scriptFormHints, a.palette.panelMuted)
+	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("script-form", scriptFormHints), a.palette.panelMuted)
 }
 
 func (a *App) drawTypedField(screen uv.Screen, inner image.Rectangle, y int, label string, field int) {

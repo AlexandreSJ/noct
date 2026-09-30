@@ -15,8 +15,8 @@ import (
 // Its rows are the approvals and then the setups; the selected row decides what the keys do.
 
 const (
-	approvalHints = "y approve  n deny  ↑↓ choose  esc close"
-	setupHints    = "enter copy  ↑↓ choose  esc close"
+	approvalHints = "{y} approve  {n} deny  {up}{down} choose  esc close"
+	setupHints    = "{enter} copy  {up}{down} choose  esc close"
 	mcpPanelWidth = 76
 )
 
@@ -164,9 +164,9 @@ func (a *App) drawMCP(screen uv.Screen) {
 	for i, s := range setups {
 		lines = append(lines, styledLine{s.client, rowStyle(len(a.approvals) + i)})
 	}
-	hints := approvalHints
+	hints := a.hint("mcp", approvalHints)
 	if i := a.mcpSelected - len(a.approvals); i >= 0 && i < len(setups) {
-		hints = setupHints
+		hints = a.hint("mcp", setupHints)
 		lines = append(lines, styledLine{"", pal.panelText})
 		if setups[i].file != "" {
 			lines = append(lines, styledLine{"in " + setups[i].file + ":", pal.panelMuted})

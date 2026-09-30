@@ -444,12 +444,13 @@ func TestRenamePanelFallsBackToTheProgram(t *testing.T) {
 // backspace and newline.
 func TestCtrlShortcutLeavesBackspaceAndNewline(t *testing.T) {
 	d := directShortcut{mods: uv.ModCtrl}
+	same := func(name string) (string, bool) { return name, true }
 	for _, code := range []rune{'h', 'j'} {
-		if _, _, ok := d.command(uv.KeyPressEvent{Code: code, Mod: uv.ModCtrl}); ok {
+		if _, _, ok := d.command(uv.KeyPressEvent{Code: code, Mod: uv.ModCtrl}, same); ok {
 			t.Errorf("ctrl+%c was taken", code)
 		}
 	}
-	if name, _, ok := d.command(uv.KeyPressEvent{Code: 'k', Mod: uv.ModCtrl}); !ok || name != "k" {
+	if name, _, ok := d.command(uv.KeyPressEvent{Code: 'k', Mod: uv.ModCtrl}, same); !ok || name != "k" {
 		t.Errorf("ctrl+k: %q %v", name, ok)
 	}
 }

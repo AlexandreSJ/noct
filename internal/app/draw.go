@@ -38,11 +38,11 @@ func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 func (a *App) drawModeOverlay(screen uv.Screen) {
 	switch a.mode {
 	case commandMode:
-		a.drawShortcutsPopup(screen, "commands", commandShortcuts, a.shortcutNote())
+		a.drawShortcutsPopup(screen, "commands", "commands", commandShortcuts, a.shortcutNote())
 	case moveMode:
-		a.drawShortcutsPopup(screen, "move", moveShortcuts, "")
+		a.drawShortcutsPopup(screen, "move", "move", moveShortcuts, "")
 	case resizeMode:
-		a.drawShortcutsPopup(screen, "resize", resizeShortcuts, "")
+		a.drawShortcutsPopup(screen, "resize", "resize", resizeShortcuts, "")
 	case choiceMode:
 		a.drawChoice(screen)
 	case promptMode:
@@ -50,7 +50,7 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 	case configMode:
 		a.drawConfigPanel(screen)
 	case confirmMode:
-		a.drawShortcutsPopup(screen, a.confirm.question, a.confirmShortcuts(), "")
+		a.drawShortcutsPopup(screen, a.confirm.question, "confirm", a.confirmShortcuts(), "")
 	case formMode:
 		a.drawForm(screen)
 	case scriptFormMode:

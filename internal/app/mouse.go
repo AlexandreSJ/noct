@@ -48,7 +48,7 @@ func (a *App) applyMouseMode() {
 	mode := uv.MouseModeNone
 	if a.config.Mouse {
 		mode = uv.MouseModeDrag
-		if a.onHome() {
+		if a.onHome() || a.mode == configMode { // the config marks the row under the mouse
 			mode = uv.MouseModeMotion
 		}
 	}
@@ -84,6 +84,8 @@ func (a *App) handleMouse(event uv.MouseEvent) {
 			a.extendSelection(event.Mouse())
 		case a.onHome():
 			a.hoverHome(image.Pt(event.Mouse().X, event.Mouse().Y))
+		case a.mode == configMode:
+			a.hoverConfig(image.Pt(event.Mouse().X, event.Mouse().Y))
 		default:
 			a.forwardMouse(event)
 		}
@@ -112,8 +114,14 @@ func (a *App) handleClick(event uv.MouseEvent) {
 		a.mode = normalMode // a click closes what it tells, as a key does
 		return
 	}
-	if a.mode == commandMode {
+	switch a.mode {
+	case commandMode:
 		a.clickCommandShortcut(image.Pt(m.X, m.Y))
+		return
+	case configMode:
+		if m.Button == uv.MouseLeft {
+			a.clickConfig(image.Pt(m.X, m.Y))
+		}
 		return
 	}
 	if a.mode != normalMode && a.mode != scrollMode {
@@ -190,6 +198,15 @@ func (a *App) dragDivider(m uv.Mouse) {
 // that takes the mouse; otherwise it scrolls the terminal's history, entering scroll mode and
 // leaving it back at the live screen.
 func (a *App) handleWheel(event uv.MouseEvent) {
+	if a.mode == configMode {
+		switch event.Mouse().Button {
+		case uv.MouseWheelUp:
+			a.moveConfigSelection(-1)
+		case uv.MouseWheelDown:
+			a.moveConfigSelection(1)
+		}
+		return
+	}
 	t := a.currentTab()
 	if t == nil || (a.mode != normalMode && a.mode != scrollMode) {
 		return

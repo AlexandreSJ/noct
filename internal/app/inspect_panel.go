@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	flowsListHints = "↑↓ flow  enter open  a new  r run  T add trigger  o triggers on/off  P promote draft  E edit file  del delete  tab hide list  ctrl+d close"
-	flowStepHints  = "↑↓←→ select  shift+↑↓ range  a add after  t test  r run  s scope  enter about  e edit  del remove  J K move  + - zoom  ctrl+arrows pan  0 center  tab list"
-	flowGapHints   = "↑↓←→ select  a add here  r run  s scope  + - zoom  ctrl+arrows pan  0 center  tab list"
+	flowsListHints = "{up}{down} flow  {enter} open  {a} new  {r} run  {T} add trigger  {o} triggers on/off  {P} promote draft  {E} edit file  {delete} delete  {tab} hide list  {ctrl+d} close"
+	flowStepHints  = "{up}{down}{left}{right} select  {shift+up}{shift+down} range  {a} add after  {t} test  {r} run  {s} scope  {enter} about  {e} edit  {delete} remove  {J} {K} move  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
+	flowGapHints   = "{up}{down}{left}{right} select  {a} add here  {r} run  {s} scope  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
 	// flowsListWidth is the list of flows beside the chart, in panels wide enough for both.
 	flowsListWidth = 24
 	// panStep is how far shift+arrows move the chart.
@@ -156,7 +156,7 @@ func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
 // toggleTriggers turns the flow's triggers on or off on this machine.
 func (p *inspectPanel) toggleTriggers(f flow.Flow) {
 	if len(f.TriggerLabels()) == 0 {
-		p.app.notice = "flow " + f.Name + " has no triggers; add them to its file (E)"
+		p.app.notice = p.app.hint("flows", "flow "+f.Name+" has no triggers; add them to its file ({E})")
 		return
 	}
 	on := !flow.Enabled(flow.TriggersFile())[f.Name]
@@ -460,12 +460,12 @@ func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 
 func (p *inspectPanel) hints() string {
 	if !p.focusChart {
-		return flowsListHints
+		return p.app.hint("flows", flowsListHints)
 	}
 	if block, ok := p.selectedBlock(); ok && block.isInsertion() {
-		return flowGapHints
+		return p.app.hint("flows", flowGapHints)
 	}
-	return flowStepHints
+	return p.app.hint("flows", flowStepHints)
 }
 
 // frameStyles are the styles of the list's or chart's frame: the accent while it has the focus.

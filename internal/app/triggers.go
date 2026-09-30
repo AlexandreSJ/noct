@@ -121,12 +121,12 @@ func (a *App) addTrigger(f flow.Flow) {
 	}
 	a.openChoice("add trigger",
 		choiceOption{key: "c", label: "cron schedule", pick: func() {
-			a.openPrompt("cron", "0 9 * * 1-5", "enter add  esc cancel  minute hour day month weekday", func(text string) {
+			a.openPrompt("cron", "0 9 * * 1-5", "{enter} add  esc cancel  minute hour day month weekday", func(text string) {
 				add(flow.Trigger{Cron: text})
 			})
 		}},
 		choiceOption{key: "w", label: "files changing", pick: func() {
-			a.openPrompt("watch", "", "enter add  esc cancel  paths or globs, ** any folders, space between", func(text string) {
+			a.openPrompt("watch", "", "{enter} add  esc cancel  paths or globs, ** any folders, space between", func(text string) {
 				add(flow.Trigger{Watch: &flow.Watch{Paths: strings.Fields(text)}})
 			})
 		}},

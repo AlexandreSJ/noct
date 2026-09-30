@@ -53,6 +53,7 @@ type App struct {
 	configPath string
 	prefix     prefixKey
 	shortcut   directShortcut
+	keymap     keymap
 	palette    palette
 
 	mode        mode
@@ -171,6 +172,7 @@ func (a *App) loadConfig() {
 	}
 	a.config, a.configPath, a.prefix = cfg, path, prefix
 	a.shortcut = shortcutFromConfig(cfg.Shortcut)
+	a.keymap = newKeymap(cfg.Keys)
 	a.palette = newPalette(themeNamed(cfg.Appearance.Theme), cfg.Appearance.Background == config.BackgroundTheme)
 	if err != nil {
 		a.statusMessage = err.Error()

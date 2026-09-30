@@ -19,10 +19,10 @@ import (
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
-const logsHints = "tab calendar/list  ←→↑↓ day  [ ] month  f filter  s sort  a all days  enter open  i flow run  del clear  ctrl+d close"
+const logsHints = "{tab} calendar/list  {left}{right}{up}{down} day  {[} {]} month  {f} filter  {s} sort  {a} all days  {enter} open  {i} flow run  {delete} clear  {ctrl+d} close"
 
 // logsFilterHints explain the filter line: words and comparisons, all of them at once.
-const logsFilterHints = "enter filter  esc cancel  name, date, time, ok/failed, >1MB, <100 lines"
+const logsFilterHints = "{enter} filter  esc cancel  name, date, time, ok/failed, >1MB, <100 lines"
 
 // Sizes of the logs panel's parts.
 const (
@@ -297,7 +297,7 @@ func (p *logsPanel) listKey(name string) {
 func (p *logsPanel) inspectRun(row logRow) {
 	result, ok := flow.ReadResult(logstore.ResultPath(row.entry.Path))
 	if row.run == nil || row.run.Flow == "" || !ok {
-		p.app.notice = "i opens a flow's run; this log has none to show"
+		p.app.notice = p.app.hint("logs", "{i} opens a flow's run; this log has none to show")
 		return
 	}
 	p.app.openFlowRun(row.run.Flow, result)
@@ -400,7 +400,7 @@ func (p *logsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 		p.reload()
 	}
 	pal := &p.app.palette
-	drawText(screen, area.Min.X+1, area.Max.Y-1, area.Max.X, logsHints, pal.panelMuted)
+	drawText(screen, area.Min.X+1, area.Max.Y-1, area.Max.X, p.app.hint("logs", logsHints), pal.panelMuted)
 	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-2)
 	stats := p.statsByDay()
 	var calendar, list image.Rectangle

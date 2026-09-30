@@ -31,6 +31,7 @@
 - `prefixo` + `e` renomeia o painel com foco; um nome vazio volta ao título do programa.
 - `prefixo` + `w` alterna o grupo do painel com foco entre dividido e **empilhado** (stacked), como no zellij e no i3: o painel com foco ocupa quase toda a altura e cada um dos outros vira uma linha com o título (`▸ nome`). Mudar o foco pela pilha (`↑↓`/`jk`, ou clicar num título) abre o painel que recebe o foco; um painel novo aberto no grupo entra na pilha. Os painéis dobrados mantêm o tamanho, sem redimensionar o programa (ADR-030).
 - Em todo lugar onde o noct move algo sem que se esteja digitando texto, `hjkl` valem como as setas: foco, mover, resize, rolagem, painéis e o inspect.
+- As listas que rolam (scripts panel, logs, busca e config) mantêm até 4 itens visíveis acima e abaixo da seleção, como o `scrolloff` do vim: a seleção anda dentro da vista e a lista só rola quando chega a 4 da borda, então dá para ver o que vem antes de chegar lá.
 - Cada painel tem título (definido pelo programa, ou o nome do shell) e, no futuro, indicador de estado: rodando, terminou ok, falhou, atividade não vista. Painéis de script já mostram `●`, `✓` ou `✗ <código>`.
 - Rolagem do histórico com `prefixo` + `[` ou com a roda do mouse; a posição aparece no título do painel (`↑ 120/2000`), e rolar de volta até o fim com a roda volta ao vivo. Busca e cópia no histórico ficam para depois.
 - Durante a rolagem, o prefixo, os atalhos diretos e um clique em outro painel encerram a rolagem e funcionam como sempre: dá para trocar de painel sem voltar ao fim antes.
@@ -108,6 +109,18 @@ Um segundo modificador, por padrão `Alt` (ADR-024), roda os comandos do modo no
 - Teclas que não são comandos, com ou sem o modificador, vão para o programa.
 - O ambiente gráfico pode capturar algumas combinações antes do terminal (`Ctrl+Alt+T` no GNOME, `Ctrl+Alt+L` no KDE). Nesse caso, troque o modificador no config ou desligue os dois.
 
+## Trocar as teclas
+
+Todas as teclas dos modos, painéis e popups do noct podem ser trocadas em `prefixo` + `c` → **Keys** → `binds of every screen` (ADR-041). A página lista, por contexto (`commands` depois do prefixo, `move`, `resize`, `scroll history`, `scripts panel`, `inspect flows`, `logs`, `finished run`, `sessions`, `MCP`, perguntas, popups, escolhas, busca, prompts, formulários e o próprio config), cada ação com as teclas que a fazem; `•` marca as trocadas.
+
+- `Enter` (ou clique no valor) e aperte a tecla. Numa ação com uma tecla, ela a substitui; com várias (`pgup  ctrl+b`), o primeiro `Enter` marca uma delas entre colchetes, `←`/`→` escolhem qual, e o segundo `Enter` pega a tecla nova no lugar dela, mostrando `[press a key…]` ali e, embaixo, qual está sendo substituída. Com o mouse, clicar numa das teclas já pega a tecla para ela. `a` acrescenta uma tecla, `Delete` volta a ação ao padrão. Como no prefixo, a tecla aparece como o terminal a mandou, `Enter` a usa e `esc` cancela.
+- Uma tecla que outra ação do mesmo contexto já tem gera um aviso (`⚠ n is new script or directory; enter moves it here`); usá-la tira a tecla da outra ação. Contextos diferentes não conflitam.
+- Recusadas: o prefixo, teclas que o noct não sabe ler de volta e, onde se digita texto (busca, prompts, formulários, config, escolhas), caracteres sem `ctrl` ou `alt`, que continuam digitando.
+- Não mudam: `esc` (sempre cancela), os números de tab `1`–`9`, as letras de cada opção nos popups de escolha e tudo o que vai para programas nos painéis (terminais e execuções rodando). Uma tecla tirada de uma ação deixa de fazer aquilo; ela volta a valer se outra ação a pegar.
+- As dicas no rodapé de cada tela, o popup de comandos, a busca e os rótulos como `terminal (alt+p)` mostram as teclas atuais. Os atalhos diretos seguem as teclas do contexto `commands`: trocar `new panel` para `b` faz `prefixo` + `b` e `Alt+B`.
+- A última linha, `reset all keys to defaults`, pede `Enter` duas vezes. O `reset all to defaults` do config também volta as teclas.
+- No arquivo: `[keys.scripts]` com `edit = ["x"]`; uma lista vazia deixa a ação sem teclas. Só as ações trocadas aparecem.
+
 ## Mouse
 
 Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios de mouse:
@@ -126,11 +139,12 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 
 ## Config
 
-`prefixo` + `c` abre o painel **config**, gravado em `~/.config/noct/config.toml` (TOML legível, editável à mão). Cada mudança vale na hora e é salva.
+`prefixo` + `c` abre o painel **config**, gravado em `~/.config/noct/config.toml` (TOML legível, editável à mão). Cada mudança vale na hora e é salva. Com o mouse (ADR-040): passar sobre uma linha a destaca, clicar a seleciona, e clicar no valor o muda: em `◂` volta, em qualquer outro ponto (`▸`, `on`/`off`) avança, como `←`/`→`; numa linha de texto, o clique só seleciona, para digitar. A roda move a seleção, e um clique fora fecha o painel.
 
 | Seção | Item | Valores |
 |---|---|---|
-| **Prefix** | `ctrl`, `alt`, `shift`, `key` | Modificadores ligados ou desligados + uma tecla (caractere, `space` ou `F1`–`F12`). Precisa ter `ctrl` ou `alt`, senão seria digitado como texto. |
+| **Keys** | `binds of every screen` | Abre a página das teclas de cada tela (ver [Trocar as teclas](#trocar-as-teclas)); mostra quantas ações foram trocadas. (ADR-041) |
+| **Keys** | `prefix` | `Enter` (ou clique) e aperte a combinação: quantos modificadores quiser (`ctrl`, `alt`, `shift`) com uma tecla (caractere, `space` ou `F1`–`F12`). Precisa ter `ctrl` ou `alt`, senão seria digitado como texto. A linha mostra a combinação como o terminal a mandou, e avisos em amarelo do que ela tomaria: um atalho direto do noct (`alt+p` com os atalhos em `alt`) ou uma tecla que programas usam (`ctrl+c`, `ctrl+r`, `ctrl+b` do tmux). `Enter` usa, `esc` cancela, outra combinação troca. `esc` não pode ser o prefixo. (ADR-040) |
 | **Shortcut** | `ctrl`, `alt` | Modificadores dos atalhos diretos; padrão os dois. Com os dois desligados, os atalhos diretos ficam desligados. |
 | **Appearance** | `theme` | `noct`, `aurora`, `ember`, `rose`, `blood`, `frost`, `mono`. |
 | | `background` | `terminal` mantém o fundo do terminal; `theme` pinta o fundo e o texto padrão com as cores do tema, inclusive dentro dos painéis. |
@@ -140,10 +154,11 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 | **Programs** | `editor` | O editor que abre cada parte do script (`Enter` no formulário do script) e scripts quebrados: `vim` (padrão), `nano`, os outros editores conhecidos instalados (`nvim`, `hx`, `micro`, `emacs`, `kak`, `vi`, `joe`, `mcedit`) e `custom`. |
 | | `file manager` | Abre a pasta dos scripts (`Ctrl+O`): `terminal` (padrão, um painel de terminal na pasta), os gerenciadores instalados (yazi, ranger, lf, nnn, vifm, mc num painel; thunar, nautilus, dolphin, nemo, pcmanfm, caja numa janela) e `custom`. |
 | | `command` | Aparece embaixo de `editor` ou `file manager` quando `custom` está escolhido: o comando digitado ali mesmo (pode ter argumentos, como `code -w`), com o aviso `command not found` se o programa não existir. Salva ao sair da linha ou com `Enter`. |
-| **Scripts** | `location` | A pasta dos scripts pessoais, já preenchida com a que está em uso (padrão `~/.local/share/noct/scripts`); aceita `~`. Com a linha selecionada, `Ctrl+C` (ou `Ctrl+Shift+C`) copia o caminho para a área de transferência, e a dica embaixo muda de `ctrl+c copy` para `copied to clipboard`. Vale para a TUI e para `noct -s`. |
+| **Scripts** | `location` | A pasta dos scripts pessoais, já preenchida com a que está em uso (padrão `~/.local/share/noct/scripts`); aceita `~`. Com a linha selecionada, `Ctrl+C` (ou `Ctrl+Shift+C`) copia o caminho para a área de transferência; a dica `ctrl+c copy` fica sempre embaixo e muda para `copied to clipboard` ao copiar. Vale para a TUI e para `noct -s`. |
 | | `sort` | Ordem da lista de scripts: `alphabetical` (padrão), `last edited` (o `script.yaml` alterado por último primeiro) ou `last run` (o rodado por último primeiro; os nunca rodados vêm depois, em ordem alfabética). A seleção fica no mesmo script quando a ordem muda. |
 | | `hints in new scripts` | Liga (padrão) ou desliga o comentário de 4 linhas no topo de cada script novo, explicando `description`, `program`, `run` e `params`. |
 | **Flows** | `step output kept` (`[flows] output_kb` no arquivo) | Quanto da saída de cada passo o último resultado de um fluxo guarda: `all` (padrão, até 1 MB, o que os templates leem), 256, 64, 16 ou 4 KB. Testes de passos (`t` no inspect) guardam sempre 4 KB (ADR-031). |
+| **Defaults** | `reset all to defaults` | Última linha: `Enter` (ou clique) duas vezes volta todas as opções deste painel ao padrão, inclusive a pasta dos scripts e as teclas trocadas. Sair da linha antes do segundo `Enter` cancela. As pastas de scripts extras e a política da IA, que não são editadas aqui, ficam. (ADR-040) |
 
 O noct recebe as teclas na codificação legada, a mesma que o shell receberia direto do terminal. Nela, `Ctrl+Shift+A` chega igual a `Ctrl+A` e `Shift+Space` igual a `Space`, então `shift` só vale no prefixo como `Alt+Shift+letra` ou com F1–F12; o config recusa as demais combinações (ADR-012).
 

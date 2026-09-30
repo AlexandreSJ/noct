@@ -17,7 +17,7 @@ import (
 // minDetailsWidth is the narrowest panel that shows the selected script's details beside the list.
 const minDetailsWidth = 70
 
-const scriptsHints = "enter run  e edit  n new  P promote draft  a add folder  ctrl+o open  del delete  ctrl+d close"
+const scriptsHints = "{enter} run  {e} edit  {n} new  {P} promote draft  {a} add folder  {ctrl+o} open  {delete} delete  {ctrl+d} close"
 
 // scriptsPanel lists the saved scripts, with the selected one's details and notes beside them.
 // Folders come first, closed until opened, each followed by its scripts behind a bar. It is where the
@@ -175,12 +175,12 @@ func (p *scriptsPanel) selectKey(key string) {
 func (p *scriptsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	pal := &p.app.palette
 	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-1)
-	drawText(screen, area.Min.X+1, area.Max.Y-1, area.Max.X, scriptsHints, pal.panelMuted)
+	drawText(screen, area.Min.X+1, area.Max.Y-1, area.Max.X, p.app.hint("scripts", scriptsHints), pal.panelMuted)
 	body = p.drawProblems(screen, body)
 	row, ok := p.current()
 	if !ok {
 		drawCentered(screen, body, body.Min.Y+body.Dy()/2-1, "no scripts yet", pal.panelHeading)
-		drawCentered(screen, body, body.Min.Y+body.Dy()/2+1, "n creates a script or a directory, a adds a folder", pal.panelMuted)
+		drawCentered(screen, body, body.Min.Y+body.Dy()/2+1, p.app.hint("scripts", "{n} creates a script or a directory, {a} adds a folder"), pal.panelMuted)
 		return
 	}
 	list := body

@@ -11,7 +11,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
-const formHints = "enter run  tab next  ←→ choose  esc cancel"
+const formHints = "{enter} run  {tab} next  {left}{right} choose  esc cancel"
 
 // paramsForm asks for a script's or a flow's parameters before it runs. A script's parameters
 // read from the environment are not shown.
@@ -133,5 +133,5 @@ func (a *App) drawForm(screen uv.Screen) {
 	if f.preview != nil {
 		drawText(screen, inner.Min.X+1, previewY, inner.Max.X-1, f.preview(f.values), a.palette.panelMuted)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, formHints, a.palette.panelMuted)
+	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("form", formHints), a.palette.panelMuted)
 }

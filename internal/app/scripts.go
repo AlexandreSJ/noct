@@ -82,7 +82,7 @@ func (a *App) createInLibrary(folder *script.Folder) {
 
 // newFolder asks for a name and makes a folder of scripts in the scripts folder.
 func (a *App) newFolder() {
-	a.openPrompt("new folder", "", "enter create  esc cancel  letters, digits, . - _", func(name string) {
+	a.openPrompt("new folder", "", "{enter} create  esc cancel  letters, digits, . - _", func(name string) {
 		if _, err := script.CreateFolder(a.scriptsDir(), name); err != nil {
 			a.statusMessage = err.Error()
 			return
@@ -93,7 +93,7 @@ func (a *App) newFolder() {
 
 // linkFolder asks for the path of a folder of scripts anywhere and shows it in noct.
 func (a *App) linkFolder() {
-	a.openPrompt("add a folder of scripts", "", "enter add  esc cancel  paste its path; ~ is your home", func(path string) {
+	a.openPrompt("add a folder of scripts", "", "{enter} add  esc cancel  paste its path; ~ is your home", func(path string) {
 		if info, err := os.Stat(script.ResolveDir(path)); err != nil || !info.IsDir() {
 			a.statusMessage = "not a folder: " + path
 			return

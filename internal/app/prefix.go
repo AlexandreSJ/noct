@@ -87,3 +87,73 @@ func keyCodeNamed(name string) (rune, bool) {
 	}
 	return 0, false
 }
+
+// keyCapture takes a new prefix from the combination pressed, holding it until it is used.
+type keyCapture struct {
+	active  bool
+	pending *config.Prefix
+	// problem says why the last combination pressed cannot be the prefix.
+	problem string
+}
+
+// take holds the combination pressed when it can be the prefix. It keeps what the terminal
+// sent: a combination the terminal cannot tell apart, such as ctrl+shift+a, arrives as the one
+// it sends, ctrl+a, and shows as that.
+func (c *keyCapture) take(key uv.KeyPressEvent) {
+	name, ok := prefixKeyName(key.Code)
+	if !ok {
+		c.pending, c.problem = nil, "the key must be a character, space or F1–F12"
+		return
+	}
+	p := config.Prefix{
+		Ctrl:  key.Mod&uv.ModCtrl != 0,
+		Alt:   key.Mod&uv.ModAlt != 0,
+		Shift: key.Mod&uv.ModShift != 0,
+		Key:   name,
+	}
+	if _, err := prefixFromConfig(p); err != nil {
+		c.pending, c.problem = nil, err.Error()
+		return
+	}
+	c.pending, c.problem = &p, ""
+}
+
+// terminalKeys are combinations the programs in panes commonly use, which a prefix would take
+// from them.
+var terminalKeys = map[string]string{
+	"ctrl+a": "moves to the start of the line in shells",
+	"ctrl+b": "is tmux's prefix",
+	"ctrl+c": "interrupts the program in a pane",
+	"ctrl+d": "ends input and closes shells",
+	"ctrl+e": "moves to the end of the line in shells",
+	"ctrl+k": "deletes to the end of the line in shells",
+	"ctrl+l": "clears the shell's screen",
+	"ctrl+q": "resumes output in some terminals",
+	"ctrl+r": "searches the shell's history",
+	"ctrl+s": "freezes output in some terminals",
+	"ctrl+u": "deletes the line in shells",
+	"ctrl+w": "deletes a word in shells",
+	"ctrl+z": "suspends the program in a pane",
+}
+
+// prefixConflicts tells what a prefix would take over: a command of the direct shortcut, which
+// the prefix would reach first, or a combination programs in panes use.
+func (a *App) prefixConflicts(p prefixKey) []string {
+	var conflicts []string
+	name := p.String()
+	if what, ok := terminalKeys[name]; ok {
+		conflicts = append(conflicts, name+" "+what)
+	}
+	key, _ := prefixKeyName(p.code)
+	key, taken := a.commandKey(key)
+	if a.shortcut.mods != 0 && p.mods&^uv.ModShift == a.shortcut.mods && taken && isCommandKey(key) {
+		label := "a command"
+		for _, s := range commandShortcuts {
+			if s.keys == key {
+				label = s.label
+			}
+		}
+		conflicts = append(conflicts, name+" is the direct shortcut to "+label)
+	}
+	return conflicts
+}

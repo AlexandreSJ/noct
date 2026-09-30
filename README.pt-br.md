@@ -84,13 +84,13 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `[` | Rolar o histórico do terminal |
 | `d` | Desconectar; os programas continuam |
 | `x` | Fechar o painel; a tab fecha junto com o último painel, a não ser que o config mantenha tabs vazias |
-| `c` | Config: tecla prefixo, atalhos diretos, tema, fundo, mouse, o que uma tab nova abre e se ela fecha quando fica vazia, editor, gerenciador de arquivos, pasta dos scripts, por quanto tempo e quanto guardar dos logs, quanto da saída dos passos os fluxos guardam |
+| `c` | Config: tecla prefixo, as teclas de cada tela, atalhos diretos, tema, fundo, mouse, o que uma tab nova abre e se ela fecha quando fica vazia, editor, gerenciador de arquivos, pasta dos scripts, por quanto tempo e quanto guardar dos logs, quanto da saída dos passos os fluxos guardam |
 | `q` | Sair, depois de confirmar: `Enter` ou `q` de novo |
 | `Esc` | Cancelar |
 
 Um popup lista essas teclas enquanto o modo noct está ligado. Onde o noct move algo e você não está digitando, `hjkl` valem como as setas.
 
-Fora do modo noct, toda tecla vai direto para o programa no painel, exceto os **atalhos diretos**: `Alt` com uma tecla do modo noct roda o comando sem o prefixo (`Alt+→` muda o foco, `Alt+T` abre uma tab, `Alt+A` move o painel), e `Alt+Shift` com as setas move o painel direto. Isso tira do shell `Alt+F` e `Alt+D` (edição por palavra); o modificador pode virar `Ctrl+Alt` ou ser desligado no config.
+Fora do modo noct, toda tecla vai direto para o programa no painel, exceto os **atalhos diretos**: `Alt` com uma tecla do modo noct roda o comando sem o prefixo (`Alt+→` muda o foco, `Alt+T` abre uma tab, `Alt+A` move o painel), e `Alt+Shift` com as setas move o painel direto. Isso tira do shell `Alt+F` e `Alt+D` (edição por palavra); o modificador pode virar `Ctrl+Alt` ou ser desligado no config. Todas as teclas dos modos, painéis e popups do noct também podem ser trocadas lá, em **Keys → binds of every screen**.
 
 Os painéis se organizam como no i3 com autotiling: um painel novo abre ao lado do painel com foco se ele é mais largo que alto, senão embaixo. Mover um painel (`a`, ou `Alt+Shift` com as setas) segue o `move` do i3: troca de lugar dentro do grupo, entra num grupo vizinho ou sai do grupo para ficar ao lado dele.
 

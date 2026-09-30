@@ -45,7 +45,7 @@ func (a *App) scriptDescription(id string) string {
 
 // newFlow asks for a name and creates an empty flow, telling created its name.
 func (a *App) newFlow(created func(name string)) {
-	a.openPrompt("new flow", "", "enter create  esc cancel  letters, digits, . - _", func(name string) {
+	a.openPrompt("new flow", "", "{enter} create  esc cancel  letters, digits, . - _", func(name string) {
 		f, err := flow.Create(flow.Dir(), name)
 		if err != nil {
 			a.statusMessage = err.Error()
@@ -311,40 +311,40 @@ func (a *App) addStep(f flow.Flow, at chartBlock, added func(path string)) {
 	a.openChoice("add step",
 		choiceOption{key: "s", label: "script", pick: func() { a.pickScript(insert) }},
 		choiceOption{key: "c", label: "command line", pick: func() {
-			templatePrompt("command line", "", "enter add  esc cancel", func(text string) {
+			templatePrompt("command line", "", "{enter} add  esc cancel", func(text string) {
 				insert(flow.Step{Run: text})
 			})
 		}},
 		choiceOption{key: "i", label: "if / else", pick: func() {
-			templatePrompt("if", `{{eq .steps.<id>.<capture> "value"}}`, "enter add  esc cancel  true runs then", func(text string) {
+			templatePrompt("if", `{{eq .steps.<id>.<capture> "value"}}`, "{enter} add  esc cancel  true runs then", func(text string) {
 				insert(flow.Step{If: text})
 			})
 		}},
 		choiceOption{key: "l", label: "repeat", pick: func() {
-			templatePrompt("repeat", "3", "enter add  esc cancel  times, or until", func(text string) {
+			templatePrompt("repeat", "3", "{enter} add  esc cancel  times, or until", func(text string) {
 				insert(repeatStep(text))
 			})
 		}},
 		choiceOption{key: "w", label: "wait", pick: func() {
-			a.openPrompt("wait", "5s", "enter add  esc cancel  like 5s, 1m30s", func(text string) {
+			a.openPrompt("wait", "5s", "{enter} add  esc cancel  like 5s, 1m30s", func(text string) {
 				insert(flow.Step{Wait: text})
 			})
 		}},
 		choiceOption{key: "p", label: "prompt the user", pick: func() {
-			templatePrompt("prompt", "", "enter next  esc cancel  the question asked", func(question string) {
-				a.openPrompt("into variable", "", "enter add  esc cancel  new, or one to change", func(name string) {
+			templatePrompt("prompt", "", "{enter} next  esc cancel  the question asked", func(question string) {
+				a.openPrompt("into variable", "", "{enter} add  esc cancel  new, or one to change", func(name string) {
 					insert(flow.Step{Prompt: question, Var: strings.TrimSpace(name)})
 				})
 			})
 		}},
 		choiceOption{key: "v", label: "set variable", pick: func() {
-			templatePrompt("set", "name = ", "enter add  esc cancel  name = value", func(text string) {
+			templatePrompt("set", "name = ", "{enter} add  esc cancel  name = value", func(text string) {
 				name, value, _ := strings.Cut(text, "=")
 				insert(flow.Step{Set: map[string]string{strings.TrimSpace(name): strings.TrimSpace(value)}})
 			})
 		}},
 		choiceOption{key: "u", label: "unset variables", pick: func() {
-			a.openPrompt("unset", "", "enter add  esc cancel  names, steps.<id>", func(text string) {
+			a.openPrompt("unset", "", "{enter} add  esc cancel  names, steps.<id>", func(text string) {
 				insert(flow.Step{Unset: strings.FieldsFunc(text, func(r rune) bool { return r == ',' || r == ' ' })})
 			})
 		}},

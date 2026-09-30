@@ -19,10 +19,8 @@ import (
 type configRow int
 
 const (
-	prefixCtrlRow configRow = iota
-	prefixAltRow
-	prefixShiftRow
-	prefixKeyRow
+	prefixRow configRow = iota
+	bindsRow
 	shortcutCtrlRow
 	shortcutAltRow
 	themeRow
@@ -40,21 +38,43 @@ const (
 	logsKeepRow
 	logsSizeRow
 	flowsOutputRow
+	resetRow
+	resetBindsRow
 )
 
-const configHints = "↑↓ select  ←→ change  esc close"
+// configPage is what the config panel shows: the settings, or the keys of every screen.
+type configPage int
+
+const (
+	settingsPage configPage = iota
+	bindsPage
+)
+
+const configHints = "{up}{down} select  {left}{right} change  esc close"
 
 // textColumn is where the text of a typed setting starts, after its label.
 const textColumn = 20
 
 type configPanel struct {
-	selected     configRow
-	capturingKey bool
-	editor       programSetting
-	fileManager  programSetting
-	scriptsDir   []rune
+	page     configPage
+	selected configRow
+	// first is the first line shown when the page does not fit, kept between draws so the
+	// selection moves inside the view before the view moves.
+	first int
+	// bindCapture takes a key for the selected action on the binds page.
+	bindCapture bindCapture
+	// capture takes the prefix's new combination while it is on.
+	capture keyCapture
+	// resetArmed asks for the reset again before doing it, until the selection moves.
+	resetArmed  bool
+	editor      programSetting
+	fileManager programSetting
+	scriptsDir  []rune
 	// copied says the location was just copied, until the selection or the text changes.
 	copied bool
+	// hover is the row under the mouse, when hovering is true.
+	hover    configRow
+	hovering bool
 }
 
 // configLine is one line of the panel: a section heading, a row that can be selected, or a note
@@ -65,6 +85,8 @@ type configLine struct {
 	row     configRow
 	heading bool
 	note    bool
+	// warning notes show in the attention color.
+	warning bool
 	// typed rows take text: their value is edited in place.
 	typed bool
 }
@@ -79,16 +101,17 @@ func (a *App) openConfig() {
 }
 
 func (a *App) handleConfigKey(key uv.KeyPressEvent) {
-	if a.configPanel.capturingKey {
-		a.capturePrefixKey(key)
+	if a.configPanel.capture.active {
+		a.capturePrefix(key)
+		return
+	}
+	if a.configPanel.page == bindsPage {
+		a.handleBindsKey(key)
 		return
 	}
 	switch key.String() {
 	case "esc":
-		a.commitTyped()
-		a.configPanel.editor.dropEmptyCustom()
-		a.configPanel.fileManager.dropEmptyCustom()
-		a.mode = normalMode
+		a.closeConfig()
 		return
 	case "up":
 		a.moveConfigSelection(-1)
@@ -113,18 +136,40 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 	}
 }
 
+// closeConfig saves what was typed and closes the panel.
+func (a *App) closeConfig() {
+	a.commitTyped()
+	a.configPanel.editor.dropEmptyCustom()
+	a.configPanel.fileManager.dropEmptyCustom()
+	a.mode = normalMode
+}
+
+// selectConfigRow selects a row, saving what was typed in the row it leaves.
+func (a *App) selectConfigRow(row configRow) {
+	if row == a.configPanel.selected {
+		return
+	}
+	a.commitTyped()
+	a.configPanel.copied, a.configPanel.resetArmed = false, false
+	a.configPanel.selected = row
+}
+
 // moveConfigSelection selects the next row shown, saving what was typed in the row it leaves.
 func (a *App) moveConfigSelection(step int) {
-	a.commitTyped()
-	a.configPanel.copied = false
+	rows := a.selectableConfigRows()
+	index := max(slices.Index(rows, a.configPanel.selected), 0)
+	a.selectConfigRow(rows[(index+step+len(rows))%len(rows)])
+}
+
+// selectableConfigRows are the rows of the page shown, in order.
+func (a *App) selectableConfigRows() []configRow {
 	var rows []configRow
 	for _, line := range a.configLines() {
-		if !line.heading && !line.note {
+		if line.selectable() {
 			rows = append(rows, line.row)
 		}
 	}
-	index := max(slices.Index(rows, a.configPanel.selected), 0)
-	a.configPanel.selected = rows[(index+step+len(rows))%len(rows)]
+	return rows
 }
 
 func (a *App) isTypedRow(row configRow) bool {
@@ -188,16 +233,31 @@ func (a *App) commitTyped() {
 }
 
 func (a *App) changeSetting(step int) {
+	if _, ok := bindRowAt(a.configPanel.selected); ok {
+		a.startBindEdit()
+		return
+	}
 	next := a.config
 	switch a.configPanel.selected {
-	case prefixCtrlRow:
-		next.Prefix.Ctrl = !next.Prefix.Ctrl
-	case prefixAltRow:
-		next.Prefix.Alt = !next.Prefix.Alt
-	case prefixShiftRow:
-		next.Prefix.Shift = !next.Prefix.Shift
-	case prefixKeyRow:
-		a.configPanel.capturingKey = true
+	case prefixRow:
+		a.configPanel.capture = keyCapture{active: true}
+		return
+	case bindsRow:
+		a.openBinds()
+		return
+	case resetBindsRow:
+		if !a.configPanel.resetArmed {
+			a.configPanel.resetArmed = true
+			return
+		}
+		a.resetBinds()
+		return
+	case resetRow:
+		if !a.configPanel.resetArmed {
+			a.configPanel.resetArmed = true
+			return
+		}
+		a.resetConfig()
 		return
 	case shortcutCtrlRow:
 		next.Shortcut.Ctrl = !next.Shortcut.Ctrl
@@ -274,19 +334,36 @@ func cycle(choices []string, current string, step int) string {
 	return choices[(index+step+len(choices))%len(choices)]
 }
 
-func (a *App) capturePrefixKey(key uv.KeyPressEvent) {
-	a.configPanel.capturingKey = false
-	if key.MatchString("esc") {
-		return
+// capturePrefix takes the combination pressed as the prefix's new one, to use with enter; another
+// combination replaces it, and esc leaves the prefix as it was.
+func (a *App) capturePrefix(key uv.KeyPressEvent) {
+	c := &a.configPanel.capture
+	switch {
+	case key.MatchString("esc"):
+		*c = keyCapture{}
+	case key.MatchString("enter") && c.pending != nil:
+		next := a.config
+		next.Prefix = *c.pending
+		*c = keyCapture{}
+		a.applyConfig(next)
+	default:
+		c.take(key)
 	}
-	name, ok := prefixKeyName(key.Code)
-	if !ok {
-		a.statusMessage = "the prefix key must be a character, space or F1–F12"
-		return
-	}
-	next := a.config
-	next.Prefix.Key = name
+}
+
+// resetConfig puts back the default of every setting the panel shows. Script folders and the AI
+// policy, which are set elsewhere, stay.
+func (a *App) resetConfig() {
+	next := config.Default()
+	next.ScriptFolders, next.MCP = a.config.ScriptFolders, a.config.MCP
 	a.applyConfig(next)
+	a.reloadScripts()
+	a.sortScripts()
+	a.pruneLogs()
+	selected := a.configPanel.selected
+	a.openConfig() // the program choices and the typed location follow the new values
+	a.configPanel.selected = selected
+	a.notice = "settings and keys reset to their defaults"
 }
 
 // applyConfig puts a new config into effect right away and saves it. Invalid ones are refused.
@@ -297,6 +374,7 @@ func (a *App) applyConfig(next config.Config) {
 		return
 	}
 	a.config, a.prefix, a.shortcut = next, prefix, shortcutFromConfig(next.Shortcut)
+	a.keymap = newKeymap(next.Keys)
 	a.applyMouseMode()
 	a.palette = newPalette(themeNamed(next.Appearance.Theme), next.Appearance.Background == config.BackgroundTheme)
 	if a.configPath == "" {
@@ -316,16 +394,17 @@ func onOff(on bool) string {
 
 func (a *App) configLines() []configLine {
 	choice := func(value string) string { return "◂ " + value + " ▸" }
-	key := a.config.Prefix.Key
-	if a.configPanel.capturingKey {
-		key = "press a key…"
+	if a.configPanel.page == bindsPage {
+		return a.bindLines()
 	}
-	lines := []configLine{
-		{label: "Prefix", value: a.prefix.String(), heading: true},
-		{label: "ctrl", value: onOff(a.config.Prefix.Ctrl), row: prefixCtrlRow},
-		{label: "alt", value: onOff(a.config.Prefix.Alt), row: prefixAltRow},
-		{label: "shift", value: onOff(a.config.Prefix.Shift), row: prefixShiftRow},
-		{label: "key", value: key, row: prefixKeyRow},
+	binds := "defaults ▸"
+	if n := changedBinds(a.config); n > 0 {
+		binds = fmt.Sprintf("%d changed ▸", n)
+	}
+	lines := []configLine{{label: "Keys", heading: true}}
+	lines = append(lines, a.prefixLines()...)
+	lines = append(lines, configLine{label: "binds of every screen", value: binds, row: bindsRow})
+	lines = append(lines, []configLine{
 		{label: "Shortcut", value: a.shortcut.String(), heading: true},
 		{label: "ctrl", value: onOff(a.config.Shortcut.Ctrl), row: shortcutCtrlRow},
 		{label: "alt", value: onOff(a.config.Shortcut.Alt), row: shortcutAltRow},
@@ -337,20 +416,18 @@ func (a *App) configLines() []configLine {
 		{label: "new tab opens", value: choice(a.newTabLabel(a.config.NewTab)), row: newTabRow},
 		{label: "close when empty", value: onOff(a.config.CloseEmptyTabs), row: closeEmptyTabsRow},
 		{label: "Programs", heading: true},
-	}
+	}...)
 	lines = append(lines, a.programLines("editor", &a.configPanel.editor, a.config.Editor, editorRow, editorCommandRow)...)
 	lines = append(lines, a.programLines("file manager", &a.configPanel.fileManager, a.config.FileManager, fileManagerRow, fileManagerCommandRow)...)
 	lines = append(lines,
 		configLine{label: "Scripts", heading: true},
 		configLine{label: "location", value: string(a.configPanel.scriptsDir), row: scriptsDirRow, typed: true},
 	)
-	if a.configPanel.selected == scriptsDirRow {
-		copyNote := "ctrl+c copy"
-		if a.configPanel.copied {
-			copyNote = "copied to clipboard"
-		}
-		lines = append(lines, configLine{label: copyNote, note: true})
+	copyNote := "ctrl+c copy"
+	if a.configPanel.copied {
+		copyNote = "copied to clipboard"
 	}
+	lines = append(lines, configLine{label: copyNote, note: true})
 	if note := scriptsDirNote(a.configPanel.scriptsDir); note != "" {
 		lines = append(lines, configLine{label: note, note: true})
 	}
@@ -364,7 +441,45 @@ func (a *App) configLines() []configLine {
 		configLine{label: "Flows", heading: true},
 		configLine{label: "step output kept", value: "◂ " + flowOutputLabel(a.config.Flows.OutputKB) + " ▸", row: flowsOutputRow},
 		configLine{label: "in each flow's last result; tests keep 4 KB", note: true},
+		configLine{label: "Defaults", heading: true},
+		configLine{label: "reset all to defaults", value: a.resetValue(), row: resetRow},
 	)
+}
+
+// prefixLines are the prefix's row and, while a new combination is being taken, what to press
+// and what the combination pressed would take from.
+func (a *App) prefixLines() []configLine {
+	c := a.configPanel.capture
+	value := a.prefix.String()
+	switch {
+	case c.pending != nil:
+		pending, _ := prefixFromConfig(*c.pending) // taken only when valid
+		value = pending.String()
+	case c.active:
+		value = "press the combination…"
+	}
+	lines := []configLine{{label: "prefix", value: value, row: prefixRow}}
+	if !c.active {
+		return lines
+	}
+	if c.problem != "" {
+		lines = append(lines, configLine{label: c.problem, note: true, warning: true})
+	}
+	if c.pending == nil {
+		return append(lines, configLine{label: "ctrl or alt with a key; esc cancels", note: true})
+	}
+	pending, _ := prefixFromConfig(*c.pending)
+	for _, conflict := range a.prefixConflicts(pending) {
+		lines = append(lines, configLine{label: "⚠ " + conflict, note: true, warning: true})
+	}
+	return append(lines, configLine{label: "enter uses it · esc cancels · or press another", note: true})
+}
+
+func (a *App) resetValue() string {
+	if a.configPanel.resetArmed {
+		return "enter again to reset"
+	}
+	return ""
 }
 
 // programLines are a program setting's row and, while custom is chosen, the command typed for it
@@ -401,37 +516,110 @@ func scriptsDirNote(typed []rune) string {
 	return ""
 }
 
-// drawConfigPanel draws the config centered over the workspace, a blank line before each
-// section. When it does not fit, it scrolls to keep the selected row in view.
-func (a *App) drawConfigPanel(screen uv.Screen) {
-	lines := a.configLines()
-	var rows []configLine // the panel's content, blank lines included
-	for i, line := range lines {
+// configLayout places the config centered over the workspace, a blank line before each section:
+// the panel, the lines it holds and the first one shown. When they do not fit, the panel scrolls
+// to keep the selected row in view.
+type configLayout struct {
+	panel image.Rectangle
+	rows  []configLine // the panel's content, blank lines included
+	first int
+}
+
+func (a *App) configLayout() configLayout {
+	var l configLayout
+	for i, line := range a.configLines() {
 		if line.heading && i > 0 {
-			rows = append(rows, configLine{note: true})
+			l.rows = append(l.rows, configLine{note: true})
 		}
-		rows = append(rows, line)
+		l.rows = append(l.rows, line)
 	}
-	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	inner := a.drawPanel(screen, centeredRect(area, 72, panelHeight(len(rows)+2)), "config")
-	visible := inner.Dy() - 2 // the hints take the last two rows
-	first := 0
-	for i, line := range rows {
-		if !line.heading && !line.note && line.row == a.configPanel.selected {
-			first = max(i-visible+1, 0)
+	l.panel = centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), 72, panelHeight(len(l.rows)+2))
+	for i, line := range l.rows {
+		if line.selectable() && line.row == a.configPanel.selected {
+			last := i // the row and the notes under it, such as what a key being taken would take
+			for last+1 < len(l.rows) && l.rows[last+1].note && l.rows[last+1].label != "" {
+				last++
+			}
+			l.first = listFirst(a.configPanel.first, i, len(l.rows), l.visible())
+			l.first = max(l.first, last-l.visible()+1)
 		}
 	}
-	for i := first; i < len(rows) && i-first < visible; i++ {
-		a.drawConfigLine(screen, inner, inner.Min.Y+i-first, rows[i])
+	a.configPanel.first = l.first // the same selection gives the same first, so later calls agree
+	return l
+}
+
+func (l configLayout) inner() image.Rectangle { return l.panel.Inset(2) }
+
+// visible is how many lines fit: the hints take the last two rows.
+func (l configLayout) visible() int { return l.inner().Dy() - 2 }
+
+// lineAt is the line drawn on row y of the screen.
+func (l configLayout) lineAt(y int) (configLine, bool) {
+	i := y - l.inner().Min.Y
+	if i < 0 || i >= l.visible() || l.first+i >= len(l.rows) {
+		return configLine{}, false
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, configHints, a.palette.panelMuted)
+	return l.rows[l.first+i], true
+}
+
+func (line configLine) selectable() bool { return !line.heading && !line.note }
+
+func (a *App) drawConfigPanel(screen uv.Screen) {
+	l := a.configLayout()
+	title, hints := "config", configHints
+	if a.configPanel.page == bindsPage {
+		title, hints = "config › binds", bindsHints
+	}
+	inner := a.drawPanel(screen, l.panel, title)
+	for i := l.first; i < len(l.rows) && i-l.first < l.visible(); i++ {
+		a.drawConfigLine(screen, inner, inner.Min.Y+i-l.first, l.rows[i])
+	}
+	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
+}
+
+// clickConfig selects the row clicked. On its value, a click steps the setting, back on ◂ and
+// forward anywhere else, as ←→ do; on a typed row, it only selects, for typing. A click outside
+// the panel closes it, as esc does.
+func (a *App) clickConfig(point image.Point) {
+	l := a.configLayout()
+	if !point.In(l.panel) {
+		a.closeConfig()
+		return
+	}
+	a.configPanel.capture, a.configPanel.bindCapture = keyCapture{}, bindCapture{}
+	line, ok := l.lineAt(point.Y)
+	if !ok || !line.selectable() {
+		return
+	}
+	a.selectConfigRow(line.row)
+	valueX := l.inner().Max.X - 1 - ansi.StringWidth(line.value)
+	if line.typed || point.X < valueX || line.value == "" {
+		return
+	}
+	if row, ok := bindRowAt(line.row); ok {
+		a.clickBind(row, point.X-valueX)
+		return
+	}
+	if strings.HasPrefix(line.value, "◂") && point.X < valueX+2 {
+		a.changeSetting(-1)
+		return
+	}
+	a.changeSetting(1)
+}
+
+// hoverConfig marks the row under the mouse.
+func (a *App) hoverConfig(point image.Point) {
+	l := a.configLayout()
+	line, ok := l.lineAt(point.Y)
+	a.configPanel.hovering = ok && line.selectable() && point.In(l.inner())
+	a.configPanel.hover = line.row
 }
 
 func (a *App) drawConfigLine(screen uv.Screen, inner image.Rectangle, y int, line configLine) {
 	style := a.configLineStyle(line)
 	switch {
 	case line.note:
-		drawText(screen, inner.Min.X+textColumn, y, inner.Max.X-1, line.label, a.noteStyle(line.label))
+		drawText(screen, inner.Min.X+textColumn, y, inner.Max.X-1, line.label, a.noteStyle(line))
 	case line.typed:
 		fillRect(screen, image.Rect(inner.Min.X, y, inner.Max.X, y+1), style)
 		drawText(screen, inner.Min.X+1, y, inner.Max.X, "  "+line.label, style)
@@ -447,8 +635,8 @@ func (a *App) drawConfigLine(screen uv.Screen, inner image.Rectangle, y int, lin
 	}
 }
 
-func (a *App) noteStyle(note string) uv.Style {
-	if note == "command not found" {
+func (a *App) noteStyle(line configLine) uv.Style {
+	if line.warning || line.label == "command not found" {
 		return a.palette.status
 	}
 	return a.palette.panelMuted
@@ -460,6 +648,8 @@ func (a *App) configLineStyle(line configLine) uv.Style {
 		return a.palette.panelHeading
 	case line.row == a.configPanel.selected:
 		return a.palette.selectedRow
+	case a.configPanel.hovering && line.row == a.configPanel.hover:
+		return a.palette.focusedTitle
 	}
 	return a.palette.panelText
 }

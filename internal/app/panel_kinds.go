@@ -69,8 +69,10 @@ func (a *App) newTabLabel(choice string) string {
 	return choice
 }
 
-// keysFor is how to press a noct mode key: with the direct shortcut, or after the prefix.
+// keysFor is how to press a noct mode key, as it is now: with the direct shortcut, or after
+// the prefix.
 func (a *App) keysFor(key string) string {
+	key = a.hint("commands", "{"+key+"}")
 	if a.shortcut.mods == 0 {
 		return a.prefix.String() + " " + key
 	}

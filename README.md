@@ -84,13 +84,13 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `[` | Scroll the terminal's history |
 | `d` | Detach; programs keep running |
 | `x` | Close the pane; a tab closes with its last pane, unless the config keeps empty tabs |
-| `c` | Config: prefix key, direct shortcuts, theme, background, mouse, what a new tab opens and whether it closes when empty, editor, file manager, scripts folder, how long and how much of the logs to keep, how much step output flows keep |
+| `c` | Config: prefix key, the keys of every screen, direct shortcuts, theme, background, mouse, what a new tab opens and whether it closes when empty, editor, file manager, scripts folder, how long and how much of the logs to keep, how much step output flows keep |
 | `q` | Quit, after asking: `Enter` or `q` again |
 | `Esc` | Cancel |
 
 A popup lists these keys while noct mode is on. Wherever noct moves something and you are not typing, `hjkl` work like the arrows.
 
-Outside noct mode, every key goes straight to the program in the pane, except the **direct shortcuts**: `Alt` with a noct mode key runs that command without the prefix (`Alt+→` moves the focus, `Alt+T` opens a tab, `Alt+A` moves the pane), and `Alt+Shift` with the arrows moves the pane directly. This takes `Alt+F` and `Alt+D` from the shell's word editing; the modifier can be switched to `Ctrl+Alt` or turned off in the config.
+Outside noct mode, every key goes straight to the program in the pane, except the **direct shortcuts**: `Alt` with a noct mode key runs that command without the prefix (`Alt+→` moves the focus, `Alt+T` opens a tab, `Alt+A` moves the pane), and `Alt+Shift` with the arrows moves the pane directly. This takes `Alt+F` and `Alt+D` from the shell's word editing; the modifier can be switched to `Ctrl+Alt` or turned off in the config. Every key of noct's modes, panels and popups can also be changed there, under **Keys → binds of every screen**.
 
 Panes tile like i3 with autotiling: a new pane opens beside the focused one when it is wider than tall, below it otherwise. Moving a pane (`a`, or `Alt+Shift` with the arrows) follows i3's move: it trades places within its group, enters a neighbor group, or leaves its group to land beside it.
 

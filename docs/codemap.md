@@ -60,16 +60,18 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/logs_filter.go` | The logs filter line: words over name, date, time and status; size and line comparisons |
 | `internal/app/scope.go` | The inspect's scope pane (variables of the selected block with their last values) and the variable picker of template prompts (ctrl+v) |
 | `internal/app/flows.go` | Flow actions: create, run and test steps (as tracked runs), add, edit in the editor, move and remove steps, what a step does and its kept output |
+| `internal/app/keymap.go` | Changeable keys: the contexts and their actions (`keyContexts`), the keymap built from the config, turning a pressed key into the default one a handler knows, hints written with the keys as they are |
+| `internal/app/binds.go` | The config's binds page: a row per action, taking a key with conflicts, moving keys between actions, reset |
 | `internal/app/shortcut.go` | Direct shortcuts: modifier + noct mode key without the prefix, modifier + shift + arrows to move |
 | `internal/app/mouse.go` | Mouse: tab and pane clicks, dragging dividers, wheel scrolling (over the tab bar, changing tab), forwarding to views that take it |
 | `internal/app/editor.go` | Program settings (editor, file manager): choices found on the system or a custom command; opening a folder |
 | `internal/app/script_form.go` | Script form: name and program typed in place, command line, description, params and notes each edited alone in the editor |
 | `internal/app/selection.go` | Selecting text with the mouse in one pane, across scrolling, highlighting and copying it (OSC 52) |
 | `internal/app/rebuild.go` | Notices on attach that the noct binary was rebuilt after the daemon started |
-| `internal/app/prefix.go` | The configurable prefix key: parsing, matching, key names |
-| `internal/app/config_panel.go` | Config panel: rows, key handling, applying and saving, drawing |
+| `internal/app/prefix.go` | The configurable prefix key: parsing, matching, key names; capturing a new one and what it would take from shortcuts and programs |
+| `internal/app/config_panel.go` | Config panel: rows, key handling, clicks and hover, applying and saving, reset to defaults, drawing |
 | `internal/app/panel_kinds.go` | The kinds of panel a key opens (`panelKinds`), which `runAction` and the new tab setting read; opening a new tab |
-| `internal/app/panel.go` | Shared panel component: framed box, rows, centered and corner placement |
+| `internal/app/panel.go` | Shared panel component: framed box, rows, list scrolling with a margin around the selection, centered and corner placement |
 | `internal/app/tab.go` | A tab: its views, pane names, focus history, floating panes, fullscreen, visible frames, size rules |
 | `internal/app/floating.go` | Floating panes: opening, keyboard moves and resizes, mouse drags, focus navigation over both layers |
 | `internal/app/resize.go` | Resize mode (prefix+n): arrows grow or shrink the focused tile or floating pane |

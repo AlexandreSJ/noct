@@ -13,7 +13,7 @@ import (
 // holds and when it was last used; its keys open, create, rename, close and delete them.
 
 const (
-	sessionHints       = "enter open  n new  r rename  x close  d delete  esc"
+	sessionHints       = "{enter} open  {n} new  {r} rename  {x} close  {d} delete  esc"
 	sessionPanelWidth  = 64
 	sessionNameColumns = 20
 )
@@ -56,7 +56,7 @@ func (a *App) handleSessionsKey(key uv.KeyPressEvent) {
 }
 
 func (a *App) promptNewSession() {
-	a.openPrompt("new session", "", "enter create  esc cancel  empty picks a number", func(name string) {
+	a.openPrompt("new session", "", "{enter} create  esc cancel  empty picks a number", func(name string) {
 		s, err := a.createSession(name)
 		if err != nil {
 			a.statusMessage = err.Error()
@@ -68,7 +68,7 @@ func (a *App) promptNewSession() {
 }
 
 func (a *App) promptSessionRename(s *session) {
-	a.openPrompt("rename session", s.name, "enter save  esc cancel", func(name string) {
+	a.openPrompt("rename session", s.name, "{enter} save  esc cancel", func(name string) {
 		if err := a.renameSession(s, name); err != nil {
 			a.statusMessage = err.Error()
 		}
@@ -108,7 +108,7 @@ func (a *App) drawSessions(screen uv.Screen) {
 		}
 		drawRow(screen, inner, y, a.sessionLabel(s), lastUsed(s.lastAccess, now, s == a.session && a.client != nil), style)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, sessionHints, pal.panelMuted)
+	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("sessions", sessionHints), pal.panelMuted)
 }
 
 // sessionLabel is a session's row: open (●) or closed (○), its name and its tabs.

@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	finderHints   = "type to search  ↑↓ select  enter open  esc close"
+	finderHints   = "type to search  {up}{down} select  {enter} open  esc close"
 	finderResults = 12
 )
 
@@ -53,7 +53,7 @@ func (a *App) finderItems() []finderItem {
 	}
 	for _, s := range a.availableShortcuts(commandShortcuts) {
 		if s.keys != "space" && slices.Contains(actionKeys, s.keys) {
-			items = append(items, finderItem{label: s.label, kind: "prefix " + s.keys, open: func() { a.runAction(s.keys) }})
+			items = append(items, finderItem{label: s.label, kind: "prefix " + a.hint("commands", shortcutTemplate(s.keys)), open: func() { a.runAction(s.keys) }})
 		}
 	}
 	for i, t := range a.session.tabs {
@@ -155,5 +155,5 @@ func (a *App) drawFinder(screen uv.Screen) {
 		}
 		drawRow(screen, inner, inner.Min.Y+2+i-first, f.matches[i].label, f.matches[i].kind, style)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, finderHints, a.palette.panelMuted)
+	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("search", finderHints), a.palette.panelMuted)
 }

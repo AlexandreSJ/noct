@@ -34,7 +34,7 @@ func (a *App) openPrompt(title, initial, hints string, submit func(text string))
 }
 
 func (a *App) startRename() {
-	a.openPrompt("rename tab", a.currentTab().name, "enter save  esc cancel  empty follows the pane", func(name string) {
+	a.openPrompt("rename tab", a.currentTab().name, "{enter} save  esc cancel  empty follows the pane", func(name string) {
 		if t := a.currentTab(); t != nil {
 			t.name = name
 		}
@@ -48,7 +48,7 @@ func (a *App) startPaneRename() {
 		return
 	}
 	id := t.focused
-	a.openPrompt("rename panel", t.paneNames[id], "enter save  esc cancel  empty follows the program", func(name string) {
+	a.openPrompt("rename panel", t.paneNames[id], "{enter} save  esc cancel  empty follows the program", func(name string) {
 		if name == "" {
 			delete(t.paneNames, id)
 			return
@@ -98,7 +98,7 @@ func (a *App) drawPrompt(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	inner := a.drawPanel(screen, centeredRect(area, 50, panelHeight(3)), a.prompt.title)
 	drawRow(screen, inner, inner.Min.Y, string(a.prompt.text)+"▏", "", a.palette.selectedRow)
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.prompt.hints, a.palette.panelMuted)
+	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("prompt", a.prompt.hints), a.palette.panelMuted)
 }
 
 func (a *App) askToConfirm(question string, accept func()) {
@@ -113,7 +113,7 @@ func (a *App) askToConfirmWith(question, again string, accept func()) {
 
 // confirmShortcuts lists the keys of the question on screen.
 func (a *App) confirmShortcuts() []shortcut {
-	yes := "enter"
+	yes := "{enter}"
 	if a.confirm.again != "" {
 		yes += " / " + a.confirm.again
 	}
@@ -188,7 +188,7 @@ func (a *App) drawChoice(screen uv.Screen) {
 		}
 		drawRow(screen, inner, inner.Min.Y+i, option.label, option.key, style)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, "enter choose  esc cancel", a.palette.panelMuted)
+	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("choice", "{enter} choose  esc cancel"), a.palette.panelMuted)
 }
 
 // infoPopup tells about something, such as what a flow's step does, until closed.

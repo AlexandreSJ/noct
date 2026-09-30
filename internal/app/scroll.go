@@ -45,7 +45,7 @@ func (a *App) handleScrollKey(key uv.KeyPressEvent) {
 		a.mode = commandMode
 		return
 	}
-	if name, move, ok := a.shortcut.command(key); ok {
+	if name, move, ok := a.shortcut.command(key, a.commandKey); ok {
 		a.mode = normalMode
 		a.runShortcut(name, move)
 		return
@@ -62,7 +62,7 @@ func (a *App) handleScrollKey(key uv.KeyPressEvent) {
 		a.scrollTo(s, a.scrollOffset-page)
 	case "home", "g":
 		a.scrollTo(s, s.ScrollbackLen())
-	case "end", "shift+g":
+	case "end", "G", "shift+g":
 		a.scrollTo(s, 0)
 	case "esc", "q", "enter":
 		a.mode = normalMode

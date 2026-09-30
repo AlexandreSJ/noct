@@ -3,6 +3,7 @@ package app
 import (
 	"image"
 	"slices"
+	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 
@@ -93,6 +94,12 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 	if a.selection != nil && !a.selection.dragging {
 		a.selection = nil
 	}
+	if context := a.modeKeyContext(); context != "" && !a.prefix.matches(key) {
+		var ok bool
+		if key, ok = a.keymap.resolve(context, key); !ok {
+			return
+		}
+	}
 	switch a.mode {
 	case commandMode:
 		a.handleCommandKey(key)
@@ -132,12 +139,19 @@ func (a *App) handleNormalKey(key uv.KeyPressEvent) {
 		a.mode = commandMode
 		return
 	}
-	if name, move, ok := a.shortcut.command(key); ok {
+	if name, move, ok := a.shortcut.command(key, a.commandKey); ok {
 		a.runShortcut(name, move)
 		return
 	}
 	if t := a.currentTab(); t != nil && !t.isEmpty() {
-		t.focusedView().SendKey(key)
+		v := t.focusedView()
+		if context := viewKeyContext(v); context != "" {
+			var ok bool
+			if key, ok = a.keymap.resolve(context, key); !ok {
+				return
+			}
+		}
+		v.SendKey(key)
 		return
 	}
 	a.handleHomeKey(key)
@@ -200,7 +214,11 @@ func (a *App) runAction(name string) {
 			a.detachClient("detached")
 		}
 	case "q":
-		a.askToConfirmWith("quit noct?", "q", func() { a.quitting = true })
+		again := "q"
+		if keys := a.keymap.keysOf("commands", "q"); len(keys) > 0 {
+			again = keys[0] // the quit key as it is now, pressed twice, quits
+		}
+		a.askToConfirmWith("quit noct?", again, func() { a.quitting = true })
 		return
 	case "space":
 		a.openFinder()
@@ -277,6 +295,23 @@ func (a *App) handleMoveKey(key uv.KeyPressEvent) {
 	}
 }
 
+// shortcutTemplate marks the keys of a popup's row for hint: a key alone, or the arrows and
+// their letters together. Other rows, such as 1-9, show as they are.
+func shortcutTemplate(keys string) string {
+	switch keys {
+	case "←↓↑→ hjkl":
+		return "{left}{down}{up}{right} {h}{j}{k}{l}"
+	case "← → h l":
+		return "{left} {right} {h} {l}"
+	case "↑ ↓ k j":
+		return "{up} {down} {k} {j}"
+	}
+	if _, ok := keyEvent(keys); ok && !strings.Contains(keys, "{") {
+		return "{" + keys + "}"
+	}
+	return keys
+}
+
 // availableShortcuts leaves out the commands that need a tab when none is open.
 func (a *App) availableShortcuts(shortcuts []shortcut) []shortcut {
 	if a.currentTab() != nil {
@@ -300,13 +335,13 @@ func (a *App) shortcutsPopupArea(visible []shortcut, note string) image.Rectangl
 	return centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), 36, panelHeight(lines))
 }
 
-// drawShortcutsPopup lists the keys of the current mode in the middle of the screen, with an
-// optional note under them.
-func (a *App) drawShortcutsPopup(screen uv.Screen, title string, shortcuts []shortcut, note string) {
+// drawShortcutsPopup lists the keys of the current mode, as they are in its key context, in the
+// middle of the screen, with an optional note under them.
+func (a *App) drawShortcutsPopup(screen uv.Screen, title, context string, shortcuts []shortcut, note string) {
 	visible := a.availableShortcuts(shortcuts)
 	inner := a.drawPanel(screen, a.shortcutsPopupArea(visible, note), title)
 	for i, s := range visible {
-		drawRow(screen, inner, inner.Min.Y+i, s.keys, s.label, a.palette.panelText)
+		drawRow(screen, inner, inner.Min.Y+i, a.hint(context, shortcutTemplate(s.keys)), s.label, a.palette.panelText)
 	}
 	if note != "" {
 		drawCentered(screen, inner, inner.Max.Y-1, note, a.palette.panelMuted)

@@ -42,9 +42,12 @@ type Config struct {
 	ScriptsSort string `toml:"scripts_sort"`
 	// ScriptFolders are folders of scripts outside ScriptsDir, shown in noct as they are.
 	ScriptFolders []string `toml:"script_folders"`
-	Logs          Logs     `toml:"logs"`
-	Flows         Flows    `toml:"flows"`
-	MCP           MCP      `toml:"mcp"`
+	// Keys changes what keys do: by context ("scripts") and action ("edit"), the keys that do it
+	// instead of the defaults; no keys leaves the action without any. The app knows the names.
+	Keys  map[string]map[string][]string `toml:"keys,omitempty"`
+	Logs  Logs                           `toml:"logs"`
+	Flows Flows                          `toml:"flows"`
+	MCP   MCP                            `toml:"mcp"`
 }
 
 // MCP sets what an AI may do through noct mcp. Policy maps a tool's name to PolicyAllow,
