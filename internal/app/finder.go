@@ -21,6 +21,7 @@ type finder struct {
 	items    []finderItem
 	matches  []finderItem
 	selected int
+	first    int // the first match shown
 	// cancel, when set, runs after esc, such as going back to the prompt that opened the search.
 	cancel func()
 }
@@ -145,7 +146,8 @@ func (a *App) drawFinder(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	inner := a.drawPanel(screen, centeredRect(area, 60, panelHeight(finderResults+3)), f.title)
 	drawRow(screen, inner, inner.Min.Y, "› "+string(f.query)+"▏", "", a.palette.panelHeading)
-	first := max(f.selected-finderResults+1, 0)
+	first := listFirst(f.first, f.selected, len(f.matches), finderResults)
+	f.first = first
 	for i := first; i < len(f.matches) && i-first < finderResults; i++ {
 		style := a.palette.panelText
 		if i == f.selected {

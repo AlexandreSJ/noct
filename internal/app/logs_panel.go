@@ -553,7 +553,8 @@ func (p *logsPanel) drawDay(screen uv.Screen, area image.Rectangle, s dayStats) 
 	}
 	p.current(rows)
 	lightest, heaviest := sizeRange(rows)
-	p.first = max(p.selected-list.Dy()+1, 0)
+	first := p.first
+	p.first = listFirst(first, p.selected, len(rows), list.Dy())
 	for i := p.first; i < len(rows) && i-p.first < list.Dy(); i++ {
 		p.drawLogRow(screen, list, list.Min.Y+i-p.first, rows[i], i == p.selected, fraction(rows[i].entry.Size, lightest, heaviest))
 	}

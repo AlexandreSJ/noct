@@ -249,7 +249,7 @@ func (p *scriptsPanel) drawList(screen uv.Screen, area image.Rectangle) {
 	pal := &p.app.palette
 	rows := p.rows()
 	active := rows[p.selected].folder
-	first := max(p.selected-area.Dy()+1, 0)
+	first := listFirst(p.first, p.selected, len(rows), area.Dy())
 	p.first = first
 	for i := first; i < len(rows) && i-first < area.Dy(); i++ {
 		row, y := rows[i], area.Min.Y+i-first

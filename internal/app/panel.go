@@ -22,6 +22,33 @@ func panelHeight(lines int) int {
 	return lines + 4
 }
 
+// scrollOff is the fewest rows a list keeps in view around its selection, above and below, so
+// moving through it shows what comes next before reaching it. Taller lists keep scrollShare of
+// their height.
+const (
+	scrollOff   = 4
+	scrollShare = 30 // percent
+)
+
+// scrollMargin is how many rows a list height rows tall keeps around its selection: scrollShare
+// of it, at least scrollOff, and never more than half, where the selection would stop moving.
+func scrollMargin(height int) int {
+	return min(max(scrollOff, height*scrollShare/100), (height-1)/2)
+}
+
+// listFirst is the first row a list of n rows shows in height rows. It moves from first, where the
+// list was, only as much as keeping scrollOff rows around selected takes, and never leaves blank
+// rows past the end.
+func listFirst(first, selected, n, height int) int {
+	if height <= 0 {
+		return 0
+	}
+	margin := scrollMargin(height)
+	first = min(first, selected-margin)
+	first = max(first, selected+margin-height+1)
+	return max(min(first, n-height), 0)
+}
+
 // drawRow fills one line of area with style, the label on the left and the value on the right.
 func drawRow(screen uv.Screen, area image.Rectangle, y int, label, value string, style uv.Style) {
 	fillRect(screen, image.Rect(area.Min.X, y, area.Max.X, y+1), style)
