@@ -103,6 +103,9 @@ func (a *App) handleMCPKey(key uv.KeyPressEvent) {
 	case "down", "j":
 		a.mcpSelected = min(a.mcpSelected+1, rows-1)
 		return
+	case "pgup", "pgdown", "home", "end":
+		a.mcpSelected, _ = listJump(key.String(), a.mcpSelected, rows, rows)
+		return
 	}
 	if a.mcpSelected < len(a.approvals) {
 		selected := a.approvals[a.mcpSelected]

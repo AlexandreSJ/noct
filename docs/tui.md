@@ -177,6 +177,7 @@ map --when-focus-on var:in_noct ctrl+l
 - Bordas retas e discretas; o painel com foco destacado pela cor de acento.
 - Home com o título `noct` em blocos (cor de destaque) e o corvo de `internal/app/raven2.ascii` na cor das dicas, centralizados; o `raven.ascii` original, maior, fica na raiz do repositório.
 - Suporte a truecolor com fallback para 256 cores.
+- Em toda lista (config e binds, busca, scripts, logs, fluxos do inspect, sessões, MCP, escolhas), `PgUp`/`PgDn` andam uma página, deixando a última linha da página anterior à vista, e `Home`/`End` vão ao primeiro e ao último item (`listJump`); no popup de um passo, rolam o texto. Nos logs, com o calendário em foco, `PgUp`/`PgDn` mudam o mês.
 - Listas que não cabem (config e binds, busca, scripts, logs) rolam deixando linhas visíveis em volta da seleção, acima e abaixo: 30% da altura da lista, pelo menos 4 e no máximo metade, para o próximo item aparecer antes de ser alcançado (`scrollMargin`).
 - Animações só onde informam algo (spinner de execução, transição de view), nunca bloqueando input.
 

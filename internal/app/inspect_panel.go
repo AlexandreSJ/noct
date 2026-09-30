@@ -185,6 +185,11 @@ func (p *inspectPanel) listKey(name string, f flow.Flow) {
 		p.selectFlow(-1)
 	case "down", "j":
 		p.selectFlow(1)
+	case "pgup", "pgdown", "home", "end":
+		if _, i, ok := p.current(); ok {
+			to, _ := listJump(name, i, len(p.app.flows), max(p.list.Dy()-2, 1)) // inside the frame
+			p.selectFlow(to - i)
+		}
 	case "enter", "right", "l":
 		p.focusChart = true
 	case "o":

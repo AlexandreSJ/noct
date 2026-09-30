@@ -139,6 +139,8 @@ func (a *App) handleBindsKey(key uv.KeyPressEvent) {
 		a.moveConfigSelection(-1)
 	case "down", "j":
 		a.moveConfigSelection(1)
+	case "pgup", "pgdown", "home", "end":
+		a.jumpConfigSelection(key.String())
 	case "enter", "space", "right", "l":
 		a.changeSetting(1)
 	case "a":

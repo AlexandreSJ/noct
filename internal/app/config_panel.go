@@ -119,6 +119,9 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 	case "down":
 		a.moveConfigSelection(1)
 		return
+	case "pgup", "pgdown", "home", "end":
+		a.jumpConfigSelection(key.String())
+		return
 	}
 	if a.isTypedRow(a.configPanel.selected) {
 		a.typeInConfig(key)
@@ -159,6 +162,15 @@ func (a *App) moveConfigSelection(step int) {
 	rows := a.selectableConfigRows()
 	index := max(slices.Index(rows, a.configPanel.selected), 0)
 	a.selectConfigRow(rows[(index+step+len(rows))%len(rows)])
+}
+
+// jumpConfigSelection moves a page up or down, or to the first or last row, as listJump does.
+func (a *App) jumpConfigSelection(key string) {
+	rows := a.selectableConfigRows()
+	index := max(slices.Index(rows, a.configPanel.selected), 0)
+	if to, ok := listJump(key, index, len(rows), a.configLayout().visible()); ok {
+		a.selectConfigRow(rows[to])
+	}
 }
 
 // selectableConfigRows are the rows of the page shown, in order.

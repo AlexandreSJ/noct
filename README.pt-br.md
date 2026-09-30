@@ -88,7 +88,7 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `q` | Sair, depois de confirmar: `Enter` ou `q` de novo |
 | `Esc` | Cancelar |
 
-Um popup lista essas teclas enquanto o modo noct está ligado. Onde o noct move algo e você não está digitando, `hjkl` valem como as setas.
+Um popup lista essas teclas enquanto o modo noct está ligado. Onde o noct move algo e você não está digitando, `hjkl` valem como as setas, e em toda lista `PgUp`/`PgDn` andam uma página e `Home`/`End` vão às pontas.
 
 Fora do modo noct, toda tecla vai direto para o programa no painel, exceto os **atalhos diretos**: `Alt` com uma tecla do modo noct roda o comando sem o prefixo (`Alt+→` muda o foco, `Alt+T` abre uma tab, `Alt+A` move o painel), e `Alt+Shift` com as setas move o painel direto. Isso tira do shell `Alt+F` e `Alt+D` (edição por palavra); o modificador pode virar `Ctrl+Alt` ou ser desligado no config. Todas as teclas dos modos, painéis e popups do noct também podem ser trocadas lá, em **Keys → binds of every screen**.
 

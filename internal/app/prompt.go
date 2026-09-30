@@ -167,6 +167,9 @@ func (a *App) handleChoiceKey(key uv.KeyPressEvent) {
 	case "down", "j", "tab":
 		c.selected = (c.selected + 1) % len(c.options)
 		return
+	case "pgup", "pgdown", "home", "end":
+		c.selected, _ = listJump(name, c.selected, len(c.options), len(c.options))
+		return
 	}
 	for i, option := range c.options {
 		if name == option.key || (name == "enter" && i == c.selected) {
@@ -196,6 +199,8 @@ type infoPopup struct {
 	title string
 	lines []styledLine
 	first int
+	// visible and wrapped are how many lines were shown and how many the text took, as drawn.
+	visible, wrapped int
 }
 
 func (a *App) openInfo(title string, lines []styledLine) {
@@ -210,6 +215,9 @@ func (a *App) handleInfoKey(key uv.KeyPressEvent) {
 		a.info.first = max(a.info.first-1, 0)
 	case "down", "j":
 		a.info.first++
+	case "pgup", "pgdown", "home", "end":
+		last := max(a.info.wrapped-a.info.visible, 0) // the first line that shows the end
+		a.info.first, _ = listJump(key.String(), a.info.first, last+1, a.info.visible)
 	default:
 		a.mode = normalMode
 	}
@@ -227,12 +235,13 @@ func (a *App) drawInfo(screen uv.Screen) {
 	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(len(lines)+2)), a.info.title)
 	visible := max(inner.Dy()-2, 1)
 	a.info.first = min(a.info.first, max(len(lines)-visible, 0))
+	a.info.visible, a.info.wrapped = visible, len(lines)
 	for i := a.info.first; i < len(lines) && i-a.info.first < visible; i++ {
 		drawText(screen, inner.Min.X+1, inner.Min.Y+i-a.info.first, inner.Max.X-1, lines[i].text, lines[i].style)
 	}
 	hints := "any key closes"
 	if len(lines) > visible {
-		hints = "↑↓ scroll  any other key closes"
+		hints = a.hint("info", "{up}{down} scroll  {pgup} {pgdown} page  any other key closes")
 	}
 	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, hints, a.palette.panelMuted)
 }

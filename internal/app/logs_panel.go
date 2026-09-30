@@ -233,12 +233,17 @@ func (p *logsPanel) SendKey(key uv.KeyPressEvent) {
 	case "delete":
 		p.askToClear()
 		return
-	case "[", "pgup":
+	case "[":
 		p.moveDay(0, -1)
 		return
-	case "]", "pgdown":
+	case "]":
 		p.moveDay(0, 1)
 		return
+	case "pgup", "pgdown":
+		if !p.focusList { // on the calendar they change the month; in the list, the page
+			p.moveDay(0, map[string]int{"pgup": -1, "pgdown": 1}[name])
+			return
+		}
 	}
 	if p.focusList {
 		p.listKey(name)
@@ -279,6 +284,8 @@ func (p *logsPanel) listKey(name string) {
 		p.selected = 0
 	case "end", "G", "shift+g":
 		p.selected = len(rows) - 1
+	case "pgup", "pgdown":
+		p.selected, _ = listJump(name, p.selected, len(rows), p.list.Dy())
 	case "esc", "left", "h":
 		p.focusList = false
 	case "enter":
@@ -546,6 +553,7 @@ func (p *logsPanel) drawDay(screen uv.Screen, area image.Rectangle, s dayStats) 
 	drawText(screen, area.Min.X, area.Min.Y+1, area.Max.X, summary, pal.panelText)
 	drawText(screen, area.Min.X, area.Min.Y+2, area.Max.X, "sorted by "+p.order+"; the bar goes from the lightest log to the heaviest", pal.panelMuted)
 	list := image.Rect(area.Min.X, area.Min.Y+4, area.Max.X, area.Max.Y)
+	first := p.first
 	p.list, p.first = list, 0
 	if len(rows) == 0 {
 		drawText(screen, list.Min.X, list.Min.Y, list.Max.X, "no logs", pal.panelMuted)
@@ -553,7 +561,6 @@ func (p *logsPanel) drawDay(screen uv.Screen, area image.Rectangle, s dayStats) 
 	}
 	p.current(rows)
 	lightest, heaviest := sizeRange(rows)
-	first := p.first
 	p.first = listFirst(first, p.selected, len(rows), list.Dy())
 	for i := p.first; i < len(rows) && i-p.first < list.Dy(); i++ {
 		p.drawLogRow(screen, list, list.Min.Y+i-p.first, rows[i], i == p.selected, fraction(rows[i].entry.Size, lightest, heaviest))

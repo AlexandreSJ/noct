@@ -104,6 +104,8 @@ func (a *App) handleFinderKey(key uv.KeyPressEvent) {
 		f.selected = max(f.selected-1, 0)
 	case "down", "ctrl+n":
 		f.selected = min(f.selected+1, max(len(f.matches)-1, 0))
+	case "pgup", "pgdown", "home", "end":
+		f.selected, _ = listJump(key.String(), f.selected, len(f.matches), finderResults)
 	case "backspace":
 		f.query = deleteLastRune(f.query)
 		f.filter()

@@ -49,6 +49,24 @@ func listFirst(first, selected, n, height int) int {
 	return max(min(first, n-height), 0)
 }
 
+// listJump is where a key that jumps leaves the selection of a list of n rows shown height at a
+// time: pgup and pgdown a page away, keeping one row of the page left in view, home and end at
+// the ends. Other keys do not jump.
+func listJump(key string, selected, n, height int) (int, bool) {
+	page := max(height-1, 1)
+	switch key {
+	case "pgup":
+		return max(selected-page, 0), true
+	case "pgdown":
+		return max(min(selected+page, n-1), 0), true
+	case "home":
+		return 0, true
+	case "end":
+		return max(n-1, 0), true
+	}
+	return selected, false
+}
+
 // drawRow fills one line of area with style, the label on the left and the value on the right.
 func drawRow(screen uv.Screen, area image.Rectangle, y int, label, value string, style uv.Style) {
 	fillRect(screen, image.Rect(area.Min.X, y, area.Max.X, y+1), style)

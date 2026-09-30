@@ -33,9 +33,10 @@ type scriptsPanel struct {
 	seenLoad    int
 
 	// list is where the list was last drawn, relative to the panel, and first the row on its
-	// top line: what a click lands on.
-	list  image.Rectangle
-	first int
+	// top line: what a click lands on. height is how many rows it showed, a page for pgup.
+	list   image.Rectangle
+	first  int
+	height int
 
 	// notes caches the selected script's notes, read again when the selection or library changes.
 	notesOf     string
@@ -112,6 +113,8 @@ func (p *scriptsPanel) SendKey(key uv.KeyPressEvent) {
 		p.selected = 0
 	case "end", "G", "shift+g":
 		p.selected = len(p.rows()) - 1
+	case "pgup", "pgdown":
+		p.selected, _ = listJump(name, p.selected, len(p.rows()), p.height)
 	}
 	row, ok := p.current()
 	switch {
@@ -250,7 +253,7 @@ func (p *scriptsPanel) drawList(screen uv.Screen, area image.Rectangle) {
 	rows := p.rows()
 	active := rows[p.selected].folder
 	first := listFirst(p.first, p.selected, len(rows), area.Dy())
-	p.first = first
+	p.first, p.height = first, area.Dy()
 	for i := first; i < len(rows) && i-first < area.Dy(); i++ {
 		row, y := rows[i], area.Min.Y+i-first
 		label, value := p.rowText(row)

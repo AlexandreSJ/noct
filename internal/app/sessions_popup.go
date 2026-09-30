@@ -39,6 +39,8 @@ func (a *App) handleSessionsKey(key uv.KeyPressEvent) {
 		a.sessionSelected = max(a.sessionSelected-1, 0)
 	case "down", "j":
 		a.sessionSelected = min(a.sessionSelected+1, len(a.sessionRows)-1)
+	case "pgup", "pgdown", "home", "end":
+		a.sessionSelected, _ = listJump(key.String(), a.sessionSelected, len(a.sessionRows), len(a.sessionRows))
 	case "enter", "o":
 		a.switchSession(selected)
 	case "n":
