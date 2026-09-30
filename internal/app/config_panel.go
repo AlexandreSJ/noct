@@ -28,6 +28,8 @@ const (
 	themeRow
 	backgroundRow
 	mouseRow
+	newTabRow
+	closeEmptyTabsRow
 	editorRow
 	editorCommandRow
 	fileManagerRow
@@ -207,6 +209,10 @@ func (a *App) changeSetting(step int) {
 		next.Appearance.Background = cycle([]string{config.BackgroundTerminal, config.BackgroundTheme}, next.Appearance.Background, step)
 	case mouseRow:
 		next.Mouse = !next.Mouse
+	case newTabRow:
+		next.NewTab = cycle(newTabChoices(), next.NewTab, step)
+	case closeEmptyTabsRow:
+		next.CloseEmptyTabs = !next.CloseEmptyTabs
 	case editorRow:
 		next.Editor = a.configPanel.editor.step(next.Editor, step)
 	case fileManagerRow:
@@ -327,6 +333,9 @@ func (a *App) configLines() []configLine {
 		{label: "theme", value: choice(themeNamed(a.config.Appearance.Theme).name), row: themeRow},
 		{label: "background", value: a.config.Appearance.Background, row: backgroundRow},
 		{label: "mouse", value: onOff(a.config.Mouse), row: mouseRow},
+		{label: "Tabs", heading: true},
+		{label: "new tab opens", value: choice(a.newTabLabel(a.config.NewTab)), row: newTabRow},
+		{label: "close when empty", value: onOff(a.config.CloseEmptyTabs), row: closeEmptyTabsRow},
 		{label: "Programs", heading: true},
 	}
 	lines = append(lines, a.programLines("editor", &a.configPanel.editor, a.config.Editor, editorRow, editorCommandRow)...)

@@ -298,7 +298,8 @@ func (a *App) closeFocused() {
 	v.Close()
 }
 
-// detachView takes a view out of whichever tab holds it, in any session; a tab left without panes closes.
+// detachView takes a view out of whichever tab holds it, in any session; a tab left without panes
+// closes, unless the config keeps empty tabs.
 // Unknown ids are ignored: a closed terminal still reports its exit later.
 func (a *App) detachView(id layout.PaneID) {
 	delete(a.shells, id)
@@ -308,7 +309,9 @@ func (a *App) detachView(id layout.PaneID) {
 	}
 	t.removeView(id)
 	t.resizeViews(a.workspaceArea())
-	s.removeTabIfEmpty(t)
+	if a.config.CloseEmptyTabs {
+		s.removeTabIfEmpty(t)
+	}
 }
 
 // removeTabIfEmpty closes a tab without panes. The selection stays on the same tab, or moves to

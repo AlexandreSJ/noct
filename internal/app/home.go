@@ -118,6 +118,10 @@ func artLeft(area image.Rectangle, lines []string) int {
 // handleHomeKey shows the prefix key that opens the commands. Ctrl+D twice in a row quits,
 // the way ctrl+d leaves a shell; the second press must come while the hint is still showing.
 func (a *App) handleHomeKey(key uv.KeyPressEvent) {
+	if t := a.currentTab(); t != nil && key.MatchString("ctrl+d") {
+		a.session.removeTabIfEmpty(t) // a tab opened empty closes, as its last pane would
+		return
+	}
 	quitting := key.MatchString("ctrl+d")
 	if quitting && a.homeQuitArmed {
 		a.quitting = true

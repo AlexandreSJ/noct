@@ -180,7 +180,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 ## ADR-016 — Tabs como contêineres, scripts panel e home fixa
 
-*Atualizada pela ADR-019:* tabs não ficam mais vazias; fecham com o último painel.
+*Atualizada pela ADR-019:* tabs não ficam mais vazias; fecham com o último painel. *E pela ADR-039:* uma tab pode abrir ou ficar vazia, se o config pedir.
 
 **Contexto.** O mantenedor reorganizou as teclas: `t` abre uma tab, `p` abre um painel, `s` abre um painel de scripts. Também pediu `noct` acima do corvo, um corvo menor e a remoção das opções da home no config.
 
@@ -235,7 +235,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Decisão.** Uma tab fecha junto com o último painel, seja qual for o motivo: `x`, o programa terminar (`Ctrl+D` no shell), `Ctrl+D` no scripts panel, fechar uma execução ou mover o painel para outra tab. A seleção fica na mesma tab, ou vai para a que ocupa o lugar da fechada. Sem tabs, aparece a home, onde `Ctrl+D` duas vezes sai do noct.
 
-**Consequências.** Não existe mais tab vazia visível: `x` sempre fecha um painel, e `p`/`s` só abrem uma tab nova a partir da home. `Ctrl+D` no último shell da última tab leva à home, onde `Ctrl+D` duas vezes sai.
+**Consequências.** Não existe mais tab vazia visível: `x` sempre fecha um painel, e `p`/`s` só abrem uma tab nova a partir da home. `Ctrl+D` no último shell da última tab leva à home, onde `Ctrl+D` duas vezes sai. *Atualizada pela ADR-039:* uma tab nova pode abrir vazia, mostrando a home, quando o config escolhe `empty`, e uma tab pode ficar vazia com `close_empty_tabs` desligado.
 
 ## ADR-020 — Atalhos diretos, mouse e renomear scripts
 
@@ -481,3 +481,15 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Legenda** logo abaixo das seis semanas, antes dos totais: `activity less` e os quatro passos. Os totais descem uma linha, e o calendário do layout estreito passa de 17 para 18 linhas.
 
 **Consequências.** A cor mede logs, e terminais também gravam logs: um dia de muitos shells aparece quente sem ter rodado scripts. Um dia com falha, ou só com execuções sem log, não se destaca mais no calendário. Em terminais sem true color, as cores descem para a paleta de 256 cores e os passos podem ficar próximos.
+
+## ADR-039 — Painel de uma tab nova e tabs vazias escolhidos no config
+
+**Contexto.** `t` abria sempre uma tab com um terminal. O mantenedor pediu que o config escolha com o que uma tab nova abre: vazia, terminal (o padrão), scripts, fluxos, logs e qualquer tipo de painel que venha depois, de preferência sem precisar lembrar de pôr o tipo novo na lista.
+
+**Decisão.**
+- **Uma lista de tipos de painel** (`panelKinds`, em `internal/app/panel_kinds.go`): nome, tecla do modo noct e como o painel começa. `runAction` abre `p`, `s`, `i` e `v` por ela, e as opções do config (`empty` e os nomes, na ordem da lista) também saem dela. Um tipo novo entra numa linha; a tecla ainda precisa de uma linha em `commandShortcuts` e de um lugar em `actionKeys`, e um teste falha quando falta. O painel flutuante (`g`) não entra: é um lugar, não um tipo, e abre um terminal.
+- **Config:** `new_tab` guarda o nome (`"terminal"`, `"flows"`), não a tecla, para o arquivo continuar valendo se uma tecla mudar. Vazio no arquivo vira `terminal`; um nome que o noct não conhece abre um terminal, sem erro. No painel, cada opção aparece com as teclas que abrem aquele painel, pelo atalho direto configurado (`terminal (alt+p)`) ou pelo prefixo quando os atalhos estão desligados.
+- **Fechar quando vazia:** `close_empty_tabs` (padrão ligado, como a ADR-019). Desligado, uma tab cujo último painel fecha (`x`, o programa terminar, `Ctrl+D` num painel do noct) fica, vazia. Vale só para painéis que fecham, no `detachView`: mover o último painel para outra tab fecha a de origem de qualquer jeito, porque o painel não fechou e aquele caminho reorganiza as tabs em seguida; e uma tab que falha ao abrir também some.
+- **Tab vazia** (revê a ADR-019): mostra a home na tab. Um painel aberto nela a ocupa; `x` e `Ctrl+D` a fecham, em vez de `Ctrl+D` duas vezes sair do noct como na home sem tabs. Os comandos que agem sobre painéis (mover, redimensionar, empilhar, tela cheia, renomear painel, histórico) não fazem nada nela; renomear a tab funciona. Uma tab vazia não é guardada ao fechar a sessão.
+
+**Consequências.** Uma tab nova de scripts, fluxos ou logs não tem shell; `p` abre um ao lado. Os outros caminhos que criam tabs (abrir um painel a partir da home, pedidos de painel pelo MCP e pelo `NOCT_PANE`, mover um painel para depois da última tab) continuam abrindo o que pediram.

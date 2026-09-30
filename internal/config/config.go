@@ -22,6 +22,11 @@ type Config struct {
 	Prefix     Prefix     `toml:"prefix"`
 	Shortcut   Shortcut   `toml:"shortcut"`
 	Appearance Appearance `toml:"appearance"`
+	// NewTab is the panel a new tab opens with, by the name noct gives it (NewTabTerminal,
+	// "scripts"...), or NewTabEmpty for none.
+	NewTab string `toml:"new_tab"`
+	// CloseEmptyTabs closes a tab when its last pane closes; off, the tab stays, showing the home.
+	CloseEmptyTabs bool `toml:"close_empty_tabs"`
 	// Mouse lets clicks focus panes and tabs, drag dividers and scroll. While on, selecting text
 	// in the outer terminal takes shift (in most terminals).
 	Mouse bool `toml:"mouse"`
@@ -79,6 +84,12 @@ const (
 	DefaultMaxSizeMB = 200
 )
 
+// What a new tab opens with: nothing, or a terminal, the default. The app knows the other panels.
+const (
+	NewTabEmpty    = "empty"
+	NewTabTerminal = "terminal"
+)
+
 const (
 	// DefaultEditor is used when no editor is set.
 	DefaultEditor = "vim"
@@ -121,16 +132,18 @@ type Appearance struct {
 
 func Default() Config {
 	return Config{
-		Prefix:      Prefix{Ctrl: true, Key: "space"},
-		Shortcut:    Shortcut{Alt: true},
-		Appearance:  Appearance{Theme: "noct", Background: BackgroundTerminal},
-		Mouse:       true,
-		Editor:      DefaultEditor,
-		FileManager: FileManagerTerminal,
-		ScriptHints: true,
-		ScriptsSort: SortByName,
-		Logs:        Logs{KeepDays: DefaultKeepDays, MaxSizeMB: DefaultMaxSizeMB},
-		MCP:         MCP{ApprovalSeconds: DefaultApprovalSeconds},
+		Prefix:         Prefix{Ctrl: true, Key: "space"},
+		Shortcut:       Shortcut{Alt: true},
+		Appearance:     Appearance{Theme: "noct", Background: BackgroundTerminal},
+		NewTab:         NewTabTerminal,
+		CloseEmptyTabs: true,
+		Mouse:          true,
+		Editor:         DefaultEditor,
+		FileManager:    FileManagerTerminal,
+		ScriptHints:    true,
+		ScriptsSort:    SortByName,
+		Logs:           Logs{KeepDays: DefaultKeepDays, MaxSizeMB: DefaultMaxSizeMB},
+		MCP:            MCP{ApprovalSeconds: DefaultApprovalSeconds},
 	}
 }
 
@@ -138,6 +151,9 @@ func Default() Config {
 func (c Config) normalized() Config {
 	if c.Appearance.Background != BackgroundTheme {
 		c.Appearance.Background = BackgroundTerminal
+	}
+	if strings.TrimSpace(c.NewTab) == "" {
+		c.NewTab = NewTabTerminal
 	}
 	if strings.TrimSpace(c.Editor) == "" {
 		c.Editor = DefaultEditor

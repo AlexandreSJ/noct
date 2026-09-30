@@ -20,9 +20,11 @@ func TestLoadMissingFileGivesDefaults(t *testing.T) {
 func TestSaveThenLoadRoundTrips(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "noct", "config.toml")
 	want := Config{
-		Prefix:        Prefix{Alt: true, Shift: true, Key: "f2"},
-		Shortcut:      Shortcut{Alt: true},
-		Appearance:    Appearance{Theme: "ember", Background: BackgroundTheme},
+		Prefix:     Prefix{Alt: true, Shift: true, Key: "f2"},
+		Shortcut:   Shortcut{Alt: true},
+		Appearance: Appearance{Theme: "ember", Background: BackgroundTheme},
+		NewTab:     "scripts",
+		// CloseEmptyTabs off: a bool that is on by default must survive being saved off
 		Mouse:         false,
 		Editor:        "code -w",
 		FileManager:   "yazi",
@@ -51,7 +53,7 @@ func TestLoadKeepsDefaultsForMissingSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Prefix != Default().Prefix || cfg.Shortcut != Default().Shortcut || !cfg.Mouse || cfg.Editor != DefaultEditor || cfg.Appearance.Theme != "frost" {
+	if cfg.Prefix != Default().Prefix || cfg.Shortcut != Default().Shortcut || !cfg.Mouse || cfg.Editor != DefaultEditor || cfg.NewTab != NewTabTerminal || !cfg.CloseEmptyTabs || cfg.Appearance.Theme != "frost" {
 		t.Errorf("got %+v", cfg)
 	}
 }

@@ -182,18 +182,14 @@ func (a *App) navigate(name string) bool {
 }
 
 func (a *App) runAction(name string) {
+	if kind, ok := panelKindWithKey(name); ok {
+		a.openPanel(kind.start(a))
+		a.mode = normalMode
+		return
+	}
 	switch name {
 	case "t":
-		a.openEmptyTab()
-		a.openPanel(a.startTerminal)
-	case "p":
-		a.openPanel(a.startTerminal)
-	case "s":
-		a.openPanel(a.startScripts)
-	case "i":
-		a.openPanel(a.startInspect)
-	case "v":
-		a.openPanel(a.startLogs)
+		a.openNewTab()
 	case "g":
 		a.openFloating()
 	case "c":
@@ -225,9 +221,18 @@ func (a *App) runAction(name string) {
 	a.mode = normalMode
 }
 
-// runTabAction runs the commands that act on the current tab.
+// runTabAction runs the commands that act on the current tab. A tab without panes, opened empty,
+// can only be renamed or closed.
 func (a *App) runTabAction(name string) {
-	if a.currentTab() == nil {
+	t := a.currentTab()
+	if t == nil {
+		return
+	}
+	if t.isEmpty() && name != "r" {
+		if name == "x" {
+			a.session.removeTabIfEmpty(t)
+		}
+		a.mode = normalMode
 		return
 	}
 	switch name {

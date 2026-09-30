@@ -67,7 +67,7 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 |---|---|
 | Arrows or `hjkl` | Move between panes; past the edge, into the next or previous tab |
 | `Tab` / `Shift+Tab` | Change tab |
-| `t` | New tab with a terminal |
+| `t` | New tab, with a terminal or the panel chosen in the config |
 | `p` | New terminal panel: splits the current pane, or opens a tab on the home screen |
 | `s` | New scripts panel: your saved scripts, to run, edit and create |
 | `i` | Inspect: your flows as flowcharts, to build step by step, run and review |
@@ -83,8 +83,8 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `e` | Rename the pane; an empty name gives back the program's |
 | `[` | Scroll the terminal's history |
 | `d` | Detach; programs keep running |
-| `x` | Close the pane; a tab closes with its last pane |
-| `c` | Config: prefix key, direct shortcuts, theme, background, mouse, editor, file manager, scripts folder, how long and how much of the logs to keep, how much step output flows keep |
+| `x` | Close the pane; a tab closes with its last pane, unless the config keeps empty tabs |
+| `c` | Config: prefix key, direct shortcuts, theme, background, mouse, what a new tab opens and whether it closes when empty, editor, file manager, scripts folder, how long and how much of the logs to keep, how much step output flows keep |
 | `q` | Quit, after asking: `Enter` or `q` again |
 | `Esc` | Cancel |
 

@@ -67,7 +67,7 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 |---|---|
 | Setas ou `hjkl` | Mover entre painéis; passando da borda, para a tab seguinte ou anterior |
 | `Tab` / `Shift+Tab` | Trocar de tab |
-| `t` | Nova tab com terminal |
+| `t` | Nova tab, com terminal ou o painel escolhido no config |
 | `p` | Novo painel de terminal: divide o painel atual, ou abre uma tab na home |
 | `s` | Novo scripts panel: seus scripts, para rodar, editar e criar |
 | `i` | Inspect: seus fluxos como fluxogramas, para montar passo a passo, rodar e revisar |
@@ -83,8 +83,8 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `e` | Renomear o painel; um nome vazio volta ao do programa |
 | `[` | Rolar o histórico do terminal |
 | `d` | Desconectar; os programas continuam |
-| `x` | Fechar o painel; a tab fecha junto com o último painel |
-| `c` | Config: tecla prefixo, atalhos diretos, tema, fundo, mouse, editor, gerenciador de arquivos, pasta dos scripts, por quanto tempo e quanto guardar dos logs, quanto da saída dos passos os fluxos guardam |
+| `x` | Fechar o painel; a tab fecha junto com o último painel, a não ser que o config mantenha tabs vazias |
+| `c` | Config: tecla prefixo, atalhos diretos, tema, fundo, mouse, o que uma tab nova abre e se ela fecha quando fica vazia, editor, gerenciador de arquivos, pasta dos scripts, por quanto tempo e quanto guardar dos logs, quanto da saída dos passos os fluxos guardam |
 | `q` | Sair, depois de confirmar: `Enter` ou `q` de novo |
 | `Esc` | Cancelar |
 

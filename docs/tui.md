@@ -19,7 +19,7 @@
 
 - O noct abre na **home**. `prefixo` + `t` cria uma tab já com um painel de terminal; `p` (terminal) e `s` (scripts) abrem mais painéis na tab atual; na home, abrem uma tab com o painel.
 - Os painéis se organizam como no i3 com autotiling (ADR-022): um painel novo abre ao lado do painel com foco se ele é mais largo que alto (em proporção de célula), senão embaixo. Se o grupo do painel com foco já está nessa direção, o novo entra no grupo e todos dividem o espaço.
-- Uma tab fecha junto com o último painel, seja com `x`, saindo do shell com `Ctrl+D` ou movendo o painel para outra tab; a seleção vai para a tab que ocupa o lugar dela. Sem tabs, aparece a home (ADR-019).
+- Uma tab fecha junto com o último painel (a não ser com `close when empty` desligado no config, ADR-039), seja com `x`, saindo do shell com `Ctrl+D` ou movendo o painel para outra tab; a seleção vai para a tab que ocupa o lugar dela. Sem tabs, aparece a home (ADR-019).
 - `Ctrl+D` fecha o scripts panel, como sai de um shell.
 - Para sair do noct: `prefixo` + `q` e confirmar com `Enter` ou `q`, ou `Ctrl+D` duas vezes na home (o segundo enquanto a dica `ctrl+d again to quit` está visível).
 - Na home sem tabs, `p` e `s` abrem uma tab com o painel.
@@ -68,7 +68,7 @@ No modo noct:
 | `←↑↓→` / `hjkl` | focus | Painel ao lado; em `←`/`→`, passa da borda para a tab anterior/seguinte | continua | 0 |
 | `Tab` / `Shift+Tab` | tab: change | Próxima tab / tab anterior (circular) | continua | 0 |
 | `1`–`9` | go to tab | Ir para a tab N | continua | 0 |
-| `t` | new tab | Nova tab com um painel de terminal | termina | 0 |
+| `t` | new tab | Nova tab com o painel escolhido no config (terminal por padrão; ou vazia, ADR-039) | termina | 0 |
 | `p` | new panel | Painel de terminal: divide o painel com foco; na home, abre uma tab | termina | 0 |
 | `s` | scripts panel | Scripts panel, do mesmo jeito que `p` | termina | 0 |
 | `i` | inspect flows | Inspect: fluxos e o fluxograma, do mesmo jeito que `p` | termina | 2 |
@@ -135,6 +135,8 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 | **Appearance** | `theme` | `noct`, `aurora`, `ember`, `rose`, `blood`, `frost`, `mono`. |
 | | `background` | `terminal` mantém o fundo do terminal; `theme` pinta o fundo e o texto padrão com as cores do tema, inclusive dentro dos painéis. |
 | **Mouse** | `clicks and drag` (`mouse` no arquivo) | Liga os cliques, o arraste das divisórias e a roda; padrão ligado. |
+| **Tabs** | `new tab opens` (`new_tab` no arquivo) | O painel com que `t` abre uma tab: `empty`, `terminal` (padrão), `scripts`, `flows` ou `logs`, cada um mostrado com as teclas que o abrem (`terminal (alt+p)`). As opções vêm da lista de tipos de painel (`panelKinds`), então um tipo novo aparece aqui sozinho. Um nome desconhecido no arquivo abre um terminal. (ADR-039) |
+| **Tabs** | `close when empty` (`close_empty_tabs` no arquivo) | Ligado (padrão): a tab fecha quando o último painel fecha. Desligado: a tab fica, vazia, mostrando a home; um painel aberto nela a ocupa, e `x` ou `Ctrl+D` a fecham. Mover o último painel para outra tab fecha a de origem de qualquer jeito. (ADR-039) |
 | **Programs** | `editor` | O editor que abre cada parte do script (`Enter` no formulário do script) e scripts quebrados: `vim` (padrão), `nano`, os outros editores conhecidos instalados (`nvim`, `hx`, `micro`, `emacs`, `kak`, `vi`, `joe`, `mcedit`) e `custom`. |
 | | `file manager` | Abre a pasta dos scripts (`Ctrl+O`): `terminal` (padrão, um painel de terminal na pasta), os gerenciadores instalados (yazi, ranger, lf, nnn, vifm, mc num painel; thunar, nautilus, dolphin, nemo, pcmanfm, caja numa janela) e `custom`. |
 | | `command` | Aparece embaixo de `editor` ou `file manager` quando `custom` está escolhido: o comando digitado ali mesmo (pode ter argumentos, como `code -w`), com o aviso `command not found` se o programa não existir. Salva ao sair da linha ou com `Enter`. |
