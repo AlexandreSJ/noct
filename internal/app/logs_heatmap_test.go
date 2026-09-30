@@ -88,3 +88,13 @@ func colorsEqual(a, b interface{ RGBA() (r, g, b, a uint32) }) bool {
 	br, bg, bb, ba := b.RGBA()
 	return ar == br && ag == bg && ab == bb && aa == ba
 }
+
+// A calendar too short for the totals, over a narrow list, shows none of them.
+func TestShortLogsCalendarLeavesTheTotalsOut(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(60, 30) // too narrow for the calendar beside the list, too short for 18 rows
+	pressDrawn(a, prefixPress, letter('v'))
+	if screen := screenText(a); strings.Contains(screen, "this month") || !strings.Contains(screen, "activity less") {
+		t.Errorf("the short calendar shows the totals or lacks its legend:\n%s", screen)
+	}
+}

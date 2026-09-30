@@ -460,7 +460,9 @@ func (p *logsPanel) drawCalendar(screen uv.Screen, area image.Rectangle, stats m
 	if y := p.grid.Y + 6; y < area.Max.Y {
 		p.drawHeatLegend(screen, area.Min.X, y, area.Max.X)
 	}
-	p.drawTotals(screen, image.Rect(area.Min.X, p.grid.Y+8, area.Max.X, area.Max.Y), stats)
+	if y := p.grid.Y + 8; y < area.Max.Y { // image.Rect would swap the ends of a calendar too short
+		p.drawTotals(screen, image.Rect(area.Min.X, y, area.Max.X, area.Max.Y), stats)
+	}
 }
 
 // dayStyle is how a calendar day shows: muted without logs or runs, over the color of its logs
