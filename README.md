@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <a href="#why-noct">Why noct</a> · <a href="#install">Install</a> · <a href="#getting-started">Getting started</a> · <a href="#scripts">Scripts</a> · <a href="#flows">Flows</a> · <a href="#ai">AI</a> · <a href="#sessions">Sessions</a> · <a href="#documentation">Docs</a>
+  <a href="#why-noct">Why noct</a> · <a href="#install">Install</a> · <a href="#getting-started">Getting started</a> · <a href="#make-it-yours">Make it yours</a> · <a href="#scripts">Scripts</a> · <a href="#flows">Flows</a> · <a href="#ai">AI</a> · <a href="#sessions">Sessions</a> · <a href="#documentation">Docs</a>
 </p>
 
 <p align="center">
@@ -74,6 +74,8 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `v` | Logs by day on a calendar colored by activity, with their size, lines and how each run ended |
 | `Space` | Search scripts, actions and tabs |
 | `?` | Help for the program running in the terminal |
+| `o` | Sessions: open, create, rename, close and delete them |
+| `y` | MCP: approve what an AI asks to run, and add noct to an AI client |
 | `a` | Move the pane with the arrows, even into another tab |
 | `n` | Resize the pane with the arrows |
 | `w` | Stack the panes of the focused group, as in zellij: the focused one takes the height, the others show as a title row each; again to split them |
@@ -94,7 +96,20 @@ Outside noct mode, every key goes straight to the program in the pane, except th
 
 Panes tile like i3 with autotiling: a new pane opens beside the focused one when it is wider than tall, below it otherwise. Moving a pane (`a`, or `Alt+Shift` with the arrows) follows i3's move: it trades places within its group, enters a neighbor group, or leaves its group to land beside it.
 
-The mouse works too: click a tab or a pane to select it, click a command in the prefix popup to run it, drag the line between two panes to resize them, scroll a terminal's history with the wheel, and drag over text to select it; releasing copies it to the clipboard. Programs that use the mouse, like vim and htop, get the clicks.
+The mouse works too: click a tab or a pane to select it, click a command in the prefix popup or a setting in the config to run or change it, drag the line between two panes to resize them, scroll a terminal's history with the wheel, and drag over text to select it; releasing copies it to the clipboard. Programs that use the mouse, like vim and htop, get the clicks.
+
+## Make it yours
+
+<p align="center">
+  <img src="docs/assets/tour.gif" alt="noct: search, the logs calendar colored by activity, a second session, the config and the keys of every screen" width="880">
+</p>
+
+`prefix` + `c` opens the config, saved as readable TOML in `~/.config/noct/config.toml`; every change applies at once.
+
+- **Keys.** Set the prefix by pressing it: any modifiers with a key, shown as your terminal sends it, with a warning when it would take a key from noct or from programs (`ctrl+c`, `ctrl+r`, tmux's `ctrl+b`). **Binds of every screen** lists each action of noct's modes, panels and popups with its keys: `Enter` changes one (with several, `←→` choose which first), `a` adds another, `Delete` gives the default back. Hints, popups and labels follow your keys.
+- **Tabs.** Choose what a new tab opens (empty, a terminal, scripts, flows or logs) and whether a tab closes with its last pane.
+- **Looks.** Seven themes, with the terminal's background or the theme's; the logs calendar colors each day by how much ran on it.
+- **Reset.** The last row of the config, and of the binds, puts everything back to its default, after a second `Enter`.
 
 ## Scripts
 

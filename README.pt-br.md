@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <a href="#por-que-o-noct">Por que o noct</a> · <a href="#instalação">Instalação</a> · <a href="#primeiros-passos">Primeiros passos</a> · <a href="#scripts">Scripts</a> · <a href="#fluxos">Fluxos</a> · <a href="#ia">IA</a> · <a href="#sessões">Sessões</a> · <a href="#documentação">Docs</a>
+  <a href="#por-que-o-noct">Por que o noct</a> · <a href="#instalação">Instalação</a> · <a href="#primeiros-passos">Primeiros passos</a> · <a href="#do-seu-jeito">Do seu jeito</a> · <a href="#scripts">Scripts</a> · <a href="#fluxos">Fluxos</a> · <a href="#ia">IA</a> · <a href="#sessões">Sessões</a> · <a href="#documentação">Docs</a>
 </p>
 
 <p align="center">
@@ -74,6 +74,8 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `v` | Logs por dia num calendário colorido pela atividade, com tamanho, linhas e como cada execução terminou |
 | `Space` | Buscar scripts, ações e tabs |
 | `?` | Ajuda do programa rodando no terminal |
+| `o` | Sessões: abrir, criar, renomear, fechar e apagar |
+| `y` | MCP: aprovar o que uma IA pede para rodar e adicionar o noct a um cliente de IA |
 | `a` | Mover o painel com as setas, inclusive para outra tab |
 | `n` | Redimensionar o painel com as setas |
 | `w` | Empilhar os painéis do grupo com foco, como no zellij: o painel com foco ocupa a altura e os outros viram uma linha de título cada; de novo para dividir |
@@ -94,7 +96,20 @@ Fora do modo noct, toda tecla vai direto para o programa no painel, exceto os **
 
 Os painéis se organizam como no i3 com autotiling: um painel novo abre ao lado do painel com foco se ele é mais largo que alto, senão embaixo. Mover um painel (`a`, ou `Alt+Shift` com as setas) segue o `move` do i3: troca de lugar dentro do grupo, entra num grupo vizinho ou sai do grupo para ficar ao lado dele.
 
-O mouse também funciona: clique numa tab ou num painel para selecioná-lo, clique num comando do popup do prefixo para rodá-lo, arraste a linha entre dois painéis para redimensioná-los, role o histórico de um terminal com a roda e arraste sobre um texto para selecioná-lo; ao soltar, ele vai para a área de transferência. Programas que usam o mouse, como vim e htop, recebem os cliques.
+O mouse também funciona: clique numa tab ou num painel para selecioná-lo, clique num comando do popup do prefixo ou numa opção do config para rodá-lo ou mudá-la, arraste a linha entre dois painéis para redimensioná-los, role o histórico de um terminal com a roda e arraste sobre um texto para selecioná-lo; ao soltar, ele vai para a área de transferência. Programas que usam o mouse, como vim e htop, recebem os cliques.
+
+## Do seu jeito
+
+<p align="center">
+  <img src="docs/assets/tour.gif" alt="noct: busca, o calendário dos logs colorido pela atividade, uma segunda sessão, o config e as teclas de cada tela" width="880">
+</p>
+
+`prefixo` + `c` abre o config, salvo em TOML legível em `~/.config/noct/config.toml`; cada mudança vale na hora.
+
+- **Teclas.** Defina o prefixo apertando-o: quantos modificadores quiser com uma tecla, mostrada como o seu terminal a manda, com um aviso quando ela tomaria uma tecla do noct ou de programas (`ctrl+c`, `ctrl+r`, o `ctrl+b` do tmux). **Binds of every screen** lista cada ação dos modos, painéis e popups do noct com suas teclas: `Enter` troca uma (com várias, `←→` escolhem qual antes), `a` acrescenta outra, `Delete` volta ao padrão. Dicas, popups e rótulos seguem as suas teclas.
+- **Tabs.** Escolha o que uma tab nova abre (vazia, um terminal, scripts, fluxos ou logs) e se uma tab fecha junto com o último painel.
+- **Aparência.** Sete temas, com o fundo do terminal ou o do tema; o calendário dos logs colore cada dia pelo quanto rodou nele.
+- **Voltar ao padrão.** A última linha do config, e a das binds, volta tudo ao padrão, depois de um segundo `Enter`.
 
 ## Scripts
 

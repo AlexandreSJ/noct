@@ -22,6 +22,21 @@ chmod 700 "$root/run"
 cp -r "$demo/scripts" "$demo/flows" "$root/data/noct/"
 (cd "$repo" && go build -o "$root/bin/noct" ./cmd/noct)
 
+# Logs of the last four weeks, some days busier than others, for the logs calendar's colors.
+i=1
+while [ $i -le 28 ]; do
+	day=$(date -d "-$i day" +%Y-%m-%d) # GNU date
+	mkdir -p "$root/state/noct/logs/$day"
+	n=$(((i * 7 + i / 5) % 9))
+	[ $((i % 7)) -eq 3 ] && n=0 # a quiet day each week
+	j=0
+	while [ $j -lt $n ]; do
+		printf 'GET https://staging.shop.test/health\n200 OK\n' >"$root/state/noct/logs/$day/$(printf '%02d%02d00' $((9 + j)) $((j * 7 % 60)))-api-health.log"
+		j=$((j + 1))
+	done
+	i=$((i + 1))
+done
+
 cat >"$root/bashrc" <<'EOF'
 PS1='\[\e[38;2;157;124;216m\]❯\[\e[0m\] '
 unset PROMPT_COMMAND
