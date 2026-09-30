@@ -114,16 +114,20 @@ func TestWheelOverTheTabBarChangesTab(t *testing.T) {
 	}
 }
 
-func TestTabBarLeavesRoomForTheMode(t *testing.T) {
-	if modeBadges[commandMode] != "" {
-		t.Error("command mode has a badge; its popup already names it")
-	}
+// No mode names itself in the tab bar: its popup or title says it. A message still takes room.
+func TestTabBarLeavesRoomForAMessageButNotForModes(t *testing.T) {
 	a := manyTabs(t, 20)
 	a.session.activeTab = 19
-	a.mode = moveMode
+	for _, m := range []mode{commandMode, moveMode, resizeMode, confirmMode, scrollMode} {
+		a.mode = m
+		if status := a.tabBarStatus(); status != "" {
+			t.Errorf("mode %v shows %q in the tab bar", m, status)
+		}
+	}
+	a.statusMessage = "no room in that tab"
 	spans := a.tabBar()
-	room := a.size.X - len(modeBadges[moveMode]) - 2
+	room := a.size.X - len(" no room in that tab ") - 2
 	if end := spans[len(spans)-1].end; end > room {
-		t.Errorf("tabs end at %d, over the mode badge from %d", end, room)
+		t.Errorf("tabs end at %d, over the message from %d", end, room)
 	}
 }

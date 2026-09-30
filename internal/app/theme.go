@@ -63,7 +63,6 @@ type palette struct {
 	unfocusedFrame uv.Style
 	focusedTitle   uv.Style
 	unfocusedTitle uv.Style
-	badge          uv.Style
 	status         uv.Style
 	panelText      uv.Style
 	panelMuted     uv.Style
@@ -96,7 +95,6 @@ func newPalette(t theme, paintBackground bool) palette {
 		unfocusedFrame: plain(t.muted, 0),
 		focusedTitle:   plain(t.accent, uv.AttrBold),
 		unfocusedTitle: plain(t.muted, 0),
-		badge:          highlighted,
 		status:         plain(t.attention, 0),
 		panelText:      plain(t.text, 0),
 		panelMuted:     plain(t.muted, 0),

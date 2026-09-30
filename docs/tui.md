@@ -27,7 +27,7 @@
 - Mudar o foco pelas setas vai para o painel mais próximo naquela direção; entre painéis igualmente próximos (ex.: 2 sobre 3 à direita do 1), vai para o que teve o foco por último, como no i3, e só sem histórico para o mais alinhado. Assim, ir e voltar retorna ao painel de onde se saiu.
 - `prefixo` + `a` (ou `Alt+Shift` + setas ou `hjkl`) move o painel com foco como o `move` do i3: dentro de um grupo na direção da seta, troca de lugar com o vizinho ou entra nele, se o vizinho for um grupo; na borda do grupo, sai e fica ao lado dele. Ex.: com o painel 1 à esquerda e 2 sobre 3 à direita, mover o 2 para a esquerda deixa 1 | 2 | 3; mover de novo troca 2 e 1. Na borda da tab, `←`/`→` levam o painel para a tab anterior ou seguinte, ou para uma tab nova.
 - `prefixo` + `r` renomeia a tab; um nome vazio volta a seguir o título do painel com foco.
-- Quando as tabs não cabem na barra, os nomes longos são cortados com `…` numa mesma largura, a maior que deixa todas visíveis; nomes curtos ficam inteiros. Se nem com nomes de 6 colunas cabem, a barra rola e mostra só um trecho de tabs, sempre com a tab selecionada visível; `‹` e `›` nas pontas indicam tabs escondidas, e clicar neles seleciona a tab escondida mais próxima. A barra só rola quando a tab selecionada sairia dela, e deixa espaço à direita para o selo do modo e as mensagens.
+- Quando as tabs não cabem na barra, os nomes longos são cortados com `…` numa mesma largura, a maior que deixa todas visíveis; nomes curtos ficam inteiros. Se nem com nomes de 6 colunas cabem, a barra rola e mostra só um trecho de tabs, sempre com a tab selecionada visível; `‹` e `›` nas pontas indicam tabs escondidas, e clicar neles seleciona a tab escondida mais próxima. A barra só rola quando a tab selecionada sairia dela, e deixa espaço à direita para as mensagens.
 - `prefixo` + `e` renomeia o painel com foco; um nome vazio volta ao título do programa.
 - `prefixo` + `w` alterna o grupo do painel com foco entre dividido e **empilhado** (stacked), como no zellij e no i3: o painel com foco ocupa quase toda a altura e cada um dos outros vira uma linha com o título (`▸ nome`). Mudar o foco pela pilha (`↑↓`/`jk`, ou clicar num título) abre o painel que recebe o foco; um painel novo aberto no grupo entra na pilha. Os painéis dobrados mantêm o tamanho, sem redimensionar o programa (ADR-030).
 - Em todo lugar onde o noct move algo sem que se esteja digitando texto, `hjkl` valem como as setas: foco, mover, resize, rolagem, painéis e o inspect.
@@ -55,7 +55,7 @@ Uma sessão é um conjunto de tabs com nome (ADR-037). O daemon guarda várias; 
 
 ## Atalhos: modo noct
 
-A **tecla prefixo** (padrão `Ctrl+Space`, configurável) liga o **modo noct**. Um popup `commands` no centro da tela lista os comandos disponíveis; ao contrário de mover, redimensionar e rolar, este modo não põe um selo na barra de tabs, porque o popup já diz qual é. Fora do modo, toda tecla vai direto para o painel, então programas como vim e Claude recebem todas as teclas.
+A **tecla prefixo** (padrão `Ctrl+Space`, configurável) liga o **modo noct**. Um popup `commands` no centro da tela lista os comandos disponíveis. Nenhum modo (comandos, mover, redimensionar, confirmar, rolar) escreve seu nome na barra de tabs: o popup ou o título do painel já dizem qual é, e o canto direito da barra fica só para mensagens. Fora do modo, toda tecla vai direto para o painel, então programas como vim e Claude recebem todas as teclas.
 
 No modo noct:
 

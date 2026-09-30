@@ -148,21 +148,16 @@ func (a *App) hideCursor() {
 	}
 }
 
-// modeBadges name the mode in the tab bar while its panel is open. Command mode has none: its
-// popup already says what it is.
-var modeBadges = map[mode]string{moveMode: " move ", resizeMode: " resize ", confirmMode: " confirm ", scrollMode: " scroll "}
-
-// drawTabBarStatus shows, right-aligned, the current mode and the latest message: a problem in
-// the theme's attention color, a notice in its accent.
+// drawTabBarStatus shows, right-aligned, the latest message: a problem in the theme's attention
+// color, a notice in its accent. Modes are not named there: their popups and titles say it.
 func (a *App) drawTabBarStatus(screen uv.Screen, minX int) {
-	badge, text, style := a.statusParts()
+	text, style := a.statusParts()
 	label := a.sessionTabBarLabel()
-	width := ansi.StringWidth(badge) + ansi.StringWidth(text) + ansi.StringWidth(label)
+	width := ansi.StringWidth(text) + ansi.StringWidth(label)
 	if width == 0 {
 		return
 	}
 	x := max(a.size.X-width, minX)
-	x = drawText(screen, x, 0, a.size.X, badge, a.palette.badge)
 	x = drawText(screen, x, 0, a.size.X, text, style)
 	drawText(screen, x, 0, a.size.X, label, a.palette.tab)
 }
@@ -175,24 +170,24 @@ func (a *App) sessionTabBarLabel() string {
 	return " ◆ " + a.session.name + " "
 }
 
-// statusParts are the mode's badge and the message the tab bar shows, with the message's style.
-func (a *App) statusParts() (badge, text string, style uv.Style) {
-	badge, style = modeBadges[a.mode], a.palette.status
+// statusParts are the message the tab bar shows and its style.
+func (a *App) statusParts() (text string, style uv.Style) {
+	style = a.palette.status
 	switch {
 	case a.statusMessage != "":
 		text = " " + a.statusMessage + " "
 	case a.notice != "":
 		text, style = " "+a.notice+" ", a.palette.focusedTitle
 	case len(a.approvals) > 0:
-		text = fmt.Sprintf(" ⚑ %d waiting for approval: prefix+y ", len(a.approvals))
+		text = fmt.Sprintf(" ⚑ %d waiting for approval: %s ", len(a.approvals), a.prefix.String()+" "+a.hint("commands", "{y}"))
 	}
-	return badge, text, style
+	return text, style
 }
 
 // tabBarStatus is what drawTabBarStatus shows, for the tab bar to leave room for it.
 func (a *App) tabBarStatus() string {
-	badge, text, _ := a.statusParts()
-	return badge + text + a.sessionTabBarLabel()
+	text, _ := a.statusParts()
+	return text + a.sessionTabBarLabel()
 }
 
 func (a *App) tabLabel(t *tab) string {
