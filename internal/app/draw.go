@@ -38,7 +38,7 @@ func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 func (a *App) drawModeOverlay(screen uv.Screen) {
 	switch a.mode {
 	case commandMode:
-		a.drawShortcutsPopup(screen, "noct", commandShortcuts, a.shortcutNote())
+		a.drawShortcutsPopup(screen, "commands", commandShortcuts, a.shortcutNote())
 	case moveMode:
 		a.drawShortcutsPopup(screen, "move", moveShortcuts, "")
 	case resizeMode:
@@ -149,7 +149,7 @@ func (a *App) hideCursor() {
 }
 
 // modeBadges name the mode in the tab bar while its panel is open.
-var modeBadges = map[mode]string{commandMode: " noct ", moveMode: " move ", resizeMode: " resize ", confirmMode: " confirm ", scrollMode: " scroll "}
+var modeBadges = map[mode]string{commandMode: " commands ", moveMode: " move ", resizeMode: " resize ", confirmMode: " confirm ", scrollMode: " scroll "}
 
 // drawTabBarStatus shows, right-aligned, the current mode and the latest message: a problem in
 // the theme's attention color, a notice in its accent.

@@ -54,7 +54,7 @@ Uma sessão é um conjunto de tabs com nome (ADR-037). O daemon guarda várias; 
 
 ## Atalhos: modo noct
 
-A **tecla prefixo** (padrão `Ctrl+Space`, configurável) liga o **modo noct**. Um popup no centro da tela lista os comandos disponíveis, e o selo `noct` aparece na barra de tabs. Fora do modo, toda tecla vai direto para o painel, então programas como vim e Claude recebem todas as teclas.
+A **tecla prefixo** (padrão `Ctrl+Space`, configurável) liga o **modo noct**. Um popup `commands` no centro da tela lista os comandos disponíveis, e o selo `commands` aparece na barra de tabs. Fora do modo, toda tecla vai direto para o painel, então programas como vim e Claude recebem todas as teclas.
 
 No modo noct:
 
@@ -118,6 +118,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 - A roda rola o histórico do terminal sob o mouse, entrando e saindo da rolagem sozinha. Dá para selecionar e copiar texto também durante a rolagem.
 - Programas que ligam o mouse (vim, htop, less com `--mouse`) recebem cliques, arrastes e a roda na posição dentro do painel; o noct só dá o foco.
 - No scripts panel, clique seleciona um script e a roda move a seleção.
+- No popup de comandos do prefixo, clique numa linha roda o comando, como a tecla dela: `tab` troca de tab e mantém o popup, `esc` fecha. As linhas de foco (`←↓↑→ hjkl`) e de número de tab (`1-9`) valem por várias teclas e não fazem nada. Clique fora do popup o fecha. Setas e `hjkl` continuam movendo o foco, não uma seleção no popup.
 - Arrastar sobre o texto de um painel (terminal ou painel do noct) seleciona, e soltar copia para a área de transferência (OSC 52; kitty e Ghostty aceitam). A seleção nunca passa para outro painel: arrastar para fora a prende na borda do painel onde começou. Um clique ou uma tecla limpa a seleção. Só bordas, tabs, divisórias e itens clicáveis, como a lista do scripts panel, recebem cliques.
 - A seleção acompanha a rolagem, como num terminal: com o botão segurado, a roda rola o histórico e a seleção continua de onde começou, e arrastar para cima ou para baixo do painel rola uma linha por vez. O texto copiado inclui as linhas que saíram da tela.
 - No painel de uma execução de script, a linha de estado (`✓ done  r run again  enter close`) não entra na seleção: só a saída do script é copiada.

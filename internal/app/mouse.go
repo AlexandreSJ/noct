@@ -101,14 +101,19 @@ func (a *App) handleMouse(event uv.MouseEvent) {
 	}
 }
 
-// handleClick selects the tab clicked in the tab bar, starts dragging a divider, or focuses the
-// pane clicked and passes the click on to it; on text, it starts selecting instead.
+// handleClick runs the command clicked in the noct popup, selects the tab clicked in the tab bar,
+// starts dragging a divider, or focuses the pane clicked and passes the click on to it; on text,
+// it starts selecting instead.
 func (a *App) handleClick(event uv.MouseEvent) {
 	m := event.Mouse()
 	// A release outside the window never arrives; a new click ends that drag or selection.
 	a.drag, a.selection = nil, nil
 	if a.mode == infoMode {
 		a.mode = normalMode // a click closes what it tells, as a key does
+		return
+	}
+	if a.mode == commandMode {
+		a.clickCommandShortcut(image.Pt(m.X, m.Y))
 		return
 	}
 	if a.mode != normalMode && a.mode != scrollMode {

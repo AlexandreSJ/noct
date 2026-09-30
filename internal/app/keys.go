@@ -2,6 +2,7 @@ package app
 
 import (
 	"image"
+	"slices"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 
@@ -285,21 +286,49 @@ func (a *App) availableShortcuts(shortcuts []shortcut) []shortcut {
 	return available
 }
 
-// drawShortcutsPopup lists the keys of the current mode in the middle of the screen, with an
-// optional note under them.
-func (a *App) drawShortcutsPopup(screen uv.Screen, title string, shortcuts []shortcut, note string) {
-	visible := a.availableShortcuts(shortcuts)
+// shortcutsPopupArea is where drawShortcutsPopup puts its panel, for clicks to find the rows.
+func (a *App) shortcutsPopupArea(visible []shortcut, note string) image.Rectangle {
 	lines := len(visible)
 	if note != "" {
 		lines += 2
 	}
-	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	inner := a.drawPanel(screen, centeredRect(area, 36, panelHeight(lines)), title)
+	return centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), 36, panelHeight(lines))
+}
+
+// drawShortcutsPopup lists the keys of the current mode in the middle of the screen, with an
+// optional note under them.
+func (a *App) drawShortcutsPopup(screen uv.Screen, title string, shortcuts []shortcut, note string) {
+	visible := a.availableShortcuts(shortcuts)
+	inner := a.drawPanel(screen, a.shortcutsPopupArea(visible, note), title)
 	for i, s := range visible {
 		drawRow(screen, inner, inner.Min.Y+i, s.keys, s.label, a.palette.panelText)
 	}
 	if note != "" {
 		drawCentered(screen, inner, inner.Max.Y-1, note, a.palette.panelMuted)
+	}
+}
+
+// clickCommandShortcut runs the command whose row of the noct popup was clicked, as its key
+// would. The rows of focus and tab numbers stand for several keys and do nothing; a click
+// outside the popup closes it.
+func (a *App) clickCommandShortcut(point image.Point) {
+	visible := a.availableShortcuts(commandShortcuts)
+	area := a.shortcutsPopupArea(visible, a.shortcutNote())
+	if !point.In(area) {
+		a.mode = normalMode
+		return
+	}
+	row := point.Y - area.Inset(2).Min.Y
+	if row < 0 || row >= len(visible) {
+		return
+	}
+	switch keys := visible[row].keys; {
+	case keys == "esc":
+		a.mode = normalMode
+	case keys == "tab":
+		a.navigate(keys)
+	case slices.Contains(actionKeys, keys):
+		a.runAction(keys)
 	}
 }
 

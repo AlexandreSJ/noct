@@ -94,7 +94,7 @@ Fora do modo noct, toda tecla vai direto para o programa no painel, exceto os **
 
 Os painéis se organizam como no i3 com autotiling: um painel novo abre ao lado do painel com foco se ele é mais largo que alto, senão embaixo. Mover um painel (`a`, ou `Alt+Shift` com as setas) segue o `move` do i3: troca de lugar dentro do grupo, entra num grupo vizinho ou sai do grupo para ficar ao lado dele.
 
-O mouse também funciona: clique numa tab ou num painel para selecioná-lo, arraste a linha entre dois painéis para redimensioná-los, role o histórico de um terminal com a roda e arraste sobre um texto para selecioná-lo; ao soltar, ele vai para a área de transferência. Programas que usam o mouse, como vim e htop, recebem os cliques.
+O mouse também funciona: clique numa tab ou num painel para selecioná-lo, clique num comando do popup do prefixo para rodá-lo, arraste a linha entre dois painéis para redimensioná-los, role o histórico de um terminal com a roda e arraste sobre um texto para selecioná-lo; ao soltar, ele vai para a área de transferência. Programas que usam o mouse, como vim e htop, recebem os cliques.
 
 ## Scripts
 

@@ -91,6 +91,46 @@ func TestMouseOffIgnoresClicks(t *testing.T) {
 	}
 }
 
+// clickShortcut clicks the row of the noct popup that lists keys.
+func clickShortcut(t *testing.T, a *App, keys string) {
+	t.Helper()
+	visible := a.availableShortcuts(commandShortcuts)
+	inner := a.shortcutsPopupArea(visible, a.shortcutNote()).Inset(2)
+	for i, s := range visible {
+		if s.keys == keys {
+			click(a, inner.Min.X+2, inner.Min.Y+i)
+			return
+		}
+	}
+	t.Fatalf("no %q row in the noct popup", keys)
+}
+
+func TestClickingACommandInTheNoctPopupRunsIt(t *testing.T) {
+	a := testApp(t, newTab(1, &fakeView{}), newTab(2, &fakeView{}))
+	a.mode = commandMode
+	clickShortcut(t, a, "tab")
+	if a.session.activeTab != 1 || a.mode != commandMode {
+		t.Fatalf("tab %d, mode %v after clicking tab: want the next tab, popup still open", a.session.activeTab, a.mode)
+	}
+	clickShortcut(t, a, "←↓↑→ hjkl")
+	if a.mode != commandMode {
+		t.Errorf("mode %v after clicking the focus row, which stands for several keys", a.mode)
+	}
+	clickShortcut(t, a, "c")
+	if a.mode != configMode {
+		t.Errorf("mode %v after clicking config", a.mode)
+	}
+}
+
+func TestClickingOutsideTheNoctPopupClosesIt(t *testing.T) {
+	a := testApp(t, newTab(1, &fakeView{}))
+	a.mode = commandMode
+	click(a, 0, a.size.Y-1)
+	if a.mode != normalMode {
+		t.Errorf("mode %v after clicking outside the popup", a.mode)
+	}
+}
+
 func TestClickingAScriptSelectsIt(t *testing.T) {
 	a := testApp(t)
 	saveScript(t, "alpha", "run: true\n")

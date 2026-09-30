@@ -94,7 +94,7 @@ Outside noct mode, every key goes straight to the program in the pane, except th
 
 Panes tile like i3 with autotiling: a new pane opens beside the focused one when it is wider than tall, below it otherwise. Moving a pane (`a`, or `Alt+Shift` with the arrows) follows i3's move: it trades places within its group, enters a neighbor group, or leaves its group to land beside it.
 
-The mouse works too: click a tab or a pane to select it, drag the line between two panes to resize them, scroll a terminal's history with the wheel, and drag over text to select it; releasing copies it to the clipboard. Programs that use the mouse, like vim and htop, get the clicks.
+The mouse works too: click a tab or a pane to select it, click a command in the prefix popup to run it, drag the line between two panes to resize them, scroll a terminal's history with the wheel, and drag over text to select it; releasing copies it to the clipboard. Programs that use the mouse, like vim and htop, get the clicks.
 
 ## Scripts
 
