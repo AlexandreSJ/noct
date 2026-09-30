@@ -11,7 +11,7 @@
 | **Ajuda** | `prefixo` + `?`: a ajuda do programa em primeiro plano no terminal com foco (notas, `--help`, `man`), num painel com o pager. | 1 |
 | **Inspect** | `prefixo` + `i`: a lista de fluxos e o fluxograma do selecionado, que se monta passo a passo, se arrasta e tem zoom; roda o fluxo e mostra em cada bloco como foi a última execução; `p` abre o formulário de params (tipos, obrigatórios, últimos valores) e roda; `T` adiciona triggers e `o` os liga e desliga (ver [fluxos.md](fluxos.md)). | 2 |
 | **Execuções** | O que está rodando agora, com status, duração e passo atual. Enter salta para o painel. | 2 |
-| **Logs** | `prefixo` + `v`: o calendário do mês, cada dia marcado pelo que rodou nele, e os logs do dia com barra de peso, tamanho, linhas e como a execução terminou; abrir, ordenar, filtrar (`f`: data, nome, status, peso ou linhas numa linha só), abrir uma execução de fluxo no fluxograma (`i`) e limpar (ver [fluxos.md](fluxos.md#logs-e-calendário)). | 2 |
+| **Logs** | `prefixo` + `v`: o calendário do mês, cada dia marcado pelo que rodou nele e colorido pela quantidade de logs, e os logs do dia com barra de peso, tamanho, linhas e como a execução terminou; abrir, ordenar, filtrar (`f`: data, nome, status, peso ou linhas numa linha só), abrir uma execução de fluxo no fluxograma (`i`) e limpar (ver [fluxos.md](fluxos.md#logs-e-calendário)). | 2 |
 | **Aprovações** | Pedidos pendentes da IA ou de triggers, com o comando completo; aprovar/negar. | 3 |
 | **Catálogo** | Programas instalados, faltando e recomendados; instalar abre um painel com o gerenciador escolhido. | 4 |
 

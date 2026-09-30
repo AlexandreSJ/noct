@@ -71,7 +71,7 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `p` | Novo painel de terminal: divide o painel atual, ou abre uma tab na home |
 | `s` | Novo scripts panel: seus scripts, para rodar, editar e criar |
 | `i` | Inspect: seus fluxos como fluxogramas, para montar passo a passo, rodar e revisar |
-| `v` | Logs por dia num calendário, com tamanho, linhas e como cada execução terminou |
+| `v` | Logs por dia num calendário colorido pela atividade, com tamanho, linhas e como cada execução terminou |
 | `Space` | Buscar scripts, ações e tabs |
 | `?` | Ajuda do programa rodando no terminal |
 | `a` | Mover o painel com as setas, inclusive para outra tab |

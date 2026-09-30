@@ -56,6 +56,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/mcp_panel.go` | MCP popup (prefix+y): approvals waiting for the user and their timeout, AI clients connected now (the `client` request), setups to copy |
 | `internal/app/mcp_setup.go` | The command or config JSON that adds noct to each known AI client, with this binary's path |
 | `internal/app/pane_request.go` | Opening the pane a flow's step asks for, beside its run, and answering with its exit code; bringing a run to the screen for its prompt (`attention`) |
+| `internal/app/logs_heatmap.go` | The logs calendar's activity colors: each day's step by its logs, the style over it, and the legend |
 | `internal/app/logs_filter.go` | The logs filter line: words over name, date, time and status; size and line comparisons |
 | `internal/app/scope.go` | The inspect's scope pane (variables of the selected block with their last values) and the variable picker of template prompts (ctrl+v) |
 | `internal/app/flows.go` | Flow actions: create, run and test steps (as tracked runs), add, edit in the editor, move and remove steps, what a step does and its kept output |

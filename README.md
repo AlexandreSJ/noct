@@ -71,7 +71,7 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `p` | New terminal panel: splits the current pane, or opens a tab on the home screen |
 | `s` | New scripts panel: your saved scripts, to run, edit and create |
 | `i` | Inspect: your flows as flowcharts, to build step by step, run and review |
-| `v` | Logs by day on a calendar, with their size, lines and how each run ended |
+| `v` | Logs by day on a calendar colored by activity, with their size, lines and how each run ended |
 | `Space` | Search scripts, actions and tabs |
 | `?` | Help for the program running in the terminal |
 | `a` | Move the pane with the arrows, even into another tab |

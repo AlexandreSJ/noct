@@ -70,7 +70,13 @@ type palette struct {
 	panelHeading   uv.Style
 	logo           uv.Style
 	selectedRow    uv.Style
+
+	// heat colors the calendar's days by their logs, from a few to the most.
+	heat [heatLevels]color.Color
 }
+
+// heatLevels are the steps of the calendar's colors, up to the busiest day.
+const heatLevels = 4
 
 func newPalette(t theme, paintBackground bool) palette {
 	var background, text color.Color
@@ -97,5 +103,21 @@ func newPalette(t theme, paintBackground bool) palette {
 		panelHeading:   plain(t.text, uv.AttrBold),
 		logo:           plain(t.logo, 0),
 		selectedRow:    highlighted,
+		heat: [heatLevels]color.Color{
+			mix(t.background, t.accent, 0.3),
+			mix(t.background, t.accent, 0.55),
+			mix(t.background, t.accent, 0.8),
+			t.accent,
+		},
 	}
+}
+
+// mix is the color at fraction of the way from a to b.
+func mix(a, b color.Color, fraction float64) color.Color {
+	ar, ag, ab, _ := a.RGBA()
+	br, bg, bb, _ := b.RGBA()
+	channel := func(x, y uint32) uint8 {
+		return uint8((float64(x) + (float64(y)-float64(x))*fraction) / 0x101)
+	}
+	return color.RGBA{R: channel(ar, br), G: channel(ag, bg), B: channel(ab, bb), A: 0xff}
 }

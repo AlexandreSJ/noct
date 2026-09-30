@@ -467,3 +467,17 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Popup `o`** da mais recente à mais antiga, com aberta/fechada, tabs e último uso; `x` fecha e `d` apaga, os dois com confirmação, porque param programas. A barra de tabs só mostra o nome da sessão quando há mais de uma.
 
 **Consequências.** Sessões abertas no fundo continuam gastando o que seus programas gastam; fechar é o jeito de liberar sem perder o layout. Um shell reaberto começa limpo: histórico da tela, variáveis e o programa que rodava nele se perdem. Um `noct` antigo e um daemon novo (ou o contrário) se recusam a conversar até `noct quit`. A única sessão não fecha (fechar seria sair); `noct quit` faz isso guardando o layout.
+
+## ADR-038 — Calendário dos logs colorido pela atividade
+
+**Contexto.** O calendário dos logs marcava cada dia com um de poucos estados (nada, logs, execuções, falha): um dia com um log e um com trezentos pareciam iguais. Um heatmap à parte, no estilo do GitHub, embaixo dos totais, foi testado e descartado pelo mantenedor: repetia o calendário. O pedido ficou em pôr as cores de calor no próprio calendário, sem a cor de atenção nos dias com falha, que destoava do tema.
+
+**Decisão.**
+- **Cor no dia:** cada dia com logs fica sobre uma cor pela quantidade deles, em quatro passos pela raiz quadrada da fração do dia com mais logs entre todos os guardados (a mesma escala em todos os meses). As cores vêm de `mix` entre o `background` e o `accent` do tema (30% a 100%). A cor usa o `background` do tema mesmo com o fundo do terminal, porque a paleta não tem outra base.
+- **Célula centralizada:** o dia é ` 28 `, quatro colunas com a cor em todas e os dígitos nas mesmas colunas do nome do dia da semana, em vez de `%3d` com o fundo rente ao número, que parecia alinhado à direita. Dias vizinhos com logs encostam as cores; um espaço entre eles pediria cinco colunas por dia, mais que a coluna do calendário.
+- **Legível em qualquer passo:** nos dois primeiros o número vai na cor do texto; nos dois últimos, na cor que o tema usa sobre o destaque.
+- **Sem decorações:** nenhum dia fica em negrito. O dia selecionado é só sublinhado, mantendo a cor dos seus logs, em vez do fundo de destaque; hoje aparece entre colchetes nas margens da célula (`[30]`, `[ 1]`), que se leem sobre qualquer cor. O `•` dos dias com execuções saiu.
+- **Sem cor de atenção:** um dia com execução que falhou não muda de cor; as falhas aparecem na lista do dia (`✗`) e nos totais do mês.
+- **Legenda** logo abaixo das seis semanas, antes dos totais: `activity less` e os quatro passos. Os totais descem uma linha, e o calendário do layout estreito passa de 17 para 18 linhas.
+
+**Consequências.** A cor mede logs, e terminais também gravam logs: um dia de muitos shells aparece quente sem ter rodado scripts. Um dia com falha, ou só com execuções sem log, não se destaca mais no calendário. Em terminais sem true color, as cores descem para a paleta de 256 cores e os passos podem ficar próximos.

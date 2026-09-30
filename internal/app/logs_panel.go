@@ -408,9 +408,9 @@ func (p *logsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 		calendar = image.Rect(body.Min.X+1, body.Min.Y, body.Min.X+1+calendarWidth, body.Max.Y)
 		list = image.Rect(calendar.Max.X+3, body.Min.Y, body.Max.X-1, body.Max.Y)
 	} else {
-		height := 9 // the month's title, the weekdays and six weeks, with the totals when room is left
+		height := 9 // the month's title, the weekdays, six weeks and the colors' legend
 		if body.Dy() >= 30 {
-			height = 17
+			height = 18 // with the totals
 		}
 		calendar = image.Rect(body.Min.X+1, body.Min.Y, body.Max.X-1, min(body.Min.Y+height, body.Max.Y))
 		list = image.Rect(body.Min.X+1, calendar.Max.Y+1, body.Max.X-1, body.Max.Y)
@@ -422,9 +422,8 @@ func (p *logsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	p.list = p.list.Sub(area.Min)
 }
 
-// drawCalendar draws the month of the selected day, then the totals of the month and of all logs.
-// Days show what happened on them: nothing (muted), logs or runs (bold, with a dot under runs) or
-// a failed run (in the attention color).
+// drawCalendar draws the month of the selected day, the legend of its colors, then the totals of
+// the month and of all logs. A day with logs shows over a color that grows with them (ADR-038).
 func (p *logsPanel) drawCalendar(screen uv.Screen, area image.Rectangle, stats map[time.Time]dayStats) {
 	pal := &p.app.palette
 	titleStyle := pal.panelHeading
@@ -443,35 +442,40 @@ func (p *logsPanel) drawCalendar(screen uv.Screen, area image.Rectangle, stats m
 	first := time.Date(p.day.Year(), p.day.Month(), 1, 0, 0, 0, 0, time.Local)
 	offset := (int(first.Weekday()) + 6) % 7
 	today := dateOf(time.Now())
+	busiest := busiestDay(stats)
 	for day := first; day.Month() == first.Month(); day = day.AddDate(0, 0, 1) {
 		cell := offset + day.Day() - 1
 		x, y := p.grid.X+cell%7*dayCellWidth, p.grid.Y+cell/7
 		if y >= area.Max.Y {
 			break
 		}
-		s := stats[day]
-		marker := " "
-		if s.runs > 0 {
-			marker = "•"
+		// the color spans the whole cell, the number in the middle, under its weekday's name;
+		// today takes brackets in the cell's margins
+		format := " %2d "
+		if day.Equal(today) {
+			format = "[%2d]"
 		}
-		drawText(screen, x, y, area.Max.X, fmt.Sprintf("%3d%s", day.Day(), marker), p.dayStyle(day, today, s))
+		drawText(screen, x, y, area.Max.X, fmt.Sprintf(format, day.Day()), p.dayStyle(day, stats[day], busiest))
 	}
-	p.drawTotals(screen, image.Rect(area.Min.X, p.grid.Y+7, area.Max.X, area.Max.Y), stats)
+	if y := p.grid.Y + 6; y < area.Max.Y {
+		p.drawHeatLegend(screen, area.Min.X, y, area.Max.X)
+	}
+	p.drawTotals(screen, image.Rect(area.Min.X, p.grid.Y+8, area.Max.X, area.Max.Y), stats)
 }
 
-func (p *logsPanel) dayStyle(day, today time.Time, s dayStats) uv.Style {
+// dayStyle is how a calendar day shows: muted without logs or runs, over the color of its logs
+// when it has them, and underlined when selected, which shows over any color.
+func (p *logsPanel) dayStyle(day time.Time, s dayStats, busiest int) uv.Style {
 	pal := &p.app.palette
-	switch {
-	case day.Equal(p.day):
-		return pal.selectedRow
-	case s.failed > 0:
-		return pal.status
-	case day.Equal(today):
-		return pal.focusedTitle
-	case s.logs > 0 || s.runs > 0:
-		return pal.panelHeading
+	style := pal.panelMuted
+	if s.logs > 0 || s.runs > 0 {
+		style = pal.panelText
 	}
-	return pal.panelMuted
+	style = p.heatStyle(style, heatLevel(s.logs, busiest))
+	if day.Equal(p.day) {
+		style.Underline = uv.UnderlineSingle
+	}
+	return style
 }
 
 // drawTotals shows the month's logs and runs, and how much of the configured limit all logs take.
