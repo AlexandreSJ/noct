@@ -93,38 +93,52 @@ func (a *App) handleMCPKey(key uv.KeyPressEvent) {
 	setups := mcpSetups(a.noctBinary())
 	rows := len(a.approvals) + len(setups)
 	a.mcpSelected = min(a.mcpSelected, rows-1)
-	switch key.String() {
-	case "esc", "q":
-		a.mode = normalMode
-		return
-	case "up", "k":
-		a.mcpSelected = max(a.mcpSelected-1, 0)
-		return
-	case "down", "j":
-		a.mcpSelected = min(a.mcpSelected+1, rows-1)
-		return
-	case "pgup", "pgdown", "home", "end":
-		a.mcpSelected, _ = listJump(key.String(), a.mcpSelected, rows, rows)
+	if a.moveMCPSelection(key.String(), rows) {
 		return
 	}
 	if a.mcpSelected < len(a.approvals) {
-		selected := a.approvals[a.mcpSelected]
-		switch key.String() {
-		case "y", "enter":
-			a.decideApproval(selected, true)
-		case "n", "delete":
-			a.decideApproval(selected, false)
-		}
+		a.decideSelectedApproval(key.String())
 		return
 	}
-	if s := setups[a.mcpSelected-len(a.approvals)]; key.String() == "enter" || key.String() == "c" {
-		a.copyToClipboard(s.text)
-		a.notice = "copied: add noct to " + s.client
-		if s.file != "" {
-			a.notice = "copied: " + s.client + "'s config"
-		}
-		a.mode = normalMode
+	if key.String() == "enter" || key.String() == "c" {
+		a.copyMCPSetup(setups[a.mcpSelected-len(a.approvals)])
 	}
+}
+
+// moveMCPSelection closes the popup or moves its selection, telling whether the key did either.
+func (a *App) moveMCPSelection(key string, rows int) bool {
+	switch key {
+	case "esc", "q":
+		a.mode = normalMode
+	case "up", "k":
+		a.mcpSelected = max(a.mcpSelected-1, 0)
+	case "down", "j":
+		a.mcpSelected = min(a.mcpSelected+1, rows-1)
+	case "pgup", "pgdown", "home", "end":
+		a.mcpSelected, _ = listJump(key, a.mcpSelected, rows, rows)
+	default:
+		return false
+	}
+	return true
+}
+
+func (a *App) decideSelectedApproval(key string) {
+	selected := a.approvals[a.mcpSelected]
+	switch key {
+	case "y", "enter":
+		a.decideApproval(selected, true)
+	case "n", "delete":
+		a.decideApproval(selected, false)
+	}
+}
+
+func (a *App) copyMCPSetup(s mcpSetup) {
+	a.copyToClipboard(s.text)
+	a.notice = "copied: add noct to " + s.client
+	if s.file != "" {
+		a.notice = "copied: " + s.client + "'s config"
+	}
+	a.mode = normalMode
 }
 
 // noctBinary is the path of this noct, for commands that start it.
@@ -139,44 +153,13 @@ func (a *App) drawMCP(screen uv.Screen) {
 	width := min(mcpPanelWidth, a.size.X)
 	textWidth := max(width-6, 10)
 	setups := mcpSetups(a.noctBinary())
-	rowStyle := func(row int) uv.Style {
-		if row == a.mcpSelected {
-			return pal.selectedRow
-		}
-		return pal.panelText
-	}
-	var lines []styledLine
-	if len(a.approvals) > 0 {
-		lines = append(lines, styledLine{fmt.Sprintf("Waiting for approval (%d)", len(a.approvals)), pal.panelHeading})
-		for i, ap := range a.approvals {
-			lines = append(lines, styledLine{"AI asks to " + ap.tool, rowStyle(i)})
-			for _, line := range wrapText(ap.summary, textWidth-2) {
-				lines = append(lines, styledLine{"  " + line, pal.panelMuted})
-			}
-		}
-		lines = append(lines, styledLine{"", pal.panelText})
-	}
-	lines = append(lines, styledLine{"Connected", pal.panelHeading})
-	if len(a.aiClients) == 0 {
-		lines = append(lines, styledLine{"no AI client yet: add noct to one below", pal.panelMuted})
-	}
-	for _, c := range a.aiClients {
-		lines = append(lines, styledLine{strings.TrimSpace("● " + c.Name + " " + c.Version), pal.panelText})
-	}
-	lines = append(lines, styledLine{"", pal.panelText}, styledLine{"Add noct to", pal.panelHeading})
-	for i, s := range setups {
-		lines = append(lines, styledLine{s.client, rowStyle(len(a.approvals) + i)})
-	}
+	lines := a.mcpApprovalLines(textWidth)
+	lines = append(lines, a.mcpConnectedLines()...)
+	lines = append(lines, a.mcpSetupLines(setups)...)
 	hints := a.hint("mcp", approvalHints)
 	if i := a.mcpSelected - len(a.approvals); i >= 0 && i < len(setups) {
 		hints = a.hint("mcp", setupHints)
-		lines = append(lines, styledLine{"", pal.panelText})
-		if setups[i].file != "" {
-			lines = append(lines, styledLine{"in " + setups[i].file + ":", pal.panelMuted})
-		}
-		for _, line := range wrapText(setups[i].text, textWidth) {
-			lines = append(lines, styledLine{line, pal.panelText})
-		}
+		lines = append(lines, a.mcpSetupDetailLines(setups[i], textWidth)...)
 	}
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(len(lines)+2)), "MCP")
@@ -189,6 +172,63 @@ func (a *App) drawMCP(screen uv.Screen) {
 	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, hints, pal.panelMuted)
 }
 
+func (a *App) mcpRowStyle(row int) uv.Style {
+	if row == a.mcpSelected {
+		return a.palette.selectedRow
+	}
+	return a.palette.panelText
+}
+
+// mcpApprovalLines are the approvals waiting, each with its summary; none when nothing waits.
+func (a *App) mcpApprovalLines(textWidth int) []styledLine {
+	if len(a.approvals) == 0 {
+		return nil
+	}
+	pal := &a.palette
+	lines := []styledLine{{fmt.Sprintf("Waiting for approval (%d)", len(a.approvals)), pal.panelHeading}}
+	for i, ap := range a.approvals {
+		lines = append(lines, styledLine{"AI asks to " + ap.tool, a.mcpRowStyle(i)})
+		for _, line := range wrapText(ap.summary, textWidth-2) {
+			lines = append(lines, styledLine{"  " + line, pal.panelMuted})
+		}
+	}
+	return append(lines, styledLine{"", pal.panelText})
+}
+
+func (a *App) mcpConnectedLines() []styledLine {
+	pal := &a.palette
+	lines := []styledLine{{"Connected", pal.panelHeading}}
+	if len(a.aiClients) == 0 {
+		lines = append(lines, styledLine{"no AI client yet: add noct to one below", pal.panelMuted})
+	}
+	for _, c := range a.aiClients {
+		lines = append(lines, styledLine{strings.TrimSpace("● " + c.Name + " " + c.Version), pal.panelText})
+	}
+	return lines
+}
+
+func (a *App) mcpSetupLines(setups []mcpSetup) []styledLine {
+	pal := &a.palette
+	lines := []styledLine{{"", pal.panelText}, {"Add noct to", pal.panelHeading}}
+	for i, s := range setups {
+		lines = append(lines, styledLine{s.client, a.mcpRowStyle(len(a.approvals) + i)})
+	}
+	return lines
+}
+
+// mcpSetupDetailLines show the selected setup in full: where it goes and what to paste.
+func (a *App) mcpSetupDetailLines(s mcpSetup, textWidth int) []styledLine {
+	pal := &a.palette
+	lines := []styledLine{{"", pal.panelText}}
+	if s.file != "" {
+		lines = append(lines, styledLine{"in " + s.file + ":", pal.panelMuted})
+	}
+	for _, line := range wrapText(s.text, textWidth) {
+		lines = append(lines, styledLine{line, pal.panelText})
+	}
+	return lines
+}
+
 // wrapText cuts text into lines at most width runes long, at spaces when it can, keeping its own
 // line breaks.
 func wrapText(text string, width int) []string {
@@ -196,17 +236,21 @@ func wrapText(text string, width int) []string {
 	for _, paragraph := range strings.Split(text, "\n") {
 		runes := []rune(paragraph)
 		for len(runes) > width {
-			cut := width
-			for i := width; i > width/2; i-- {
-				if runes[i] == ' ' {
-					cut = i
-					break
-				}
-			}
+			cut := wrapCut(runes, width)
 			lines = append(lines, string(runes[:cut]))
 			runes = []rune(strings.TrimLeft(string(runes[cut:]), " "))
 		}
 		lines = append(lines, string(runes))
 	}
 	return lines
+}
+
+// wrapCut is where a line longer than width breaks: the last space in its second half, or width.
+func wrapCut(runes []rune, width int) int {
+	for i := width; i > width/2; i-- {
+		if runes[i] == ' ' {
+			return i
+		}
+	}
+	return width
 }

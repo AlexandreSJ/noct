@@ -69,27 +69,28 @@ func (a *App) scriptDirs() []string {
 // dirSignature sums up the names, sizes and times of what is in dirs, down to depth levels.
 func dirSignature(dirs []string, depth int) string {
 	h := fnv.New64a()
-	var walk func(dir string, level int)
-	walk = func(dir string, level int) {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			_, _ = io.WriteString(h, dir+"\x00missing\x00")
-			return
-		}
-		for _, entry := range entries {
-			path := filepath.Join(dir, entry.Name())
-			info, err := entry.Info()
-			if err != nil {
-				continue // removed while reading; the next check sees it gone
-			}
-			_, _ = fmt.Fprintf(h, "%s\x00%d\x00%d\x00", path, info.Size(), info.ModTime().UnixNano())
-			if entry.IsDir() && level < depth {
-				walk(path, level+1)
-			}
-		}
-	}
 	for _, dir := range dirs {
-		walk(dir, 1)
+		writeDirSignature(h, dir, 1, depth)
 	}
 	return fmt.Sprintf("%x", h.Sum64())
+}
+
+// writeDirSignature writes what is in dir, at level, and below it down to depth, into h.
+func writeDirSignature(h io.Writer, dir string, level, depth int) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		_, _ = io.WriteString(h, dir+"\x00missing\x00")
+		return
+	}
+	for _, entry := range entries {
+		path := filepath.Join(dir, entry.Name())
+		info, err := entry.Info()
+		if err != nil {
+			continue // removed while reading; the next check sees it gone
+		}
+		_, _ = fmt.Fprintf(h, "%s\x00%d\x00%d\x00", path, info.Size(), info.ModTime().UnixNano())
+		if entry.IsDir() && level < depth {
+			writeDirSignature(h, path, level+1, depth)
+		}
+	}
 }

@@ -33,21 +33,7 @@ func (a *App) openRequestedPane(c connection) {
 		a.openEmptyTab()
 		t, near = a.currentTab(), 0
 	}
-	argv := append(slices.Clone(a.shellArgv), "-c", req.Command)
-	title := orDefault(req.Title, "step")
-	start := func(id layout.PaneID, frame image.Rectangle) (view, error) {
-		run := func(size pty.Size, onExit func(int)) (view, error) {
-			p := program{argv: argv, dir: orDefault(req.Dir, a.workDir), logName: "step-" + title}
-			p.onExit = func(code int) {
-				if req.Wait {
-					answer(ipc.Exit{Reason: ipc.PaneExited, Code: code})
-				}
-				onExit(code)
-			}
-			return a.launch(p, size)
-		}
-		return newRunView(title, &a.palette, run, func() { a.detachView(id) }, contentSize(frame))
-	}
+	start := a.requestedPaneStarter(req, answer)
 	var err error
 	if t.isEmpty() {
 		a.openPanel(start)
@@ -62,6 +48,26 @@ func (a *App) openRequestedPane(c connection) {
 			a.focusPane(t, near)
 		}
 		answer(ipc.Exit{Reason: ipc.PaneOpened})
+	}
+}
+
+// requestedPaneStarter starts a step's command as a run view; a step that waits is answered with
+// its exit code when it ends.
+func (a *App) requestedPaneStarter(req *ipc.PaneRequest, answer func(ipc.Exit)) viewStarter {
+	argv := append(slices.Clone(a.shellArgv), "-c", req.Command)
+	title := orDefault(req.Title, "step")
+	return func(id layout.PaneID, frame image.Rectangle) (view, error) {
+		run := func(size pty.Size, onExit func(int)) (view, error) {
+			p := program{argv: argv, dir: orDefault(req.Dir, a.workDir), logName: "step-" + title}
+			p.onExit = func(code int) {
+				if req.Wait {
+					answer(ipc.Exit{Reason: ipc.PaneExited, Code: code})
+				}
+				onExit(code)
+			}
+			return a.launch(p, size)
+		}
+		return newRunView(title, &a.palette, run, func() { a.detachView(id) }, contentSize(frame))
 	}
 }
 
