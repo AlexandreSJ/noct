@@ -51,14 +51,21 @@ func EnsureRunning(socketPath string) error {
 	}
 	_ = cmd.Process.Release() // the daemon outlives this process; nobody waits for it here
 
-	deadline := time.Now().Add(startTimeout)
+	if !waitReachable(socketPath, startTimeout) {
+		return fmt.Errorf("the noct daemon did not start; see %s", logFile.Name())
+	}
+	return nil
+}
+
+func waitReachable(socketPath string, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		if reachable(socketPath) {
-			return nil
+			return true
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	return fmt.Errorf("the noct daemon did not start; see %s", logFile.Name())
+	return false
 }
 
 func reachable(socketPath string) bool {
