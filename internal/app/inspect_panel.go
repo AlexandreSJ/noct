@@ -208,11 +208,7 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 	block, selected := p.selectedBlock()
 	switch name {
 	case "esc":
-		if p.anchor != "" {
-			p.anchor = ""
-			return
-		}
-		p.focusChart, p.listHidden = false, false
+		p.escapeChart()
 	case "shift+up", "shift+down":
 		if selected && !block.isInsertion() {
 			p.extendRange(f, block.path, map[string]int{"shift+up": -1, "shift+down": 1}[name])
@@ -237,6 +233,15 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 			p.stepKey(name, f, block.path)
 		}
 	}
+}
+
+// escapeChart drops the range anchor first, and leaves the chart when there is none.
+func (p *inspectPanel) escapeChart() {
+	if p.anchor != "" {
+		p.anchor = ""
+		return
+	}
+	p.focusChart, p.listHidden = false, false
 }
 
 // chartViewKey runs the keys that move the selection or the view, and tells whether name was one.
@@ -492,7 +497,6 @@ func (p *inspectPanel) frameStyles(focused bool) (uv.Style, uv.Style) {
 // drawFlows lists the flows in a frame, each with how its last run went, and returns where the
 // rows are.
 func (p *inspectPanel) drawFlows(screen uv.Screen, area image.Rectangle) image.Rectangle {
-	pal := &p.app.palette
 	line, title := p.frameStyles(!p.focusChart)
 	drawFrame(screen, area, "flows", line, title)
 	inner := area.Inset(1)
@@ -503,28 +507,38 @@ func (p *inspectPanel) drawFlows(screen uv.Screen, area image.Rectangle) image.R
 		if y >= inner.Max.Y {
 			break
 		}
-		style := pal.panelText
-		if i == selected {
-			style = pal.selectedRow
-			if p.focusChart {
-				style = pal.focusedTitle
-			}
-		}
-		mark := "  "
-		if f.Problem != nil {
-			mark = "✗ "
-		} else if r, ran := flow.LastResult(flow.ResultsDir(), f.Name); ran {
-			mark = map[bool]string{true: "✓ ", false: "✗ "}[r.OK]
-		}
-		if f.Draft {
-			mark += "✎ "
-		}
-		if enabled[f.Name] && len(f.TriggerLabels()) > 0 {
-			mark += "⏰ "
-		}
-		drawRow(screen, inner, y, mark+f.Name, "", style)
+		drawRow(screen, inner, y, flowListMarks(f, enabled)+f.Name, "", p.flowRowStyle(i == selected))
 	}
 	return inner
+}
+
+func (p *inspectPanel) flowRowStyle(selected bool) uv.Style {
+	pal := &p.app.palette
+	if !selected {
+		return pal.panelText
+	}
+	if p.focusChart {
+		return pal.focusedTitle
+	}
+	return pal.selectedRow
+}
+
+// flowListMarks tell how a flow's last run went, whether it is a draft and whether a trigger
+// starts it.
+func flowListMarks(f flow.Flow, enabled map[string]bool) string {
+	mark := "  "
+	if f.Problem != nil {
+		mark = "✗ "
+	} else if r, ran := flow.LastResult(flow.ResultsDir(), f.Name); ran {
+		mark = map[bool]string{true: "✓ ", false: "✗ "}[r.OK]
+	}
+	if f.Draft {
+		mark += "✎ "
+	}
+	if enabled[f.Name] && len(f.TriggerLabels()) > 0 {
+		mark += "⏰ "
+	}
+	return mark
 }
 
 // drawFlowChart frames the flow's chart, under its description and last run.

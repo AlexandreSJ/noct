@@ -134,13 +134,18 @@ func (s Step) validateVariables(kind Kind) error {
 			}
 		}
 	case UnsetStep:
-		for _, name := range s.Unset {
-			step, isStep := strings.CutPrefix(name, stepsPrefix)
-			if isStep && identifier.MatchString(step) || !isStep && isVariable(name) {
-				continue
-			}
-			return fmt.Errorf("unset %q is a variable's name or %s<id>", name, stepsPrefix)
+		return validateUnsetNames(s.Unset)
+	}
+	return nil
+}
+
+func validateUnsetNames(names []string) error {
+	for _, name := range names {
+		step, isStep := strings.CutPrefix(name, stepsPrefix)
+		if isStep && identifier.MatchString(step) || !isStep && isVariable(name) {
+			continue
 		}
+		return fmt.Errorf("unset %q is a variable's name or %s<id>", name, stepsPrefix)
 	}
 	return nil
 }

@@ -210,9 +210,7 @@ func (a *App) loop() error {
 		case c := <-a.connections:
 			a.handleConnection(c)
 		case commands := <-a.terminalGraphics:
-			if a.screen != nil {
-				_, _ = a.screen.WriteString(string(commands)) // only queues; the next frame's flush reports failures
-			}
+			a.writeTerminalGraphics(commands)
 		case <-a.screenChanged:
 		case task := <-a.loopTasks:
 			task()
@@ -237,6 +235,12 @@ func (a *App) loop() error {
 		nextFrame, lastFrame = a.drawWhenDue(lastFrame)
 	}
 	return nil
+}
+
+func (a *App) writeTerminalGraphics(commands []byte) {
+	if a.screen != nil {
+		_, _ = a.screen.WriteString(string(commands)) // only queues; the next frame's flush reports failures
+	}
 }
 
 // drawWhenDue draws a frame if one is due since lastFrame, or gives the timer for when it will be.
