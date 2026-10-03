@@ -389,18 +389,9 @@ func keyEvent(name string) (uv.KeyPressEvent, bool) {
 	} else {
 		parts = parts[:len(parts)-1]
 	}
-	var mod uv.KeyMod
-	for _, part := range parts {
-		switch part {
-		case "ctrl":
-			mod |= uv.ModCtrl
-		case "alt":
-			mod |= uv.ModAlt
-		case "shift":
-			mod |= uv.ModShift
-		default:
-			return uv.KeyPressEvent{}, false
-		}
+	mod, ok := parseKeyMods(parts)
+	if !ok {
+		return uv.KeyPressEvent{}, false
 	}
 	if code, ok := namedKeys[last]; ok {
 		return uv.KeyPressEvent{Code: code, Mod: mod}, true
@@ -420,6 +411,23 @@ func keyEvent(name string) (uv.KeyPressEvent, bool) {
 		}
 	}
 	return key, true
+}
+
+func parseKeyMods(parts []string) (uv.KeyMod, bool) {
+	var mod uv.KeyMod
+	for _, part := range parts {
+		switch part {
+		case "ctrl":
+			mod |= uv.ModCtrl
+		case "alt":
+			mod |= uv.ModAlt
+		case "shift":
+			mod |= uv.ModShift
+		default:
+			return 0, false
+		}
+	}
+	return mod, true
 }
 
 // modeKeyContexts are the contexts of noct's modes; normal mode's is the focused panel's.

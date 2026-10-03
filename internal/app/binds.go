@@ -212,42 +212,49 @@ func (a *App) bindConflicts(row bindRow, key string) []keyAction {
 func (a *App) setBind(row bindRow, keys []string) {
 	next := a.config
 	next.Keys = cloneKeys(a.config.Keys)
-	set := func(action keyAction, keys []string) {
-		changed := next.Keys[row.context.id]
-		if changed == nil {
-			changed = map[string][]string{}
-		}
-		if keys == nil || slices.Equal(keys, action.defaults) {
-			delete(changed, action.id)
-		} else {
-			changed[action.id] = keys
-		}
-		next.Keys[row.context.id] = changed
-		if len(changed) == 0 {
-			delete(next.Keys, row.context.id)
-		}
-	}
 	if keys == nil {
 		keys = row.action.defaults
 	}
+	keys = dedupeKeys(keys)
+	for _, key := range keys {
+		for _, other := range a.bindConflicts(row, key) {
+			rest := slices.DeleteFunc(slices.Clone(a.keymap.actionKeys(row.context.id, other)), func(k string) bool { return k == key })
+			setContextKeys(next.Keys, row.context.id, other, rest)
+		}
+	}
+	setContextKeys(next.Keys, row.context.id, row.action, keys)
+	if len(next.Keys) == 0 {
+		next.Keys = nil
+	}
+	a.applyConfig(next)
+}
+
+// setContextKeys records an action's keys in a context's changes, leaving out what matches the
+// defaults so the config keeps only what was changed.
+func setContextKeys(all map[string]map[string][]string, contextID string, action keyAction, keys []string) {
+	changed := all[contextID]
+	if changed == nil {
+		changed = map[string][]string{}
+	}
+	if keys == nil || slices.Equal(keys, action.defaults) {
+		delete(changed, action.id)
+	} else {
+		changed[action.id] = keys
+	}
+	all[contextID] = changed
+	if len(changed) == 0 {
+		delete(all, contextID)
+	}
+}
+
+func dedupeKeys(keys []string) []string {
 	var unique []string
 	for _, key := range keys {
 		if !slices.Contains(unique, key) {
 			unique = append(unique, key)
 		}
 	}
-	keys = unique
-	for _, key := range keys {
-		for _, other := range a.bindConflicts(row, key) {
-			rest := slices.DeleteFunc(slices.Clone(a.keymap.actionKeys(row.context.id, other)), func(k string) bool { return k == key })
-			set(other, rest)
-		}
-	}
-	set(row.action, keys)
-	if len(next.Keys) == 0 {
-		next.Keys = nil
-	}
-	a.applyConfig(next)
+	return unique
 }
 
 func cloneKeys(keys map[string]map[string][]string) map[string]map[string][]string {
