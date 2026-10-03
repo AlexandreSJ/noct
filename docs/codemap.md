@@ -23,15 +23,20 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs |
 | `internal/logstore/entries.go` | Logs by day, each with a flow run's result beside it: listing, line counts, removing, pruning by age and total size, readable sizes |
 | `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, exit code, foreground program, current directory |
-| `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing, mouse modes and forwarding |
+| `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing |
+| `internal/pane/mouse.go` | Mouse modes a program asked for, and forwarding mouse events to it |
 | `internal/pane/sync.go` | Holds back a synchronized-output frame (mode 2026) until it ends, so it never shows half drawn |
 | `internal/pane/images.go` | Writes image placeholder cells at the cursor and moves it as kitty does |
 | `internal/pane/keys.go` | Key encodings the emulator lacks (modified navigation keys) |
 | `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again, names, what the command line lists |
 | `internal/layout/shape.go` | A tree as plain data (`Shape`) and building it again under new pane IDs |
-| `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks (one pane shown, the others folded to a row), move, remove, rects, directional focus, draggable dividers |
+| `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks (one pane shown, the others folded to a row), move, remove |
+| `internal/layout/geometry.go` | Each pane's rect from the tree and the area it is given |
+| `internal/layout/divider.go` | Draggable dividers between panes and resizing by keys |
+| `internal/layout/neighbor.go` | Directional focus: the nearest pane in a direction |
 | `internal/app/app.go` | App state, event loop, frame pacing, attach (to the session asked for)/detach, config loading, shutdown |
-| `internal/app/sessions.go` | Sessions: create, switch, close (keeping the layout), delete, rename; saving them and opening a closed one again; the command line's list and delete |
+| `internal/app/sessions.go` | Sessions: create, switch, close (keeping the layout), delete, rename; the command line's list and delete |
+| `internal/app/sessions_saved.go` | Saving sessions to `sessions.json` and opening a closed one again: tabs, panes, views and their directories |
 | `internal/app/sessions_popup.go` | Sessions popup (prefix+o): the sessions by last use, keys to open, create, rename, close and delete |
 | `internal/app/client.go` | Daemon side of an attached terminal: decoding its keys, drawing to it, greeting connections |
 | `internal/app/scroll.go` | Scroll mode through a terminal's history |
@@ -46,8 +51,11 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/home.go` | Home screen (no tabs): title, raven, intro, per-character flicker on hover, shortcuts reveal and timer |
 | `internal/app/raven2.ascii` | The raven logo embedded in the binary |
 | `internal/app/keys.go` | Key routing by mode, command and move modes, the shortcuts table and popup |
-| `internal/app/prompt.go` | Text prompt (tab and panel rename, new folder), yes/no confirmation (quit, delete), a choice of a few options (new directory or script) and an info popup (what a flow's step does) |
-| `internal/app/logs_panel.go` | Logs panel (prefix+v): month calendar marked by runs, the day's logs with weight bars, sorting, opening, clearing; log pruning |
+| `internal/app/prompt.go` | Text prompt (tab and panel rename, new folder) and yes/no confirmation (quit, delete) |
+| `internal/app/choice.go` | A choice of a few options (new directory or script) |
+| `internal/app/info_popup.go` | An info popup (what a flow's step does) |
+| `internal/app/logs_panel.go` | Logs panel (prefix+v): state, keys and clicks, sorting, opening, clearing; log pruning |
+| `internal/app/logs_draw.go` | Drawing the logs panel: month calendar marked by runs, the day's logs with weight bars, totals |
 | `internal/app/library_watch.go` | Reading scripts and flows again while a panel shows them and their files changed on disk |
 | `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks |
 | `internal/app/flowchart.go` | Laying out and drawing a flow as a flowchart on its own canvas, and which block is where: steps, empty lists and the gaps where steps are added; ranges and warnings marked |
@@ -69,7 +77,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/selection.go` | Selecting text with the mouse in one pane, across scrolling, highlighting and copying it (OSC 52) |
 | `internal/app/rebuild.go` | Notices on attach that the noct binary was rebuilt after the daemon started |
 | `internal/app/prefix.go` | The configurable prefix key: parsing, matching, key names; capturing a new one and what it would take from shortcuts and programs |
-| `internal/app/config_panel.go` | Config panel: rows, key handling, clicks and hover, applying and saving, reset to defaults, drawing |
+| `internal/app/config_panel.go` | Config panel: state, key handling, applying and saving, reset to defaults |
+| `internal/app/config_view.go` | Config panel's rows, layout, drawing, clicks and hover |
 | `internal/app/panel_kinds.go` | The kinds of panel a key opens (`panelKinds`), which `runAction` and the new tab setting read; opening a new tab |
 | `internal/app/panel.go` | Shared panel component: framed box, rows, list scrolling with a margin around the selection, centered and corner placement |
 | `internal/app/tab.go` | A tab: its views, pane names, focus history, floating panes, fullscreen, visible frames, size rules |
@@ -94,8 +103,10 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/script/edit.go` | Creating a script (with optional hints) and updating it from the form's fields, keeping the rest of the YAML; params as YAML text |
 | `internal/script/values.go` | Starting values of parameters, checking them, remembered values file |
 | `internal/script/history.go` | The list of recent runs of scripts and flows (the last 1000), with exit code and log, and sorting scripts by name, edit or last run |
-| `internal/flow/flow.go` | A flow: steps (script, run, if, repeat, wait, prompt, set, unset), loading, saving, creating, validation, template functions |
-| `internal/flow/run.go` | Running a flow step by step in a terminal: commands, if, repeat, wait, captures (and scripts' outputs), expect; its last result with each step's output |
+| `internal/flow/flow.go` | A flow: steps (script, run, if, repeat, wait, prompt, set, unset), loading, saving, creating, template functions |
+| `internal/flow/validate.go` | Checking a flow and its steps: ids, fields that belong to each kind, patterns |
+| `internal/flow/run.go` | Running a flow step by step in a terminal: commands, if, repeat, wait, captures (and scripts' outputs), expect |
+| `internal/flow/result.go` | A run's result with each step's output and status; saving and loading the last one |
 | `internal/flow/try.go` | Testing a range of sibling steps over the last result (its steps' fields and variables), and merging what they did into it |
 | `internal/flow/vars.go` | Params with a type (text, number), required and a label, and checking values; running prompt, set and unset steps |
 | `internal/flow/trigger.go` | Triggers (manual, cron, watch, after) in YAML, their validation, globs with `**`, loops of after triggers, which flows have them enabled |
@@ -107,6 +118,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/mcp/run_tools.go` | Tools over runs and logs: list, the structured result, search, paged reading |
 | `internal/mcp/workspace_tools.go` | Tools the running workspace does: panes, runs the user sees, command lines, typing |
 | `internal/schedule/schedule.go` | Deciding when enabled flows start: cron minutes, watched files settling, another flow's run ending |
-| `internal/flow/scope.go` | What templates can read at each point of a flow (parameters, variables set and unset, earlier steps' fields, how sure), and warnings for what they read that may not be there |
+| `internal/flow/scope.go` | What templates can read at each point of a flow (parameters, variables set and unset, earlier steps' fields, how sure) |
+| `internal/flow/warnings.go` | Warnings for what templates read that may not be there |
 | `internal/flow/edit.go` | Editing a flow by step path: insert, replace, remove, move, unique ids |
 | `internal/script/version.go` | Program version detection, in the background and cached |
