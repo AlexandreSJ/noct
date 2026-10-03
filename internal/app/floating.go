@@ -48,7 +48,6 @@ func (a *App) setFloatingFrame(t *tab, f *floatingPane, frame image.Rectangle) {
 	t.resizeViews(area)
 }
 
-// moveFloating moves a floating pane one step toward heading.
 func (a *App) moveFloating(t *tab, f *floatingPane, heading layout.Heading) {
 	a.setFloatingFrame(t, f, f.frame.Add(headingStep(heading)))
 }

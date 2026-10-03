@@ -34,7 +34,6 @@ func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 	a.drawModeOverlay(screen)
 }
 
-// drawModeOverlay shows the panel of the current mode on top of everything else.
 func (a *App) drawModeOverlay(screen uv.Screen) {
 	switch a.mode {
 	case commandMode:
@@ -175,7 +174,6 @@ func (a *App) sessionTabBarLabel() string {
 	return " ◆ " + a.session.name + " "
 }
 
-// statusParts are the message the tab bar shows and its style.
 func (a *App) statusParts() (text string, style uv.Style) {
 	style = a.palette.status
 	switch {
@@ -215,7 +213,6 @@ func (a *App) viewTitle(t *tab, id layout.PaneID) string {
 	return filepath.Base(a.shellArgv[0])
 }
 
-// drawFoldedPane draws a pane folded in a stack as its title on a line.
 func drawFoldedPane(screen uv.Screen, frame image.Rectangle, title string, lineStyle, titleStyle uv.Style) {
 	if frame.Empty() {
 		return

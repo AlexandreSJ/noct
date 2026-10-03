@@ -32,7 +32,6 @@ type inspectPanel struct {
 
 	flowName   string
 	focusChart bool
-	// listHidden gives the chart the whole panel.
 	listHidden bool
 	// anchor is the step a range started at with shift, or "" for the selected step alone.
 	anchor    string
@@ -40,8 +39,7 @@ type inspectPanel struct {
 	// warnings are the flow's, found when it is drawn.
 	warnings []flow.Warning
 	// run is a run opened from the logs, shown instead of the flow's last one.
-	run *flow.Result
-	// selected is the key of the chart's selected block.
+	run      *flow.Result
 	selected string
 	zoom     int
 	// pan is the chart's point at the chart area's top left; while centered, it follows the
@@ -57,7 +55,6 @@ type inspectPanel struct {
 	clickedKey string
 }
 
-// chartDrag is the chart being moved with the mouse.
 type chartDrag struct {
 	from  image.Point
 	pan   image.Point
@@ -335,7 +332,6 @@ func (p *inspectPanel) ranged() map[string]bool {
 	return keys
 }
 
-// testSelection tests the selected step, or the range.
 func (p *inspectPanel) testSelection(f flow.Flow, block chartBlock, selected bool) {
 	if !selected || block.isInsertion() {
 		p.app.statusMessage = "select a step to test"

@@ -320,7 +320,6 @@ func (a *App) detachClient(reason string) {
 	a.mode = normalMode
 }
 
-// dropClient forgets a client that disconnected on its own.
 func (a *App) dropClient() {
 	a.leaveSession()
 	a.client.close()

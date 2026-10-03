@@ -104,13 +104,11 @@ func (a *App) askToConfirm(question string, accept func()) {
 	a.askToConfirmWith(question, "", accept)
 }
 
-// askToConfirmWith asks, taking again as a yes too.
 func (a *App) askToConfirmWith(question, again string, accept func()) {
 	a.confirm = confirmation{question: question, accept: accept, again: again}
 	a.mode = confirmMode
 }
 
-// confirmShortcuts lists the keys of the question on screen.
 func (a *App) confirmShortcuts() []shortcut {
 	yes := "{enter}"
 	if a.confirm.again != "" {

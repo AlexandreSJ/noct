@@ -178,7 +178,6 @@ func (in *intro) frame(lines []string, elapsed time.Duration) []string {
 	return shown
 }
 
-// startIntro plays the intro on the home screen.
 func (a *App) startIntro() {
 	a.intro = newIntro(artWidth(titleLines), time.Now())
 	a.homeTick = time.After(introFrame)

@@ -14,7 +14,6 @@ type choice struct {
 }
 
 type choiceOption struct {
-	// key picks the option directly.
 	key   string
 	label string
 	pick  func()

@@ -546,7 +546,6 @@ func joinKeys(keys []string) string {
 	return shared + strings.Join(bare, "")
 }
 
-// prettyKey writes a key as hints show it.
 func prettyKey(key string) string {
 	for name, arrow := range map[string]string{"up": "↑", "down": "↓", "left": "←", "right": "→", "delete": "del"} {
 		if key == name || strings.HasSuffix(key, "+"+name) {

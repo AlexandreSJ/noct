@@ -88,7 +88,6 @@ func tabBarSpans(labels []string, first, last int) []tabSpan {
 	return spans
 }
 
-// tabBarLabel is how the tab bar shows a tab: its number and its name.
 func tabBarLabel(index int, name string) string {
 	return fmt.Sprintf(" %d %s ", index+1, name)
 }
