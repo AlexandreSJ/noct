@@ -54,10 +54,8 @@ const textColumn = 20
 type configPanel struct {
 	page     configPage
 	selected configRow
-	// first is the first line shown when the page does not fit, kept between draws so the
-	// selection moves inside the view before the view moves.
-	first int
-	// bindCapture takes a key for the selected action on the binds page.
+	// first is kept between draws so the selection moves inside the view before the view moves.
+	first       int
 	bindCapture bindCapture
 	// capture takes the prefix's new combination while it is on.
 	capture keyCapture
@@ -67,8 +65,7 @@ type configPanel struct {
 	fileManager programSetting
 	scriptsDir  []rune
 	// copied says the location was just copied, until the selection or the text changes.
-	copied bool
-	// hover is the row under the mouse, when hovering is true.
+	copied   bool
 	hover    configRow
 	hovering bool
 }
@@ -153,7 +150,7 @@ func (a *App) selectConfigRow(row configRow) {
 	a.configPanel.selected = row
 }
 
-// moveConfigSelection selects the next row shown, saving what was typed in the row it leaves.
+// moveConfigSelection wraps around.
 func (a *App) moveConfigSelection(step int) {
 	rows := a.selectableConfigRows()
 	index := max(slices.Index(rows, a.configPanel.selected), 0)
@@ -169,7 +166,6 @@ func (a *App) jumpConfigSelection(key string) {
 	}
 }
 
-// selectableConfigRows are the rows of the page shown, in order.
 func (a *App) selectableConfigRows() []configRow {
 	var rows []configRow
 	for _, line := range a.configLines() {
@@ -184,7 +180,6 @@ func (a *App) isTypedRow(row configRow) bool {
 	return row == editorCommandRow || row == fileManagerCommandRow || row == scriptsDirRow
 }
 
-// typedText is the text a typed row edits.
 func (a *App) typedText(row configRow) *[]rune {
 	switch row {
 	case editorCommandRow:
@@ -217,7 +212,6 @@ func (a *App) typeInConfig(key uv.KeyPressEvent) {
 	}
 }
 
-// commitTyped saves what was typed in the selected row, when it is a typed row.
 func (a *App) commitTyped() {
 	next := a.config
 	switch a.configPanel.selected {
@@ -352,8 +346,7 @@ func cycle(choices []string, current string, step int) string {
 	return choices[(index+step+len(choices))%len(choices)]
 }
 
-// capturePrefix takes the combination pressed as the prefix's new one, to use with enter; another
-// combination replaces it, and esc leaves the prefix as it was.
+// capturePrefix holds the pressed combination until enter, so another one can replace it.
 func (a *App) capturePrefix(key uv.KeyPressEvent) {
 	c := &a.configPanel.capture
 	switch {
@@ -410,7 +403,6 @@ func onOff(on bool) string {
 	return "off"
 }
 
-// sortOrders are the orders of the scripts list, as the config cycles through them.
 var sortOrders = []string{config.SortByName, config.SortByEdited, config.SortByRun}
 
 var sortLabels = map[string]string{config.SortByName: "alphabetical", config.SortByEdited: "last edited", config.SortByRun: "last run"}

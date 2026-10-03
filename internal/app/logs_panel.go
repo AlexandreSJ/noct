@@ -28,8 +28,7 @@ const (
 	dayCellWidth  = 4
 	barWidth      = 10
 	// logsReload is how old the listing may get while the panel is on screen.
-	logsReload = 2 * time.Second
-	// doubleClick is the longest time between the clicks of a double click.
+	logsReload  = 2 * time.Second
 	doubleClick = 400 * time.Millisecond
 )
 
@@ -82,14 +81,12 @@ type logRow struct {
 	run   *script.Run
 }
 
-// startLogs opens the logs panel, pruning the logs past the configured limits first.
 func (a *App) startLogs(id layout.PaneID, _ image.Rectangle) (view, error) {
 	a.pruneLogs()
 	return newLogsPanel(a, func() { a.detachView(id) }), nil
 }
 
-// pruneLogs removes the logs older than the configured days and, past the configured size, the
-// oldest ones, forgetting them in the runs that wrote them.
+// pruneLogs applies the configured age and size limits, forgetting the removed logs in their runs.
 func (a *App) pruneLogs() {
 	limits := a.config.Logs
 	removed, err := logstore.Prune(logstore.LogsDir(), limits.KeepDays, int64(limits.MaxSizeMB)<<20, time.Now())
@@ -103,7 +100,7 @@ func (a *App) pruneLogs() {
 	}
 }
 
-// logPaths is the set of the logs' paths, as script.ForgetLogs takes them.
+// logPaths is the set script.ForgetLogs takes.
 func logPaths(entries []logstore.Entry) map[string]bool {
 	paths := map[string]bool{}
 	for _, e := range entries {
@@ -135,8 +132,7 @@ func (p *logsPanel) reload() {
 	p.loaded = time.Now()
 }
 
-// rows are the logs listed: the selected day's, or every day's, or those of any day that match
-// the filter, in the chosen order.
+// rows are the selected day's logs, every day's, or any day's that match the filter, sorted.
 func (p *logsPanel) rows() []logRow {
 	filter := parseLogFilter(p.filter)
 	var rows []logRow
@@ -396,8 +392,8 @@ func (a *App) removeLogs(entries []logstore.Entry) {
 	a.notice = fmt.Sprintf("deleted %d logs (%s)", len(entries), totalSize(entries))
 }
 
-// openLog shows a log beside the panel by printing it in a terminal, which draws it as the
-// program did. Showing it writes no log of its own.
+// openLog prints a log in a terminal beside the panel, so it draws as the program did; this
+// writes no log of its own.
 func (a *App) openLog(row logRow) {
 	files := row.entry.LogFiles()
 	slices.Reverse(files) // the rotated older part first
@@ -417,8 +413,7 @@ func (p *logsPanel) WantsMouseAt(point image.Point) bool {
 	return point.In(p.monthRow) || point.In(grid) || point.In(p.list)
 }
 
-// SendMouse picks the day or the log clicked; a double click on a log opens it. The arrows of
-// the month's title change the month, and the wheel moves through the list.
+// SendMouse: a double click on a log opens it; the month title's arrows change the month.
 func (p *logsPanel) SendMouse(event uv.MouseEvent) {
 	m := event.Mouse()
 	point := image.Pt(m.X, m.Y)

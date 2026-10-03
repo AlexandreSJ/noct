@@ -57,7 +57,6 @@ func (a *App) configLines() []configLine {
 	)
 }
 
-// scriptsLocationLines are the scripts folder's typed row, how to copy it, and whether it exists.
 func (a *App) scriptsLocationLines() []configLine {
 	copyNote := "ctrl+c copy"
 	if a.configPanel.copied {
@@ -73,8 +72,7 @@ func (a *App) scriptsLocationLines() []configLine {
 	return lines
 }
 
-// prefixLines are the prefix's row and, while a new combination is being taken, what to press
-// and what the combination pressed would take from.
+// prefixLines add, while a combination is being taken, what to press and its conflicts.
 func (a *App) prefixLines() []configLine {
 	c := a.configPanel.capture
 	value := a.prefix.String()
@@ -109,8 +107,7 @@ func (a *App) resetValue() string {
 	return ""
 }
 
-// programLines are a program setting's row and, while custom is chosen, the command typed for it
-// with a note when that command is not installed.
+// programLines add the typed command row while custom is chosen.
 func (a *App) programLines(label string, setting *programSetting, current string, row, commandRow configRow) []configLine {
 	lines := []configLine{{label: label, value: "◂ " + setting.shown(current) + " ▸", row: row}}
 	if !setting.custom {
@@ -135,7 +132,6 @@ func commandNote(command string) string {
 	return ""
 }
 
-// scriptsDirNote says that the scripts folder does not exist yet.
 func scriptsDirNote(typed []rune) string {
 	if _, err := os.Stat(script.ResolveDir(string(typed))); err != nil {
 		return "folder not found; it is created with the first script"
@@ -143,9 +139,8 @@ func scriptsDirNote(typed []rune) string {
 	return ""
 }
 
-// configLayout places the config centered over the workspace, a blank line before each section:
-// the panel, the lines it holds and the first one shown. When they do not fit, the panel scrolls
-// to keep the selected row in view.
+// configLayout centers the panel, puts a blank line before each section, and scrolls to keep the
+// selected row in view.
 type configLayout struct {
 	panel image.Rectangle
 	rows  []configLine // the panel's content, blank lines included
@@ -170,8 +165,7 @@ func (a *App) configLayout() configLayout {
 	return l
 }
 
-// firstShowing is the first line to show so the row at index stays in view with the notes under
-// it, such as what a key being taken would take.
+// firstShowing keeps the row in view together with its notes, such as a key capture's conflicts.
 func (l configLayout) firstShowing(index, previousFirst int) int {
 	last := index
 	for last+1 < len(l.rows) && l.rows[last+1].note && l.rows[last+1].label != "" {
@@ -210,9 +204,8 @@ func (a *App) drawConfigPanel(screen uv.Screen) {
 	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
 }
 
-// clickConfig selects the row clicked. On its value, a click steps the setting, back on ◂ and
-// forward anywhere else, as ←→ do; on a typed row, it only selects, for typing. A click outside
-// the panel closes it, as esc does.
+// clickConfig steps a clicked value back on ◂ and forward elsewhere, as ←→ do; a typed row is only
+// selected, and a click outside the panel closes it.
 func (a *App) clickConfig(point image.Point) {
 	l := a.configLayout()
 	if !point.In(l.panel) {
@@ -240,7 +233,6 @@ func (a *App) clickConfig(point image.Point) {
 	a.changeSetting(1)
 }
 
-// hoverConfig marks the row under the mouse.
 func (a *App) hoverConfig(point image.Point) {
 	l := a.configLayout()
 	line, ok := l.lineAt(point.Y)
@@ -287,8 +279,7 @@ func (a *App) configLineStyle(line configLine) uv.Style {
 	return a.palette.panelText
 }
 
-// tail cuts text to its last width cells, marking the cut with "…": the end of a path or command
-// is what tells it apart.
+// tail keeps the end of text, which is what tells a path or command apart.
 func tail(text string, width int) string {
 	if width < 1 || ansi.StringWidth(text) <= width {
 		return text
