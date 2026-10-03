@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -45,7 +46,7 @@ func (s Script) CheckValues(values map[string]string) error {
 		if !p.Asked() && value == "" {
 			return fmt.Errorf("%s is not set in the environment (parameter %s)", p.envName(), p.Name)
 		}
-		if len(p.Choices) > 0 && !containsString(p.Choices, value) {
+		if len(p.Choices) > 0 && !slices.Contains(p.Choices, value) {
 			return fmt.Errorf("%s must be one of %s", p.Name, strings.Join(p.Choices, ", "))
 		}
 	}

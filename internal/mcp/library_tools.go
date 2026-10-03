@@ -111,20 +111,26 @@ type scriptInfo struct {
 func (d Deps) listScripts() map[string]any {
 	scripts := []scriptInfo{}
 	for _, s := range d.Library().All() {
-		info := scriptInfo{ID: s.ID(), Description: s.Description, Program: s.Program, Outputs: s.Outputs, Draft: s.Draft}
-		if s.Problem != nil {
-			info.Problem = s.Problem.Error()
-		}
-		for _, p := range s.Params {
-			param := paramInfo{Name: p.Name, Prompt: p.Prompt, Choices: p.Choices, Secret: p.Secret, Remember: p.Remember, FromEnv: strings.TrimPrefix(p.From, "env:")}
-			if !p.Secret {
-				param.Default = p.Default
-			}
-			info.Params = append(info.Params, param)
-		}
-		scripts = append(scripts, info)
+		scripts = append(scripts, describeScript(s))
 	}
 	return map[string]any{"scripts": scripts}
+}
+
+func describeScript(s script.Script) scriptInfo {
+	info := scriptInfo{ID: s.ID(), Description: s.Description, Program: s.Program, Outputs: s.Outputs, Draft: s.Draft, Problem: problemText(s.Problem)}
+	for _, p := range s.Params {
+		info.Params = append(info.Params, describeParam(p))
+	}
+	return info
+}
+
+// describeParam tells a parameter, leaving out a secret one's default.
+func describeParam(p script.Param) paramInfo {
+	param := paramInfo{Name: p.Name, Prompt: p.Prompt, Choices: p.Choices, Secret: p.Secret, Remember: p.Remember, FromEnv: strings.TrimPrefix(p.From, "env:")}
+	if !p.Secret {
+		param.Default = p.Default
+	}
+	return param
 }
 
 func (d Deps) flows() []flow.Flow {
@@ -169,27 +175,35 @@ func (d Deps) getItem(args json.RawMessage) (any, error) {
 	}
 	switch {
 	case ask.Flow != "":
-		f, ok := flow.Find(d.flows(), ask.Flow)
-		if !ok {
-			return nil, fmt.Errorf("there is no flow %s; list_flows tells them", ask.Flow)
-		}
-		content, err := os.ReadFile(f.File)
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"flow": f.Name, "file": f.File, "yaml": string(content), "draft": f.Draft, "problem": problemText(f.Problem), "warnings": warningTexts(f, d.Library().Find)}, nil
+		return d.getFlow(ask.Flow)
 	case ask.Script != "":
-		s, ok := d.Library().Find(ask.Script)
-		if !ok {
-			return nil, fmt.Errorf("there is no script %s; list_scripts tells them", ask.Script)
-		}
-		content, err := os.ReadFile(s.File())
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"script": s.ID(), "file": s.File(), "yaml": string(content), "notes": s.Notes(), "draft": s.Draft, "problem": problemText(s.Problem)}, nil
+		return d.getScript(ask.Script)
 	}
 	return nil, errors.New("give flow or script")
+}
+
+func (d Deps) getFlow(name string) (any, error) {
+	f, ok := flow.Find(d.flows(), name)
+	if !ok {
+		return nil, fmt.Errorf("there is no flow %s; list_flows tells them", name)
+	}
+	content, err := os.ReadFile(f.File)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"flow": f.Name, "file": f.File, "yaml": string(content), "draft": f.Draft, "problem": problemText(f.Problem), "warnings": warningTexts(f, d.Library().Find)}, nil
+}
+
+func (d Deps) getScript(id string) (any, error) {
+	s, ok := d.Library().Find(id)
+	if !ok {
+		return nil, fmt.Errorf("there is no script %s; list_scripts tells them", id)
+	}
+	content, err := os.ReadFile(s.File())
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"script": s.ID(), "file": s.File(), "yaml": string(content), "notes": s.Notes(), "draft": s.Draft, "problem": problemText(s.Problem)}, nil
 }
 
 func problemText(err error) string {
@@ -349,12 +363,7 @@ func (d Deps) draftScript(args json.RawMessage) (any, error) {
 	if len(parts) > 2 || slices.ContainsFunc(parts, func(p string) bool { return !validName.MatchString(p) }) {
 		return nil, fmt.Errorf("script name %q: name or folder/name, each letters, digits, . - _", ask.Name)
 	}
-	var fields map[string]any
-	if err := yaml.Unmarshal([]byte(ask.YAML), &fields); err != nil || fields == nil {
-		return nil, fmt.Errorf("the YAML does not read as a script: %v", err)
-	}
-	fields["draft"] = true
-	content, err := yaml.Marshal(fields)
+	content, err := markedDraft(ask.YAML)
 	if err != nil {
 		return nil, err
 	}
@@ -367,13 +376,8 @@ func (d Deps) draftScript(args json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(file, content, 0o644); err != nil {
+	if err := writeScriptFiles(dir, content, ask.Notes); err != nil {
 		return nil, err
-	}
-	if ask.Notes != "" {
-		if err := os.WriteFile(filepath.Join(dir, script.NotesName), []byte(ask.Notes), 0o644); err != nil {
-			return nil, err
-		}
 	}
 	_, problem := script.Load(dir)
 	answer := map[string]any{"script": ask.Name, "file": file, "draft": true, "problem": problemText(problem),
@@ -382,6 +386,27 @@ func (d Deps) draftScript(args json.RawMessage) (any, error) {
 		answer["backup"] = backup
 	}
 	return answer, nil
+}
+
+// markedDraft is a script.yaml with draft: true set in it.
+func markedDraft(scriptYAML string) ([]byte, error) {
+	var fields map[string]any
+	if err := yaml.Unmarshal([]byte(scriptYAML), &fields); err != nil || fields == nil {
+		return nil, fmt.Errorf("the YAML does not read as a script: %v", err)
+	}
+	fields["draft"] = true
+	return yaml.Marshal(fields)
+}
+
+// writeScriptFiles writes a script's script.yaml and, when given, its notes.md.
+func writeScriptFiles(dir string, content []byte, notes string) error {
+	if err := os.WriteFile(filepath.Join(dir, script.FileName), content, 0o644); err != nil {
+		return err
+	}
+	if notes == "" {
+		return nil
+	}
+	return os.WriteFile(filepath.Join(dir, script.NotesName), []byte(notes), 0o644)
 }
 
 func (d Deps) setTriggers(args json.RawMessage) (any, error) {
