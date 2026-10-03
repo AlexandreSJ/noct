@@ -72,31 +72,36 @@ func (a *App) drawPanes(screen uv.Screen, t *tab) {
 		viewScreen = themedScreen{Screen: screen, background: a.palette.background, text: a.palette.text}
 	}
 	for _, placed := range t.visible(a.workspaceArea()) {
-		id, frame := placed.id, placed.frame
-		fillRect(screen, frame, uv.Style{Bg: a.palette.background}) // floating panes cover what is below
-		lineStyle, titleStyle := a.palette.unfocusedFrame, a.palette.unfocusedTitle
-		if id == t.focused {
-			lineStyle, titleStyle = a.palette.focusedFrame, a.palette.focusedTitle
-		}
-		title := a.viewTitle(t, id)
-		if !t.fullscreen && t.tree.Folded(id) {
-			drawFoldedPane(screen, frame, title, lineStyle, titleStyle)
-			continue
-		}
-		if t.fullscreen {
-			title += "  ⛶ fullscreen"
-		}
-		scrolled, isScrollable := t.views[id].(scrollable)
-		if id == t.focused && a.mode == scrollMode && isScrollable {
-			drawFrame(screen, frame, title+"  "+a.scrollPosition(), lineStyle, titleStyle)
-			scrolled.DrawScrolled(viewScreen, contentRect(frame), a.scrollOffset)
-			a.highlightSelection(screen, t, id)
-			continue
-		}
+		a.drawPlacedPane(screen, viewScreen, t, placed)
+	}
+}
+
+// drawPlacedPane draws one pane in its frame: folded to its title in a stack, scrolled back in
+// scroll mode, or its view as it is. viewScreen is where the pane's own cells go.
+func (a *App) drawPlacedPane(screen, viewScreen uv.Screen, t *tab, placed placedPane) {
+	id, frame := placed.id, placed.frame
+	fillRect(screen, frame, uv.Style{Bg: a.palette.background}) // floating panes cover what is below
+	lineStyle, titleStyle := a.palette.unfocusedFrame, a.palette.unfocusedTitle
+	if id == t.focused {
+		lineStyle, titleStyle = a.palette.focusedFrame, a.palette.focusedTitle
+	}
+	title := a.viewTitle(t, id)
+	if !t.fullscreen && t.tree.Folded(id) {
+		drawFoldedPane(screen, frame, title, lineStyle, titleStyle)
+		return
+	}
+	if t.fullscreen {
+		title += "  ⛶ fullscreen"
+	}
+	scrolled, isScrollable := t.views[id].(scrollable)
+	if id == t.focused && a.mode == scrollMode && isScrollable {
+		drawFrame(screen, frame, title+"  "+a.scrollPosition(), lineStyle, titleStyle)
+		scrolled.DrawScrolled(viewScreen, contentRect(frame), a.scrollOffset)
+	} else {
 		drawFrame(screen, frame, title, lineStyle, titleStyle)
 		t.views[id].Draw(viewScreen, contentRect(frame))
-		a.highlightSelection(screen, t, id)
 	}
+	a.highlightSelection(screen, t, id)
 }
 
 // themedScreen gives cells that use the terminal's default colors the theme's colors instead.

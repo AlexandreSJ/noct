@@ -73,18 +73,28 @@ func headingStep(heading layout.Heading) image.Point {
 func (a *App) neighbor(t *tab, heading layout.Heading) (layout.PaneID, bool) {
 	area := a.workspaceArea()
 	from := t.layoutFrame(t.focused, area)
-	if t.floatingPane(t.focused) == nil {
-		var over []placedPane
-		for _, f := range t.floating {
-			if center(f.frame).In(from) {
-				over = append(over, placedPane{f.id, f.frame})
-			}
-		}
-		if id, ok := nearestToward(over, from, heading); ok {
-			return id, true
-		}
-		return t.tree.Neighbor(t.focused, heading, area, t.history)
+	if t.floatingPane(t.focused) != nil {
+		return nearestToward(panesBesidesFocused(t, area), from, heading)
 	}
+	if id, ok := nearestToward(floatingOver(t, from), from, heading); ok {
+		return id, true
+	}
+	return t.tree.Neighbor(t.focused, heading, area, t.history)
+}
+
+// floatingOver are the floating panes whose middle lies over the tile frame.
+func floatingOver(t *tab, frame image.Rectangle) []placedPane {
+	var over []placedPane
+	for _, f := range t.floating {
+		if center(f.frame).In(frame) {
+			over = append(over, placedPane{f.id, f.frame})
+		}
+	}
+	return over
+}
+
+// panesBesidesFocused are every tile and floating pane of t but the focused one, which floats.
+func panesBesidesFocused(t *tab, area image.Rectangle) []placedPane {
 	var others []placedPane
 	for id, frame := range t.rects(area) {
 		others = append(others, placedPane{id, frame})
@@ -94,7 +104,7 @@ func (a *App) neighbor(t *tab, heading layout.Heading) (layout.PaneID, bool) {
 			others = append(others, placedPane{f.id, f.frame})
 		}
 	}
-	return nearestToward(others, from, heading)
+	return others
 }
 
 // nearestToward picks the pane whose middle is closest to from's middle toward heading, straying
@@ -158,18 +168,23 @@ func (a *App) dragFloating(m image.Point) {
 		a.setFloatingFrame(d.tab, f, f.frame.Add(m.Sub(d.grab).Sub(f.frame.Min)))
 		return
 	}
-	frame := f.frame
-	if d.edges.left {
+	a.setFloatingFrame(d.tab, f, resizedByEdges(f.frame, d.edges, m))
+}
+
+// resizedByEdges is frame with the grabbed edges moved to m, each stopping short of making the
+// frame smaller than a pane may be.
+func resizedByEdges(frame image.Rectangle, edges floatingEdges, m image.Point) image.Rectangle {
+	if edges.left {
 		frame.Min.X = min(m.X, frame.Max.X-minPaneRect.X)
 	}
-	if d.edges.right {
+	if edges.right {
 		frame.Max.X = max(m.X+1, frame.Min.X+minPaneRect.X)
 	}
-	if d.edges.top {
+	if edges.top {
 		frame.Min.Y = min(m.Y, frame.Max.Y-minPaneRect.Y)
 	}
-	if d.edges.bottom {
+	if edges.bottom {
 		frame.Max.Y = max(m.Y+1, frame.Min.Y+minPaneRect.Y)
 	}
-	a.setFloatingFrame(d.tab, f, frame)
+	return frame
 }

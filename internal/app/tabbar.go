@@ -35,6 +35,14 @@ func layoutTabBar(names []string, active, first, width int) ([]tabSpan, int) {
 	if len(names) == 0 {
 		return nil, 0
 	}
+	labels := truncatedTabLabels(names, width)
+	first = firstShownTab(labels, active, first, width)
+	return tabBarSpans(labels, first, lastShown(labels, first, width)), first
+}
+
+// truncatedTabLabels are the tabs' labels with names cut to the widest shared width that fits
+// them all in width, though never below minTabName.
+func truncatedTabLabels(names []string, width int) []string {
 	limit := longestName(names)
 	for limit > minTabName && tabsWidth(names, limit, 0, len(names)-1) > width {
 		limit--
@@ -43,6 +51,12 @@ func layoutTabBar(names []string, active, first, width int) ([]tabSpan, int) {
 	for index, name := range names {
 		labels[index] = tabBarLabel(index, ansi.Truncate(name, limit, "…"))
 	}
+	return labels
+}
+
+// firstShownTab is the first tab of the run shown: first if the active tab stays in view from it,
+// moved as little as needed otherwise.
+func firstShownTab(labels []string, active, first, width int) int {
 	first = max(min(first, active), 0)
 	for first < active && runWidth(labels, first, active) > width {
 		first++
@@ -50,8 +64,11 @@ func layoutTabBar(names []string, active, first, width int) ([]tabSpan, int) {
 	for first > 0 && runWidth(labels, first-1, lastShown(labels, first, width)) <= width {
 		first-- // room freed by a wider screen or a closed tab: show the tabs before again
 	}
-	last := lastShown(labels, first, width)
+	return first
+}
 
+// tabBarSpans places labels first to last side by side, with a mark on each side that hides tabs.
+func tabBarSpans(labels []string, first, last int) []tabSpan {
 	var spans []tabSpan
 	x := 0
 	add := func(text string, tab int, mark bool) {
@@ -68,7 +85,7 @@ func layoutTabBar(names []string, active, first, width int) ([]tabSpan, int) {
 	if last < len(labels)-1 {
 		add(moreTabsRight, last+1, true)
 	}
-	return spans, first
+	return spans
 }
 
 // tabBarLabel is how the tab bar shows a tab: its number and its name.
