@@ -24,6 +24,7 @@ const (
 	parseError     = -32700
 	methodNotFound = -32601
 	invalidParams  = -32602
+	internalError  = -32603
 )
 
 // message is a JSON-RPC request, notification or response.
@@ -133,20 +134,24 @@ func (s *Server) initialize(params json.RawMessage) map[string]any {
 func (s *Server) toolList() []map[string]any {
 	var list []map[string]any
 	for _, t := range s.Tools {
-		list = append(list, map[string]any{
-			"name":        t.Name,
-			"title":       t.Title,
-			"description": t.Description,
-			"inputSchema": t.schema(),
-			"annotations": map[string]any{
-				"title":           t.Title,
-				"readOnlyHint":    t.ReadOnly,
-				"destructiveHint": t.Destructive,
-				"openWorldHint":   false,
-			},
-		})
+		list = append(list, t.listing())
 	}
 	return list
+}
+
+func (t Tool) listing() map[string]any {
+	return map[string]any{
+		"name":        t.Name,
+		"title":       t.Title,
+		"description": t.Description,
+		"inputSchema": t.schema(),
+		"annotations": map[string]any{
+			"title":           t.Title,
+			"readOnlyHint":    t.ReadOnly,
+			"destructiveHint": t.Destructive,
+			"openWorldHint":   false,
+		},
+	}
 }
 
 // callTool runs a tool. A tool's own failure is a result the AI reads (isError), not a protocol
@@ -203,7 +208,7 @@ func (s *Server) send(m message) {
 	m.JSONRPC = "2.0"
 	line, err := json.Marshal(m)
 	if err != nil {
-		line, _ = json.Marshal(message{JSONRPC: "2.0", ID: m.ID, Error: &rpcError{-32603, err.Error()}}) // plain fields always encode
+		line, _ = json.Marshal(message{JSONRPC: "2.0", ID: m.ID, Error: &rpcError{internalError, err.Error()}}) // plain fields always encode
 	}
 	s.writeLock.Lock()
 	defer s.writeLock.Unlock()
