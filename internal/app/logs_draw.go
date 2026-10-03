@@ -51,8 +51,7 @@ func monthStart(day time.Time) (time.Time, int) {
 	return first, (int(first.Weekday()) + 6) % 7
 }
 
-// drawCalendar draws the month of the selected day, the legend of its colors, then the totals of
-// the month and of all logs. A day with logs shows over a color that grows with them (ADR-038).
+// drawCalendar draws the month, its color legend and the totals; colors follow ADR-038.
 func (p *logsPanel) drawCalendar(screen uv.Screen, area image.Rectangle, stats map[time.Time]dayStats) {
 	p.drawMonthHeader(screen, area)
 	p.grid = image.Pt(area.Min.X, area.Min.Y+2)
@@ -65,8 +64,7 @@ func (p *logsPanel) drawCalendar(screen uv.Screen, area image.Rectangle, stats m
 		if y >= area.Max.Y {
 			break
 		}
-		// the color spans the whole cell, the number in the middle, under its weekday's name;
-		// today takes brackets in the cell's margins
+		// the color spans the whole cell; today takes brackets in the cell's margins
 		format := " %2d "
 		if day.Equal(today) {
 			format = "[%2d]"
@@ -81,7 +79,6 @@ func (p *logsPanel) drawCalendar(screen uv.Screen, area image.Rectangle, stats m
 	}
 }
 
-// drawMonthHeader draws the month's title between its arrows, and the weekdays' names under it.
 func (p *logsPanel) drawMonthHeader(screen uv.Screen, area image.Rectangle) {
 	pal := &p.app.palette
 	titleStyle := pal.panelHeading
@@ -98,8 +95,7 @@ func (p *logsPanel) drawMonthHeader(screen uv.Screen, area image.Rectangle) {
 	}
 }
 
-// dayStyle is how a calendar day shows: muted without logs or runs, over the color of its logs
-// when it has them, and underlined when selected, which shows over any color.
+// dayStyle underlines the selected day because underline shows over any heat color.
 func (p *logsPanel) dayStyle(day time.Time, s dayStats, busiest int) uv.Style {
 	pal := &p.app.palette
 	style := pal.panelMuted
@@ -149,8 +145,7 @@ func (p *logsPanel) drawTotals(screen uv.Screen, area image.Rectangle, stats map
 	}
 }
 
-// drawBar draws a bar width cells wide, filled for the fraction given, and returns the column
-// after it.
+// drawBar returns the column after the bar.
 func drawBar(screen uv.Screen, x, y, width int, fraction float64, pal *palette) int {
 	filled := int(math.Round(math.Min(math.Max(fraction, 0), 1) * float64(width)))
 	for i := range width {
@@ -163,7 +158,6 @@ func drawBar(screen uv.Screen, x, y, width int, fraction float64, pal *palette) 
 	return x + width
 }
 
-// drawDay shows the day's summary and its logs, or every day's logs.
 func (p *logsPanel) drawDay(screen uv.Screen, area image.Rectangle, s dayStats) {
 	pal := &p.app.palette
 	rows := p.rows()
@@ -190,7 +184,6 @@ func (p *logsPanel) drawDay(screen uv.Screen, area image.Rectangle, s dayStats) 
 	}
 }
 
-// listHeading is the title and summary over the list: of the filter, of all days or of the day.
 func (p *logsPanel) listHeading(rows []logRow, s dayStats) (title, summary string) {
 	switch {
 	case p.filter != "":
@@ -219,8 +212,7 @@ func sizeRange(rows []logRow) (int64, int64) {
 	return lightest, heaviest
 }
 
-// fraction places size between the lightest and the heaviest: 0 for the lightest, 1 for the
-// heaviest, and 1 when all weigh the same.
+// fraction scales size from 0 (lightest) to 1 (heaviest); 1 when all weigh the same.
 func fraction(size, lightest, heaviest int64) float64 {
 	if heaviest == lightest {
 		return 1
@@ -228,7 +220,6 @@ func fraction(size, lightest, heaviest int64) float64 {
 	return float64(size-lightest) / float64(heaviest-lightest)
 }
 
-// drawLogRow draws one log: when, how its run ended, its name, its weight bar, size and lines.
 func (p *logsPanel) drawLogRow(screen uv.Screen, area image.Rectangle, y int, row logRow, selected bool, weight float64) {
 	pal := &p.app.palette
 	style := p.logRowStyle(selected)
@@ -259,8 +250,7 @@ func (p *logsPanel) logRowStyle(selected bool) uv.Style {
 	return pal.focusedTitle
 }
 
-// runMark tells how the run that wrote a log ended: ✓, ✗, ● while running or cut short, or
-// nothing for a log that is not a run's, such as a terminal's.
+// runMark is ● while running or cut short, and blank for a log no run wrote, such as a terminal's.
 func runMark(run *script.Run) string {
 	switch {
 	case run == nil:
