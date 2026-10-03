@@ -14,10 +14,8 @@ import (
 // paneEnv names, for a flow's run, its pane: where the panes its steps ask for open.
 const paneEnv = "NOCT_PANE"
 
-// openRequestedPane opens the pane a flow's step asks for beside the run that asks, in its tab,
-// held open with its exit code like a script's run. A step that waits gets the focus and its
-// exit code when it ends; one in the background is answered at once and leaves the focus where
-// it was.
+// openRequestedPane opens a flow step's pane beside the run that asks. A step that waits gets the
+// focus and its exit code when it ends; one in the background is answered at once.
 func (a *App) openRequestedPane(c connection) {
 	req := c.hello.Pane
 	answer := func(exit ipc.Exit) {
@@ -96,7 +94,6 @@ func (a *App) tabOfPane(id layout.PaneID) (*tab, layout.PaneID) {
 	return nil, 0
 }
 
-// paneOwner finds the session and the tab a pane is in.
 func (a *App) paneOwner(id layout.PaneID) (*session, *tab) {
 	for _, s := range a.sessions {
 		for _, t := range s.tabs {

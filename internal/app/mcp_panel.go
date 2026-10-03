@@ -146,8 +146,6 @@ func (a *App) noctBinary() string {
 	return orDefault(a.binary.path, "noct")
 }
 
-// drawMCP draws the MCP popup: approvals, connected clients, setups, and the selected setup's
-// command in full.
 func (a *App) drawMCP(screen uv.Screen) {
 	pal := &a.palette
 	width := min(mcpPanelWidth, a.size.X)

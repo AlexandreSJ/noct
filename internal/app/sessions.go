@@ -10,8 +10,7 @@ import (
 	saved "github.com/AlexandreSJ/noct/internal/session"
 )
 
-// sessionSaveInterval is how often the sessions are written down while noct runs, so the
-// directories shells moved to survive a crash.
+// Sessions are saved periodically so the directories shells moved to survive a crash.
 const sessionSaveInterval = 30 * time.Second
 
 // session is a set of tabs the user attaches to by name. An open session runs its programs, in
@@ -24,7 +23,7 @@ type session struct {
 	tabBarFirst int
 	created     time.Time
 	lastAccess  time.Time
-	// closed is the layout of a closed session, nil while it is open.
+	// closed is the layout kept while the session is closed; nil while it is open.
 	closed *saved.Session
 }
 
@@ -139,7 +138,6 @@ func (a *App) leaveSession() {
 	a.saveSessions()
 }
 
-// touchSession marks the session on screen as used now.
 func (a *App) touchSession() {
 	a.session.lastAccess = time.Now()
 }

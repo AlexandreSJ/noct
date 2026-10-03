@@ -50,8 +50,7 @@ type client struct {
 func newClient(c connection) *client {
 	screen := uv.NewTerminalScreen(c.conn.Writer(), c.hello.Env)
 	screen.SetColorProfile(colorprofile.Profile(c.hello.ColorProfile))
-	// Each frame goes as one synchronized update (mode 2026) instead of hiding the cursor while
-	// drawing and showing it again, which blinks it; terminals without the mode ignore it.
+	// Synchronized updates (mode 2026) avoid the cursor blink of hiding it while drawing.
 	_ = screen.SetSynchronizedUpdates(true) // only records the setting
 	keysReader, keysWriter := io.Pipe()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -125,7 +124,6 @@ func (c *client) emitSize(size ipc.Size) {
 	}
 }
 
-// start prepares the client's terminal for the workspace.
 func (c *client) start() error {
 	if err := c.screen.EnterAltScreen(); err != nil {
 		return fmt.Errorf("entering alternate screen: %w", err)
