@@ -75,31 +75,40 @@ func (a *App) handleMouse(event uv.MouseEvent) {
 	case uv.MouseClickEvent:
 		a.handleClick(event)
 	case uv.MouseMotionEvent:
-		switch {
-		case a.drag != nil && a.drag.kind == dragDivider:
-			a.dragDivider(event.Mouse())
-		case a.drag != nil:
-			a.dragFloating(image.Pt(event.Mouse().X, event.Mouse().Y))
-		case a.selection != nil && a.selection.dragging:
-			a.extendSelection(event.Mouse())
-		case a.onHome():
-			a.hoverHome(image.Pt(event.Mouse().X, event.Mouse().Y))
-		case a.mode == configMode:
-			a.hoverConfig(image.Pt(event.Mouse().X, event.Mouse().Y))
-		default:
-			a.forwardMouse(event)
-		}
+		a.handleMouseMotion(event)
 	case uv.MouseReleaseEvent:
-		switch {
-		case a.drag != nil:
-			a.drag = nil
-		case a.selection != nil && a.selection.dragging:
-			a.finishSelection()
-		default:
-			a.forwardMouse(event)
-		}
+		a.handleMouseRelease(event)
 	case uv.MouseWheelEvent:
 		a.handleWheel(event)
+	}
+}
+
+func (a *App) handleMouseMotion(event uv.MouseEvent) {
+	point := image.Pt(event.Mouse().X, event.Mouse().Y)
+	switch {
+	case a.drag != nil && a.drag.kind == dragDivider:
+		a.dragDivider(event.Mouse())
+	case a.drag != nil:
+		a.dragFloating(point)
+	case a.selection != nil && a.selection.dragging:
+		a.extendSelection(event.Mouse())
+	case a.onHome():
+		a.hoverHome(point)
+	case a.mode == configMode:
+		a.hoverConfig(point)
+	default:
+		a.forwardMouse(event)
+	}
+}
+
+func (a *App) handleMouseRelease(event uv.MouseEvent) {
+	switch {
+	case a.drag != nil:
+		a.drag = nil
+	case a.selection != nil && a.selection.dragging:
+		a.finishSelection()
+	default:
+		a.forwardMouse(event)
 	}
 }
 
@@ -110,33 +119,33 @@ func (a *App) handleClick(event uv.MouseEvent) {
 	m := event.Mouse()
 	// A release outside the window never arrives; a new click ends that drag or selection.
 	a.drag, a.selection = nil, nil
-	if a.mode == infoMode {
-		a.mode = normalMode // a click closes what it tells, as a key does
-		return
-	}
 	switch a.mode {
+	case infoMode:
+		a.mode = normalMode // a click closes what it tells, as a key does
 	case commandMode:
 		a.clickCommandShortcut(image.Pt(m.X, m.Y))
-		return
 	case configMode:
 		if m.Button == uv.MouseLeft {
 			a.clickConfig(image.Pt(m.X, m.Y))
 		}
-		return
-	}
-	if a.mode != normalMode && a.mode != scrollMode {
-		return
-	}
-	if m.Y == 0 {
-		if index, ok := a.tabAt(m.X); ok {
-			a.session.activeTab = index
+	case normalMode, scrollMode:
+		if m.Y == 0 {
+			if index, ok := a.tabAt(m.X); ok {
+				a.session.activeTab = index
+			}
+			return
 		}
-		return
+		a.clickInWorkspace(event)
 	}
+}
+
+// clickInWorkspace handles a click below the tab bar, on the panes.
+func (a *App) clickInWorkspace(event uv.MouseEvent) {
 	t := a.currentTab()
 	if t == nil || t.isEmpty() {
 		return
 	}
+	m := event.Mouse()
 	point := image.Pt(m.X, m.Y)
 	id, ok := t.paneAt(point, a.workspaceArea())
 	if !ok {
@@ -199,12 +208,7 @@ func (a *App) dragDivider(m uv.Mouse) {
 // leaving it back at the live screen.
 func (a *App) handleWheel(event uv.MouseEvent) {
 	if a.mode == configMode {
-		switch event.Mouse().Button {
-		case uv.MouseWheelUp:
-			a.moveConfigSelection(-1)
-		case uv.MouseWheelDown:
-			a.moveConfigSelection(1)
-		}
+		a.wheelConfig(event.Mouse().Button)
 		return
 	}
 	t := a.currentTab()
@@ -212,7 +216,8 @@ func (a *App) handleWheel(event uv.MouseEvent) {
 		return
 	}
 	m := event.Mouse()
-	if m.Y == 0 && (a.selection == nil || !a.selection.dragging) {
+	selecting := a.selection != nil && a.selection.dragging
+	if m.Y == 0 && !selecting {
 		a.wheelTabs(m.Button)
 		return
 	}
@@ -220,7 +225,7 @@ func (a *App) handleWheel(event uv.MouseEvent) {
 		return
 	}
 	id, ok := t.paneAt(image.Pt(m.X, m.Y), a.workspaceArea())
-	if a.selection != nil && a.selection.dragging {
+	if selecting {
 		id, ok = a.selection.pane, true // while selecting, the wheel scrolls the selected pane
 	}
 	if !ok {
@@ -233,6 +238,21 @@ func (a *App) handleWheel(event uv.MouseEvent) {
 	if a.forwardMouse(event) {
 		return
 	}
+	a.wheelScrollback(t, m)
+}
+
+func (a *App) wheelConfig(button uv.MouseButton) {
+	switch button {
+	case uv.MouseWheelUp:
+		a.moveConfigSelection(-1)
+	case uv.MouseWheelDown:
+		a.moveConfigSelection(1)
+	}
+}
+
+// wheelScrollback scrolls the focused terminal's history, entering scroll mode and leaving it
+// back at the live screen.
+func (a *App) wheelScrollback(t *tab, m uv.Mouse) {
 	s, ok := t.focusedView().(scrollable)
 	if !ok || s.ScrollbackLen() == 0 {
 		return

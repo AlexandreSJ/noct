@@ -228,7 +228,7 @@ func (p paneText) lines(first, last int) [][]string {
 // rowCells is the text of each column of a row; a wide character's text goes in its first column.
 func rowCells(buffer *uv.ScreenBuffer, y, width int) []string {
 	cells := make([]string, width)
-	for x := 0; x < width; x++ {
+	for x := range width {
 		if cell := buffer.CellAt(x, y); cell != nil {
 			cells[x] = cell.Content
 		}
