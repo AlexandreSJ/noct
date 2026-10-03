@@ -126,8 +126,6 @@ func (s *Scheduler) newEnd(name string) (flow.Result, bool) {
 	return r, r.End.After(since)
 }
 
-// checkWatches starts a flow once the files it watches changed and stayed unchanged for its
-// debounce.
 func (s *Scheduler) checkWatches(now time.Time, flows []flow.Flow, enabled map[string]bool) {
 	for _, f := range flows {
 		for i, t := range f.Triggers {

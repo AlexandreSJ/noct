@@ -102,9 +102,8 @@ func enableTriggers(name string, on bool) error {
 	return flow.SetEnabled(flow.TriggersFile(), name, on)
 }
 
-// runFlow runs a flow in this terminal, or tests some of its steps, keeping its result for
-// noct's inspect view and, unless noct's workspace runs it and keeps the record itself, the
-// record of the run.
+// runFlow runs or tests a flow in this terminal, keeping its result for noct's inspect view and,
+// unless noct's workspace keeps it, the record of the run.
 func runFlow(name, steps string, args []string) error {
 	lib := library()
 	f, err := findRunnableFlow(lib, name)

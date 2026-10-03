@@ -81,7 +81,6 @@ type Logs struct {
 	MaxSizeMB int `toml:"max_size_mb"`
 }
 
-// Default log limits.
 const (
 	DefaultKeepDays  = 90
 	DefaultMaxSizeMB = 200
@@ -94,7 +93,6 @@ const (
 )
 
 const (
-	// DefaultEditor is used when no editor is set.
 	DefaultEditor = "vim"
 	// FileManagerTerminal opens a terminal pane in the folder instead of a file manager.
 	FileManagerTerminal = "terminal"
@@ -114,7 +112,6 @@ type Shortcut struct {
 	Alt  bool `toml:"alt"`
 }
 
-// Enabled tells whether direct shortcuts are on.
 func (s Shortcut) Enabled() bool {
 	return s.Ctrl || s.Alt
 }
