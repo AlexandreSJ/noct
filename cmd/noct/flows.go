@@ -107,30 +107,13 @@ func enableTriggers(name string, on bool) error {
 // record of the run.
 func runFlow(name, steps string, args []string) error {
 	lib := library()
-	flows, err := loadFlows(lib)
+	f, err := findRunnableFlow(lib, name)
 	if err != nil {
 		return err
 	}
-	f, ok := flow.Find(flows, name)
-	if !ok {
-		return fmt.Errorf("flow not found at %s: %s", flow.Dir(), name)
-	}
-	if f.Problem != nil {
-		return fmt.Errorf("flow %s is broken: %w", name, f.Problem)
-	}
-	if err := f.DraftError(); err != nil {
+	params, err := flowParams(f, name, args)
+	if err != nil {
 		return err
-	}
-	params := map[string]string{}
-	for _, arg := range args {
-		key, value, ok := strings.Cut(arg, "=")
-		if _, known := f.Params[key]; !ok || !known {
-			return fmt.Errorf("%q is not name=value for a parameter of %s", arg, name)
-		}
-		params[key] = value
-	}
-	if err := f.CheckParams(params); err != nil {
-		return fmt.Errorf("flow %s: %w", name, err)
 	}
 	record := script.Run{Flow: name, At: time.Now()}
 	tracked := os.Getenv(flow.TrackedEnv) != ""
@@ -139,21 +122,7 @@ func runFlow(name, steps string, args []string) error {
 			fmt.Fprintln(os.Stderr, "noct:", err)
 		}
 	}
-	runner := &flow.Runner{
-		Lookup: lib.Find,
-		Shell:  shell(),
-		Dir:    mustGetwd(),
-		Getenv: os.Getenv,
-		Stdin:  os.Stdin,
-		Out:    os.Stdout,
-		Sleep:  time.Sleep,
-		// The config keeps kilobytes; 0, all of the output, stays 0.
-		KeepOutput: loadConfig().Flows.OutputKB << 10,
-		Ask:        terminalAsk(os.Stdin, os.Stdout),
-		OpenPane:   workspacePanes(),
-		Attention:  workspaceAttention(),
-	}
-	result, err := runSteps(runner, f, params, steps)
+	result, err := runSteps(newFlowRunner(lib), f, params, steps)
 	if err != nil {
 		result.Exit = 1 // the record ends like a stop that was not a program's
 	}
@@ -172,6 +141,58 @@ func runFlow(name, steps string, args []string) error {
 		return exitCode(result.Exit)
 	}
 	return nil
+}
+
+// findRunnableFlow finds the flow by name and refuses one that is broken or still a draft.
+func findRunnableFlow(lib script.Library, name string) (flow.Flow, error) {
+	flows, err := loadFlows(lib)
+	if err != nil {
+		return flow.Flow{}, err
+	}
+	f, ok := flow.Find(flows, name)
+	if !ok {
+		return flow.Flow{}, fmt.Errorf("flow not found at %s: %s", flow.Dir(), name)
+	}
+	if f.Problem != nil {
+		return flow.Flow{}, fmt.Errorf("flow %s is broken: %w", name, f.Problem)
+	}
+	if err := f.DraftError(); err != nil {
+		return flow.Flow{}, err
+	}
+	return f, nil
+}
+
+// flowParams reads the name=value arguments, each for one of the flow's parameters.
+func flowParams(f flow.Flow, name string, args []string) (map[string]string, error) {
+	params := map[string]string{}
+	for _, arg := range args {
+		key, value, ok := strings.Cut(arg, "=")
+		if _, known := f.Params[key]; !ok || !known {
+			return nil, fmt.Errorf("%q is not name=value for a parameter of %s", arg, name)
+		}
+		params[key] = value
+	}
+	if err := f.CheckParams(params); err != nil {
+		return nil, fmt.Errorf("flow %s: %w", name, err)
+	}
+	return params, nil
+}
+
+func newFlowRunner(lib script.Library) *flow.Runner {
+	return &flow.Runner{
+		Lookup: lib.Find,
+		Shell:  shell(),
+		Dir:    mustGetwd(),
+		Getenv: os.Getenv,
+		Stdin:  os.Stdin,
+		Out:    os.Stdout,
+		Sleep:  time.Sleep,
+		// The config keeps kilobytes; 0, all of the output, stays 0.
+		KeepOutput: loadConfig().Flows.OutputKB << 10,
+		Ask:        terminalAsk(os.Stdin, os.Stdout),
+		OpenPane:   workspacePanes(),
+		Attention:  workspaceAttention(),
+	}
 }
 
 // terminalAsk asks on the terminal and reads the answer's line, for on_fail: ask; without a

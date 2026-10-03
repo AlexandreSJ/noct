@@ -174,15 +174,20 @@ func (c Config) normalized() Config {
 		c.Logs.MaxSizeMB = DefaultMaxSizeMB
 	}
 	c.Flows.OutputKB = max(c.Flows.OutputKB, 0)
-	if c.MCP.ApprovalSeconds <= 0 {
-		c.MCP.ApprovalSeconds = DefaultApprovalSeconds
+	c.MCP = c.MCP.normalized()
+	return c
+}
+
+func (m MCP) normalized() MCP {
+	if m.ApprovalSeconds <= 0 {
+		m.ApprovalSeconds = DefaultApprovalSeconds
 	}
-	for tool, policy := range c.MCP.Policy {
+	for tool, policy := range m.Policy {
 		if policy != PolicyAllow && policy != PolicyAsk && policy != PolicyDeny {
-			c.MCP.Policy[tool] = PolicyAsk // an unknown word must not allow more than asking
+			m.Policy[tool] = PolicyAsk // an unknown word must not allow more than asking
 		}
 	}
-	return c
+	return m
 }
 
 // Validate rejects prefixes that would also be typed as ordinary text.

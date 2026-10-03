@@ -37,17 +37,9 @@ func newSessionCommand(socket string, args []string) error {
 
 // listSessions prints the sessions, asking the running workspace or, without one, reading the file.
 func listSessions(socket string, out io.Writer) error {
-	var infos []saved.Info
-	if running(socket) {
-		if err := client.Request(socket, "sessions", nil, &infos); err != nil {
-			return err
-		}
-	} else {
-		f, err := saved.Load(saved.Path())
-		if err != nil {
-			return err
-		}
-		infos = f.Infos()
+	infos, err := sessionInfos(socket)
+	if err != nil {
+		return err
 	}
 	if len(infos) == 0 {
 		fmt.Fprintln(out, "no sessions yet; noct starts one")
@@ -59,6 +51,19 @@ func listSessions(socket string, out io.Writer) error {
 		fmt.Fprintf(w, "%s\t%s\t%d tabs\t%s\n", info.Name, sessionState(info), info.Tabs, lastAccess(info.LastAccess, now))
 	}
 	return w.Flush()
+}
+
+func sessionInfos(socket string) ([]saved.Info, error) {
+	if running(socket) {
+		var infos []saved.Info
+		err := client.Request(socket, "sessions", nil, &infos)
+		return infos, err
+	}
+	f, err := saved.Load(saved.Path())
+	if err != nil {
+		return nil, err
+	}
+	return f.Infos(), nil
 }
 
 func sessionState(info saved.Info) string {
