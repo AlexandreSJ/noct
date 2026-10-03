@@ -161,25 +161,31 @@ func (s *Session) delete(cmd Command) Result {
 // the image's aspect ratio, or the image's natural size in cells.
 func (s *Session) placementCells(cmd Command, outerID uint32) (cols, rows int, ok bool) {
 	cols, rows = cmd.Int("c"), cmd.Int("r")
-	if cols <= 0 || rows <= 0 {
-		pixels, known := s.sizes[outerID]
-		if !known || pixels.X <= 0 || pixels.Y <= 0 {
-			return 0, 0, false
-		}
-		cell := s.cellSize()
-		if cell.X <= 0 || cell.Y <= 0 {
-			cell = fallbackCellSize
-		}
-		switch {
-		case cols > 0:
-			rows = ceilDiv(pixels.Y*cols*cell.X, pixels.X*cell.Y)
-		case rows > 0:
-			cols = ceilDiv(pixels.X*rows*cell.Y, pixels.Y*cell.X)
-		default:
-			cols, rows = ceilDiv(pixels.X, cell.X), ceilDiv(pixels.Y, cell.Y)
-		}
+	if cols > 0 && rows > 0 {
+		return min(cols, MaxPlacementCells), min(rows, MaxPlacementCells), true
+	}
+	pixels, known := s.sizes[outerID]
+	if !known || pixels.X <= 0 || pixels.Y <= 0 {
+		return 0, 0, false
+	}
+	cell := s.knownCellSize()
+	switch {
+	case cols > 0:
+		rows = ceilDiv(pixels.Y*cols*cell.X, pixels.X*cell.Y)
+	case rows > 0:
+		cols = ceilDiv(pixels.X*rows*cell.Y, pixels.Y*cell.X)
+	default:
+		cols, rows = ceilDiv(pixels.X, cell.X), ceilDiv(pixels.Y, cell.Y)
 	}
 	return min(cols, MaxPlacementCells), min(rows, MaxPlacementCells), true
+}
+
+func (s *Session) knownCellSize() image.Point {
+	cell := s.cellSize()
+	if cell.X <= 0 || cell.Y <= 0 {
+		return fallbackCellSize
+	}
+	return cell
 }
 
 // imageSize reads the pixel size from s and v, or from the PNG header in the data or the file
