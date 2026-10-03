@@ -212,16 +212,8 @@ func (p *scriptsPanel) SendMouse(event uv.MouseEvent) {
 	rows := p.rows()
 	switch event.(type) {
 	case uv.MouseClickEvent:
-		if !image.Pt(m.X, m.Y).In(p.list) || m.Button != uv.MouseLeft {
-			return
-		}
-		index := p.first + m.Y - p.list.Min.Y
-		if index >= len(rows) {
-			return
-		}
-		p.selected, p.selectedKey = index, rows[index].key()
-		if f := rows[index]; f.script == nil {
-			p.app.setExpanded(f.folder.Dir, !p.app.expanded[f.folder.Dir])
+		if image.Pt(m.X, m.Y).In(p.list) && m.Button == uv.MouseLeft {
+			p.clickRow(rows, p.first+m.Y-p.list.Min.Y)
 		}
 	case uv.MouseWheelEvent:
 		switch m.Button {
@@ -230,6 +222,17 @@ func (p *scriptsPanel) SendMouse(event uv.MouseEvent) {
 		case uv.MouseWheelDown:
 			p.selected = min(p.selected+1, len(rows)-1)
 		}
+	}
+}
+
+// clickRow selects the row at index, opening or closing it when it is a folder.
+func (p *scriptsPanel) clickRow(rows []panelRow, index int) {
+	if index >= len(rows) {
+		return
+	}
+	p.selected, p.selectedKey = index, rows[index].key()
+	if row := rows[index]; row.script == nil {
+		p.app.setExpanded(row.folder.Dir, !p.app.expanded[row.folder.Dir])
 	}
 }
 
@@ -258,15 +261,7 @@ func (p *scriptsPanel) drawList(screen uv.Screen, area image.Rectangle) {
 		row, y := rows[i], area.Min.Y+i-first
 		label, value := p.rowText(row)
 		inActive := row.folder != nil && row.folder == active
-		style := pal.panelText
-		switch {
-		case i == p.selected:
-			style = pal.selectedRow
-		case row.script == nil && inActive:
-			style = pal.focusedTitle
-		case row.script == nil:
-			style = pal.panelHeading
-		}
+		style := p.rowStyle(row, i == p.selected, inActive)
 		if row.script == nil || row.folder == nil {
 			drawRow(screen, area, y, label, value, style)
 			continue
@@ -278,6 +273,20 @@ func (p *scriptsPanel) drawList(screen uv.Screen, area image.Rectangle) {
 		drawRow(screen, image.Rect(area.Min.X+2, area.Min.Y, area.Max.X, area.Max.Y), y, label, value, style)
 		setRune(screen, area.Min.X+1, y, "│", bar)
 	}
+}
+
+// rowStyle colors the selected row, folders as headings, and the folder being browsed in the accent.
+func (p *scriptsPanel) rowStyle(row panelRow, selected, inActive bool) uv.Style {
+	pal := &p.app.palette
+	switch {
+	case selected:
+		return pal.selectedRow
+	case row.script == nil && inActive:
+		return pal.focusedTitle
+	case row.script == nil:
+		return pal.panelHeading
+	}
+	return pal.panelText
 }
 
 // folderKinds say where a folder comes from, beside its number of scripts.
