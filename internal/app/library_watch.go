@@ -20,9 +20,8 @@ const libraryCheckInterval = time.Second
 // scriptsDepth reaches the files of a script in a folder: <dir>/<folder>/<script>/<file>.
 const scriptsDepth = 3
 
-// checkLibrary reads the scripts or the flows again when a panel shows them and their files
-// changed, telling whether it did. It only looks at names, sizes and times, so an unchanged
-// library costs a few stats.
+// checkLibrary reloads the library when a panel shows it and its files changed, telling whether
+// it did. Only names, sizes and times are compared, so an unchanged library costs a few stats.
 func (a *App) checkLibrary() bool {
 	if !a.showsLibrary() {
 		return false
@@ -75,7 +74,6 @@ func dirSignature(dirs []string, depth int) string {
 	return fmt.Sprintf("%x", h.Sum64())
 }
 
-// writeDirSignature writes what is in dir, at level, and below it down to depth, into h.
 func writeDirSignature(h io.Writer, dir string, level, depth int) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {

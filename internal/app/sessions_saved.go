@@ -32,7 +32,6 @@ func (a *App) saveSessions() {
 	a.sessionsSaved = f
 }
 
-// savedSession is the session as it is kept on disk.
 func (a *App) savedSession(s *session) saved.Session {
 	if s.closed != nil {
 		kept := *s.closed
@@ -133,7 +132,6 @@ func (a *App) restoreTab(st saved.Tab) *tab {
 	return t
 }
 
-// restorePane starts a saved pane again in the tab, under its new ID.
 func (a *App) restorePane(t *tab, p saved.Pane, newIDs map[layout.PaneID]layout.PaneID) {
 	if p.Floating != nil {
 		newIDs[p.ID] = a.newPaneID()

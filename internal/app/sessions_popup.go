@@ -18,7 +18,7 @@ const (
 	sessionNameColumns = 20
 )
 
-// openSessions shows the sessions popup on the session on screen.
+// openSessions starts the selection on the session on screen.
 func (a *App) openSessions() {
 	a.sessionRows = slices.Clone(a.sessions)
 	slices.SortStableFunc(a.sessionRows, func(x, y *session) int { return y.lastAccess.Compare(x.lastAccess) })
@@ -79,7 +79,6 @@ func (a *App) promptSessionRename(s *session) {
 	a.prompt.cancel = a.openSessions
 }
 
-// askToCloseSession asks before closing a session whose programs would stop.
 func (a *App) askToCloseSession(s *session) {
 	if s.closed != nil {
 		return
@@ -92,7 +91,6 @@ func (a *App) askToCloseSession(s *session) {
 	})
 }
 
-// drawSessions draws the sessions popup, one session per row.
 func (a *App) drawSessions(screen uv.Screen) {
 	pal := &a.palette
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
