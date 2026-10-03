@@ -223,7 +223,6 @@ func loadScript(dir, folder string) Script {
 	return s
 }
 
-// CreateFolder makes a new folder of scripts inside root.
 func CreateFolder(root, name string) (string, error) {
 	if !validName.MatchString(name) {
 		return "", fmt.Errorf("folder name %q: use letters, digits, '.', '-' and '_'", name)
@@ -238,7 +237,6 @@ func CreateFolder(root, name string) (string, error) {
 	return dir, nil
 }
 
-// DeleteFolder removes a folder of scripts and the scripts in it.
 func DeleteFolder(f Folder) error {
 	if f.Kind != GroupFolder || !validName.MatchString(filepath.Base(f.Dir)) {
 		return fmt.Errorf("refusing to delete %q", f.Dir)

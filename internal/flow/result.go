@@ -67,7 +67,6 @@ func SaveResultTo(path string, r Result) error {
 	return os.Rename(path+".tmp", path)
 }
 
-// ReadResult reads a result kept in a file.
 func ReadResult(path string) (Result, bool) {
 	content, err := os.ReadFile(path)
 	if err != nil {

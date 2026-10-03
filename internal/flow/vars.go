@@ -18,7 +18,6 @@ const (
 	NumberParam = "number"
 )
 
-// maxPromptTries is how many answers a prompt takes before its step fails.
 const maxPromptTries = 3
 
 // Param is a flow's parameter. In YAML it is its default alone (env: dev), or a mapping with the

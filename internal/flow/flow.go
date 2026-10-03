@@ -182,7 +182,6 @@ func Dir() string {
 	return filepath.Join(filepath.Dir(script.PersonalDir()), "flows")
 }
 
-// Load reads a flow's file.
 func Load(file string) (Flow, error) {
 	f := Flow{Name: strings.TrimSuffix(filepath.Base(file), Ext), File: file}
 	content, err := os.ReadFile(file)
@@ -223,7 +222,6 @@ func LoadAll(dir string, lookup func(id string) (script.Script, bool)) ([]Flow, 
 	return flows, nil
 }
 
-// Find is the flow called name.
 func Find(flows []Flow, name string) (Flow, bool) {
 	i := slices.IndexFunc(flows, func(f Flow) bool { return f.Name == name })
 	if i < 0 {
@@ -236,7 +234,6 @@ var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 var identifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
-// exactlyOne is the problem of a step that sets no kind, or more than one.
 const exactlyOne = "a step sets exactly one of script, run, if, repeat, wait, prompt, set and unset"
 
 // Create writes a new, empty flow called name in dir.
@@ -278,7 +275,6 @@ func (f Flow) DraftError() error {
 	return fmt.Errorf("flow %s is a draft: review it in the inspect (prefix+i) and promote it (P), or run noct promote %s", f.Name, f.Name)
 }
 
-// Delete removes the flow's file.
 func (f Flow) Delete() error {
 	if err := os.Remove(f.File); err != nil {
 		return fmt.Errorf("deleting flow %s: %w", f.Name, err)

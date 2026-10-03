@@ -175,7 +175,6 @@ func (x *running) runRepeat(s Step, path string) bool {
 	return true
 }
 
-// passes is how many passes a repeat runs at most.
 func (r *Repeat) passes() int {
 	if r.Times == 0 {
 		return r.Max
