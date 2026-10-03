@@ -70,7 +70,6 @@ func newProgramSetting(choices []string, current string) programSetting {
 	return s
 }
 
-// shown is what the choice row shows for the setting's value.
 func (s *programSetting) shown(current string) string {
 	if s.custom {
 		return customChoice

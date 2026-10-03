@@ -35,13 +35,11 @@ type program struct {
 	logName string
 	// logPath, when set, is the log's path, chosen by whoever needs to find the log again.
 	logPath string
-	// env is added to the environment programs get.
-	env []string
+	env     []string
 	// onExit runs on the event loop after the program exits.
 	onExit func(exitCode int)
 }
 
-// startProgram runs p in a terminal of the given size, logging its output.
 func (a *App) startProgram(p program, size pty.Size) (view, error) {
 	opts := pane.Options{
 		Argv:           p.argv,

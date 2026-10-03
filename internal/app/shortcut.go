@@ -30,8 +30,8 @@ func shortcutFromConfig(s config.Shortcut) directShortcut {
 	return directShortcut{mods: mods}
 }
 
-// command is the noct mode key a press stands for, and whether it moves the pane instead.
-// commandKey turns the key held with the modifiers into the noct mode key it stands for.
+// command is the noct mode key a press stands for, and whether it moves the pane instead;
+// commandKey maps the key held with the modifiers to that noct mode key.
 func (d directShortcut) command(key uv.KeyPressEvent, commandKey func(string) (string, bool)) (name string, move, ok bool) {
 	mods := key.Mod &^ lockModifiers
 	if d.mods == 0 || mods&^uv.ModShift != d.mods {

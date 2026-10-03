@@ -131,15 +131,21 @@ func (a *App) addTrigger(f flow.Flow) {
 			})
 		}},
 		choiceOption{key: "a", label: "after another flow", pick: func() {
-			var items []finderItem
-			for _, other := range a.flows {
-				if other.Name != f.Name {
-					items = append(items, finderItem{label: other.Name, kind: other.Description, open: func() {
-						add(flow.Trigger{After: &flow.After{Flow: other.Name}})
-					}})
-				}
-			}
-			a.openFinderWith("after which flow", items)
+			a.openFinderWith("after which flow", a.flowsToFollow(f, add))
 		}},
 	)
+}
+
+// flowsToFollow offers every other flow as the one f starts after.
+func (a *App) flowsToFollow(f flow.Flow, add func(flow.Trigger)) []finderItem {
+	var items []finderItem
+	for _, other := range a.flows {
+		if other.Name == f.Name {
+			continue
+		}
+		items = append(items, finderItem{label: other.Name, kind: other.Description, open: func() {
+			add(flow.Trigger{After: &flow.After{Flow: other.Name}})
+		}})
+	}
+	return items
 }

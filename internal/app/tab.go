@@ -144,7 +144,6 @@ func (t *tab) floatingPane(id layout.PaneID) *floatingPane {
 	return nil
 }
 
-// raise puts a floating pane on top of the others.
 func (t *tab) raise(id layout.PaneID) {
 	if f := t.floatingPane(id); f != nil {
 		t.floating = append(slices.DeleteFunc(t.floating, func(g *floatingPane) bool { return g == f }), f)

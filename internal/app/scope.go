@@ -66,6 +66,16 @@ func (p *inspectPanel) drawScope(screen uv.Screen, area image.Rectangle, f flow.
 	if !ok {
 		return
 	}
+	for i, line := range p.scopeLines(f, r, block) {
+		if inner.Min.Y+i >= inner.Max.Y {
+			break
+		}
+		drawText(screen, inner.Min.X+1, inner.Min.Y+i, inner.Max.X, line.text, line.style)
+	}
+}
+
+func (p *inspectPanel) scopeLines(f flow.Flow, r *flow.Result, block chartBlock) []styledLine {
+	pal := &p.app.palette
 	var lines []styledLine
 	for _, w := range p.warnings {
 		if w.Path == block.path {
@@ -83,13 +93,7 @@ func (p *inspectPanel) drawScope(screen uv.Screen, area image.Rectangle, f flow.
 		}
 		lines = append(lines, styledLine{text, pal.panelText})
 	}
-	lines = append(lines, styledLine{"", pal.panelText}, styledLine{"↻ this pass  ? if a branch ran", pal.panelMuted})
-	for i, line := range lines {
-		if inner.Min.Y+i >= inner.Max.Y {
-			break
-		}
-		drawText(screen, inner.Min.X+1, inner.Min.Y+i, inner.Max.X, line.text, line.style)
-	}
+	return append(lines, styledLine{"", pal.panelText}, styledLine{"↻ this pass  ? if a branch ran", pal.panelMuted})
 }
 
 // pickVariable searches the variables a template prompt can read and types the one chosen;
