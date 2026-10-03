@@ -133,28 +133,9 @@ func (l Library) Find(id string) (Script, bool) {
 // folder of scripts; the linked folders; and the scripts of the project around workDir.
 func LoadLibrary(personal string, linked []string, workDir string) Library {
 	var lib Library
-	entries, err := readDir(personal)
-	if err != nil {
-		lib.Problems = append(lib.Problems, err)
-	}
-	for _, entry := range entries {
-		dir := filepath.Join(personal, entry)
-		if isScript(dir) {
-			lib.Scripts = append(lib.Scripts, loadScript(dir, ""))
-		} else {
-			lib.addFolder(entry, dir, GroupFolder)
-		}
-	}
+	lib.addPersonal(personal)
 	for _, path := range linked {
-		dir := ResolveDir(path)
-		if dir == personal || slices.ContainsFunc(lib.Folders, func(f Folder) bool { return f.Dir == dir }) {
-			continue // already listed
-		}
-		if _, err := os.Stat(dir); err != nil {
-			lib.Problems = append(lib.Problems, fmt.Errorf("folder %s: %w", path, err))
-			continue
-		}
-		lib.addFolder(filepath.Base(dir), dir, LinkedFolder)
+		lib.addLinked(path, personal)
 	}
 	if project := ProjectDir(workDir); project != "" {
 		lib.addFolder("project", project, ProjectFolder)
@@ -162,6 +143,36 @@ func LoadLibrary(personal string, linked []string, workDir string) Library {
 	slices.SortStableFunc(lib.Folders, func(a, b Folder) int { return cmp.Compare(a.Name, b.Name) })
 	SortByName(lib.Scripts)
 	return lib
+}
+
+// addPersonal adds the scripts of the personal folder, where a subfolder without a script.yaml
+// is a folder of scripts.
+func (l *Library) addPersonal(personal string) {
+	entries, err := readDir(personal)
+	if err != nil {
+		l.Problems = append(l.Problems, err)
+	}
+	for _, entry := range entries {
+		dir := filepath.Join(personal, entry)
+		if isScript(dir) {
+			l.Scripts = append(l.Scripts, loadScript(dir, ""))
+		} else {
+			l.addFolder(entry, dir, GroupFolder)
+		}
+	}
+}
+
+// addLinked adds a linked folder, unless it is already listed.
+func (l *Library) addLinked(path, personal string) {
+	dir := ResolveDir(path)
+	if dir == personal || slices.ContainsFunc(l.Folders, func(f Folder) bool { return f.Dir == dir }) {
+		return
+	}
+	if _, err := os.Stat(dir); err != nil {
+		l.Problems = append(l.Problems, fmt.Errorf("folder %s: %w", path, err))
+		return
+	}
+	l.addFolder(filepath.Base(dir), dir, LinkedFolder)
 }
 
 func (l *Library) addFolder(name, dir string, kind FolderKind) {

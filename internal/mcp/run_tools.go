@@ -149,14 +149,11 @@ func (d Deps) listRuns(args json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	limit := ask.Limit
-	if limit <= 0 {
-		limit = defaultLimit
-	}
+	limit := positiveOr(ask.Limit, defaultLimit)
 	found := []runInfo{}
 	for _, r := range slices.Backward(runs) {
 		info := describeRun(r)
-		if (ask.Name != "" && info.Name != ask.Name) || (ask.Status != "" && info.Status != ask.Status) || r.At.Before(from) || !r.At.Before(to) {
+		if !runWanted(info, ask.Name, ask.Status, from, to) {
 			continue
 		}
 		found = append(found, info)
@@ -165,6 +162,23 @@ func (d Deps) listRuns(args json.RawMessage) (any, error) {
 		}
 	}
 	return map[string]any{"runs": found}, nil
+}
+
+func runWanted(info runInfo, name, status string, from, to time.Time) bool {
+	return (name == "" || info.Name == name) && (status == "" || info.Status == status) && inDays(info.At, from, to)
+}
+
+// inDays tells whether a moment falls in [from, to).
+func inDays(at, from, to time.Time) bool {
+	return !at.Before(from) && at.Before(to)
+}
+
+// positiveOr is n, or fallback when n is zero or negative.
+func positiveOr(n, fallback int) int {
+	if n <= 0 {
+		return fallback
+	}
+	return n
 }
 
 // findRun finds a run by its id, or a flow's newest run.
@@ -233,6 +247,13 @@ func (d Deps) addFlowSteps(answer map[string]any, run script.Run) {
 		return
 	}
 	f, _ := flow.Find(d.flows(), run.Flow) // a flow deleted since still has its results
+	answer["steps"] = describeSteps(f, result)
+	answer["ok"] = result.OK
+	answer["duration_ms"] = result.End.Sub(result.Start).Milliseconds()
+}
+
+// describeSteps lists a flow result's steps in the order the flow runs them.
+func describeSteps(f flow.Flow, result flow.Result) []stepInfo {
 	paths := make([]string, 0, len(result.Steps))
 	for path := range result.Steps {
 		paths = append(paths, path)
@@ -248,9 +269,7 @@ func (d Deps) addFlowSteps(answer map[string]any, run script.Run) {
 		}
 		steps = append(steps, info)
 	}
-	answer["steps"] = steps
-	answer["ok"] = result.OK
-	answer["duration_ms"] = result.End.Sub(result.Start).Milliseconds()
+	return steps
 }
 
 // comparePaths orders step paths as the flow runs them: 0 before 0/steps/1 before 1, and 2 before 10.
@@ -288,19 +307,28 @@ func logLines(path string) ([]string, error) {
 	}
 	var lines []string
 	for _, file := range []string{path + ".1", path} {
-		f, err := os.Open(file)
-		if errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		if err != nil {
+		var err error
+		if lines, err = appendFileLines(lines, file); err != nil {
 			return nil, err
 		}
-		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 64<<10), 4<<20)
-		for scanner.Scan() {
-			lines = append(lines, strings.TrimRight(ansi.Strip(scanner.Text()), "\r"))
-		}
-		f.Close()
+	}
+	return lines, nil
+}
+
+// appendFileLines adds a file's lines, without colors, to lines; a missing file adds none.
+func appendFileLines(lines []string, file string) ([]string, error) {
+	f, err := os.Open(file)
+	if errors.Is(err, os.ErrNotExist) {
+		return lines, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 64<<10), 4<<20)
+	for scanner.Scan() {
+		lines = append(lines, strings.TrimRight(ansi.Strip(scanner.Text()), "\r"))
 	}
 	return lines, nil
 }
@@ -326,11 +354,7 @@ func (d Deps) readLog(args json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	limit := ask.Limit
-	if limit <= 0 {
-		limit = 200
-	}
-	limit = min(limit, maxReadLines)
+	limit := min(positiveOr(ask.Limit, 200), maxReadLines)
 	start := ask.Offset
 	if start < 0 {
 		start = max(len(lines)+start, 0)
@@ -375,38 +399,45 @@ func (d Deps) searchLogs(args json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	context := 2
+	search := logSearch{pattern: re, context: 2, limit: min(positiveOr(ask.MaxMatches, defaultLimit), maxMatches), matches: []match{}}
 	if ask.Context != nil {
-		context = min(max(*ask.Context, 0), 20)
+		search.context = min(max(*ask.Context, 0), 20)
 	}
-	limit := ask.MaxMatches
-	if limit <= 0 {
-		limit = defaultLimit
-	}
-	limit = min(limit, maxMatches)
 	entries, err := logstore.List(logstore.LogsDir())
 	if err != nil {
 		return nil, err
 	}
-	matches, total := []match{}, 0
 	for _, e := range slices.Backward(entries) {
-		if (ask.RunID != "" && e.Path != ask.RunID) || (ask.Name != "" && !strings.Contains(e.Name, ask.Name)) || e.At.Before(from) || !e.At.Before(to) {
+		if (ask.RunID != "" && e.Path != ask.RunID) || (ask.Name != "" && !strings.Contains(e.Name, ask.Name)) || !inDays(e.At, from, to) {
 			continue
 		}
-		lines, err := logLines(e.Path)
-		if err != nil {
-			continue // a log removed meanwhile has nothing to find
+		search.scan(e)
+	}
+	return map[string]any{"matches": search.matches, "total_matches": search.total, "shown": len(search.matches)}, nil
+}
+
+// logSearch gathers a pattern's matches across logs, keeping at most limit of them but counting all.
+type logSearch struct {
+	pattern *regexp.Regexp
+	context int
+	limit   int
+	matches []match
+	total   int
+}
+
+func (s *logSearch) scan(e logstore.Entry) {
+	lines, err := logLines(e.Path)
+	if err != nil {
+		return // a log removed meanwhile has nothing to find
+	}
+	for i, line := range lines {
+		if !s.pattern.MatchString(line) {
+			continue
 		}
-		for i, line := range lines {
-			if !re.MatchString(line) {
-				continue
-			}
-			total++
-			if len(matches) < limit {
-				matches = append(matches, match{RunID: e.Path, Name: e.Name, At: e.At.Format(time.RFC3339), Line: i,
-					Text: line, Before: lines[max(i-context, 0):i], After: lines[i+1 : min(i+1+context, len(lines))]})
-			}
+		s.total++
+		if len(s.matches) < s.limit {
+			s.matches = append(s.matches, match{RunID: e.Path, Name: e.Name, At: e.At.Format(time.RFC3339), Line: i,
+				Text: line, Before: lines[max(i-s.context, 0):i], After: lines[i+1 : min(i+1+s.context, len(lines))]})
 		}
 	}
-	return map[string]any{"matches": matches, "total_matches": total, "shown": len(matches)}, nil
 }

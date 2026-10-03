@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"text/template"
 	"text/template/parse"
@@ -109,15 +110,9 @@ func (s Script) Validate() error {
 	if strings.TrimSpace(s.Run) == "" {
 		return errors.New("run is empty")
 	}
-	seen := map[string]bool{}
-	for _, p := range s.Params {
-		if err := p.validate(); err != nil {
-			return err
-		}
-		if seen[p.Name] {
-			return fmt.Errorf("parameter %q appears twice", p.Name)
-		}
-		seen[p.Name] = true
+	declared, err := validateParams(s.Params)
+	if err != nil {
+		return err
 	}
 	if err := validateOutputs(s.Outputs); err != nil {
 		return err
@@ -127,11 +122,26 @@ func (s Script) Validate() error {
 		return err
 	}
 	for _, name := range fieldsUsed(t.Root) {
-		if !seen[name] {
+		if !declared[name] {
 			return fmt.Errorf("run uses {{.%s}}, which is not a parameter", name)
 		}
 	}
 	return nil
+}
+
+// validateParams checks each parameter and tells the names declared.
+func validateParams(params []Param) (map[string]bool, error) {
+	declared := map[string]bool{}
+	for _, p := range params {
+		if err := p.validate(); err != nil {
+			return nil, err
+		}
+		if declared[p.Name] {
+			return nil, fmt.Errorf("parameter %q appears twice", p.Name)
+		}
+		declared[p.Name] = true
+	}
+	return declared, nil
 }
 
 func validateOutputs(outputs []string) error {
@@ -194,7 +204,7 @@ func (p Param) validate() error {
 	if p.From != "" && !strings.HasPrefix(p.From, "env:") {
 		return fmt.Errorf("parameter %q: from must look like env:NAME", p.Name)
 	}
-	if p.Default != "" && len(p.Choices) > 0 && !containsString(p.Choices, p.Default) {
+	if p.Default != "" && len(p.Choices) > 0 && !slices.Contains(p.Choices, p.Default) {
 		return fmt.Errorf("parameter %q: default %q is not one of its choices", p.Name, p.Default)
 	}
 	return nil
@@ -299,13 +309,4 @@ func Delete(s Script) error {
 		return fmt.Errorf("deleting script %s: %w", s.Name, err)
 	}
 	return nil
-}
-
-func containsString(list []string, value string) bool {
-	for _, item := range list {
-		if item == value {
-			return true
-		}
-	}
-	return false
 }
