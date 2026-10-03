@@ -34,7 +34,6 @@ func loadConfig() config.Config {
 	return cfg
 }
 
-// scriptsDir is the folder of the user's own scripts, from the config.
 func scriptsDir() string {
 	return script.ResolveDir(loadConfig().ScriptsDir)
 }

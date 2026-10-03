@@ -30,8 +30,7 @@ type Target struct {
 	New     bool
 }
 
-// Attach connects this terminal to a session of the daemon until it detaches or quits, and
-// returns why.
+// Attach connects this terminal to a session of the daemon until it detaches or quits, and returns why.
 func Attach(socketPath string, target Target) (reason string, err error) {
 	conn, err := ipc.Dial(socketPath)
 	if err != nil {
