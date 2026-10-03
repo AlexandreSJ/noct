@@ -24,7 +24,6 @@ var panelKinds = []panelKind{
 	{"logs", "v", func(a *App) viewStarter { return a.startLogs }},
 }
 
-// panelKindWithKey is the kind of panel a noct mode key opens.
 func panelKindWithKey(key string) (panelKind, bool) {
 	for _, k := range panelKinds {
 		if k.key == key {
