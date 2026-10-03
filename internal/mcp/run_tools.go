@@ -173,7 +173,6 @@ func inDays(at, from, to time.Time) bool {
 	return !at.Before(from) && at.Before(to)
 }
 
-// positiveOr is n, or fallback when n is zero or negative.
 func positiveOr(n, fallback int) int {
 	if n <= 0 {
 		return fallback

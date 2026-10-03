@@ -80,7 +80,6 @@ func (s Script) ID() string {
 	return s.Folder + "/" + s.Name
 }
 
-// Load reads the script stored in dir.
 func Load(dir string) (Script, error) {
 	content, err := os.ReadFile(filepath.Join(dir, FileName))
 	if err != nil {
@@ -300,7 +299,6 @@ func Backup(s Script) error {
 	return nil
 }
 
-// Delete removes the script and its files.
 func Delete(s Script) error {
 	if s.Dir == "" || !validName.MatchString(filepath.Base(s.Dir)) {
 		return fmt.Errorf("refusing to delete %q", s.Dir)

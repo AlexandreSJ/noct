@@ -55,7 +55,6 @@ func (g *syncGate) pass(ready []byte, n int) []byte {
 	return ready
 }
 
-// pending tells whether output waits in the gate.
 func (g *syncGate) pending() bool {
 	return len(g.held) > 0
 }

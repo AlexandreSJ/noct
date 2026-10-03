@@ -102,7 +102,6 @@ func Start(opts Options) (*Pane, error) {
 	return p, nil
 }
 
-// pumpOutputToScreen feeds program output into the emulator until the program exits.
 func (p *Pane) pumpOutputToScreen(onScreenChange func(), onExit func(exitCode int)) {
 	buf := make([]byte, 32*1024)
 	for {
@@ -327,7 +326,6 @@ func (p *Pane) drawLine(target uv.Screen, origin image.Point, line, history, wid
 	}
 }
 
-// lineCell reads a cell of the history-and-screen sequence.
 func (p *Pane) lineCell(x, line, history int) *uv.Cell {
 	if line < history {
 		return p.screen.ScrollbackCellAt(x, line)

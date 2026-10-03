@@ -48,7 +48,6 @@ func (f *Flow) step(path string) *Step {
 	return &(*list)[index]
 }
 
-// Step is the step at path.
 func (f *Flow) Step(path string) (Step, bool) {
 	s := f.step(path)
 	if s == nil {
