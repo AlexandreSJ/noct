@@ -3,7 +3,6 @@ package flow
 import (
 	"fmt"
 	"maps"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -45,9 +44,7 @@ func (x *running) remember(f Flow, r Result) {
 		if !ok || s.ID == "" || (s.Kind() != ScriptStep && s.Kind() != CommandStep) {
 			continue
 		}
-		values := map[string]string{"output": step.Output, "exit": strconv.Itoa(step.Exit), "ok": strconv.FormatBool(step.Status == StatusOK)}
-		maps.Copy(values, step.Captures)
-		x.steps[s.ID] = values
+		x.steps[s.ID] = stepValues(step.Output, step.Exit, step.Status == StatusOK, step.Captures)
 	}
 }
 
