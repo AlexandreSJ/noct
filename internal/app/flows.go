@@ -132,7 +132,6 @@ func (a *App) startFlow(f flow.Flow, values map[string]string) {
 	a.openTrackedRun("flow "+f.Name, script.Run{Flow: f.Name}, program{argv: argv, dir: a.workDir})
 }
 
-// paramArgs are values as noct flow run takes them, name=value, by name.
 func paramArgs(values map[string]string) []string {
 	var args []string
 	for _, name := range slices.Sorted(maps.Keys(values)) {

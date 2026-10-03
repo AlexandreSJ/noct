@@ -115,7 +115,6 @@ func (a *App) shownKeys(row bindRow) []string {
 	return keys
 }
 
-// openBinds shows the binds page, on its first action.
 func (a *App) openBinds() {
 	a.commitTyped()
 	a.configPanel.page, a.configPanel.selected = bindsPage, bindRowBase
@@ -265,7 +264,6 @@ func cloneKeys(keys map[string]map[string][]string) map[string]map[string][]stri
 	return clone
 }
 
-// resetBinds puts every key back to its default.
 func (a *App) resetBinds() {
 	next := a.config
 	next.Keys = nil

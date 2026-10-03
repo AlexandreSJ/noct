@@ -17,7 +17,6 @@ import (
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
-// scriptsDir is the folder of the user's own scripts, as configured.
 func (a *App) scriptsDir() string {
 	return script.ResolveDir(a.config.ScriptsDir)
 }

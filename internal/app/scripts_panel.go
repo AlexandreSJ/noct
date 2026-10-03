@@ -23,8 +23,7 @@ const scriptsHints = "{enter} run  {e} edit  {n} new  {P} promote draft  {a} add
 // Folders come first, closed until opened, each followed by its scripts behind a bar. It is where the
 // multiplexer ends and noct's own features begin; flows join it in phase 2.
 type scriptsPanel struct {
-	app *App
-	// close removes the panel from its tab.
+	app      *App
 	close    func()
 	selected int
 	// selectedKey and seenLoad keep the selection on the same row when the list is read again,
@@ -38,7 +37,7 @@ type scriptsPanel struct {
 	first  int
 	height int
 
-	// notes caches the selected script's notes, read again when the selection or library changes.
+	// notes caches the notes of script notesOf, read again when the selection or library changes.
 	notesOf     string
 	notesLoaded int
 	notes       string

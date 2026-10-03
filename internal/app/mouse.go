@@ -27,7 +27,6 @@ const (
 	dragFloatingResize                 // sides of a floating pane, resizing it
 )
 
-// mouseDrag is something being dragged with the mouse.
 type mouseDrag struct {
 	kind    dragKind
 	tab     *tab
@@ -203,9 +202,8 @@ func (a *App) dragDivider(m uv.Mouse) {
 	a.drag.tab.resizeViews(a.workspaceArea())
 }
 
-// handleWheel over the tab bar changes tab. Elsewhere it gives the wheel to a program or panel
-// that takes the mouse; otherwise it scrolls the terminal's history, entering scroll mode and
-// leaving it back at the live screen.
+// handleWheel over the tab bar changes tab. Elsewhere it goes to a view that takes the mouse,
+// or scrolls the terminal's history.
 func (a *App) handleWheel(event uv.MouseEvent) {
 	if a.mode == configMode {
 		a.wheelConfig(event.Mouse().Button)
