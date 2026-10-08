@@ -88,3 +88,42 @@ func TestAIClientsStayListedWhileConnected(t *testing.T) {
 		t.Errorf("still listed after it left: %+v", a.aiClients)
 	}
 }
+
+// Multiple connections from the same client (same name and version) appear as a single entry.
+func TestDuplicateAIClientsAppearOnce(t *testing.T) {
+	a := testApp(t, newTab(1, &fakeView{}))
+	a.loopTasks, a.stopped = make(chan func()), make(chan struct{})
+	servers := make([]net.Conn, 3)
+	clients := make([]net.Conn, 3)
+	for i := range 3 {
+		servers[i], clients[i] = net.Pipe()
+	}
+	t.Cleanup(func() {
+		for i := range 3 {
+			servers[i].Close()
+			clients[i].Close()
+		}
+	})
+	for i := range 3 {
+		hello := ipc.Hello{Version: ipc.Version, Purpose: ipc.Ask, Request: &ipc.Request{Action: "client", Args: json.RawMessage(`{"name":"claude-code","version":"2.1.0"}`)}}
+		a.handleConnection(connection{conn: ipc.NewConn(servers[i]), hello: hello})
+	}
+	if len(a.aiClients) != 1 {
+		t.Errorf("got %d entries, want 1: %+v", len(a.aiClients), a.aiClients)
+	}
+	if a.aiClients[0].count != 3 {
+		t.Errorf("count = %d, want 3", a.aiClients[0].count)
+	}
+	clients[0].Close()
+	runLoopTask(t, a)
+	if len(a.aiClients) != 1 || a.aiClients[0].count != 2 {
+		t.Errorf("after one disconnect: count = %d, want 2", a.aiClients[0].count)
+	}
+	clients[1].Close()
+	clients[2].Close()
+	runLoopTask(t, a)
+	runLoopTask(t, a)
+	if len(a.aiClients) != 0 {
+		t.Errorf("still listed after all disconnect: %+v", a.aiClients)
+	}
+}

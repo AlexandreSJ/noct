@@ -35,9 +35,11 @@ type approvalArgs struct {
 }
 
 // aiClient is an AI client running noct mcp, connected while its request stays open.
+// count tracks how many connections this client has (when it reconnects or opens multiple sessions).
 type aiClient struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
+	count   int
 }
 
 // queueApproval waits for the user to approve an action, telling them how to see it.
@@ -67,8 +69,30 @@ func (a *App) decideApproval(ap *approval, approved bool) {
 }
 
 // connectAIClient lists an AI client as connected until its noct mcp closes the connection, which
-// it keeps open for as long as it runs.
+// it keeps open for as long as it runs. Multiple connections from the same client (name+version)
+// are counted but shown as a single entry.
 func (a *App) connectAIClient(c connection, client *aiClient) {
+	for _, existing := range a.aiClients {
+		if existing.Name == client.Name && existing.Version == client.Version {
+			existing.count++
+			go func() {
+				for {
+					if _, err := c.conn.Receive(); err != nil {
+						break
+					}
+				}
+				_ = c.conn.Close()
+				a.onLoop(func() {
+					existing.count--
+					if existing.count <= 0 {
+						a.aiClients = slices.DeleteFunc(a.aiClients, func(other *aiClient) bool { return other == existing })
+					}
+				})
+			}()
+			return
+		}
+	}
+	client.count = 1
 	a.aiClients = append(a.aiClients, client)
 	a.notice = client.Name + " connected to noct"
 	go func() {
@@ -79,7 +103,10 @@ func (a *App) connectAIClient(c connection, client *aiClient) {
 		}
 		_ = c.conn.Close()
 		a.onLoop(func() {
-			a.aiClients = slices.DeleteFunc(a.aiClients, func(other *aiClient) bool { return other == client })
+			client.count--
+			if client.count <= 0 {
+				a.aiClients = slices.DeleteFunc(a.aiClients, func(other *aiClient) bool { return other == client })
+			}
 		})
 	}()
 }
