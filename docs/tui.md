@@ -109,6 +109,24 @@ Um segundo modificador, por padrão `Alt` (ADR-024), roda os comandos do modo no
 - Teclas que não são comandos, com ou sem o modificador, vão para o programa.
 - O ambiente gráfico pode capturar algumas combinações antes do terminal (`Ctrl+Alt+T` no GNOME, `Ctrl+Alt+L` no KDE). Nesse caso, troque o modificador no config ou desligue os dois.
 
+## Campos de texto
+
+Todo lugar onde se digita (prompts de renomear e criar, formulário de parâmetros, busca, nome e programa do formulário do script, linhas de texto do config) é o mesmo campo, com as teclas de uma linha do shell (ADR-042):
+
+| Tecla | Faz |
+|---|---|
+| `←` `→` (`Ctrl+B` `Ctrl+F`) | move o cursor |
+| `Ctrl+←` `Ctrl+→`, `Alt+←` `Alt+→`, `Alt+B` `Alt+F` | move por palavra |
+| `Home` `End`, `Ctrl+A` `Ctrl+E` | começo e fim (na busca e no config, `Home`/`End` são da lista) |
+| `Backspace`, `Delete` (`Ctrl+D`) | apaga antes e depois do cursor |
+| `Ctrl+W`, `Ctrl+Backspace`, `Alt+Backspace` | apaga a palavra anterior |
+| `Alt+D` | apaga a palavra seguinte |
+| `Ctrl+U`, `Ctrl+K` | apaga até o começo, até o fim |
+| `Ctrl+V`, `Ctrl+Shift+V`, `Shift+Insert` | cola (quebras de linha viram espaços) |
+| `Ctrl+C`, `Ctrl+Shift+C` | copia o texto do campo (no `location` do config, o caminho completo) |
+
+O cursor aparece como `▏` no meio do texto, e um texto longo rola para mantê-lo à vista.
+
 ## Trocar as teclas
 
 Todas as teclas dos modos, painéis e popups do noct podem ser trocadas em `prefixo` + `c` → **Keys** → `binds of every screen` (ADR-041). A página lista, por contexto (`commands` depois do prefixo, `move`, `resize`, `scroll history`, `scripts panel`, `inspect flows`, `logs`, `finished run`, `sessions`, `MCP`, perguntas, popups, escolhas, busca, prompts, formulários e o próprio config), cada ação com as teclas que a fazem; `•` marca as trocadas.

@@ -69,7 +69,7 @@ type configPanel struct {
 	resetArmed  bool
 	editor      programSetting
 	fileManager programSetting
-	scriptsDir  []rune
+	scriptsDir  textField
 	// copied says the location was just copied, until the selection or the text changes.
 	copied bool
 	// hover is the row under the mouse, when hovering is true.
@@ -95,7 +95,7 @@ func (a *App) openConfig() {
 	a.configPanel = configPanel{
 		editor:      newProgramSetting(editorChoices(isInstalled), a.config.Editor),
 		fileManager: newProgramSetting(fileManagerChoices(isInstalled), a.config.FileManager),
-		scriptsDir:  []rune(a.scriptsDir()),
+		scriptsDir:  newTextField(a.scriptsDir()),
 	}
 	a.mode = configMode
 }
@@ -189,7 +189,7 @@ func (a *App) isTypedRow(row configRow) bool {
 }
 
 // typedText is the text a typed row edits.
-func (a *App) typedText(row configRow) *[]rune {
+func (a *App) typedText(row configRow) *textField {
 	switch row {
 	case editorCommandRow:
 		return &a.configPanel.editor.draft
@@ -200,25 +200,27 @@ func (a *App) typedText(row configRow) *[]rune {
 }
 
 func (a *App) typeInConfig(key uv.KeyPressEvent) {
-	text := a.typedText(a.configPanel.selected)
 	a.configPanel.copied = false
 	switch key.String() {
 	case "ctrl+c", "ctrl+shift+c":
 		if a.configPanel.selected == scriptsDirRow {
-			a.copyToClipboard(script.ResolveDir(string(*text)))
+			a.copyToClipboard(script.ResolveDir(a.configPanel.scriptsDir.String()))
 			a.configPanel.copied = true
 		}
 	case "enter":
 		a.commitTyped()
-	case "backspace":
-		*text = deleteLastRune(*text)
-	case "ctrl+u":
-		*text = nil
 	default:
-		if isPlainText(key) {
-			*text = append(*text, []rune(key.Text)...)
-		}
+		a.typeKey(key)
 	}
+}
+
+// configTypedField is the selected row's text while a typed row is selected.
+func (a *App) configTypedField() (*textField, func()) {
+	p := &a.configPanel
+	if p.capture.active || p.page == bindsPage || !a.isTypedRow(p.selected) {
+		return nil, nil
+	}
+	return a.typedText(p.selected), func() { p.copied = false }
 }
 
 // commitTyped saves what was typed in the selected row, when it is a typed row.
@@ -230,7 +232,7 @@ func (a *App) commitTyped() {
 	case fileManagerCommandRow:
 		next.FileManager = a.configPanel.fileManager.command(next.FileManager)
 	case scriptsDirRow:
-		next.ScriptsDir = strings.TrimSpace(string(a.configPanel.scriptsDir))
+		next.ScriptsDir = strings.TrimSpace(a.configPanel.scriptsDir.String())
 		if script.ResolveDir(next.ScriptsDir) == script.PersonalDir() {
 			next.ScriptsDir = "" // the standard place stays portable across machines
 		}
@@ -433,14 +435,14 @@ func (a *App) configLines() []configLine {
 	lines = append(lines, a.programLines("file manager", &a.configPanel.fileManager, a.config.FileManager, fileManagerRow, fileManagerCommandRow)...)
 	lines = append(lines,
 		configLine{label: "Scripts", heading: true},
-		configLine{label: "location", value: string(a.configPanel.scriptsDir), row: scriptsDirRow, typed: true},
+		configLine{label: "location", value: a.configPanel.scriptsDir.String(), row: scriptsDirRow, typed: true},
 	)
 	copyNote := "ctrl+c copy"
 	if a.configPanel.copied {
 		copyNote = "copied to clipboard"
 	}
 	lines = append(lines, configLine{label: copyNote, note: true})
-	if note := scriptsDirNote(a.configPanel.scriptsDir); note != "" {
+	if note := scriptsDirNote(a.configPanel.scriptsDir.String()); note != "" {
 		lines = append(lines, configLine{label: note, note: true})
 	}
 	return append(lines,
@@ -501,8 +503,8 @@ func (a *App) programLines(label string, setting *programSetting, current string
 	if !setting.custom {
 		return lines
 	}
-	lines = append(lines, configLine{label: "command", value: string(setting.draft), row: commandRow, typed: true})
-	if note := commandNote(string(setting.draft)); note != "" {
+	lines = append(lines, configLine{label: "command", value: setting.draft.String(), row: commandRow, typed: true})
+	if note := commandNote(setting.draft.String()); note != "" {
 		lines = append(lines, configLine{label: note, note: true})
 	}
 	return lines
@@ -521,8 +523,8 @@ func commandNote(command string) string {
 }
 
 // scriptsDirNote says that the scripts folder does not exist yet.
-func scriptsDirNote(typed []rune) string {
-	if _, err := os.Stat(script.ResolveDir(string(typed))); err != nil {
+func scriptsDirNote(typed string) string {
+	if _, err := os.Stat(script.ResolveDir(typed)); err != nil {
 		return "folder not found; it is created with the first script"
 	}
 	return ""
@@ -635,11 +637,12 @@ func (a *App) drawConfigLine(screen uv.Screen, inner image.Rectangle, y int, lin
 	case line.typed:
 		fillRect(screen, image.Rect(inner.Min.X, y, inner.Max.X, y+1), style)
 		drawText(screen, inner.Min.X+1, y, inner.Max.X, "  "+line.label, style)
-		value := line.value
+		width := inner.Dx() - textColumn - 1
+		value := tail(line.value, width)
 		if line.row == a.configPanel.selected {
-			value += "▏"
+			value = a.typedText(line.row).view(width, false)
 		}
-		drawText(screen, inner.Min.X+textColumn, y, inner.Max.X-1, tail(value, inner.Dx()-textColumn-1), style)
+		drawText(screen, inner.Min.X+textColumn, y, inner.Max.X-1, value, style)
 	case line.heading:
 		drawRow(screen, inner, y, line.label, line.value, style)
 	default:

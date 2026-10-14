@@ -17,7 +17,7 @@ const (
 // finder searches, by fuzzy match, noct's actions, the scripts and the open tabs.
 type finder struct {
 	title    string
-	query    []rune
+	query    textField
 	items    []finderItem
 	matches  []finderItem
 	selected int
@@ -75,7 +75,7 @@ func (f *finder) filter() {
 	}
 	var found []scored
 	for _, item := range f.items {
-		if score, ok := fuzzyScore(string(f.query), item.label); ok {
+		if score, ok := fuzzyScore(f.query.String(), item.label); ok {
 			found = append(found, scored{item, score})
 		}
 	}
@@ -106,14 +106,8 @@ func (a *App) handleFinderKey(key uv.KeyPressEvent) {
 		f.selected = min(f.selected+1, max(len(f.matches)-1, 0))
 	case "pgup", "pgdown", "home", "end":
 		f.selected, _ = listJump(key.String(), f.selected, len(f.matches), finderResults)
-	case "backspace":
-		f.query = deleteLastRune(f.query)
-		f.filter()
 	default:
-		if isPlainText(key) {
-			f.query = append(f.query, []rune(key.Text)...)
-			f.filter()
-		}
+		a.typeKey(key)
 	}
 }
 
@@ -147,7 +141,7 @@ func (a *App) drawFinder(screen uv.Screen) {
 	f := &a.finder
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	inner := a.drawPanel(screen, centeredRect(area, 60, panelHeight(finderResults+3)), f.title)
-	drawRow(screen, inner, inner.Min.Y, "› "+string(f.query)+"▏", "", a.palette.panelHeading)
+	drawRow(screen, inner, inner.Min.Y, "› "+f.query.view(inner.Dx()-4, false), "", a.palette.panelHeading)
 	first := listFirst(f.first, f.selected, len(f.matches), finderResults)
 	f.first = first
 	for i := first; i < len(f.matches) && i-first < finderResults; i++ {

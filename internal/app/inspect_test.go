@@ -80,22 +80,22 @@ func TestScopePaneAndWarnings(t *testing.T) {
 	}
 }
 
-// ctrl+v in a template prompt picks a variable in scope and types it.
+// ctrl+t in a template prompt picks a variable in scope and types it.
 func TestPromptInsertsAVariableInScope(t *testing.T) {
 	a := testApp(t)
 	saveFlow(t, "trio", threeSteps)
 	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress, letter('a'), letter('c'))
 	typeDrawn(a, "echo ")
-	pressDrawn(a, uv.KeyPressEvent{Code: 'v', Mod: uv.ModCtrl})
+	pressDrawn(a, uv.KeyPressEvent{Code: 't', Mod: uv.ModCtrl})
 	if a.mode != finderMode {
-		t.Fatalf("ctrl+v: mode %v, want the finder", a.mode)
+		t.Fatalf("ctrl+t: mode %v, want the finder", a.mode)
 	}
 	typeDrawn(a, "one.output")
 	pressDrawn(a, enterPress)
-	if a.mode != promptMode || string(a.prompt.text) != "echo {{.steps.one.output}}" {
-		t.Errorf("mode %v, prompt %q", a.mode, string(a.prompt.text))
+	if a.mode != promptMode || a.prompt.input.String() != "echo {{.steps.one.output}}" {
+		t.Errorf("mode %v, prompt %q", a.mode, a.prompt.input.String())
 	}
-	pressDrawn(a, uv.KeyPressEvent{Code: 'v', Mod: uv.ModCtrl}, escPress)
+	pressDrawn(a, uv.KeyPressEvent{Code: 't', Mod: uv.ModCtrl}, escPress)
 	if a.mode != promptMode {
 		t.Errorf("esc in the finder left the prompt: mode %v", a.mode)
 	}

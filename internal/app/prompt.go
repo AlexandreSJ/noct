@@ -12,11 +12,11 @@ import (
 type textPrompt struct {
 	title  string
 	hints  string
-	text   []rune
+	input  textField
 	submit func(text string)
 	// cancel, when set, runs after esc.
 	cancel func()
-	// pick, when set, lets ctrl+v search for text to type, such as a flow's variables.
+	// pick, when set, lets ctrl+t search for text to type, such as a flow's variables.
 	pick func()
 }
 
@@ -29,7 +29,7 @@ type confirmation struct {
 }
 
 func (a *App) openPrompt(title, initial, hints string, submit func(text string)) {
-	a.prompt = textPrompt{title: title, hints: hints, text: []rune(initial), submit: submit}
+	a.prompt = textPrompt{title: title, hints: hints, input: newTextField(initial), submit: submit}
 	a.mode = promptMode
 }
 
@@ -67,27 +67,14 @@ func (a *App) handlePromptKey(key uv.KeyPressEvent) {
 		}
 	case "enter":
 		a.mode = normalMode // before submit, which may open another panel
-		a.prompt.submit(strings.TrimSpace(string(a.prompt.text)))
-	case "backspace":
-		a.prompt.text = deleteLastRune(a.prompt.text)
-	case "ctrl+u":
-		a.prompt.text = nil
-	case "ctrl+v":
+		a.prompt.submit(strings.TrimSpace(a.prompt.input.String()))
+	case "ctrl+t":
 		if a.prompt.pick != nil {
 			a.prompt.pick()
 		}
 	default:
-		if isPlainText(key) {
-			a.prompt.text = append(a.prompt.text, []rune(key.Text)...)
-		}
+		a.typeKey(key)
 	}
-}
-
-func deleteLastRune(text []rune) []rune {
-	if len(text) == 0 {
-		return text
-	}
-	return text[:len(text)-1]
 }
 
 func isPlainText(key uv.KeyPressEvent) bool {
@@ -97,7 +84,7 @@ func isPlainText(key uv.KeyPressEvent) bool {
 func (a *App) drawPrompt(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	inner := a.drawPanel(screen, centeredRect(area, 50, panelHeight(3)), a.prompt.title)
-	drawRow(screen, inner, inner.Min.Y, string(a.prompt.text)+"▏", "", a.palette.selectedRow)
+	drawRow(screen, inner, inner.Min.Y, a.prompt.input.view(inner.Dx()-2, false), "", a.palette.selectedRow)
 	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("prompt", a.prompt.hints), a.palette.panelMuted)
 }
 

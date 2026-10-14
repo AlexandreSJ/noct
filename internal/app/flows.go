@@ -302,10 +302,10 @@ func (a *App) addStep(f flow.Flow, at chartBlock, added func(path string)) {
 		}
 		added(path)
 	}
-	// Templates typed here read what runs before the new step; ctrl+v searches it.
+	// Templates typed here read what runs before the new step; ctrl+t searches it.
 	vars := f.Scope(parent, branch, index, a.scripts.Find)
 	templatePrompt := func(title, initial, hints string, submit func(text string)) {
-		a.openPrompt(title, initial, hints+"  ctrl+v variable", submit)
+		a.openPrompt(title, initial, hints+"  ctrl+t variable", submit)
 		a.prompt.pick = func() { a.pickVariable(f, vars) }
 	}
 	a.openChoice("add step",

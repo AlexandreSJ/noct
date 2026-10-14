@@ -11,7 +11,10 @@ import (
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
-const formHints = "{enter} run  {tab} next  {left}{right} choose  esc cancel"
+const (
+	formHints       = "{enter} run  {tab} next  esc cancel"
+	choiceFormHints = "{enter} run  {tab} next  {left}{right} choose  esc cancel"
+)
 
 // paramsForm asks for a script's or a flow's parameters before it runs. A script's parameters
 // read from the environment are not shown.
@@ -20,6 +23,9 @@ type paramsForm struct {
 	fields   []script.Param
 	values   map[string]string
 	selected int
+	// input edits the selected field's value while it is typed, as inputOf says.
+	input   textField
+	inputOf string
 	// preview is a line under the fields about what the values give, or "".
 	preview func(values map[string]string) string
 	// submit runs with the values, or tells why it cannot, and the form stays open.
@@ -69,29 +75,46 @@ func (a *App) handleFormKey(key uv.KeyPressEvent) {
 		if choices := f.field().Choices; len(choices) > 0 {
 			step := map[string]int{"left": -1, "right": 1}[key.String()]
 			f.values[name] = cycle(choices, f.values[name], step)
+			return
 		}
-	case "backspace":
-		f.values[name] = string(deleteLastRune([]rune(f.values[name])))
-	case "ctrl+u":
-		f.values[name] = ""
+		a.typeKey(key)
 	default:
-		if isPlainText(key) && len(f.field().Choices) == 0 {
-			f.values[name] += key.Text
-		}
+		a.typeKey(key)
 	}
 }
 
-// formValue is how a field shows its value: choices with arrows, secrets masked.
-func (f *paramsForm) formValue(p script.Param, selected bool) string {
+// typedField is the selected field's text, unless the field is a choice; edits go to the values.
+func (f *paramsForm) typedField() (*textField, func()) {
+	if len(f.fields) == 0 || len(f.field().Choices) > 0 {
+		return nil, nil
+	}
+	p := f.field()
+	if f.inputOf != p.Name || f.input.String() != f.values[p.Name] {
+		f.input, f.inputOf = newTextField(f.values[p.Name]), p.Name
+	}
+	return &f.input, func() { f.values[p.Name] = f.input.String() }
+}
+
+// hints tell the arrows' choosing only on a field with choices; elsewhere they move the cursor.
+func (f *paramsForm) hints() string {
+	if len(f.fields) > 0 && len(f.field().Choices) > 0 {
+		return choiceFormHints
+	}
+	return formHints
+}
+
+// formValue is how a field shows its value: choices with arrows, secrets masked, the cursor in
+// the selected one.
+func (f *paramsForm) formValue(p script.Param, selected bool, width int) string {
 	value := f.values[p.Name]
 	switch {
 	case len(p.Choices) > 0:
 		return "◂ " + value + " ▸"
+	case selected:
+		field, _ := f.typedField()
+		return field.view(width, p.Secret)
 	case p.Secret:
-		value = strings.Repeat("•", len([]rune(value)))
-	}
-	if selected {
-		value += "▏"
+		return strings.Repeat("•", len([]rune(value)))
 	}
 	return value
 }
@@ -127,11 +150,12 @@ func (a *App) drawForm(screen uv.Screen) {
 		}
 		fillRect(screen, image.Rect(inner.Min.X, y, inner.Max.X, y+1), style)
 		drawText(screen, inner.Min.X+1, y, inner.Max.X, p.Label(), style)
-		drawText(screen, inner.Min.X+labelWidth+3, y, inner.Max.X-1, f.formValue(p, i == f.selected), style)
+		valueX := inner.Min.X + labelWidth + 3
+		drawText(screen, valueX, y, inner.Max.X-1, f.formValue(p, i == f.selected, inner.Max.X-1-valueX), style)
 	}
 	previewY := inner.Min.Y + len(f.fields) + 1
 	if f.preview != nil {
 		drawText(screen, inner.Min.X+1, previewY, inner.Max.X-1, f.preview(f.values), a.palette.panelMuted)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("form", formHints), a.palette.panelMuted)
+	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("form", f.hints()), a.palette.panelMuted)
 }

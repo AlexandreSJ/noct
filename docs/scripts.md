@@ -74,7 +74,7 @@ A biblioteca é relida ao abrir um scripts panel, quando o editor fecha e depois
 
 **Scripts novos** começam com um comentário de 4 linhas explicando `description`, `program`, `run` e `params`, e o conteúdo de verdade logo abaixo. O comentário pode ser desligado no config (`Scripts → hints in new scripts`).
 
-**Formulário de parâmetros.** `Tab`/`↑↓` trocam de campo, `←→` escolhem entre as `choices`, `Ctrl+U` limpa, `Enter` roda e `Esc` cancela. Embaixo aparece a linha que vai rodar, com segredos e valores do ambiente mascarados.
+**Formulário de parâmetros.** `Tab`/`↑↓` trocam de campo, `←→` escolhem entre as `choices` (num campo de texto, movem o cursor; as demais teclas de edição estão em [tui.md](tui.md#campos-de-texto)), `Enter` roda e `Esc` cancela. Embaixo aparece a linha que vai rodar, com segredos e valores do ambiente mascarados.
 
 **Execução.** O script roda num terminal de verdade ao lado do painel, com foco nele, então prompts, cores e `Ctrl+C` funcionam. Uma linha de estado embaixo, na cor das dicas e fora da seleção de texto, mostra `running`; quando o script termina, o painel continua aberto com a saída, o título mostra `✓` ou `✗ <código>`, `r` roda de novo e `Enter`/`Esc`/`q` fecham. A saída fica gravada em `~/.local/state/noct/logs/<data>/`, como a dos terminais.
 

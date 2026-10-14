@@ -222,8 +222,8 @@ var keyContexts = []keyContext{
 	{id: "prompt", label: "text prompts", typing: true, actions: []keyAction{
 		{"submit", "submit", []string{"enter"}},
 		{"erase", "erase a character", []string{"backspace"}},
-		{"clear", "clear", []string{"ctrl+u"}},
-		{"pick", "pick from a list", []string{"ctrl+v"}},
+		{"clear", "erase to the start", []string{"ctrl+u"}},
+		{"pick", "pick from a list", []string{"ctrl+t"}},
 	}},
 	{id: "form", label: "params form", typing: true, actions: []keyAction{
 		{"run", "run", []string{"enter"}},
@@ -232,7 +232,7 @@ var keyContexts = []keyContext{
 		{"choice-back", "previous choice", []string{"left"}},
 		{"choice-on", "next choice", []string{"right"}},
 		{"erase", "erase a character", []string{"backspace"}},
-		{"clear", "clear", []string{"ctrl+u"}},
+		{"clear", "erase to the start", []string{"ctrl+u"}},
 	}},
 	{id: "script-form", label: "script form", typing: true, actions: []keyAction{
 		{"enter", "edit the part, or the next field", []string{"enter"}},
@@ -244,7 +244,7 @@ var keyContexts = []keyContext{
 		{"left", "field to the left", []string{"left"}},
 		{"right", "field to the right", []string{"right"}},
 		{"erase", "erase a character", []string{"backspace"}},
-		{"clear", "clear", []string{"ctrl+u"}},
+		{"clear", "erase to the start", []string{"ctrl+u"}},
 	}},
 	{id: "config", label: "config", typing: true, actions: []keyAction{
 		{"up", "previous setting", []string{"up", "k"}},
@@ -258,7 +258,7 @@ var keyContexts = []keyContext{
 		{"enter", "change, or save the text", []string{"enter"}},
 		{"copy", "copy the location", []string{"ctrl+c"}},
 		{"erase", "erase a character", []string{"backspace"}},
-		{"clear", "clear the text", []string{"ctrl+u"}},
+		{"clear", "erase to the start", []string{"ctrl+u"}},
 	}},
 }
 

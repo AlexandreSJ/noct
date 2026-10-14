@@ -100,6 +100,10 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 			return
 		}
 	}
+	if field, _ := a.typedField(); field != nil && isPasteKey(key) {
+		a.requestClipboard()
+		return
+	}
 	switch a.mode {
 	case commandMode:
 		a.handleCommandKey(key)

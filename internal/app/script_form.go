@@ -50,6 +50,9 @@ type scriptForm struct {
 	folder   *script.Folder
 	fields   [scriptFieldCount]string
 	selected int
+	// input edits the selected typed field while it is typed, as inputOf says.
+	input   textField
+	inputOf int
 	// tempDir holds the files parts are edited in while the form is open.
 	tempDir string
 	// id tells this form apart from a later one when an editor it opened exits.
@@ -58,7 +61,7 @@ type scriptForm struct {
 
 func (a *App) openScriptForm(original *script.Script, folder *script.Folder) {
 	a.formsOpened++
-	f := scriptForm{original: original, folder: folder, id: a.formsOpened}
+	f := scriptForm{original: original, folder: folder, id: a.formsOpened, inputOf: -1}
 	fields := script.Fields{}
 	if original != nil {
 		fields = script.FieldsOf(*original)
@@ -94,29 +97,24 @@ func (a *App) handleScriptFormKey(key uv.KeyPressEvent) {
 		moves := map[string]map[int]int{"down": formDown, "up": formUp, "left": formLeft, "right": formRight}[name]
 		if next, ok := moves[f.selected]; ok {
 			f.selected = next
+			return
 		}
+		a.typeKey(key)
 	default:
-		a.typeInScriptForm(key)
+		a.typeKey(key)
 	}
 }
 
-// typeInScriptForm edits the name and program in place; the parts are edited in the editor.
-func (a *App) typeInScriptForm(key uv.KeyPressEvent) {
-	f := &a.scriptForm
+// typedField is the name or the program while selected; the parts are edited in the editor.
+func (f *scriptForm) typedField() (*textField, func()) {
 	if isPart(f.selected) {
-		return
+		return nil, nil
 	}
-	text := &f.fields[f.selected]
-	switch key.String() {
-	case "backspace":
-		*text = string(deleteLastRune([]rune(*text)))
-	case "ctrl+u":
-		*text = ""
-	default:
-		if isPlainText(key) {
-			*text += key.Text
-		}
+	field := f.selected
+	if f.inputOf != field || f.input.String() != f.fields[field] {
+		f.input, f.inputOf = newTextField(f.fields[field]), field
 	}
+	return &f.input, func() { f.fields[field] = f.input.String() }
 }
 
 // editPart opens one part of the script alone in the editor, beside the focused pane. When the
@@ -255,7 +253,8 @@ func (a *App) drawScriptForm(screen uv.Screen) {
 func (a *App) drawTypedField(screen uv.Screen, inner image.Rectangle, y int, label string, field int) {
 	style, value := a.palette.panelText, a.scriptForm.fields[field]
 	if a.scriptForm.selected == field {
-		style, value = a.palette.selectedRow, value+"▏"
+		input, _ := a.scriptForm.typedField()
+		style, value = a.palette.selectedRow, input.view(inner.Dx()-12, false)
 	}
 	fillRect(screen, image.Rect(inner.Min.X, y, inner.Max.X, y+1), style)
 	drawText(screen, inner.Min.X+1, y, inner.Max.X, label, style)

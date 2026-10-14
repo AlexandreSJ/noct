@@ -47,6 +47,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/raven2.ascii` | The raven logo embedded in the binary |
 | `internal/app/keys.go` | Key routing by mode, command and move modes, the shortcuts table and popup |
 | `internal/app/prompt.go` | Text prompt (tab and panel rename, new folder), yes/no confirmation (quit, delete), a choice of a few options (new directory or script) and an info popup (what a flow's step does) |
+| `internal/app/textfield.go` | The one-line text field every prompt, form, search and config row types into: cursor, shell editing keys, paste (bracketed or OSC 52), cursor view |
 | `internal/app/logs_panel.go` | Logs panel (prefix+v): month calendar marked by runs, the day's logs with weight bars, sorting, opening, clearing; log pruning |
 | `internal/app/library_watch.go` | Reading scripts and flows again while a panel shows them and their files changed on disk |
 | `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks |
@@ -58,7 +59,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/pane_request.go` | Opening the pane a flow's step asks for, beside its run, and answering with its exit code; bringing a run to the screen for its prompt (`attention`) |
 | `internal/app/logs_heatmap.go` | The logs calendar's activity colors: each day's step by its logs, the style over it, and the legend |
 | `internal/app/logs_filter.go` | The logs filter line: words over name, date, time and status; size and line comparisons |
-| `internal/app/scope.go` | The inspect's scope pane (variables of the selected block with their last values) and the variable picker of template prompts (ctrl+v) |
+| `internal/app/scope.go` | The inspect's scope pane (variables of the selected block with their last values) and the variable picker of template prompts (ctrl+t) |
 | `internal/app/flows.go` | Flow actions: create, run and test steps (as tracked runs), add, edit in the editor, move and remove steps, what a step does and its kept output |
 | `internal/app/keymap.go` | Changeable keys: the contexts and their actions (`keyContexts`), the keymap built from the config, turning a pressed key into the default one a handler knows, hints written with the keys as they are |
 | `internal/app/binds.go` | The config's binds page: a row per action, taking a key with conflicts, moving keys between actions, reset |

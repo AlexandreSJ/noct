@@ -337,9 +337,14 @@ func (a *App) handleEvent(event uv.Event) error {
 	case uv.MouseEvent:
 		a.handleMouse(event)
 	case uv.PasteEvent:
+		if a.pasteText(event.Content) {
+			return nil
+		}
 		if t := a.currentTab(); t != nil && !t.isEmpty() && a.mode == normalMode {
 			t.focusedView().Paste(event.Content)
 		}
+	case uv.ClipboardEvent:
+		a.pasteText(event.Content)
 	}
 	return nil
 }

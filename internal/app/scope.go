@@ -103,7 +103,7 @@ func (a *App) pickVariable(f flow.Flow, vars []flow.Variable) {
 	for _, v := range vars {
 		kind := strings.TrimSpace(certaintyMarks[v.Certainty] + variableValue(f, v, last))
 		items = append(items, finderItem{label: variableName(v), kind: kind, open: func() {
-			a.prompt.text = append(a.prompt.text, []rune(v.Template())...)
+			a.prompt.input.insert(v.Template())
 			a.mode = promptMode
 		}})
 	}

@@ -59,13 +59,13 @@ type programSetting struct {
 	// choices end with customChoice.
 	choices []string
 	custom  bool
-	draft   []rune
+	draft   textField
 }
 
 func newProgramSetting(choices []string, current string) programSetting {
 	s := programSetting{choices: choices}
 	if !slices.Contains(choices[:len(choices)-1], current) {
-		s.custom, s.draft = true, []rune(current)
+		s.custom, s.draft = true, newTextField(current)
 	}
 	return s
 }
@@ -96,7 +96,7 @@ func (s *programSetting) step(current string, step int) string {
 // command is the setting's value with the typed command saved: the command, or current while
 // custom is not chosen or nothing is typed.
 func (s *programSetting) command(current string) string {
-	typed := strings.TrimSpace(string(s.draft))
+	typed := strings.TrimSpace(s.draft.String())
 	if !s.custom || typed == "" {
 		return current
 	}
@@ -105,7 +105,7 @@ func (s *programSetting) command(current string) string {
 
 // dropEmptyCustom leaves custom when the panel closes without a command typed for it.
 func (s *programSetting) dropEmptyCustom() {
-	if s.custom && strings.TrimSpace(string(s.draft)) == "" {
+	if s.custom && strings.TrimSpace(s.draft.String()) == "" {
 		s.custom = false
 	}
 }

@@ -36,7 +36,7 @@ func TestCustomEditorIsTypedBelowTheChoice(t *testing.T) {
 		t.Fatalf("down from custom selected row %d, want the command row", a.configPanel.selected)
 	}
 	typeText(a, "noct-no-such-editor")
-	if note := commandNote(string(a.configPanel.editor.draft)); note != "command not found" {
+	if note := commandNote(a.configPanel.editor.draft.String()); note != "command not found" {
 		t.Errorf("note %q for a missing command", note)
 	}
 	press(a, uv.KeyPressEvent{Code: 'u', Mod: uv.ModCtrl})
@@ -47,7 +47,7 @@ func TestCustomEditorIsTypedBelowTheChoice(t *testing.T) {
 	}
 
 	a.openConfig()
-	if !a.configPanel.editor.custom || string(a.configPanel.editor.draft) != "cat -n" {
+	if !a.configPanel.editor.custom || a.configPanel.editor.draft.String() != "cat -n" {
 		t.Error("reopening the config lost the custom command")
 	}
 }
@@ -63,8 +63,8 @@ func TestCustomWithoutACommandKeepsTheEditor(t *testing.T) {
 
 func TestScriptsLocationComesFromTheConfig(t *testing.T) {
 	a := openConfigAt(t, scriptsDirRow)
-	if string(a.configPanel.scriptsDir) != script.PersonalDir() {
-		t.Fatalf("location starts as %q, want the folder in use", string(a.configPanel.scriptsDir))
+	if a.configPanel.scriptsDir.String() != script.PersonalDir() {
+		t.Fatalf("location starts as %q, want the folder in use", a.configPanel.scriptsDir.String())
 	}
 	press(a, uv.KeyPressEvent{Code: 'c', Mod: uv.ModCtrl})
 	if !a.configPanel.copied || !slices.ContainsFunc(a.configLines(), func(l configLine) bool { return l.label == "copied to clipboard" }) {
