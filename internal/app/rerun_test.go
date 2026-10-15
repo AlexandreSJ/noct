@@ -105,6 +105,14 @@ func TestEscForgetsTheCommand(t *testing.T) {
 	}
 }
 
+func TestCommandsWithControlCharactersAreNotOffered(t *testing.T) {
+	a := sessionsApp(t)
+	_, id := restoredTerminal(t, a, "echo 'a\x15b'")
+	if a.pendingRerun(id) != "" {
+		t.Error("offered a command holding ctrl+u")
+	}
+}
+
 func TestTerminalGoesOnWithItsLog(t *testing.T) {
 	a := sessionsApp(t)
 	a.config.Logs.Terminals = true

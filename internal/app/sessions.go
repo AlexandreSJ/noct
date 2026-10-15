@@ -7,7 +7,9 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/AlexandreSJ/noct/internal/ipc"
 	"github.com/AlexandreSJ/noct/internal/layout"
@@ -370,8 +372,8 @@ func (a *App) restoreView(id layout.PaneID, p saved.Pane) (view, error) {
 	switch p.Kind {
 	case saved.Terminal:
 		v, err := a.startShellLogged(id, area, existingDir(p.Dir, a.workDir), p.Log)
-		if err == nil {
-			a.shells[id].rerun = p.Command
+		if err == nil && !strings.ContainsFunc(p.Command, unicode.IsControl) {
+			a.shells[id].rerun = p.Command // typed as keys, a control character would be a key
 		}
 		return v, err
 	case saved.Scripts:

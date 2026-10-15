@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"syscall"
+	"unicode"
 
 	creackpty "github.com/creack/pty"
 	"golang.org/x/sys/unix"
@@ -84,25 +85,27 @@ func (p *Process) ForegroundProgram() (string, bool) {
 }
 
 // ForegroundCommand is the command line of the program the terminal gives the keyboard to, quoted
-// for a shell, or "" when only the started program runs. A session keeps it to offer running it
-// again.
+// for a shell, or "" when only the started program runs. A session keeps it to offer typing it
+// again, so it is "" where the arguments cannot be told apart (without /proc, ps joins them with
+// spaces and loses their quoting) and when one holds a control character, which a shell's line
+// editor would take as a key.
 func (p *Process) ForegroundCommand() string {
 	group, ok := p.foregroundGroup()
 	if !ok {
 		return ""
 	}
-	if cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", group)); err == nil {
-		args := strings.Split(strings.TrimRight(string(cmdline), "\x00"), "\x00")
-		for i, arg := range args {
-			args[i] = shellQuote(arg)
-		}
-		return strings.Join(args, " ")
-	}
-	output, err := exec.Command("ps", "-o", "args=", "-p", strconv.Itoa(group)).Output()
+	cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", group))
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(string(output))
+	args := strings.Split(strings.TrimRight(string(cmdline), "\x00"), "\x00")
+	for i, arg := range args {
+		if strings.ContainsFunc(arg, unicode.IsControl) {
+			return ""
+		}
+		args[i] = shellQuote(arg)
+	}
+	return strings.Join(args, " ")
 }
 
 // foregroundGroup is the process group the terminal gives the keyboard to, unless it is the
