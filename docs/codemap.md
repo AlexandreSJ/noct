@@ -29,7 +29,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/pane/keys.go` | Key encodings the emulator lacks (modified navigation keys) |
 | `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again, names, what the command line lists |
 | `internal/layout/shape.go` | A tree as plain data (`Shape`) and building it again under new pane IDs |
-| `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks (one pane shown, the others folded to a row), move, remove, rects, directional focus, draggable dividers |
+| `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks of a pane and those below it (one pane shown, the others folded to a row), move by columns, remove, rects, directional focus, draggable dividers |
 | `internal/app/app.go` | App state, event loop, frame pacing, attach (to the session asked for)/detach, config loading, shutdown |
 | `internal/app/sessions.go` | Sessions: create, switch, close (keeping the layout), delete, rename; saving them and opening a closed one again; the command line's list and delete |
 | `internal/app/sessions_popup.go` | Sessions popup (prefix+o): the sessions by last use, keys to open, create, rename, close and delete |

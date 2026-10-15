@@ -10,8 +10,7 @@ func TestShapeRebuildsTheSameLayout(t *testing.T) {
 	tree := New(1)
 	tree.Split(1, 2, SideBySide)
 	tree.Split(2, 3, Stacked)
-	tree.ToggleStacked(3)
-	tree.Show(2)
+	tree.ToggleStacked(2)
 	area := image.Rect(0, 0, 120, 40)
 	if !tree.Resize(1, SideBySide, 20, area, image.Pt(12, 5)) {
 		t.Fatal("resizing did not change the layout")

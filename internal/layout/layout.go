@@ -5,6 +5,7 @@ package layout
 
 import (
 	"image"
+	"math"
 	"slices"
 )
 
@@ -100,16 +101,53 @@ func (t *Tree) Split(target, newPane PaneID, direction Direction) bool {
 	return true
 }
 
-// ToggleStacked turns the container of the pane into a stack showing the pane, or back into
-// a split. It reports false when the pane is alone in the tab or not in it.
+// ToggleStacked stacks the pane with the panes below it in its column, showing the pane, or turns
+// the stack the pane is in back into a split. Panes above it in the column stay as they are. It
+// reports false when no pane is below it in its column, or the pane is not in the tab.
 func (t *Tree) ToggleStacked(pane PaneID) bool {
 	leaf := t.find(pane)
 	if leaf == nil || leaf.parent == nil {
 		return false
 	}
-	leaf.parent.stacked = !leaf.parent.stacked
-	leaf.parent.shown = leaf
+	column := leaf.parent
+	if column.stacked {
+		unstack(column)
+		return true
+	}
+	at := leaf.index()
+	if column.direction != Stacked || at == len(column.children)-1 {
+		return false
+	}
+	stack := column
+	if at > 0 {
+		below := slices.Clone(column.children[at:])
+		stack = &node{direction: Stacked, parent: column, children: below}
+		for _, child := range below {
+			stack.share += child.share
+		}
+		for _, child := range below {
+			child.share /= stack.share
+			child.parent = stack
+		}
+		column.children = append(column.children[:at:at], stack)
+	}
+	stack.stacked, stack.shown = true, leaf
 	return true
+}
+
+// unstack turns a stack back into a split. A stack inside a column gives its panes back to it.
+func unstack(stack *node) {
+	stack.stacked = false
+	parent := stack.parent
+	if parent == nil || parent.stacked || parent.direction != stack.direction {
+		return
+	}
+	at := stack.index()
+	for _, child := range stack.children {
+		child.share *= stack.share
+		child.parent = parent
+	}
+	parent.children = slices.Replace(parent.children, at, at+1, stack.children...)
 }
 
 // Show unfolds the pane in every stack it is in.
@@ -187,10 +225,15 @@ func (t *Tree) Remove(pane PaneID) (empty bool) {
 }
 
 // detach takes a node out of its container, giving its length to the siblings in proportion, and
-// dissolves a container left with a single child.
+// dissolves a container left with a single child. A stack losing the child it shows shows the one
+// that took its place, so the pane on screen stays next to where the other was.
 func (t *Tree) detach(n *node) {
 	container := n.parent
-	container.children = slices.Delete(container.children, n.index(), n.index()+1)
+	at := n.index()
+	container.children = slices.Delete(container.children, at, at+1)
+	if container.shown == n {
+		container.shown = container.children[min(at, len(container.children)-1)]
+	}
 	for _, sibling := range container.children {
 		sibling.share /= 1 - n.share
 	}
@@ -218,54 +261,98 @@ func (t *Tree) dissolve(container *node) {
 	parent.children = slices.Replace(parent.children, at, at+1, child.children...)
 }
 
-// Move moves the pane one step toward heading, as i3's move does. Within a container running
-// that way it trades places with the neighbor, or enters the neighbor when that is a container.
-// At a container's edge it leaves it and lands beside it in the next container out that runs
-// that way. When no container runs that way, the whole tab turns that way with the pane at its
-// edge. It reports false when the pane is already at the tab's edge.
+// Move moves the pane one step toward heading, thinking in columns: panes side by side, even
+// inside a column, are columns of their own. Left or right, the pane leaves its column for the same
+// place in the next one, or its bottom when it was alone or the next is shorter; a stack takes it
+// the same way, shown. Up or down, it moves along its column, past a row of panes as one and into a
+// stack at its near end. Past the first or last place of its column it leaves it, as i3 does,
+// taking the width of what it lands beside in the next container out running up and down; with
+// none, the whole tab turns that way and it spans the tab. Past the left or right edge of the tab
+// it becomes a column there, the columns sharing the width evenly. A pane that already spans the
+// tab's edge does not move, and Move reports false. The container the pane leaves and the one it
+// lands in share their length evenly again.
 func (t *Tree) Move(pane PaneID, heading Heading) bool {
 	leaf := t.find(pane)
 	if leaf == nil || leaf.parent == nil {
 		return false
 	}
+	from := leaf.parent
+	defer func() {
+		even(from)
+		even(leaf.parent)
+	}()
 	direction, step := heading.direction(), heading.step()
+	var edge *node // the outermost node with the pane at its edge, in a container running this way
 	for n := leaf; n.parent != nil; n = n.parent {
 		container := n.parent
-		next := n.index() + step
-		if container.axis() != direction || next < 0 || next >= len(container.children) {
+		if container.axis() != direction {
 			continue
 		}
-		if n == leaf {
-			t.moveIntoNeighbor(leaf, container.children[next], step)
-		} else {
+		next := n.index() + step
+		if next < 0 || next >= len(container.children) {
+			edge = n
+			continue
+		}
+		neighbor := container.children[next]
+		switch {
+		case direction == SideBySide:
+			at := placeInColumn(leaf)
+			if neighbor.isLeaf() {
+				neighbor = t.wrap(neighbor, Stacked)
+			}
+			t.enter(leaf, neighbor, min(at, len(neighbor.children)))
+		case n != leaf:
 			t.relocate(leaf, container, n.index()+max(step, 0))
+		case neighbor.stacked:
+			t.enter(leaf, neighbor, max(-step, 0)*len(neighbor.children))
+		default:
+			container.children[n.index()], container.children[next] = neighbor, leaf
+			leaf.share, neighbor.share = neighbor.share, leaf.share
 		}
 		return true
 	}
 	if t.root.axis() == direction {
-		return false // already at the edge of a tab that runs this way
+		if edge == leaf {
+			return false // already at the edge of a tab that runs this way
+		}
+		t.relocate(leaf, t.root, edge.index()+max(step, 0))
+		return true
 	}
 	t.detach(leaf)
-	outer := t.wrap(t.root, direction)
-	insert(outer, max(step, 0), leaf)
+	outer := t.root
+	if outer.isLeaf() || outer.stacked || outer.direction != direction {
+		outer = t.wrap(t.root, direction)
+	}
+	insert(outer, max(step, 0)*len(outer.children), leaf)
 	return true
 }
 
-// moveIntoNeighbor trades places with a neighbor pane, or enters a neighbor container at the side
-// facing the pane.
-func (t *Tree) moveIntoNeighbor(leaf, neighbor *node, step int) {
-	if neighbor.isLeaf() {
-		container := leaf.parent
-		i, j := leaf.index(), neighbor.index()
-		container.children[i], container.children[j] = neighbor, leaf
-		leaf.share, neighbor.share = neighbor.share, leaf.share
+// placeInColumn is the leaf's index in its column, or past the end when it is alone in it, so a
+// pane moving sideways keeps its place in the next column, or goes to its bottom.
+func placeInColumn(leaf *node) int {
+	if leaf.parent.direction != Stacked {
+		return math.MaxInt
+	}
+	return leaf.index()
+}
+
+// even gives each child of a container the same share. A container left with one child has been
+// dissolved, and its child's share is its own.
+func even(container *node) {
+	if container == nil || len(container.children) < 2 {
 		return
 	}
-	at := len(neighbor.children)
-	if step > 0 {
-		at = 0
+	for _, child := range container.children {
+		child.share = 1 / float64(len(container.children))
 	}
-	t.relocate(leaf, neighbor, at)
+}
+
+// enter moves leaf into container at index, shown when the container is a stack.
+func (t *Tree) enter(leaf, container *node, index int) {
+	t.relocate(leaf, container, index)
+	if container.stacked {
+		container.shown = leaf
+	}
 }
 
 // relocate moves leaf into container at index. The place is reserved first: taking the leaf out
@@ -346,7 +433,9 @@ func (n *node) boundary(area image.Rectangle, i int) int {
 	for _, child := range n.children[:i] {
 		sum += child.share
 	}
-	return origin + int(float64(length)*sum)
+	// The shares of n children sum to a hair under k/n at times; rounding that up keeps equal
+	// neighbors equal and lines up the boundaries of containers split alike.
+	return origin + int(float64(length)*sum+1e-9)
 }
 
 func span(area image.Rectangle, direction Direction) (origin, length int) {
@@ -458,15 +547,16 @@ func areaOf(target, n *node, area image.Rectangle) (image.Rectangle, bool) {
 }
 
 // Neighbor finds the closest pane in the given heading from the pane `from`, within area. Among
-// panes equally close, it picks the one focused most recently, as listed in recent (the most
-// recent last), so going back returns to the pane you came from; then the one best aligned.
+// panes equally close, it picks one a stack shows over one folded to its title, as that is the
+// one on screen; then the one focused most recently, as listed in recent (the most recent last),
+// so going back returns to the pane you came from; then the one best aligned.
 func (t *Tree) Neighbor(from PaneID, heading Heading, area image.Rectangle, recent []PaneID) (PaneID, bool) {
 	rects := t.Rects(area)
 	origin, ok := rects[from]
 	if !ok {
 		return 0, false
 	}
-	best, bestScore, found := PaneID(0), [3]int{}, false
+	best, bestScore, found := PaneID(0), [4]int{}, false
 	for _, pane := range t.Panes() {
 		if pane == from {
 			continue
@@ -475,7 +565,11 @@ func (t *Tree) Neighbor(from PaneID, heading Heading, area image.Rectangle, rece
 		if !ok {
 			continue
 		}
-		score := [3]int{gap, -(slices.Index(recent, pane) + 1), offset}
+		folded := 0
+		if t.Folded(pane) {
+			folded = 1
+		}
+		score := [4]int{gap, folded, -(slices.Index(recent, pane) + 1), offset}
 		if !found || slices.Compare(score[:], bestScore[:]) < 0 {
 			best, bestScore, found = pane, score, true
 		}

@@ -162,12 +162,12 @@ func TestClosingAPaneClosesItsView(t *testing.T) {
 	}
 }
 
-func TestMoveSwapsPanesInsideTheTab(t *testing.T) {
+func TestMoveTakesThePaneToTheNextColumn(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2))
 	press(a, prefixPress, letter('a'), rightPress)
 
 	if got := a.currentTab().tree.Panes(); got[0] != 2 || got[1] != 1 {
-		t.Errorf("panes %v after moving 1 right, want [2 1]", got)
+		t.Errorf("panes %v after moving 1 right, want 1 under 2", got)
 	}
 	if a.mode != moveMode || focusedPaneID(a) != 1 {
 		t.Errorf("mode=%v focus=%d, want move mode following pane 1", a.mode, focusedPaneID(a))
@@ -400,10 +400,13 @@ func TestVimKeysWorkLikeArrows(t *testing.T) {
 	}
 }
 
-// prefix+w folds the other panes of the container to a title row each; moving the focus
+// prefix+w folds the other panes of the column to a title row each; moving the focus
 // unfolds the pane it reaches, and prefix+w again gives the split back.
 func TestStackedLayoutFoldsTheOtherPanes(t *testing.T) {
-	a := testApp(t, sideBySideTab(1, 2))
+	column := newTab(1, &fakeView{})
+	column.tree.Split(1, 2, layout.Stacked)
+	column.views[2] = &fakeView{}
+	a := testApp(t, column)
 	tree := a.currentTab().tree
 	press(a, prefixPress, letter('w'))
 	if tree.Folded(1) || !tree.Folded(2) || a.mode != normalMode {
@@ -420,6 +423,14 @@ func TestStackedLayoutFoldsTheOtherPanes(t *testing.T) {
 	press(a, escPress, prefixPress, letter('w'))
 	if tree.Folded(1) {
 		t.Error("prefix+w again left pane 1 folded")
+	}
+}
+
+func TestStackingLeavesOtherColumnsAlone(t *testing.T) {
+	a := testApp(t, sideBySideTab(1, 2))
+	press(a, prefixPress, letter('w'))
+	if tree := a.currentTab().tree; tree.Folded(1) || tree.Folded(2) || a.statusMessage == "" {
+		t.Errorf("1 folded %v, 2 folded %v, message %q; want both split and a message", tree.Folded(1), tree.Folded(2), a.statusMessage)
 	}
 }
 

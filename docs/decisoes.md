@@ -261,6 +261,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 ## ADR-022 — Tiling como o i3, seleção de texto e scripts pelo formulário
 
+*Atualizada pela ADR-045:* mover pensa em colunas, e empilhar vale para o painel e os de baixo dele na coluna.
+
 **Contexto.** O mantenedor pediu: dispor e mover painéis como o i3 dele (com autotiling), selecionar texto com o mouse, editar scripts num formulário do noct (nome, script, descrição) em vez de só no editor, abrir a pasta dos scripts num gerenciador de arquivos, escolher o local dos scripts e rodar scripts com `noct -s`.
 
 **Decisão.**
@@ -566,3 +568,18 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Reset só com `Enter`:** nas duas linhas de reset (config e teclas), setas, espaço e cliques não fazem nada. O primeiro `Enter` arma por 1000 ms (`resetWindow`), e só um segundo `Enter` nesse tempo reseta; depois disso o aviso some e o próximo `Enter` arma de novo.
 
 **Consequências.** Quem tinha `max_size_mb` no arquivo passa a ver `max_size_kb` ao salvar algo no config. Logs de terminais deixam de existir por padrão, então a view de logs e o calendário mostram só execuções, a não ser que `terminals` seja ligado. O reset ficou mais difícil de disparar sem querer, inclusive com o mouse.
+
+## ADR-045 — Mover por colunas, empilhar o painel e os de baixo, e o foco no painel que a pilha mostra
+
+**Contexto.** O mantenedor notou três coisas nos painéis. Mover (`prefixo` + `a`) para o lado levava o painel para o topo da coluna vizinha, ou o deixava como coluna própria entre duas, ou só o trocava de lugar com o vizinho, quando ele queria que o painel saísse da coluna e fosse para a vizinha, com as colunas tendo prioridade sobre o resto. `prefixo` + `w` empilhava o container do painel, que com colunas lado a lado era a tab inteira, quando ele queria empilhar só o painel e os de baixo dele. E, depois de mover um painel, as setas às vezes iam para um painel dobrado de uma pilha em vez do que ela mostrava, abrindo outro. Testamos antes entrar na coluna vizinha na altura do painel (como o i3, que entra junto ao último filho focado) e trocar de lugar com o vizinho (como o `move` do zellij); o mantenedor preferiu manter o lugar do painel na coluna, nenhuma troca e o fim da coluna para um painel sozinho. É polimento do layout (ADR-022), antecipado pelo mantenedor.
+
+**Decisão.**
+- **Colunas primeiro:** uma coluna é um container vertical ou um painel sozinho num container lado a lado. Painéis lado a lado dentro de uma coluna contam como colunas próprias.
+- **`←`/`→`:** o painel sai da coluna dele e vai para o mesmo lugar (índice) da coluna vizinha. Se estava sozinho na coluna, ou a vizinha tem menos lugares, vai para o fim dela; um painel sozinho do outro lado vira uma coluna de dois. Numa pilha, entra do mesmo jeito e fica aberto. Não há troca: com `1 | 2`, mover o 1 para a direita deixa 2 sobre 1.
+- **`↑`/`↓`:** o painel anda pela coluna; uma fileira de painéis lado a lado conta como um lugar, e numa pilha ele entra pela ponta e fica aberto. No primeiro ou no último lugar, sai da coluna e fica ao lado dela no container de fora que corre na vertical, com a largura dele; sem nenhum, a tab passa a correr na vertical, e o painel ocupa a largura toda (o `move` do i3).
+- **Borda da tab:** com `←`/`→`, um painel que divide a coluna vira uma coluna nova na borda, entrando no container lado a lado que já existe, e cada coluna fica com uma parte igual da largura (um painel de largura inteira sobre `2 | 3` vira a terceira coluna de 1/3); só um painel que já é uma coluna sozinho na borda vai para a tab vizinha.
+- **Tamanhos:** cada movimento redivide por igual o container de onde o painel saiu e o em que ele entrou (1/2, 1/3...), desfazendo ajustes feitos nesses dois. As fronteiras arredondam frações que a conta em ponto flutuante deixa um fio abaixo do valor (0,4999…), para painéis iguais terem o mesmo tamanho e as bordas de colunas divididas igual se alinharem.
+- **Empilhar** (`prefixo` + `w`) junta numa pilha o painel com foco e os painéis abaixo dele na coluna; os de cima ficam divididos. Se ele é o primeiro, a coluna inteira empilha; se é o último, ou está sozinho na coluna, nada empilha (`nothing below this panel to stack`). Em um painel da pilha, desfaz a pilha e devolve os painéis à coluna. A pilha dentro de uma coluna é o único container com a mesma direção do pai.
+- **Foco nas pilhas:** entre painéis igualmente próximos, as setas preferem o que a pilha mostra a um dobrado, antes do histórico de foco. Quando o painel aberto sai da pilha, ela mostra o que ficou no lugar dele, não o primeiro.
+
+**Consequências.** Não há como deixar um painel como coluna própria entre duas colunas de uma vez: ele vai para o fim da vizinha, e só vira coluna própria na borda da tab. Pilhas de painéis lado a lado deixam de ser criadas; sessões salvas com uma ainda abrem como estavam, e `prefixo` + `w` nelas desfaz a pilha.

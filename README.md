@@ -94,7 +94,7 @@ A popup lists these keys while noct mode is on. Wherever noct moves something an
 
 Outside noct mode, every key goes straight to the program in the pane, except the **direct shortcuts**: `Alt` with a noct mode key runs that command without the prefix (`Alt+→` moves the focus, `Alt+T` opens a tab, `Alt+A` moves the pane), and `Alt+Shift` with the arrows moves the pane directly. This takes `Alt+F` and `Alt+D` from the shell's word editing; the modifier can be switched to `Ctrl+Alt` or turned off in the config. Every key of noct's modes, panels and popups can also be changed there, under **Keys → binds of every screen**.
 
-Panes tile like i3 with autotiling: a new pane opens beside the focused one when it is wider than tall, below it otherwise. Moving a pane (`a`, or `Alt+Shift` with the arrows) follows i3's move: it trades places within its group, enters a neighbor group, or leaves its group to land beside it.
+Panes tile like i3 with autotiling: a new pane opens beside the focused one when it is wider than tall, below it otherwise. Moving a pane (`a`, or `Alt+Shift` with the arrows) thinks in columns: sideways it leaves its column for the same place in the next one (or its bottom, when it was alone); up and down it moves along its column and, past the first or last place, takes the width above or below, as in i3. `prefix` + `w` stacks the focused pane with the panes below it.
 
 The mouse works too: click a tab or a pane to select it, click a command in the prefix popup or a setting in the config to run or change it, drag the line between two panes to resize them, scroll a terminal's history with the wheel, and drag over text to select it; releasing copies it to the clipboard. Programs that use the mouse, like vim and htop, get the clicks.
 

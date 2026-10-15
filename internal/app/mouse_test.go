@@ -155,8 +155,8 @@ func TestDirectShortcutsRunCommandsWithoutThePrefix(t *testing.T) {
 		t.Fatalf("ctrl+alt+right: mode %v focus %d", a.mode, focusedPaneID(a))
 	}
 	press(a, uv.KeyPressEvent{Code: uv.KeyLeft, Mod: ctrlAlt | uv.ModShift})
-	if panes := a.currentTab().tree.Panes(); panes[0] != 2 {
-		t.Errorf("ctrl+alt+shift+left did not move the pane: %v", panes)
+	if rects := a.currentTab().rects(a.workspaceArea()); rects[2].Min.Y <= rects[1].Min.Y {
+		t.Errorf("ctrl+alt+shift+left did not move the pane under 1: %v", rects)
 	}
 	press(a, uv.KeyPressEvent{Code: 't', Mod: ctrlAlt})
 	if len(a.session.tabs) != 2 {

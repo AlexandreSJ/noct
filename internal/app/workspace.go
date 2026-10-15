@@ -165,14 +165,14 @@ func (a *App) openPanelBeside(t *tab, target layout.PaneID, start viewStarter) e
 	return nil
 }
 
-// toggleStacked turns the focused tile's container into a stack or back into a split.
+// toggleStacked stacks the focused tile with the tiles below it in its column, or splits its stack again.
 func (a *App) toggleStacked() {
 	t := a.currentTab()
 	if t.isEmpty() || t.floatingPane(t.focused) != nil {
 		return
 	}
 	if !t.tree.ToggleStacked(t.focused) {
-		a.statusMessage = "a lone panel has nothing to stack with"
+		a.statusMessage = "nothing below this panel to stack"
 		return
 	}
 	t.resizeViews(a.workspaceArea())
@@ -222,8 +222,8 @@ func (a *App) moveFocusAcrossTabs(heading layout.Heading) {
 	}
 }
 
-// moveFocusedPane moves the focused pane the way i3 does (see layout.Tree.Move). Past the left or
-// right edge of the tab, it carries the pane into the adjacent tab, or into a new tab. A floating
+// moveFocusedPane moves the focused pane by columns (see layout.Tree.Move). A pane that is a column
+// of its own at the tab's left or right edge goes into the adjacent tab, or into a new tab. A floating
 // pane moves by a step instead.
 func (a *App) moveFocusedPane(heading layout.Heading) {
 	t := a.currentTab()
