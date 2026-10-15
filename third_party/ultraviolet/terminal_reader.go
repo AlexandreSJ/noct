@@ -308,7 +308,8 @@ func (d *eventScanner) scanEvents(buf []byte, expired bool) (total int, events [
 							d.paste = append(d.paste, string(event.Code)...)
 						case !isWin32:
 							// We ignore all other non-text win32-input-mode events.
-							if esc && n <= 2 && !expired {
+							// noct: wait only when nothing follows, as below.
+							if esc && n <= 2 && n == len(buf) && !expired {
 								// If the event is an escape sequence and we
 								// are not expired, we need to wait for more
 								// input.
@@ -366,7 +367,10 @@ func (d *eventScanner) scanEvents(buf []byte, expired bool) (total int, events [
 		}
 
 		if !isUnknown && event != nil {
-			if esc && n <= 2 && !expired {
+			// noct: wait for more input only when nothing follows the event. Bytes after
+			// it mean it is complete: waiting held alt+letter back for as long as the
+			// mouse kept reporting motion, each report restarting the wait.
+			if esc && n <= 2 && n == len(buf) && !expired {
 				// Wait for more input
 				return total, events
 			}
