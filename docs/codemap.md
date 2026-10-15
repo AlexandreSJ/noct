@@ -71,6 +71,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/rebuild.go` | Notices on attach that the noct binary was rebuilt after the daemon started |
 | `internal/app/prefix.go` | The configurable prefix key: parsing, matching, key names; capturing a new one and what it would take from shortcuts and programs |
 | `internal/app/config_panel.go` | Config panel: rows, key handling, clicks and hover, applying and saving, reset to defaults, drawing |
+| `internal/app/config_numbers.go` | Log limits typed by hand in the config: enter or a digit opens them, days and sizes in KB/MB/GB parsed, enter saves and esc gives up |
 | `internal/app/panel_kinds.go` | The kinds of panel a key opens (`panelKinds`), which `runAction` and the new tab setting read; opening a new tab |
 | `internal/app/panel.go` | Shared panel component: framed box, rows, list scrolling with a margin around the selection, centered and corner placement |
 | `internal/app/tab.go` | A tab: its views, pane names, focus history, floating panes, fullscreen, visible frames, size rules |

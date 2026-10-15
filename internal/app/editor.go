@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"image"
 	"os"
 	"os/exec"
@@ -130,7 +129,7 @@ func (a *App) openFolder(dir string) {
 	manager := a.config.FileManager
 	if manager == config.FileManagerTerminal {
 		a.openPanel(func(id layout.PaneID, frame image.Rectangle) (view, error) {
-			return a.startInPane(id, frame, a.shellArgv, dir, fmt.Sprintf("pane%d", id))
+			return a.startInPane(id, frame, a.shellArgv, dir, a.terminalLogName(id))
 		})
 		return
 	}

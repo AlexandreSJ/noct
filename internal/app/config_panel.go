@@ -13,7 +13,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/AlexandreSJ/noct/internal/config"
-	"github.com/AlexandreSJ/noct/internal/logstore"
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
@@ -39,6 +38,7 @@ const (
 	scriptsSortRow
 	logsKeepRow
 	logsSizeRow
+	logsTerminalsRow
 	flowsOutputRow
 	resetRow
 	resetBindsRow
@@ -69,9 +69,15 @@ type configPanel struct {
 	capture keyCapture
 	// resetArmedAt is when enter first asked for a reset; a second enter within resetWindow does it.
 	resetArmedAt time.Time
-	editor       programSetting
-	fileManager  programSetting
-	scriptsDir   textField
+	// number is a log limit being typed, nil while none is; numberProblem says why enter did not
+	// take it.
+	number        *textField
+	numberProblem string
+	// logUsage is what the logs take on disk, nil when it cannot be read.
+	logUsage    *logUsage
+	editor      programSetting
+	fileManager programSetting
+	scriptsDir  textField
 	// copied says the location was just copied, until the selection or the text changes.
 	copied bool
 	// hover is the row under the mouse, when hovering is true.
@@ -91,6 +97,9 @@ type configLine struct {
 	warning bool
 	// typed rows take text: their value is edited in place.
 	typed bool
+	// bar notes show a bar filled for fraction, then the label, as the logs view's usage bar.
+	bar      bool
+	fraction float64
 }
 
 func (a *App) openConfig() {
@@ -99,6 +108,7 @@ func (a *App) openConfig() {
 		fileManager: newProgramSetting(fileManagerChoices(isInstalled), a.config.FileManager),
 		scriptsDir:  newTextField(a.scriptsDir()),
 	}
+	a.refreshLogUsage()
 	a.mode = configMode
 }
 
@@ -111,7 +121,11 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 		a.handleBindsKey(key)
 		return
 	}
-	if a.pressReset(key) {
+	if a.configPanel.number != nil {
+		a.typeNumber(key)
+		return
+	}
+	if a.startsNumberEdit(key) || a.pressReset(key) {
 		return
 	}
 	switch key.String() {
@@ -146,6 +160,7 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 
 // closeConfig saves what was typed and closes the panel.
 func (a *App) closeConfig() {
+	a.cancelNumberEdit()
 	a.commitTyped()
 	a.configPanel.editor.dropEmptyCustom()
 	a.configPanel.fileManager.dropEmptyCustom()
@@ -158,6 +173,7 @@ func (a *App) selectConfigRow(row configRow) {
 		return
 	}
 	a.commitTyped()
+	a.cancelNumberEdit()
 	a.configPanel.copied, a.configPanel.resetArmedAt = false, time.Time{}
 	a.configPanel.selected = row
 }
@@ -200,6 +216,8 @@ func (a *App) typedText(row configRow) *textField {
 		return &a.configPanel.editor.draft
 	case fileManagerCommandRow:
 		return &a.configPanel.fileManager.draft
+	case logsKeepRow, logsSizeRow:
+		return a.configPanel.number
 	}
 	return &a.configPanel.scriptsDir
 }
@@ -222,6 +240,9 @@ func (a *App) typeInConfig(key uv.KeyPressEvent) {
 // configTypedField is the selected row's text while a typed row is selected.
 func (a *App) configTypedField() (*textField, func()) {
 	p := &a.configPanel
+	if p.number != nil {
+		return p.number, func() { p.numberProblem = "" }
+	}
 	if p.capture.active || p.page == bindsPage || !a.isTypedRow(p.selected) {
 		return nil, nil
 	}
@@ -293,10 +314,14 @@ func (a *App) changeSetting(step int) {
 		defer a.sortScripts() // after the new order is in effect
 	case logsKeepRow:
 		next.Logs.KeepDays = stepNumber(keepDaysChoices, next.Logs.KeepDays, step)
-		defer a.pruneLogs()
+		a.applyLogLimits(next, nil)
+		return
 	case logsSizeRow:
-		next.Logs.MaxSizeMB = stepNumber(logSizeChoices, next.Logs.MaxSizeMB, step)
-		defer a.pruneLogs()
+		next.Logs.MaxSizeKB = stepNumber(logSizeChoices, next.Logs.MaxSizeKB, step)
+		a.applyLogLimits(next, nil)
+		return
+	case logsTerminalsRow:
+		next.Logs.Terminals = !next.Logs.Terminals
 	case flowsOutputRow:
 		i := max(slices.Index(flowOutputChoices, next.Flows.OutputKB), 0)
 		next.Flows.OutputKB = flowOutputChoices[min(max(i+step, 0), len(flowOutputChoices)-1)]
@@ -307,7 +332,7 @@ func (a *App) changeSetting(step int) {
 // Choices of the log limits; a value set by hand in the file steps to the nearest one.
 var (
 	keepDaysChoices = []int{7, 14, 30, 60, 90, 180, 365}
-	logSizeChoices  = []int{50, 100, 200, 500, 1000, 2000, 5000}
+	logSizeChoices  = []int{50 << 10, 100 << 10, 200 << 10, 500 << 10, 1000 << 10, 2000 << 10, 5000 << 10} // KB
 	// flowOutputChoices go from keeping all of a step's output (0) to keeping less.
 	flowOutputChoices = []int{0, 256, 64, 16, 4}
 )
@@ -365,14 +390,14 @@ func (a *App) capturePrefix(key uv.KeyPressEvent) {
 func (a *App) resetConfig() {
 	next := config.Default()
 	next.ScriptFolders, next.MCP = a.config.ScriptFolders, a.config.MCP
-	a.applyConfig(next)
-	a.reloadScripts()
-	a.sortScripts()
-	a.pruneLogs()
-	selected := a.configPanel.selected
-	a.openConfig() // the program choices and the typed location follow the new values
-	a.configPanel.selected = selected
-	a.notice = "settings and keys reset to their defaults"
+	a.applyLogLimits(next, func() {
+		a.reloadScripts()
+		a.sortScripts()
+		selected := a.configPanel.selected
+		a.openConfig() // the program choices and the typed location follow the new values
+		a.configPanel.selected = selected
+		a.notice = "settings and keys reset to their defaults"
+	})
 }
 
 // applyConfig puts a new config into effect right away and saves it. Invalid ones are refused.
@@ -441,13 +466,18 @@ func (a *App) configLines() []configLine {
 	if note := scriptsDirNote(a.configPanel.scriptsDir.String()); note != "" {
 		lines = append(lines, configLine{label: note, note: true})
 	}
-	return append(lines,
+	lines = append(lines,
 		configLine{label: "hints in new scripts", value: onOff(a.config.ScriptHints), row: scriptHintsRow},
 		configLine{label: "sort", value: "◂ " + sortLabels[a.config.ScriptsSort] + " ▸", row: scriptsSortRow},
 		configLine{label: "Logs", heading: true},
-		configLine{label: "keep", value: fmt.Sprintf("◂ %d days ▸", a.config.Logs.KeepDays), row: logsKeepRow},
-		configLine{label: "max size", value: "◂ " + logstore.PrettySize(int64(a.config.Logs.MaxSizeMB)<<20) + " ▸", row: logsSizeRow},
+	)
+	lines = append(lines, a.numberLines("keep", logsKeepRow, fmt.Sprintf("%d days", a.config.Logs.KeepDays))...)
+	lines = append(lines, a.numberLines("max size", logsSizeRow, sizeText(a.config.Logs.MaxSizeKB))...)
+	lines = append(lines, a.logUsageLine()...)
+	return append(lines,
 		configLine{label: "older and, past the size, oldest logs are deleted", note: true},
+		configLine{label: "terminals", value: onOff(a.config.Logs.Terminals), row: logsTerminalsRow},
+		configLine{label: "log what terminal panes print; runs are always logged", note: true},
 		configLine{label: "Flows", heading: true},
 		configLine{label: "step output kept", value: "◂ " + flowOutputLabel(a.config.Flows.OutputKB) + " ▸", row: flowsOutputRow},
 		configLine{label: "in each flow's last result; tests keep 4 KB", note: true},
@@ -657,6 +687,9 @@ func (a *App) hoverConfig(point image.Point) {
 func (a *App) drawConfigLine(screen uv.Screen, inner image.Rectangle, y int, line configLine) {
 	style := a.configLineStyle(line)
 	switch {
+	case line.bar:
+		x := drawBar(screen, inner.Min.X+textColumn, y, barWidth, line.fraction, &a.palette)
+		drawText(screen, x+1, y, inner.Max.X-1, line.label, a.palette.panelMuted)
 	case line.note:
 		drawText(screen, inner.Min.X+textColumn, y, inner.Max.X-1, line.label, a.noteStyle(line))
 	case line.typed:

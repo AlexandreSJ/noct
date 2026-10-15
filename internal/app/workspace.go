@@ -80,11 +80,19 @@ func (a *App) startTerminal(id layout.PaneID, frame image.Rectangle) (view, erro
 
 // startShell opens the user's shell in dir, remembered as a shell so its session can open it again.
 func (a *App) startShell(id layout.PaneID, frame image.Rectangle, dir string) (view, error) {
-	v, err := a.startInPane(id, frame, a.shellArgv, dir, fmt.Sprintf("pane%d", id))
+	v, err := a.startInPane(id, frame, a.shellArgv, dir, a.terminalLogName(id))
 	if err == nil {
 		a.shells[id] = true
 	}
 	return v, err
+}
+
+// terminalLogName names a terminal pane's log, or is empty, for no log, unless the config logs terminals.
+func (a *App) terminalLogName(id layout.PaneID) string {
+	if !a.config.Logs.Terminals {
+		return ""
+	}
+	return fmt.Sprintf("pane%d", id)
 }
 
 // startInPane runs argv in dir in the pane id, which leaves its tab when the program exits.

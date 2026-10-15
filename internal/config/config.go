@@ -82,16 +82,25 @@ type Flows struct {
 }
 
 // Logs bounds what noct keeps of what programs print: logs older than KeepDays go, and then the
-// oldest go while all of them together take more than MaxSizeMB.
+// oldest go while all of them together take more than MaxSizeKB. Terminals logs what terminal
+// panes print too; scripts, flows and the AI's commands are always logged.
 type Logs struct {
-	KeepDays  int `toml:"keep_days"`
-	MaxSizeMB int `toml:"max_size_mb"`
+	KeepDays  int  `toml:"keep_days"`
+	MaxSizeKB int  `toml:"max_size_kb"`
+	Terminals bool `toml:"terminals"`
+	// MaxSizeMB is the limit as older files wrote it; loading moves it to MaxSizeKB.
+	MaxSizeMB int `toml:"max_size_mb,omitzero"`
+}
+
+// MaxSizeBytes is the limit on all logs together, in bytes.
+func (l Logs) MaxSizeBytes() int64 {
+	return int64(l.MaxSizeKB) << 10
 }
 
 // Default log limits.
 const (
 	DefaultKeepDays  = 90
-	DefaultMaxSizeMB = 200
+	DefaultMaxSizeKB = 200 << 10
 )
 
 // What a new tab opens with: nothing, or a terminal, the default. The app knows the other panels.
@@ -154,7 +163,7 @@ func Default() Config {
 		FileManager:    FileManagerTerminal,
 		ScriptHints:    true,
 		ScriptsSort:    SortByName,
-		Logs:           Logs{KeepDays: DefaultKeepDays, MaxSizeMB: DefaultMaxSizeMB},
+		Logs:           Logs{KeepDays: DefaultKeepDays, MaxSizeKB: DefaultMaxSizeKB},
 		MCP:            MCP{ApprovalSeconds: DefaultApprovalSeconds},
 	}
 }
@@ -182,8 +191,12 @@ func (c Config) normalized() Config {
 	if c.Logs.KeepDays <= 0 {
 		c.Logs.KeepDays = DefaultKeepDays
 	}
-	if c.Logs.MaxSizeMB <= 0 {
-		c.Logs.MaxSizeMB = DefaultMaxSizeMB
+	if c.Logs.MaxSizeMB > 0 {
+		c.Logs.MaxSizeKB = c.Logs.MaxSizeMB << 10
+	}
+	c.Logs.MaxSizeMB = 0
+	if c.Logs.MaxSizeKB <= 0 {
+		c.Logs.MaxSizeKB = DefaultMaxSizeKB
 	}
 	c.Flows.OutputKB = max(c.Flows.OutputKB, 0)
 	if c.MCP.ApprovalSeconds <= 0 {

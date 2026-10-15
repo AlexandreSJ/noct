@@ -153,6 +153,15 @@ func Remove(entries ...Entry) error {
 // Prune removes the logs started more than keepDays before now, then the oldest while all of
 // them take more than maxBytes. It returns what it removed.
 func Prune(dir string, keepDays int, maxBytes int64, now time.Time) ([]Entry, error) {
+	expired, err := Expired(dir, keepDays, maxBytes, now)
+	if err != nil {
+		return nil, err
+	}
+	return expired, Remove(expired...)
+}
+
+// Expired lists, oldest first, the logs Prune would remove with these limits, removing none.
+func Expired(dir string, keepDays int, maxBytes int64, now time.Time) ([]Entry, error) {
 	entries, err := List(dir)
 	if err != nil {
 		return nil, err
@@ -162,15 +171,15 @@ func Prune(dir string, keepDays int, maxBytes int64, now time.Time) ([]Entry, er
 	for _, e := range entries {
 		total += e.Size
 	}
-	var removed []Entry
+	var expired []Entry
 	for _, e := range entries { // oldest first
 		if !e.At.Before(cutoff) && total <= maxBytes {
 			break
 		}
-		removed = append(removed, e)
+		expired = append(expired, e)
 		total -= e.Size
 	}
-	return removed, Remove(removed...)
+	return expired, nil
 }
 
 // CountLines counts the lines a log holds, its rotated part included.

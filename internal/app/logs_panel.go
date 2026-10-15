@@ -94,7 +94,7 @@ func (a *App) startLogs(id layout.PaneID, _ image.Rectangle) (view, error) {
 // oldest ones, forgetting them in the runs that wrote them.
 func (a *App) pruneLogs() {
 	limits := a.config.Logs
-	removed, err := logstore.Prune(logstore.LogsDir(), limits.KeepDays, int64(limits.MaxSizeMB)<<20, time.Now())
+	removed, err := logstore.Prune(logstore.LogsDir(), limits.KeepDays, limits.MaxSizeBytes(), time.Now())
 	if len(removed) > 0 {
 		gone := map[string]bool{}
 		for _, e := range removed {
@@ -499,7 +499,7 @@ func (p *logsPanel) drawTotals(screen uv.Screen, area image.Rectangle, stats map
 		all += s.size
 	}
 	limits := p.app.config.Logs
-	limit := int64(limits.MaxSizeMB) << 20
+	limit := limits.MaxSizeBytes()
 	used := float64(all) / float64(max(limit, 1))
 	drawLines(screen, area, area.Min.Y, []styledLine{
 		{"this month", pal.panelHeading},

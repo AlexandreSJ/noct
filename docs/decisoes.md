@@ -355,6 +355,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 ## ADR-029 — Logs com limites, calendário em `prefixo` + `h` e histórico em `runs.json`
 
+*Atualizada pela ADR-044:* o tamanho vai em `max_size_kb`, os limites aceitam valores digitados, e terminais só são gravados com `[logs] terminals` ligado.
+
 **Contexto.** O mantenedor pediu um histórico com os logs: guardar por 90 dias e no máximo 200 MB, os dois configuráveis; ver os logs com barras de peso, ordenar por nome, data e peso; e trocar `prefixo` + `h` do resize para os logs por data, com um calendário navegável, quantas execuções houve em cada dia, peso (de cada log e do dia), linhas, e limpar um log, o dia ou tudo, com confirmação. O resize passa para `prefixo` + `n`.
 
 **Decisão.**
@@ -498,6 +500,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 ## ADR-040 — Config com mouse, prefixo capturado e volta ao padrão
 
+*Atualizada pela ADR-044:* os resets só aceitam `Enter`, e o segundo precisa vir em até 1000 ms.
+
 **Contexto.** O mantenedor pediu o config clicável (hover, clique nas setas e em `on`/`off`), um prefixo com quantos modificadores o usuário quiser, pego apertando a combinação e com aviso do que ela já usa, e uma última linha para voltar tudo ao padrão. É a primeira de quatro partes; as outras são o mapa de teclas (todas as teclas trocáveis, por tela) e o mesmo "voltar ao padrão" nele. Personalizar teclas é polimento da fase 5, antecipado pelo mantenedor.
 
 **Decisão.**
@@ -546,3 +550,17 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **`never`:** nunca roda, nem com a home à vista.
 
 **Consequências.** `always` atrasa a sessão em 2 s a cada conexão, o que é o pedido; quem tem pressa aperta uma tecla. Os programas nos painéis continuam rodando e recebendo o tamanho da tela enquanto a home os cobre.
+
+## ADR-044 — Limites de log digitados, terminais fora dos logs e reset só com `Enter`
+
+**Contexto.** O mantenedor pediu valores livres para os limites dos logs (99 dias, 222 MB, 20000 KB), uma opção para não gravar os terminais, cujos logs enchiam com o histórico do shell sem uso, e notou que o reset do config armava e confirmava com `←`/`→`, o que podia apagar tudo por acidente. É polimento da fase 5, antecipado pelo mantenedor.
+
+**Decisão.**
+- **Limites digitados:** em `keep` e `max size`, `←`/`→` continuam nos valores prontos; `Enter` abre o valor atual para editar e um dígito começa um novo, no campo de texto de sempre (ADR-042). `Enter` salva e `Esc` descarta, sem fechar o config; sair da linha descarta. Dias vão de 1 a 36500; o tamanho aceita `KB`, `MB` e `GB` (sem unidade, MB; decimais com ponto ou vírgula), de 1 KB a 1 TB. Um valor que não se lê fica aberto com o problema embaixo.
+- **Tamanho em KB:** para `20000 KB` caber sem arredondar, o arquivo passa de `max_size_mb` para `max_size_kb`. Um `max_size_mb` de arquivos antigos ainda é lido e vira KB; o noct não o grava mais.
+- **Confirmação antes de apagar:** mudar `keep` ou `max size` (pelas setas, digitando ou pelo reset do config) conta antes, com `logstore.Expired`, os logs que os limites novos apagariam. Se há algum, uma pergunta diz quantos e quanto ocupam; `n`/`Esc` mantém os limites e volta ao config (com o texto digitado, se havia). Sem nenhum a apagar, aplica direto. A limpeza de hora em hora e ao iniciar segue sem perguntar, porque usa os limites já aceitos.
+- **Barra de uso:** embaixo de `max size`, a barra da view de logs (`drawBar`) mostra quanto todos os logs ocupam do tamanho máximo, com a porcentagem, o total e quantos logs são. O total é lido ao abrir o config e depois de cada mudança de limite, não a cada quadro.
+- **`[logs] terminals`**, desligado por padrão: painéis de terminal (o shell e o terminal do file manager) não gravam log. Scripts, fluxos, passos, comandos da IA, ajudas e editores continuam gravados, porque o histórico de execuções e a IA leem esses logs. Vale para terminais abertos depois da mudança.
+- **Reset só com `Enter`:** nas duas linhas de reset (config e teclas), setas, espaço e cliques não fazem nada. O primeiro `Enter` arma por 1000 ms (`resetWindow`), e só um segundo `Enter` nesse tempo reseta; depois disso o aviso some e o próximo `Enter` arma de novo.
+
+**Consequências.** Quem tinha `max_size_mb` no arquivo passa a ver `max_size_kb` ao salvar algo no config. Logs de terminais deixam de existir por padrão, então a view de logs e o calendário mostram só execuções, a não ser que `terminals` seja ligado. O reset ficou mais difícil de disparar sem querer, inclusive com o mouse.

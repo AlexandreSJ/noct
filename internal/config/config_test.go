@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -32,7 +33,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 		ScriptsSort:   SortByRun,
 		ScriptFolders: []string{"~/work/scripts", "/srv/shared"},
 		Keys:          map[string]map[string][]string{"scripts": {"edit": {"x", "ctrl+e"}, "delete": {}}},
-		Logs:          Logs{KeepDays: 30, MaxSizeMB: 1000},
+		Logs:          Logs{KeepDays: 30, MaxSizeKB: 20000, Terminals: true},
 		Flows:         Flows{OutputKB: 64},
 		MCP:           MCP{Policy: map[string]string{"run_command": PolicyDeny}, ApprovalSeconds: 60},
 	}
@@ -107,6 +108,30 @@ func TestLoadPlaysTheIntroOnEmptyForAnUnknownValue(t *testing.T) {
 	}
 	if cfg.Appearance.AnimateIntro != IntroEmpty {
 		t.Errorf("animate intro %q, want %q", cfg.Appearance.AnimateIntro, IntroEmpty)
+	}
+}
+
+func TestSaveLeavesOutTheOldLogSize(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := Save(path, Default()); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(content), "max_size_mb") {
+		t.Errorf("saved the old setting:\n%s", content)
+	}
+}
+
+func TestLoadMovesTheOldLogSizeInMBToKB(t *testing.T) {
+	cfg, err := Load(writeConfig(t, "[logs]\nmax_size_mb = 300\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Logs.MaxSizeKB != 300<<10 || cfg.Logs.MaxSizeMB != 0 || cfg.Logs.Terminals {
+		t.Errorf("got %+v", cfg.Logs)
 	}
 }
 

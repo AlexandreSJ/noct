@@ -90,6 +90,20 @@ func TestPruneRemovesOldLogsThenTheOldestOverTheSize(t *testing.T) {
 	}
 }
 
+func TestExpiredListsWhatPruneWouldRemoveAndRemovesNothing(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Date(2026, 9, 27, 12, 0, 0, 0, time.Local)
+	writeLog(t, dir, "2026-05-01", "080000-old.log", 10)
+	writeLog(t, dir, "2026-09-27", "080000-b.log", 60)
+	expired, err := Expired(dir, 30, 1000, now)
+	if err != nil || len(expired) != 1 || expired[0].Name != "old" {
+		t.Fatalf("expired %+v, %v; want old", expired, err)
+	}
+	if left, _ := List(dir); len(left) != 2 {
+		t.Errorf("Expired removed logs: %d left", len(left))
+	}
+}
+
 func TestPrettySize(t *testing.T) {
 	for size, want := range map[int64]string{812: "812 B", 12700: "12.4 KB", 3 << 20: "3 MB", 5 << 30: "5 GB", 1536 << 20: "1.5 GB"} {
 		if got := PrettySize(size); got != want {

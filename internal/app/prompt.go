@@ -24,6 +24,8 @@ type textPrompt struct {
 type confirmation struct {
 	question string
 	accept   func()
+	// cancel, when set, runs after a no, such as going back to the panel that asked.
+	cancel func()
 	// again is the key that asked, which also confirms: prefix+q, then q again, quits.
 	again string
 }
@@ -118,6 +120,9 @@ func (a *App) handleConfirmKey(key uv.KeyPressEvent) {
 		a.confirm.accept()
 	case "esc", "n":
 		a.mode = normalMode
+		if a.confirm.cancel != nil {
+			a.confirm.cancel()
+		}
 	}
 }
 

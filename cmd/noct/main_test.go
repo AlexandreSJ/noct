@@ -243,26 +243,67 @@ func TestQuitCommandStopsTheDaemon(t *testing.T) {
 	waitForExit(t, exited, "the attached client did not end when the daemon quit")
 }
 
-func TestPaneOutputIsLogged(t *testing.T) {
-	s := newSession(t)
+// writeConfig gives the session's noct a config file before it starts.
+func writeConfig(t *testing.T, s *session, content string) {
+	t.Helper()
+	for _, entry := range s.env {
+		if home, ok := strings.CutPrefix(entry, "HOME="); ok {
+			dir := filepath.Join(home, ".config", "noct")
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
+	}
+	t.Fatal("the session has no HOME")
+}
+
+// echoInATerminal prints logged-42 in a new terminal pane and waits for it on screen.
+func echoInATerminal(t *testing.T, s *session) {
+	t.Helper()
 	noct, _ := s.attach(t)
 	waitForScreen(t, noct, "the home screen", showsHome)
 	openTerminal(t, noct)
 	typeText(noct, "echo logged-$((6*7))")
 	enter(noct)
 	waitForScreen(t, noct, "the output", func(screen string) bool { return strings.Contains(screen, "logged-42") })
+}
+
+func logsContain(s *session, text string) bool {
+	logs, _ := filepath.Glob(filepath.Join(stateDir(s), "logs", "*", "*.log"))
+	for _, log := range logs {
+		if content, _ := os.ReadFile(log); strings.Contains(string(content), text) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestTerminalOutputIsLoggedWhenTheConfigSaysSo(t *testing.T) {
+	s := newSession(t)
+	writeConfig(t, s, "[logs]\nterminals = true\n")
+	echoInATerminal(t, s)
 
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		logs, _ := filepath.Glob(filepath.Join(stateDir(s), "logs", "*", "*.log"))
-		for _, log := range logs {
-			if content, _ := os.ReadFile(log); strings.Contains(string(content), "logged-42") {
-				return
-			}
+		if logsContain(s, "logged-42") {
+			return
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
 	t.Fatal("the pane output never reached a log file")
+}
+
+func TestTerminalOutputIsNotLoggedByDefault(t *testing.T) {
+	s := newSession(t)
+	echoInATerminal(t, s)
+	time.Sleep(500 * time.Millisecond) // a log, were there one, gets the output within this
+	if logsContain(s, "logged-42") {
+		t.Error("a terminal's output was logged with terminals off")
+	}
 }
 
 func TestScrollModeShowsEarlierOutput(t *testing.T) {
