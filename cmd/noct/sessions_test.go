@@ -33,9 +33,11 @@ func TestSessionsKeepTheirProgramsApart(t *testing.T) {
 	typeText(other, "d")
 	waitForExit(t, otherExited, "detaching did not end the client")
 
-	output, err := s.run(t, "sessions")
-	if err != nil || !strings.Contains(output, "dev") || !strings.Contains(output, "other") {
-		t.Fatalf("noct sessions: %v\n%s", err, output)
+	for _, command := range []string{"sessions", "attach"} {
+		output, err := s.run(t, command)
+		if err != nil || !strings.Contains(output, "dev") || !strings.Contains(output, "other") {
+			t.Fatalf("noct %s: %v\n%s", command, err, output)
+		}
 	}
 
 	back, _ := s.attach(t, "attach", "dev")
@@ -93,4 +95,26 @@ func TestKillForgetsASessionWithoutNoctRunning(t *testing.T) {
 	if strings.Contains(string(content), `"gone"`) {
 		t.Errorf("the session is still saved:\n%s", content)
 	}
+}
+
+func TestTerminalOffersToRunAgainAfterQuit(t *testing.T) {
+	s := newSession(t)
+	noct, exited := s.attach(t)
+	waitForScreen(t, noct, "the home screen", showsHome)
+	openTerminal(t, noct)
+	typeText(noct, `sh -c 'echo started; sleep 300; :'`)
+	enter(noct)
+	waitForScreen(t, noct, "the program running", func(screen string) bool { return strings.Count(screen, "started") >= 2 })
+
+	if output, err := s.run(t, "quit"); err != nil {
+		t.Fatalf("noct quit: %v\n%s", err, output)
+	}
+	waitForExit(t, exited, "the attached client did not end when the daemon quit")
+
+	again, _ := s.attach(t)
+	waitForScreen(t, again, "the offer to run it again", func(screen string) bool { return strings.Contains(screen, "was running sh") })
+	enter(again)
+	waitForScreen(t, again, "the program running again", func(screen string) bool {
+		return strings.Contains(screen, "started") && !strings.Contains(screen, "was running")
+	})
 }

@@ -275,6 +275,11 @@ type directoryTeller interface {
 	Dir() string
 }
 
+// commandTeller is a view that knows the command its shell runs, such as a terminal running claude.
+type commandTeller interface {
+	ForegroundCommand() string
+}
+
 func (a *App) savedPane(t *tab, id layout.PaneID) (saved.Pane, bool) {
 	p := saved.Pane{ID: id, Name: t.paneNames[id]}
 	switch v := t.views[id].(type) {
@@ -285,12 +290,18 @@ func (a *App) savedPane(t *tab, id layout.PaneID) (saved.Pane, bool) {
 	case *logsPanel:
 		p.Kind = saved.Logs
 	default:
-		if !a.shells[id] {
+		sh := a.shells[id]
+		if sh == nil {
 			return p, false // runs, editors and help end with what they were for
 		}
-		p.Kind, p.Dir = saved.Terminal, a.workDir
+		p.Kind, p.Dir, p.Log, p.Command = saved.Terminal, a.workDir, sh.log, sh.rerun
 		if teller, ok := v.(directoryTeller); ok && teller.Dir() != "" {
 			p.Dir = teller.Dir()
+		}
+		if teller, ok := v.(commandTeller); ok {
+			if command := teller.ForegroundCommand(); command != "" {
+				p.Command = command
+			}
 		}
 	}
 	return p, true
@@ -358,7 +369,11 @@ func (a *App) restoreView(id layout.PaneID, p saved.Pane) (view, error) {
 	area := a.workspaceArea()
 	switch p.Kind {
 	case saved.Terminal:
-		return a.startShell(id, area, existingDir(p.Dir, a.workDir))
+		v, err := a.startShellLogged(id, area, existingDir(p.Dir, a.workDir), p.Log)
+		if err == nil {
+			a.shells[id].rerun = p.Command
+		}
+		return v, err
 	case saved.Scripts:
 		return a.startScripts(id, area)
 	case saved.Inspect:

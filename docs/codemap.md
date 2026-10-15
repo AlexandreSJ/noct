@@ -7,8 +7,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | Path | Responsibility |
 |---|---|
 | `cmd/noct/main.go` | Entry point: `noct` (attach to the last session, starting the daemon), dispatch of the session commands, `noct quit`, `noct daemon`, dispatch of the script commands |
-| `cmd/noct/sessions.go` | `noct attach`/`a`/`att`/`-a`, `noct new`, `noct sessions`, `noct kill`: sessions by name, asking the running workspace or, without one, reading `sessions.json` |
-| `cmd/noct/sessions_test.go` | End-to-end tests of sessions: two sessions apart, a missing one refused, a session opened again after quit in its shell's directory, kill without noct running |
+| `cmd/noct/sessions.go` | `noct attach`/`a`/`att`/`-a` (listing the sessions without a name), `noct new`, `noct sessions`, `noct kill`: sessions by name, asking the running workspace or, without one, reading `sessions.json` |
+| `cmd/noct/sessions_test.go` | End-to-end tests of sessions: two sessions apart, a missing one refused, a session opened again after quit in its shell's directory, a program offered to run again after quit, kill without noct running |
 | `cmd/noct/mcp.go` | `noct mcp`: the MCP server on stdin and stdout, with the audit log and the daemon as its workspace |
 | `cmd/noct/mcp_test.go` | End-to-end test of `noct mcp`: an AI runs a flow in a real workspace and reads its result and pane |
 | `cmd/noct/scripts.go` | `noct ls`, `noct check`, `noct -s`: scripts in the current terminal, without the daemon |
@@ -20,18 +20,20 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/client/request.go` | Asking the running workspace to do one thing for the MCP server, and reading its answer |
 | `internal/client/pane.go` | Asking the running workspace for a step's pane and waiting for its exit code |
 | `internal/daemon/daemon.go` | Run the daemon; start it in the background when needed |
-| `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs |
+| `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs; appending to one and reading its end |
 | `internal/logstore/entries.go` | Logs by day, each with a flow run's result beside it: listing, line counts, removing, pruning by age and total size, readable sizes |
-| `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, exit code, foreground program, current directory |
+| `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, exit code, foreground program and its command line, current directory |
 | `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing, mouse modes and forwarding |
+| `internal/pane/history.go` | An earlier program's output drawn on a screen of its own and replayed as text and colors above a new one |
 | `internal/pane/sync.go` | Holds back a synchronized-output frame (mode 2026) until it ends, so it never shows half drawn |
 | `internal/pane/images.go` | Writes image placeholder cells at the cursor and moves it as kitty does |
 | `internal/pane/keys.go` | Key encodings the emulator lacks (modified navigation keys) |
-| `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again, names, what the command line lists |
+| `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again (a terminal with its command and log), names, what the command line lists |
 | `internal/layout/shape.go` | A tree as plain data (`Shape`) and building it again under new pane IDs |
 | `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks of a pane and those below it (one pane shown, the others folded to a row), move by columns, remove, rects, directional focus, draggable dividers |
 | `internal/app/app.go` | App state, event loop, frame pacing, attach (to the session asked for)/detach, config loading, shutdown |
 | `internal/app/sessions.go` | Sessions: create, switch, close (keeping the layout), delete, rename; saving them and opening a closed one again; the command line's list and delete |
+| `internal/app/rerun.go` | The box over a reopened terminal offering to run again what it ran (enter types it, esc forgets it); typing text into a view |
 | `internal/app/sessions_popup.go` | Sessions popup (prefix+o): the sessions by last use, keys to open, create, rename, close and delete |
 | `internal/app/client.go` | Daemon side of an attached terminal: decoding its keys, drawing to it, greeting connections |
 | `internal/app/scroll.go` | Scroll mode through a terminal's history |

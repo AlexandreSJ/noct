@@ -75,18 +75,61 @@ func (p *Process) Wait() int {
 // ForegroundProgram is the name of the program the terminal gives the keyboard to, and whether
 // it is some program other than the one started (a shell running htop reports htop).
 func (p *Process) ForegroundProgram() (string, bool) {
-	raw, err := p.terminal.SyscallConn()
-	if err != nil {
-		return "", false
-	}
-	group, groupErr := 0, error(nil)
-	// SyscallConn keeps the file non-blocking, unlike Fd, so a pending Read still ends on Close.
-	err = raw.Control(func(fd uintptr) { group, groupErr = unix.IoctlGetInt(int(fd), unix.TIOCGPGRP) })
-	if err != nil || groupErr != nil || group == p.cmd.Process.Pid {
+	group, ok := p.foregroundGroup()
+	if !ok {
 		return "", false
 	}
 	name := processName(group)
 	return name, name != ""
+}
+
+// ForegroundCommand is the command line of the program the terminal gives the keyboard to, quoted
+// for a shell, or "" when only the started program runs. A session keeps it to offer running it
+// again.
+func (p *Process) ForegroundCommand() string {
+	group, ok := p.foregroundGroup()
+	if !ok {
+		return ""
+	}
+	if cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", group)); err == nil {
+		args := strings.Split(strings.TrimRight(string(cmdline), "\x00"), "\x00")
+		for i, arg := range args {
+			args[i] = shellQuote(arg)
+		}
+		return strings.Join(args, " ")
+	}
+	output, err := exec.Command("ps", "-o", "args=", "-p", strconv.Itoa(group)).Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+
+// foregroundGroup is the process group the terminal gives the keyboard to, unless it is the
+// started program's own.
+func (p *Process) foregroundGroup() (int, bool) {
+	raw, err := p.terminal.SyscallConn()
+	if err != nil {
+		return 0, false
+	}
+	group, groupErr := 0, error(nil)
+	// SyscallConn keeps the file non-blocking, unlike Fd, so a pending Read still ends on Close.
+	err = raw.Control(func(fd uintptr) { group, groupErr = unix.IoctlGetInt(int(fd), unix.TIOCGPGRP) })
+	if err != nil || groupErr != nil || group <= 0 || group == p.cmd.Process.Pid {
+		return 0, false
+	}
+	return group, true
+}
+
+// shellQuote leaves plain words as they are and puts anything else in single quotes.
+func shellQuote(arg string) string {
+	plain := arg != "" && !strings.ContainsFunc(arg, func(r rune) bool {
+		return !strings.ContainsRune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_./=:,+@%", r)
+	})
+	if plain {
+		return arg
+	}
+	return "'" + strings.ReplaceAll(arg, "'", `'\''`) + "'"
 }
 
 // Dir is the directory the program is in now, such as a shell after cd, or "" where the system

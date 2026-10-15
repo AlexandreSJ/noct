@@ -41,7 +41,7 @@ type App struct {
 	sessions []*session
 	nextPane layout.PaneID
 	// shells are the panes running the user's shell, which a session opens again.
-	shells map[layout.PaneID]bool
+	shells map[layout.PaneID]*shell
 	// sessionsPath keeps the sessions; sessionsSaved is what it holds, to write only changes.
 	sessionsPath  string
 	sessionsSaved saved.File
@@ -139,7 +139,7 @@ func New() *App {
 		screenChanged:    make(chan struct{}, 1),
 		loopTasks:        make(chan func()),
 		stopped:          make(chan struct{}),
-		shells:           make(map[layout.PaneID]bool),
+		shells:           make(map[layout.PaneID]*shell),
 		sessionsPath:     saved.Path(),
 	}
 	a.workDir, _ = os.Getwd() // until a terminal attaches and reports its own
@@ -405,15 +405,17 @@ func (a *App) onLoop(task func()) {
 }
 
 func (a *App) shutdown() error {
-	a.leaveSession() // before the programs stop, while shells still tell their directories
+	// Saved before the programs stop, while shells still tell their directories and commands.
+	if a.client != nil {
+		a.detachClient("quit")
+	} else {
+		a.leaveSession()
+	}
 	close(a.stopped)
 	for _, t := range a.session.tabs {
 		for _, v := range t.views {
 			v.Close()
 		}
-	}
-	if a.client != nil {
-		a.detachClient("quit")
 	}
 	return nil
 }

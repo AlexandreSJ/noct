@@ -184,17 +184,7 @@ func (a *App) sendInput(args inputArgs) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	v := t.views[id]
-	for _, r := range args.Text {
-		if r == '\n' {
-			v.SendKey(uv.KeyPressEvent{Code: uv.KeyEnter})
-			continue
-		}
-		v.SendKey(uv.KeyPressEvent{Code: r, Text: string(r)})
-	}
-	if args.Enter {
-		v.SendKey(uv.KeyPressEvent{Code: uv.KeyEnter})
-	}
+	typeInView(t.views[id], args.Text, args.Enter)
 	return map[string]int{"pane": args.Pane}, nil
 }
 

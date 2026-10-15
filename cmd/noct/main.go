@@ -12,13 +12,14 @@ import (
 	"github.com/AlexandreSJ/noct/internal/ipc"
 )
 
-const usage = "usage: noct [-h] [attach <session> | new [session] | sessions | kill <session> | ls | check | -s <script> [name=value ...] | flow run <flow> [--steps <first>..<last>] [name=value ...] | flow ls | enable <flow> | disable <flow> | promote <flow or script> | mcp | quit]"
+const usage = "usage: noct [-h] [attach [session] | new [session] | sessions | kill <session> | ls | check | -s <script> [name=value ...] | flow run <flow> [--steps <first>..<last>] [name=value ...] | flow ls | enable <flow> | disable <flow> | promote <flow or script> | mcp | quit]"
 
 const help = `noct: a terminal workspace for people who test.
 
 Usage:
   noct                              attach to the session used last, starting noct if needed
-  noct attach, a, att, -a <session> attach to the session with that name
+  noct attach, a, att, -a [session] attach to the session with that name; without one,
+                                    list the sessions
   noct new [session]                start a session, named or numbered, and attach to it
   noct sessions                     list the sessions: open or closed, tabs, last use
   noct kill <session>               delete a session: its programs stop, its layout is
@@ -69,7 +70,7 @@ func run(args []string) error {
 	}
 	switch args[0] {
 	case "attach", "a", "att", "-a", "--attach":
-		return attachCommand(socket, args[1:])
+		return attachCommand(socket, args[1:], os.Stdout)
 	case "new":
 		return newSessionCommand(socket, args[1:])
 	case "sessions":

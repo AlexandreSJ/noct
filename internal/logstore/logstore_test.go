@@ -136,3 +136,44 @@ func TestResultGoesWithItsLog(t *testing.T) {
 		t.Errorf("the result outlived its log: %v", err)
 	}
 }
+
+func TestAppendGoesOnAfterTheLog(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "logs", "pane.log")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("12345"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	log, err := Append(path, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, chunk := range []string{"678", "abc"} {
+		if _, err := log.Write([]byte(chunk)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = log.Close()
+	current, _ := os.ReadFile(path)
+	older, _ := os.ReadFile(path + ".1")
+	if string(current) != "abc" || string(older) != "12345678" {
+		t.Errorf("current %q, older %q", current, older)
+	}
+}
+
+func TestTailStartsAtALine(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "pane.log")
+	if err := os.WriteFile(path, []byte("first line\nsecond\nthird\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(Tail(path, 10)); got != "third\n" {
+		t.Errorf("tail of 10 bytes = %q, want the last whole line", got)
+	}
+	if got := string(Tail(path, 100)); got != "first line\nsecond\nthird\n" {
+		t.Errorf("tail of a short log = %q, want all of it", got)
+	}
+	if Tail(filepath.Join(t.TempDir(), "missing.log"), 10) != nil {
+		t.Error("a missing log has a tail")
+	}
+}

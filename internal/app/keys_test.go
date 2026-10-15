@@ -47,7 +47,7 @@ func letter(r rune) uv.KeyPressEvent {
 func testApp(t *testing.T, tabs ...*tab) *App {
 	t.Helper()
 	current := &session{name: "1", tabs: tabs}
-	a := &App{session: current, sessions: []*session{current}, shells: make(map[layout.PaneID]bool), size: image.Pt(100, 30), configPath: filepath.Join(t.TempDir(), "config.toml")}
+	a := &App{session: current, sessions: []*session{current}, shells: make(map[layout.PaneID]*shell), size: image.Pt(100, 30), configPath: filepath.Join(t.TempDir(), "config.toml")}
 	a.config = config.Default()
 	a.prefix, _ = prefixFromConfig(a.config.Prefix) // the default prefix is always valid
 	a.shortcut = shortcutFromConfig(a.config.Shortcut)

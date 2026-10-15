@@ -95,6 +95,9 @@ func (a *App) drawPanes(screen uv.Screen, t *tab) {
 		}
 		drawFrame(screen, frame, title, lineStyle, titleStyle)
 		t.views[id].Draw(viewScreen, contentRect(frame))
+		if command := a.pendingRerun(id); command != "" {
+			a.drawRerun(screen, contentRect(frame), command)
+		}
 		a.highlightSelection(screen, t, id)
 	}
 }

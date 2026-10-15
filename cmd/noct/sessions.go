@@ -12,12 +12,16 @@ import (
 	saved "github.com/AlexandreSJ/noct/internal/session"
 )
 
-// attachCommand attaches to the session named after the command: noct attach dev.
-func attachCommand(socket string, args []string) error {
-	if len(args) != 1 {
-		return errors.New("usage: noct attach <session>")
+// attachCommand attaches to the session named after the command, noct attach dev, or without a
+// name lists the sessions there are to attach to.
+func attachCommand(socket string, args []string, out io.Writer) error {
+	switch len(args) {
+	case 0:
+		return listSessions(socket, out)
+	case 1:
+		return attach(socket, client.Target{Session: args[0]})
 	}
-	return attach(socket, client.Target{Session: args[0]})
+	return errors.New("usage: noct attach [session]")
 }
 
 // newSessionCommand creates a session, named or numbered, and attaches to it.

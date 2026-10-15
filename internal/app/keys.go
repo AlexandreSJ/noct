@@ -148,6 +148,10 @@ func (a *App) handleNormalKey(key uv.KeyPressEvent) {
 		return
 	}
 	if t := a.currentTab(); t != nil && !t.isEmpty() {
+		if a.pendingRerun(t.focused) != "" {
+			a.handleRerunKey(t, key)
+			return
+		}
 		v := t.focusedView()
 		if context := viewKeyContext(v); context != "" {
 			var ok bool

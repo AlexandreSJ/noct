@@ -57,6 +57,10 @@ type Pane struct {
 	Dir      string        `json:"dir,omitempty"`
 	Name     string        `json:"name,omitempty"`
 	Floating *Frame        `json:"floating,omitempty"`
+	// Command is what a terminal was running when it closed, offered to run again when it opens.
+	Command string `json:"command,omitempty"`
+	// Log is a terminal's log, which it goes on writing and shows the end of when it opens again.
+	Log string `json:"log,omitempty"`
 }
 
 type Frame struct {

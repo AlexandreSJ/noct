@@ -46,11 +46,12 @@
 
 Uma sessão é um conjunto de tabs com nome (ADR-037). O daemon guarda várias; o terminal conectado mostra uma, e as outras continuam rodando por trás.
 
-- `noct` volta à última sessão usada; `noct attach dev` (ou `a`, `att`, `-a`) entra na sessão `dev`, e `noct new [nome]` cria uma. Uma sessão que não existe é recusada, com a dica de `noct new`. `noct sessions` lista e `noct kill <nome>` apaga, com ou sem o noct rodando.
+- `noct` volta à última sessão usada; `noct attach dev` (ou `a`, `att`, `-a`) entra na sessão `dev`, e `noct attach` sem nome lista as sessões, e `noct new [nome]` cria uma. Uma sessão que não existe é recusada, com a dica de `noct new`. `noct sessions` lista e `noct kill <nome>` apaga, com ou sem o noct rodando.
 - Nomes não têm espaços, porque são digitados depois de `noct attach`; sem nome, a sessão ganha o primeiro número livre.
 - Com mais de uma sessão, a barra de tabs mostra à direita a sessão na tela (`◆ dev`). A busca (`prefixo` + `Space`) também troca de sessão.
-- **Fechar** uma sessão para os programas dela e guarda o layout; **reabrir** inicia de novo os shells, cada um no diretório em que estava, e os painéis do noct (scripts, inspect, logs), nos mesmos lugares, com os nomes de tabs e painéis. Execuções, editores e programas que rodavam dentro dos shells não voltam; o layout se fecha sobre eles. A sessão na tela, ao fechar, dá lugar à usada antes dela; a única sessão não fecha.
-- `noct quit` (ou `prefixo` + `q`) grava todas as sessões antes de parar: o próximo `noct` reabre a última como estava. As sessões também são gravadas ao trocar, desconectar e a cada 30 s.
+- **Fechar** uma sessão para os programas dela e guarda o layout; **reabrir** inicia de novo os shells, cada um no diretório em que estava, e os painéis do noct (scripts, inspect, logs), nos mesmos lugares, com os nomes de tabs e painéis. Execuções e editores não voltam; o layout se fecha sobre eles. Um programa que rodava dentro de um shell (`claude`, `ssh`, `htop`) também não volta sozinho: o shell reabre com uma caixa no centro do painel, `was running claude`, a linha de comando e `enter run again  esc cancel`. `Enter` digita o comando no shell, que fica no histórico dele e devolve o shell quando o programa termina; `Esc` esquece o comando; outras teclas esperam a resposta. A caixa não segue a sessão de onde o programa parou (a conversa do claude, a senha do ssh): só roda de novo a mesma linha. Uma caixa sem resposta continua lá se a sessão fechar de novo. (ADR-046)
+- Com `[logs] terminals` ligado, o shell reaberto mostra o fim do log do painel (até 256 KB) acima do prompt, com cores, separado por `── restored from the log ──`, e continua gravando no mesmo log. A sessão na tela, ao fechar, dá lugar à usada antes dela; a única sessão não fecha.
+- `noct quit` (ou `prefixo` + `q`) grava todas as sessões, com o comando de cada shell, antes de parar: o próximo `noct` reabre a última como estava. As sessões também são gravadas ao trocar, desconectar e a cada 30 s.
 - **Apagar** para os programas e esquece a sessão; apagar a da tela leva à usada antes dela, ou a uma nova.
 
 ## Atalhos: modo noct
@@ -129,7 +130,7 @@ O cursor aparece como `▏` no meio do texto, e um texto longo rola para mantê-
 
 ## Trocar as teclas
 
-Todas as teclas dos modos, painéis e popups do noct podem ser trocadas em `prefixo` + `c` → **Keys** → `binds of every screen` (ADR-041). A página lista, por contexto (`commands` depois do prefixo, `move`, `resize`, `scroll history`, `scripts panel`, `inspect flows`, `logs`, `finished run`, `sessions`, `MCP`, perguntas, popups, escolhas, busca, prompts, formulários e o próprio config), cada ação com as teclas que a fazem; `•` marca as trocadas.
+Todas as teclas dos modos, painéis e popups do noct podem ser trocadas em `prefixo` + `c` → **Keys** → `binds of every screen` (ADR-041). A página lista, por contexto (`commands` depois do prefixo, `move`, `resize`, `scroll history`, `scripts panel`, `inspect flows`, `logs`, `run again after reopening`, `finished run`, `sessions`, `MCP`, perguntas, popups, escolhas, busca, prompts, formulários e o próprio config), cada ação com as teclas que a fazem; `•` marca as trocadas.
 
 - `Enter` (ou clique no valor) e aperte a tecla. Numa ação com uma tecla, ela a substitui; com várias (`pgup  ctrl+b`), o primeiro `Enter` marca uma delas entre colchetes, `←`/`→` escolhem qual, e o segundo `Enter` pega a tecla nova no lugar dela, mostrando `[press a key…]` ali e, embaixo, qual está sendo substituída. Com o mouse, clicar numa das teclas já pega a tecla para ela. `a` acrescenta uma tecla, `Delete` volta a ação ao padrão. Como no prefixo, a tecla aparece como o terminal a mandou, `Enter` a usa e `esc` cancela.
 - Uma tecla que outra ação do mesmo contexto já tem gera um aviso (`⚠ n is new script or directory; enter moves it here`); usá-la tira a tecla da outra ação. Contextos diferentes não conflitam.

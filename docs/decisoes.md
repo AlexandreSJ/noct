@@ -464,6 +464,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 ## ADR-037 — Sessões com nome, reabertas depois de fechadas
 
+*Atualizada pela ADR-046:* o comando que rodava em cada shell é guardado e oferecido de novo ao reabrir, e o shell continua o próprio log.
+
 **Contexto.** O mantenedor pediu sessões com attach e detach: várias, com nome, que continuem existindo mesmo fechadas e possam ser reabertas; um popup em `prefixo` + `o` com o último acesso, renomear e apagar; `noct` voltando à última sessão e um comando para entrar numa sessão pelo nome. Configurações por sessão ficam para depois. Era também o item "retomar a sessão ao reconectar" da lista de qualidade de vida.
 
 **Decisão.**
@@ -583,3 +585,16 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Foco nas pilhas:** entre painéis igualmente próximos, as setas preferem o que a pilha mostra a um dobrado, antes do histórico de foco. Quando o painel aberto sai da pilha, ela mostra o que ficou no lugar dele, não o primeiro.
 
 **Consequências.** Não há como deixar um painel como coluna própria entre duas colunas de uma vez: ele vai para o fim da vizinha, e só vira coluna própria na borda da tab. Pilhas de painéis lado a lado deixam de ser criadas; sessões salvas com uma ainda abrem como estavam, e `prefixo` + `w` nelas desfaz a pilha.
+
+## ADR-046 — Rodar de novo o que os shells rodavam, e o log do painel ao reabrir
+
+**Contexto.** O mantenedor pediu que, ao voltar ao noct depois de `prefixo` + `q` (ou de fechar a sessão), um painel que rodava, por exemplo, o Claude Code ao menos dissesse isso e oferecesse rodar o mesmo comando de novo com `Enter`/`Esc`, como o zellij faz ao ressuscitar uma sessão; sem retomar a conversa do programa nem a senha de um ssh. Com o log dos terminais ligado, que o painel mostrasse mais do que tinha antes. Ele também cogitou inverter `q` e `d`; ficou como está, porque `d` (desconectar com tudo rodando) e `q` (parar os programas e guardar o layout) são o que tmux e zellij fazem, e `noct attach` sem nome passou a listar as sessões. É polimento das sessões (ADR-037), antecipado pelo mantenedor.
+
+**Decisão.**
+- **O comando vem do terminal, não do shell:** o grupo de processos em primeiro plano do pty (`TIOCGPGRP`) e a linha de comando dele em `/proc/<pid>/cmdline` (fora do Linux, `ps -o args=`), com aspas de shell onde precisa. Funciona com qualquer shell, sem ganchos no `.zshrc`; um pipeline guarda o primeiro programa, e um `sh -c` cujo último comando o shell executa no lugar guarda esse comando.
+- **Gravado com a sessão** em `sessions.json` (`command` no painel), a cada gravação (troca, desconexão, 30 s, quit). No quit, a gravação acontece antes de os programas pararem: o cliente se desconecta antes de os painéis fecharem, porque desconectar grava de novo e, depois, os shells já não diriam o comando.
+- **Ao reabrir**, o shell começa normal, e uma caixa no centro do painel diz o programa e a linha. `Enter` digita a linha no shell e aperta enter, em vez de rodá-la como programa do painel: ela entra no histórico do shell, e o shell fica quando o programa termina. `Esc` esquece. Outras teclas esperam, como no zellij. A tecla `enter` é trocável no contexto `rerun` (ADR-041). Sem resposta, o comando continua guardado.
+- **Log contínuo:** com `[logs] terminals` ligado (ADR-044), o painel guarda o caminho do log (`log`), e o shell reaberto escreve depois do que ele tem (`logstore.Append`) em vez de começar outro. Os últimos 256 KB aparecem acima do prompt. Eles passam antes por um emulador à parte, com o que ele responderia descartado, e chegam ao painel só como texto e cores: repetidos crus, as perguntas da saída antiga (posição do cursor, cores) seriam respondidas ao shell novo como se o usuário as digitasse, e um programa de tela cheia deixaria a tela alternativa ligada.
+
+**Consequências.** Rodar de novo é rodar a mesma linha: programas que retomam o próprio estado (`claude --resume`) precisam que a linha diga isso. Um comando com segredos na linha de comando fica gravado em `sessions.json`, como já fica no histórico do shell. O log de um terminal pode atravessar dias e reaberturas, numa só entrada com a data em que começou.
+

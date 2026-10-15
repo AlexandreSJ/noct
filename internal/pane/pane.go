@@ -40,6 +40,8 @@ type Options struct {
 	OnTerminalGraphics func(commands []byte)
 	// Log, when set, receives everything the program prints and is closed after it exits.
 	Log io.WriteCloser
+	// History is what an earlier program printed in this place, shown above what this one prints.
+	History []byte
 }
 
 // Pane is a terminal: a program, its pseudo-terminal and the emulated screen it draws on.
@@ -86,6 +88,9 @@ func Start(opts Options) (*Pane, error) {
 	}
 	p.title.Store("")
 	p.cursorVisible.Store(true)
+	if len(opts.History) > 0 {
+		_, _ = p.screen.Write(renderHistory(opts.History, opts.Size.Cols)) // text and colors ask nothing back
+	}
 	// Callbacks run while screenLock is held, so they only touch atomics.
 	p.screen.SetCallbacks(vt.Callbacks{
 		// Invalid UTF-8 would reach the real terminal as is and throw its cursor off.
@@ -396,6 +401,11 @@ func (p *Pane) SendMouse(event uv.MouseEvent) {
 // ForegroundProgram is the program the user is running in the pane's shell, if any.
 func (p *Pane) ForegroundProgram() (string, bool) {
 	return p.process.ForegroundProgram()
+}
+
+// ForegroundCommand is the command line the user is running in the pane's shell, or "".
+func (p *Pane) ForegroundCommand() string {
+	return p.process.ForegroundCommand()
 }
 
 // Dir is the directory the pane's program is in now, or "" when it cannot be told.

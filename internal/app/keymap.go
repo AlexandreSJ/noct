@@ -159,6 +159,9 @@ var keyContexts = []keyContext{
 		{"clear", "clear", []string{"delete"}},
 		{"close", "close the panel", []string{"ctrl+d"}},
 	}},
+	{id: "rerun", label: "run again after reopening", actions: []keyAction{
+		{"run", "run again", []string{"enter"}},
+	}},
 	{id: "run", label: "finished run", actions: []keyAction{
 		{"restart", "run again", []string{"r"}},
 		{"close", "close", []string{"enter", "q", "ctrl+d"}},

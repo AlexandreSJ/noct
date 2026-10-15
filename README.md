@@ -151,7 +151,7 @@ claude mcp add noct -- noct mcp
 | Command | What it does |
 |---|---|
 | `noct` | Attach to the session used last, starting noct if needed |
-| `noct attach <session>` (or `a`, `att`, `-a`) | Attach to a session by name |
+| `noct attach [session]` (or `a`, `att`, `-a`) | Attach to a session by name; without one, list the sessions |
 | `noct new [session]` | Start a session, named or numbered, and attach to it |
 | `noct sessions` | List the sessions: open or closed, tabs, last use |
 | `noct kill <session>` | Delete a session: its programs stop and its layout is forgotten |
@@ -173,7 +173,7 @@ Your programs keep running when you close the terminal or detach with `Ctrl+Spac
 
 Keep separate workspaces as named sessions: `noct new dev` starts one, `noct attach dev` comes back to it, and `Ctrl+Space` `o` lists them all with when each was last used, to switch, create, rename, close or delete them. Plain `noct` returns to the session you used last.
 
-A closed session, or every session after `noct quit`, keeps its tabs and panes: opening it again starts its shells in the directories they were in and its noct panels where they were. Programs running inside the shells, and script runs, do not come back.
+A closed session, or every session after `noct quit`, keeps its tabs and panes: opening it again starts its shells in the directories they were in and its noct panels where they were. A program that was running in a shell, such as `claude` or `ssh`, does not come back by itself: the pane says what it was, and `Enter` runs the same command again (`Esc` leaves the shell alone). With terminal logs on (`[logs] terminals`), each shell also shows the end of what it printed before and goes on writing the same log. Script runs do not come back.
 
 The daemon keeps running the version it started with. After updating or rebuilding noct, quit it (`Ctrl+Space` `q`) and run `noct` again; noct reminds you in the tab bar when it notices a newer binary.
 

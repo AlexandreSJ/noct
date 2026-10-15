@@ -18,6 +18,9 @@ import (
 // maxPaneLogSize caps each terminal's log; older output rotates into one backup file.
 const maxPaneLogSize = 10 << 20
 
+// historySize is how much of its log a terminal opened again shows of what it printed before.
+const historySize = 256 << 10
+
 // viewStarter creates the view of a new pane, sized for its frame.
 type viewStarter func(id layout.PaneID, frame image.Rectangle) (view, error)
 
@@ -35,6 +38,8 @@ type program struct {
 	logName string
 	// logPath, when set, is the log's path, chosen by whoever needs to find the log again.
 	logPath string
+	// continueLog writes after what the log at logPath has, and shows its end above the program.
+	continueLog bool
 	// env is added to the environment programs get.
 	env []string
 	// onExit runs on the event loop after the program exits.
@@ -60,7 +65,12 @@ func (a *App) startProgram(p program, size pty.Size) (view, error) {
 		logPath = logstore.Path(p.logName, time.Now())
 	}
 	if logPath != "" {
-		if log, err := logstore.Create(logPath, maxPaneLogSize); err == nil {
+		open := logstore.Create
+		if p.continueLog {
+			opts.History = logstore.Tail(logPath, historySize)
+			open = logstore.Append
+		}
+		if log, err := open(logPath, maxPaneLogSize); err == nil {
 			opts.Log = log
 		} else {
 			a.statusMessage = err.Error() // the terminal still works, only without a log
@@ -80,9 +90,22 @@ func (a *App) startTerminal(id layout.PaneID, frame image.Rectangle) (view, erro
 
 // startShell opens the user's shell in dir, remembered as a shell so its session can open it again.
 func (a *App) startShell(id layout.PaneID, frame image.Rectangle, dir string) (view, error) {
-	v, err := a.startInPane(id, frame, a.shellArgv, dir, a.terminalLogName(id))
+	return a.startShellLogged(id, frame, dir, "")
+}
+
+// startShellLogged opens the user's shell going on with the log at logPath, when the config logs
+// terminals: the shell shows the log's end and writes after it. Without logPath it starts a log.
+func (a *App) startShellLogged(id layout.PaneID, frame image.Rectangle, dir, logPath string) (view, error) {
+	p := program{argv: a.shellArgv, dir: dir, onExit: func(int) { a.detachView(id) }}
+	if name := a.terminalLogName(id); name != "" {
+		p.logPath, p.continueLog = logPath, logPath != ""
+		if logPath == "" {
+			p.logPath = logstore.Path(name, time.Now())
+		}
+	}
+	v, err := a.launch(p, contentSize(frame))
 	if err == nil {
-		a.shells[id] = true
+		a.shells[id] = &shell{log: p.logPath}
 	}
 	return v, err
 }
