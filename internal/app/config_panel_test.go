@@ -4,6 +4,7 @@ import (
 	"image"
 	"strings"
 	"testing"
+	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
@@ -102,12 +103,49 @@ func TestResetAllToDefaultsAsksFirst(t *testing.T) {
 		t.Fatal("one enter reset the settings")
 	}
 	press(a, upPress, downPress, enterPress)
-	if a.config.Appearance.Theme == config.Default().Appearance.Theme || !a.configPanel.resetArmed {
+	if a.config.Appearance.Theme == config.Default().Appearance.Theme || !a.resetArmed() {
 		t.Fatal("moving away kept the reset armed")
 	}
 	press(a, enterPress)
 	if a.config.Appearance.Theme != config.Default().Appearance.Theme || a.mode != configMode {
 		t.Errorf("theme %s mode %v after confirming the reset", a.config.Appearance.Theme, a.mode)
+	}
+}
+
+func TestResetTakesOnlyEnter(t *testing.T) {
+	for _, row := range []configRow{resetRow, resetBindsRow} {
+		a := openConfigAt(t, themeRow)
+		press(a, rightPress)
+		if row == resetBindsRow {
+			a.openBinds()
+		}
+		a.configPanel.selected = row
+		press(a, rightPress, rightPress, leftPress, letter('l'), letter(' '))
+		if a.resetArmed() || a.config.Appearance.Theme == config.Default().Appearance.Theme {
+			t.Errorf("row %d: arrows and space armed or ran the reset", row)
+		}
+		press(a, enterPress, rightPress)
+		if !a.resetArmed() {
+			t.Errorf("row %d: enter did not arm the reset", row)
+		}
+	}
+}
+
+func TestResetLetsGoAfterItsWindow(t *testing.T) {
+	a := openConfigAt(t, themeRow)
+	press(a, rightPress)
+	a.configPanel.selected = resetRow
+	press(a, enterPress)
+	if a.resetValue() == "" || a.resetExpired == nil {
+		t.Fatal("the first enter did not ask again")
+	}
+	a.configPanel.resetArmedAt = time.Now().Add(-resetWindow)
+	if a.resetValue() != "" {
+		t.Error("the prompt stayed after the window")
+	}
+	press(a, enterPress)
+	if a.config.Appearance.Theme == config.Default().Appearance.Theme || !a.resetArmed() {
+		t.Error("an enter after the window reset instead of asking again")
 	}
 }
 

@@ -87,7 +87,9 @@ type App struct {
 
 	homeHintShown   bool
 	homeHintExpired <-chan time.Time
-	homeQuitArmed   bool
+	// resetExpired fires when a reset armed in the config lets go, to redraw without its prompt.
+	resetExpired  <-chan time.Time
+	homeQuitArmed bool
 
 	shellArgv []string
 	shellEnv  []string
@@ -229,6 +231,8 @@ func (a *App) loop() error {
 			a.saveSessions()
 		case <-a.homeTick:
 			a.advanceHomeArt()
+		case <-a.resetExpired:
+			a.resetExpired = nil
 		case <-a.homeHintExpired:
 			a.homeHintShown, a.homeHintExpired, a.homeQuitArmed = false, nil, false
 		case <-nextFrame:

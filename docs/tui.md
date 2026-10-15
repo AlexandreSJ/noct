@@ -136,7 +136,7 @@ Todas as teclas dos modos, painéis e popups do noct podem ser trocadas em `pref
 - Recusadas: o prefixo, teclas que o noct não sabe ler de volta e, onde se digita texto (busca, prompts, formulários, config, escolhas), caracteres sem `ctrl` ou `alt`, que continuam digitando.
 - Não mudam: `esc` (sempre cancela), os números de tab `1`–`9`, as letras de cada opção nos popups de escolha e tudo o que vai para programas nos painéis (terminais e execuções rodando). Uma tecla tirada de uma ação deixa de fazer aquilo; ela volta a valer se outra ação a pegar.
 - As dicas no rodapé de cada tela, o popup de comandos, a busca e os rótulos como `terminal (alt+p)` mostram as teclas atuais. Os atalhos diretos seguem as teclas do contexto `commands`: trocar `new panel` para `b` faz `prefixo` + `b` e `Alt+B`.
-- A última linha, `reset all keys to defaults`, pede `Enter` duas vezes. O `reset all to defaults` do config também volta as teclas.
+- A última linha, `reset all keys to defaults`, pede `Enter` duas vezes em até 1000 ms, como o reset do config. O `reset all to defaults` do config também volta as teclas.
 - No arquivo: `[keys.scripts]` com `edit = ["x"]`; uma lista vazia deixa a ação sem teclas. Só as ações trocadas aparecem.
 
 ## Mouse

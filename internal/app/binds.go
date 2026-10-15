@@ -4,6 +4,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
@@ -119,7 +120,7 @@ func (a *App) shownKeys(row bindRow) []string {
 func (a *App) openBinds() {
 	a.commitTyped()
 	a.configPanel.page, a.configPanel.selected = bindsPage, bindRowBase
-	a.configPanel.resetArmed = false
+	a.configPanel.resetArmedAt = time.Time{}
 }
 
 // handleBindsKey runs the binds page's keys; esc goes back to the settings.
@@ -130,6 +131,9 @@ func (a *App) handleBindsKey(key uv.KeyPressEvent) {
 		return
 	case c.choosing:
 		a.chooseBindSlot(key)
+		return
+	}
+	if a.pressReset(key) {
 		return
 	}
 	switch key.String() {
@@ -263,7 +267,7 @@ func (a *App) resetBinds() {
 	next := a.config
 	next.Keys = nil
 	a.applyConfig(next)
-	a.configPanel.resetArmed = false
+	a.configPanel.resetArmedAt = time.Time{}
 	a.notice = "keys reset to their defaults"
 }
 
@@ -283,13 +287,9 @@ func (a *App) bindLines() []configLine {
 			lines = append(lines, a.bindNotes(row)...)
 		}
 	}
-	value := ""
-	if a.configPanel.resetArmed {
-		value = "enter again to reset"
-	}
 	return append(lines,
 		configLine{label: "Defaults", heading: true},
-		configLine{label: "reset all keys to defaults", value: value, row: resetBindsRow},
+		configLine{label: "reset all keys to defaults", value: a.resetValue(), row: resetBindsRow},
 	)
 }
 

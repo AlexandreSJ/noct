@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
@@ -66,11 +67,11 @@ type configPanel struct {
 	bindCapture bindCapture
 	// capture takes the prefix's new combination while it is on.
 	capture keyCapture
-	// resetArmed asks for the reset again before doing it, until the selection moves.
-	resetArmed  bool
-	editor      programSetting
-	fileManager programSetting
-	scriptsDir  textField
+	// resetArmedAt is when enter first asked for a reset; a second enter within resetWindow does it.
+	resetArmedAt time.Time
+	editor       programSetting
+	fileManager  programSetting
+	scriptsDir   textField
 	// copied says the location was just copied, until the selection or the text changes.
 	copied bool
 	// hover is the row under the mouse, when hovering is true.
@@ -108,6 +109,9 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 	}
 	if a.configPanel.page == bindsPage {
 		a.handleBindsKey(key)
+		return
+	}
+	if a.pressReset(key) {
 		return
 	}
 	switch key.String() {
@@ -154,7 +158,7 @@ func (a *App) selectConfigRow(row configRow) {
 		return
 	}
 	a.commitTyped()
-	a.configPanel.copied, a.configPanel.resetArmed = false, false
+	a.configPanel.copied, a.configPanel.resetArmedAt = false, time.Time{}
 	a.configPanel.selected = row
 }
 
@@ -260,20 +264,8 @@ func (a *App) changeSetting(step int) {
 	case bindsRow:
 		a.openBinds()
 		return
-	case resetBindsRow:
-		if !a.configPanel.resetArmed {
-			a.configPanel.resetArmed = true
-			return
-		}
-		a.resetBinds()
-		return
-	case resetRow:
-		if !a.configPanel.resetArmed {
-			a.configPanel.resetArmed = true
-			return
-		}
-		a.resetConfig()
-		return
+	case resetBindsRow, resetRow:
+		return // only enter resets, twice, so neither an arrow nor a click does it by accident
 	case shortcutCtrlRow:
 		next.Shortcut.Ctrl = !next.Shortcut.Ctrl
 	case shortcutAltRow:
@@ -493,11 +485,40 @@ func (a *App) prefixLines() []configLine {
 	return append(lines, configLine{label: "enter uses it · esc cancels · or press another", note: true})
 }
 
+// resetWindow is how long the reset waits for the second enter before it lets go.
+const resetWindow = 1000 * time.Millisecond
+
 func (a *App) resetValue() string {
-	if a.configPanel.resetArmed {
+	if a.resetArmed() {
 		return "enter again to reset"
 	}
 	return ""
+}
+
+func (a *App) resetArmed() bool {
+	at := a.configPanel.resetArmedAt
+	return !at.IsZero() && time.Since(at) < resetWindow
+}
+
+// pressReset runs enter on a reset row: the first arms it for resetWindow, a second within it
+// resets. It tells whether the key was enter on a reset row.
+func (a *App) pressReset(key uv.KeyPressEvent) bool {
+	row := a.configPanel.selected
+	if key.String() != "enter" || row != resetRow && row != resetBindsRow {
+		return false
+	}
+	if !a.resetArmed() {
+		a.configPanel.resetArmedAt = time.Now()
+		a.resetExpired = time.After(resetWindow) // to redraw without the prompt once it lets go
+		return true
+	}
+	a.configPanel.resetArmedAt = time.Time{}
+	if row == resetBindsRow {
+		a.resetBinds()
+	} else {
+		a.resetConfig()
+	}
+	return true
 }
 
 // programLines are a program setting's row and, while custom is chosen, the command typed for it
