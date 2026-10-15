@@ -9,6 +9,8 @@ import (
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/AlexandreSJ/noct/internal/config"
 )
 
 // homeHintDuration is how long a key press on the home screen shows its hint.
@@ -178,10 +180,53 @@ func (in *intro) frame(lines []string, elapsed time.Duration) []string {
 	return shown
 }
 
+// introPause is how long the title stays still after the intro before the session shows, with
+// animate intro set to always.
+const introPause = 1000 * time.Millisecond
+
 // startIntro plays the intro on the home screen.
 func (a *App) startIntro() {
 	a.intro = newIntro(artWidth(titleLines), time.Now())
 	a.homeTick = time.After(introFrame)
+}
+
+// playIntro plays the intro as a terminal attaches, as the config says: only when the tab on
+// screen shows the home, or always, holding the home over the panes until the pause after it ends.
+func (a *App) playIntro() {
+	a.introHeldUntil = time.Time{}
+	switch a.config.Appearance.AnimateIntro {
+	case config.IntroNever:
+		return
+	case config.IntroAlways:
+		if !a.showsHome() {
+			a.introHeldUntil = time.Now().Add(introDuration + introPause)
+		}
+	default:
+		if !a.showsHome() {
+			return
+		}
+	}
+	a.startIntro()
+}
+
+// showsHome tells whether the screen shows the home: the tab on screen has no panes, or the
+// intro holds it.
+func (a *App) showsHome() bool {
+	t := a.currentTab()
+	return t == nil || t.isEmpty() || a.introHolds()
+}
+
+func (a *App) introHolds() bool {
+	return !a.introHeldUntil.IsZero() && time.Now().Before(a.introHeldUntil)
+}
+
+// releaseIntro ends the intro holding the home, as a key or a click does, and tells whether it held.
+func (a *App) releaseIntro() bool {
+	if !a.introHolds() {
+		return false
+	}
+	a.introHeldUntil, a.intro = time.Time{}, nil
+	return true
 }
 
 // The pointer entering a character of the home's art makes only that cell flicker between 0 and 1
@@ -260,7 +305,10 @@ func (a *App) advanceHomeArt() {
 			delete(a.flickers, cell)
 		}
 	}
-	if a.intro == nil && len(a.flickers) == 0 {
+	if !a.introHeldUntil.IsZero() && !now.Before(a.introHeldUntil) {
+		a.introHeldUntil = time.Time{} // this tick's frame shows the session
+	}
+	if a.intro == nil && len(a.flickers) == 0 && a.introHeldUntil.IsZero() {
 		a.homeTick = nil
 		return
 	}

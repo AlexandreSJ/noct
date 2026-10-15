@@ -6,6 +6,8 @@ import (
 	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
+
+	"github.com/AlexandreSJ/noct/internal/config"
 )
 
 func TestIntroTurnsBinaryIntoTheTitle(t *testing.T) {
@@ -43,6 +45,76 @@ func TestIntroPlaysWhenAttachingToTheHomeScreen(t *testing.T) {
 	a.advanceHomeArt()
 	if a.intro != nil || a.homeTick != nil {
 		t.Error("the intro did not end after its duration")
+	}
+}
+
+func TestAnimateIntroDecidesWhenTheIntroPlays(t *testing.T) {
+	tests := []struct {
+		setting   string
+		tab       func() *tab
+		wantIntro bool
+		wantHeld  bool
+	}{
+		{config.IntroEmpty, nil, true, false},
+		{config.IntroEmpty, newEmptyTab, true, false},
+		{config.IntroEmpty, func() *tab { return sideBySideTab(1, 2) }, false, false},
+		{config.IntroAlways, newEmptyTab, true, false},
+		{config.IntroAlways, func() *tab { return sideBySideTab(1, 2) }, true, true},
+		{config.IntroNever, nil, false, false},
+		{config.IntroNever, newEmptyTab, false, false},
+	}
+	for _, tt := range tests {
+		var tabs []*tab
+		name := tt.setting + " with no tab"
+		if tt.tab != nil {
+			tabs = []*tab{tt.tab()}
+			name = tt.setting + " with an empty tab"
+			if !tabs[0].isEmpty() {
+				name = tt.setting + " with panes"
+			}
+		}
+		t.Run(name, func(t *testing.T) {
+			a := testApp(t, tabs...)
+			a.config.Appearance.AnimateIntro = tt.setting
+			a.playIntro()
+			if (a.intro != nil) != tt.wantIntro || a.introHolds() != tt.wantHeld {
+				t.Errorf("intro %v, held %v; want %v, %v", a.intro != nil, a.introHolds(), tt.wantIntro, tt.wantHeld)
+			}
+			if tt.wantHeld && !a.showsHome() {
+				t.Error("the home does not show while the intro holds it")
+			}
+		})
+	}
+}
+
+func TestAlwaysShowsTheSessionAfterTheIntroAndThePause(t *testing.T) {
+	a := testApp(t, sideBySideTab(1, 2))
+	a.config.Appearance.AnimateIntro = config.IntroAlways
+	a.playIntro()
+	if until := time.Until(a.introHeldUntil); until < introDuration+introPause-time.Second/10 {
+		t.Fatalf("the home is held for %v, want the intro and the pause", until)
+	}
+	a.intro.start = time.Now().Add(-introDuration)
+	a.advanceHomeArt()
+	if !a.showsHome() || a.homeTick == nil {
+		t.Fatal("the session showed before the pause ended")
+	}
+	a.introHeldUntil = time.Now().Add(-time.Millisecond)
+	a.advanceHomeArt()
+	if a.showsHome() || a.homeTick != nil {
+		t.Errorf("after the pause: home %v, ticking %v", a.showsHome(), a.homeTick != nil)
+	}
+}
+
+func TestAKeySkipsTheIntroHoldingTheHome(t *testing.T) {
+	a := testApp(t, sideBySideTab(1, 2))
+	a.config.Appearance.AnimateIntro = config.IntroAlways
+	a.playIntro()
+	if err := a.handleEvent(prefixPress); err != nil {
+		t.Fatal(err)
+	}
+	if a.showsHome() || a.mode != normalMode {
+		t.Errorf("home %v, mode %v; want the session, with the key only skipping the intro", a.showsHome(), a.mode)
 	}
 }
 

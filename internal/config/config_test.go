@@ -22,7 +22,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 	want := Config{
 		Prefix:     Prefix{Alt: true, Shift: true, Key: "f2"},
 		Shortcut:   Shortcut{Alt: true},
-		Appearance: Appearance{Theme: "ember", Background: BackgroundTheme},
+		Appearance: Appearance{Theme: "ember", Background: BackgroundTheme, AnimateIntro: IntroAlways},
 		NewTab:     "scripts",
 		// CloseEmptyTabs off: a bool that is on by default must survive being saved off
 		Mouse:         false,
@@ -96,6 +96,17 @@ func TestLoadNormalizesUnknownBackground(t *testing.T) {
 	}
 	if cfg.Appearance.Background != BackgroundTerminal {
 		t.Errorf("got %q", cfg.Appearance.Background)
+	}
+}
+
+func TestLoadPlaysTheIntroOnEmptyForAnUnknownValue(t *testing.T) {
+	path := writeConfig(t, "[appearance]\nanimate_intro = \"sometimes\"\n")
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Appearance.AnimateIntro != IntroEmpty {
+		t.Errorf("animate intro %q, want %q", cfg.Appearance.AnimateIntro, IntroEmpty)
 	}
 }
 

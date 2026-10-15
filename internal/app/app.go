@@ -76,6 +76,9 @@ type App struct {
 	quitting bool
 
 	intro *intro
+	// introHeldUntil keeps the home on screen over the session's panes while the intro plays,
+	// with animate intro set to always.
+	introHeldUntil time.Time
 	// flickers holds when each clicked character of the home's art started flickering.
 	flickers map[artCell]time.Time
 	// hovered is the cell the pointer was last seen over on the home.
@@ -298,10 +301,8 @@ func (a *App) attach(c connection) {
 		a.dropClient() // the client failed, not the workspace
 		return
 	}
+	a.playIntro()
 	a.applyMouseMode()
-	if a.currentTab() == nil {
-		a.startIntro()
-	}
 	if a.binary.rebuilt() {
 		a.notice = rebuiltMessage
 	}
@@ -329,10 +330,17 @@ func (a *App) handleEvent(event uv.Event) error {
 	case uv.WindowSizeEvent:
 		return a.resize(image.Pt(event.Width, event.Height))
 	case uv.KeyPressEvent:
+		if a.releaseIntro() {
+			return nil // the key only skips the intro
+		}
 		a.handleKey(event)
 	case clientGone:
 		if event.client == a.client {
 			a.dropClient()
+		}
+	case uv.MouseClickEvent:
+		if !a.releaseIntro() {
+			a.handleMouse(event)
 		}
 	case uv.MouseEvent:
 		a.handleMouse(event)

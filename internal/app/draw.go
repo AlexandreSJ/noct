@@ -26,10 +26,10 @@ func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 		fillRect(screen, area, uv.Style{Bg: a.palette.background})
 	}
 	a.drawTabBar(screen)
-	if t := a.currentTab(); t != nil && !t.isEmpty() {
-		a.drawPanes(screen, t)
-	} else {
+	if a.showsHome() {
 		a.drawHome(screen)
+	} else {
+		a.drawPanes(screen, a.currentTab())
 	}
 	a.drawModeOverlay(screen)
 }

@@ -63,8 +63,7 @@ func (a *App) applyMouseMode() {
 
 // onHome tells whether the home shows, with no menu over it.
 func (a *App) onHome() bool {
-	t := a.currentTab()
-	return a.mode == normalMode && (t == nil || t.isEmpty())
+	return a.mode == normalMode && a.showsHome()
 }
 
 func (a *App) handleMouse(event uv.MouseEvent) {

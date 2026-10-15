@@ -43,7 +43,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/run_view.go` | A script's run: its terminal plus a status line, held open with the exit code |
 | `internal/app/finder.go` | Fuzzy search over scripts, actions and tabs (prefix+space), or over given items (a flow step's script) |
 | `internal/app/help.go` | Help for the focused terminal's foreground program (prefix+?) |
-| `internal/app/home.go` | Home screen (no tabs): title, raven, intro, per-character flicker on hover, shortcuts reveal and timer |
+| `internal/app/home.go` | Home screen (no tabs or an empty tab): title, raven, intro and when it plays (animate intro), per-character flicker on hover, shortcuts reveal and timer |
 | `internal/app/raven2.ascii` | The raven logo embedded in the binary |
 | `internal/app/keys.go` | Key routing by mode, command and move modes, the shortcuts table and popup |
 | `internal/app/prompt.go` | Text prompt (tab and panel rename, new folder), yes/no confirmation (quit, delete), a choice of a few options (new directory or script) and an info popup (what a flow's step does) |

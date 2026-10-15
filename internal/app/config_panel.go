@@ -25,6 +25,7 @@ const (
 	shortcutAltRow
 	themeRow
 	backgroundRow
+	animateIntroRow
 	mouseRow
 	newTabRow
 	closeEmptyTabsRow
@@ -281,6 +282,8 @@ func (a *App) changeSetting(step int) {
 		next.Appearance.Theme = nextThemeName(next.Appearance.Theme, step)
 	case backgroundRow:
 		next.Appearance.Background = cycle([]string{config.BackgroundTerminal, config.BackgroundTheme}, next.Appearance.Background, step)
+	case animateIntroRow:
+		next.Appearance.AnimateIntro = cycle([]string{config.IntroEmpty, config.IntroAlways, config.IntroNever}, next.Appearance.AnimateIntro, step)
 	case mouseRow:
 		next.Mouse = !next.Mouse
 	case newTabRow:
@@ -425,6 +428,7 @@ func (a *App) configLines() []configLine {
 		{label: "Appearance", heading: true},
 		{label: "theme", value: choice(themeNamed(a.config.Appearance.Theme).name), row: themeRow},
 		{label: "background", value: a.config.Appearance.Background, row: backgroundRow},
+		{label: "animate intro", value: choice(a.config.Appearance.AnimateIntro), row: animateIntroRow},
 		{label: "mouse", value: onOff(a.config.Mouse), row: mouseRow},
 		{label: "Tabs", heading: true},
 		{label: "new tab opens", value: choice(a.newTabLabel(a.config.NewTab)), row: newTabRow},

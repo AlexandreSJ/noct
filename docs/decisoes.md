@@ -304,6 +304,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 ## ADR-025 — Intro do título e `q` confirmando a saída
 
+*Atualizada pela ADR-043:* o config `animate intro` decide quando a intro roda (só na home, sempre ou nunca), e uma tab vazia conta como home.
+
 **Contexto.** O mantenedor pediu uma animação no título ao abrir o noct, com o texto alternando como binário até revelar o ASCII da esquerda para a direita em 500 ms, e `q` confirmando a saída além de `Enter`.
 
 **Decisão.**
@@ -532,3 +534,15 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **O seletor de variáveis dos prompts de template sai de `Ctrl+V` para `Ctrl+T`**, para `Ctrl+V` colar em todos os campos.
 
 **Consequências.** Um campo novo usa `textField` e entra em `typedField`, e ganha as mesmas teclas e o colar. `Ctrl+U` passa a apagar até o cursor, como no shell; com o cursor no fim, continua limpando tudo. Ler a área de transferência por OSC 52 depende do terminal (kitty pede permissão; outros ignoram), mas os terminais que colam sozinhos não precisam dele.
+
+## ADR-043 — Quando a intro roda: `animate intro`
+
+**Contexto.** O mantenedor pediu para escolher quando a intro do título (ADR-025) roda: como hoje, só ao abrir na home; sempre, mesmo com a sessão cheia de painéis; ou nunca. Também notou que a intro não rodava quando a tab à vista era uma tab vazia (a home aparece, mas só se conferia se a sessão não tinha tabs). É polimento da fase 5, antecipado pelo mantenedor.
+
+**Decisão.**
+- `Appearance → animate intro` (`animate_intro` no arquivo): `empty` (padrão), `always` ou `never`. Valores desconhecidos viram `empty`.
+- **`empty`:** a intro roda ao conectar quando a home está à vista: sessão sem tabs ou tab à vista sem painéis. Uma pergunta só (`showsHome`) decide isso para o desenho, o mouse e a intro, para não divergirem de novo.
+- **`always`:** com painéis à vista, a home fica na tela por cima deles durante a intro (1 s) e mais uma pausa de 1000 ms, e então a sessão aparece. Uma tecla ou um clique nesse meio pula para a sessão e não faz mais nada, para não agir num painel que não estava à vista. Com a home já à vista, é igual a `empty`.
+- **`never`:** nunca roda, nem com a home à vista.
+
+**Consequências.** `always` atrasa a sessão em 2 s a cada conexão, o que é o pedido; quem tem pressa aperta uma tecla. Os programas nos painéis continuam rodando e recebendo o tamanho da tela enquanto a home os cobre.

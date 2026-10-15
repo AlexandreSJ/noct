@@ -18,6 +18,13 @@ const (
 	BackgroundTheme    = "theme"
 )
 
+// When the title's intro plays as a terminal attaches: on the home only, every time, or never.
+const (
+	IntroEmpty  = "empty"
+	IntroAlways = "always"
+	IntroNever  = "never"
+)
+
 type Config struct {
 	Prefix     Prefix     `toml:"prefix"`
 	Shortcut   Shortcut   `toml:"shortcut"`
@@ -131,13 +138,15 @@ type Appearance struct {
 	Theme string `toml:"theme"`
 	// Background is BackgroundTerminal to keep the terminal's own background, or BackgroundTheme.
 	Background string `toml:"background"`
+	// AnimateIntro is IntroEmpty, IntroAlways or IntroNever.
+	AnimateIntro string `toml:"animate_intro"`
 }
 
 func Default() Config {
 	return Config{
 		Prefix:         Prefix{Ctrl: true, Key: "space"},
 		Shortcut:       Shortcut{Alt: true},
-		Appearance:     Appearance{Theme: "noct", Background: BackgroundTerminal},
+		Appearance:     Appearance{Theme: "noct", Background: BackgroundTerminal, AnimateIntro: IntroEmpty},
 		NewTab:         NewTabTerminal,
 		CloseEmptyTabs: true,
 		Mouse:          true,
@@ -154,6 +163,9 @@ func Default() Config {
 func (c Config) normalized() Config {
 	if c.Appearance.Background != BackgroundTheme {
 		c.Appearance.Background = BackgroundTerminal
+	}
+	if c.Appearance.AnimateIntro != IntroAlways && c.Appearance.AnimateIntro != IntroNever {
+		c.Appearance.AnimateIntro = IntroEmpty
 	}
 	if strings.TrimSpace(c.NewTab) == "" {
 		c.NewTab = NewTabTerminal
