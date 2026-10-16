@@ -20,6 +20,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # The end-to-end tests run /bin/sh in panes and expect bash's line editing and job
+      # control; Ubuntu's /bin/sh is dash.
+      - name: Use bash as /bin/sh
+        run: sudo ln -sf bash /bin/sh
+
       - name: Check (gofmt, vet, race tests)
         run: make check
 
