@@ -74,7 +74,7 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `v` | Logs by day on a calendar colored by activity, with their size, lines and how each run ended |
 | `Space` | Search scripts, actions and tabs |
 | `?` | Help for the program running in the terminal |
-| `o` | Sessions: open, create, rename, close and delete them |
+| `o` | Sessions: open, create, rename, close and delete them, and `f` filters them by name |
 | `y` | MCP: approve what an AI asks to run, and add noct to an AI client |
 | `a` | Move the pane with the arrows, even into another tab |
 | `n` | Resize the pane with the arrows |

@@ -48,6 +48,8 @@ type App struct {
 	// sessionRows are the sessions popup's rows, fixed while it is open; sessionSelected is its row.
 	sessionRows     []*session
 	sessionSelected int
+	// sessionFilter keeps the rows whose names hold it, ignoring case; prefix+o clears it.
+	sessionFilter string
 
 	config     config.Config
 	configPath string

@@ -181,6 +181,7 @@ var keyContexts = []keyContext{
 		{"rename", "rename", []string{"r"}},
 		{"close-session", "close the session", []string{"x"}},
 		{"delete", "delete", []string{"d", "delete"}},
+		{"filter", "filter by name", []string{"f"}},
 		{"close", "close", []string{"q"}},
 	}},
 	{id: "mcp", label: "MCP", actions: []keyAction{

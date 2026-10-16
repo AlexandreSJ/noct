@@ -74,7 +74,7 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `v` | Logs por dia num calendário colorido pela atividade, com tamanho, linhas e como cada execução terminou |
 | `Space` | Buscar scripts, ações e tabs |
 | `?` | Ajuda do programa rodando no terminal |
-| `o` | Sessões: abrir, criar, renomear, fechar e apagar |
+| `o` | Sessões: abrir, criar, renomear, fechar e apagar, e `f` filtra pelo nome |
 | `y` | MCP: aprovar o que uma IA pede para rodar e adicionar o noct a um cliente de IA |
 | `a` | Mover o painel com as setas, inclusive para outra tab |
 | `n` | Redimensionar o painel com as setas |

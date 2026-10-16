@@ -2,6 +2,7 @@ package app
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -191,4 +192,48 @@ func TestLastUsed(t *testing.T) {
 
 func helloFor(name string, create bool) ipc.Hello {
 	return ipc.Hello{Session: name, NewSession: create}
+}
+
+// f filters the sessions by part of the name, ignoring case; esc clears the filter before it
+// closes the popup, and prefix+o opens it unfiltered.
+func TestSessionsPopupFiltersByName(t *testing.T) {
+	a := sessionsApp(t)
+	for _, name := range []string{"Work", "home", "work-api"} {
+		if _, err := a.createSession(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	names := func() []string {
+		var out []string
+		for _, s := range a.sessionRows {
+			out = append(out, s.name)
+		}
+		slices.Sort(out)
+		return out
+	}
+
+	press(a, prefixPress, letter('o'), letter('f'))
+	typeInto(a, "WORK")
+	press(a, enterPress)
+	if a.mode != sessionsMode || !slices.Equal(names(), []string{"Work", "work-api"}) {
+		t.Fatalf("filter work: mode %v, rows %v", a.mode, names())
+	}
+
+	press(a, letter('f'), uv.KeyPressEvent{Code: 'u', Mod: uv.ModCtrl})
+	typeInto(a, "nothing")
+	press(a, enterPress, letter('r'), downPress, enterPress)
+	if len(a.sessionRows) != 0 || a.mode != sessionsMode {
+		t.Fatalf("a filter keeping none: rows %v, mode %v", names(), a.mode)
+	}
+
+	press(a, escPress)
+	if a.mode != sessionsMode || a.sessionFilter != "" || len(a.sessionRows) != len(a.sessions) {
+		t.Fatalf("esc with a filter: mode %v, filter %q, %d rows", a.mode, a.sessionFilter, len(a.sessionRows))
+	}
+	press(a, letter('f'))
+	typeInto(a, "home")
+	press(a, enterPress, escPress, escPress, prefixPress, letter('o'))
+	if a.sessionFilter != "" || len(a.sessionRows) != len(a.sessions) {
+		t.Errorf("prefix+o kept the filter %q", a.sessionFilter)
+	}
 }

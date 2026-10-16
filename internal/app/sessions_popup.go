@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"slices"
+	"strings"
 	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -13,28 +14,51 @@ import (
 // holds and when it was last used; its keys open, create, rename, close and delete them.
 
 const (
-	sessionHints       = "{enter} open  {n} new  {r} rename  {x} close  {d} delete  esc"
+	sessionHints       = "{enter} open  {n} new  {r} rename  {x} close  {d} delete  {f} filter  esc"
 	sessionPanelWidth  = 64
 	sessionNameColumns = 20
 )
 
-// openSessions shows the sessions popup on the session on screen.
+// openSessions shows the sessions popup on the session on screen, with the rows the filter keeps.
 func (a *App) openSessions() {
-	a.sessionRows = slices.Clone(a.sessions)
+	filter := strings.ToLower(a.sessionFilter)
+	a.sessionRows = slices.DeleteFunc(slices.Clone(a.sessions), func(s *session) bool {
+		return !strings.Contains(strings.ToLower(s.name), filter)
+	})
 	slices.SortStableFunc(a.sessionRows, func(x, y *session) int { return y.lastAccess.Compare(x.lastAccess) })
 	a.sessionSelected = max(slices.Index(a.sessionRows, a.session), 0)
 	a.mode = sessionsMode
 }
 
 func (a *App) handleSessionsKey(key uv.KeyPressEvent) {
+	switch key.String() {
+	case "esc":
+		if a.sessionFilter != "" {
+			a.sessionFilter = ""
+			a.openSessions()
+			return
+		}
+		a.mode = normalMode
+		return
+	case "q":
+		a.mode = normalMode
+		return
+	case "f":
+		a.promptSessionFilter()
+		return
+	case "n":
+		a.promptNewSession()
+		return
+	}
+	if len(a.sessionRows) == 0 {
+		return // the filter keeps none
+	}
 	selected := a.sessionRows[a.sessionSelected]
 	if !slices.Contains(a.sessions, selected) {
 		a.openSessions() // deleted meanwhile, as by noct kill: the rows start over
 		return
 	}
 	switch key.String() {
-	case "esc", "q":
-		a.mode = normalMode
 	case "up", "k":
 		a.sessionSelected = max(a.sessionSelected-1, 0)
 	case "down", "j":
@@ -43,8 +67,6 @@ func (a *App) handleSessionsKey(key uv.KeyPressEvent) {
 		a.sessionSelected, _ = listJump(key.String(), a.sessionSelected, len(a.sessionRows), len(a.sessionRows))
 	case "enter", "o":
 		a.switchSession(selected)
-	case "n":
-		a.promptNewSession()
 	case "r":
 		a.promptSessionRename(selected)
 	case "x":
@@ -55,6 +77,15 @@ func (a *App) handleSessionsKey(key uv.KeyPressEvent) {
 			a.openSessions()
 		})
 	}
+}
+
+// promptSessionFilter asks for the text the names must hold; empty shows every session again.
+func (a *App) promptSessionFilter() {
+	a.openPrompt("filter sessions", a.sessionFilter, "{enter} filter  esc cancel  part of the name", func(text string) {
+		a.sessionFilter = strings.TrimSpace(text)
+		a.openSessions()
+	})
+	a.prompt.cancel = a.openSessions
 }
 
 func (a *App) promptNewSession() {
@@ -97,7 +128,14 @@ func (a *App) askToCloseSession(s *session) {
 func (a *App) drawSessions(screen uv.Screen) {
 	pal := &a.palette
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	inner := a.drawPanel(screen, centeredRect(area, sessionPanelWidth, panelHeight(len(a.sessionRows)+2)), "sessions")
+	title, rows := "sessions", max(len(a.sessionRows), 1)
+	if a.sessionFilter != "" {
+		title += " · filter: " + a.sessionFilter
+	}
+	inner := a.drawPanel(screen, centeredRect(area, sessionPanelWidth, panelHeight(rows+2)), title)
+	if len(a.sessionRows) == 0 {
+		drawText(screen, inner.Min.X+1, inner.Min.Y, inner.Max.X, "no session matches; esc shows them all", pal.panelMuted)
+	}
 	now := time.Now()
 	for i, s := range a.sessionRows {
 		y := inner.Min.Y + i

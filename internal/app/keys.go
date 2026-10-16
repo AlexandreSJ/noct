@@ -244,6 +244,7 @@ func (a *App) runAction(name string) {
 		a.openMCP()
 		return
 	case "o":
+		a.sessionFilter = ""
 		a.openSessions()
 		return
 	case "?":
