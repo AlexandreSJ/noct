@@ -164,19 +164,21 @@ func TestPaneReportsTheExitCode(t *testing.T) {
 	}
 }
 
+// Until the shell starts sleep, the shell itself is in the foreground; the test waits for sleep.
 func TestForegroundProgramIsTheJobTheShellRuns(t *testing.T) {
 	p, _ := startTestPane(t, `set -m; sleep 30; true`)
 	deadline := time.Now().Add(testTimeout)
+	last := ""
 	for time.Now().Before(deadline) {
 		if name, ok := p.ForegroundProgram(); ok {
-			if name != "sleep" {
-				t.Fatalf("foreground program %q, want sleep", name)
+			if name == "sleep" {
+				return
 			}
-			return
+			last = name
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	t.Fatal("never saw sleep in the foreground")
+	t.Fatalf("never saw sleep in the foreground; last saw %q", last)
 }
 
 func TestMouseReachesProgramsThatAskForIt(t *testing.T) {

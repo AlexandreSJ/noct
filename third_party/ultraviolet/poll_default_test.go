@@ -31,16 +31,18 @@ func TestReader(t *testing.T) {
 		t.Errorf("expected no error, but got %s", err)
 	}
 
+	// noct: cancel before the read starts, not while it may be starting. Read does not wait on
+	// the cancel signal, so a read that began first took a byte, and the test failed now and then.
+	if !pollReader.Cancel() {
+		t.Errorf("expected cancellation to be success")
+	}
+
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		p := make([]byte, 1)
 		n, err = pollReader.Read(p)
 	}()
-
-	if !pollReader.Cancel() {
-		t.Errorf("expected cancellation to be success")
-	}
 
 	select {
 	case <-done:
