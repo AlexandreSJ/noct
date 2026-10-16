@@ -30,7 +30,7 @@
 - Quando as tabs não cabem na barra, os nomes longos são cortados com `…` numa mesma largura, a maior que deixa todas visíveis; nomes curtos ficam inteiros. Se nem com nomes de 6 colunas cabem, a barra rola e mostra só um trecho de tabs, sempre com a tab selecionada visível; `‹` e `›` nas pontas indicam tabs escondidas, e clicar neles seleciona a tab escondida mais próxima. A barra só rola quando a tab selecionada sairia dela, e deixa espaço à direita para as mensagens.
 - `prefixo` + `e` renomeia o painel com foco; um nome vazio volta ao título do programa.
 - `prefixo` + `w` **empilha** (stacked) o painel com foco e os painéis abaixo dele na coluna, como no zellij e no i3; os de cima e as outras colunas ficam como estão, e o último painel da coluna não empilha. Em um painel da pilha, `prefixo` + `w` volta a dividi-la: o painel com foco ocupa quase toda a altura e cada um dos outros vira uma linha com o título (`▸ nome`). Mudar o foco pela pilha (`↑↓`/`jk`, ou clicar num título) abre o painel que recebe o foco; um painel novo aberto no grupo entra na pilha. Os painéis dobrados mantêm o tamanho, sem redimensionar o programa (ADR-030).
-- Em todo lugar onde o noct move algo sem que se esteja digitando texto, `hjkl` valem como as setas: foco, mover, resize, rolagem, painéis e o inspect. A exceção é o foco depois do prefixo, onde `l` é a [trava](#trava) e só `→` vai para a direita; `Alt+L` continua indo.
+- Em todo lugar onde o noct move algo sem que se esteja digitando texto, `hjkl` valem como as setas: foco, mover, resize, rolagem, painéis e o inspect.
 - As listas que rolam (scripts panel, logs, busca e config) mantêm até 4 itens visíveis acima e abaixo da seleção, como o `scrolloff` do vim: a seleção anda dentro da vista e a lista só rola quando chega a 4 da borda, então dá para ver o que vem antes de chegar lá.
 - Cada painel tem título (definido pelo programa, ou o nome do shell) e, no futuro, indicador de estado: rodando, terminou ok, falhou, atividade não vista. Painéis de script já mostram `●`, `✓` ou `✗ <código>`.
 - Rolagem do histórico com `prefixo` + `[` ou com a roda do mouse; a posição aparece no título do painel (`↑ 120/2000`), e rolar de volta até o fim com a roda volta ao vivo. Busca e cópia no histórico ficam para depois.
@@ -67,7 +67,7 @@ No modo noct:
 
 | Tecla | Popup | O que faz | Modo depois | Fase |
 |---|---|---|---|---|
-| `←↑↓→` / `hjk` | focus | Painel ao lado; em `←`/`→`, passa da borda para a tab anterior/seguinte | continua | 0 |
+| `←↑↓→` / `hjkl` | focus | Painel ao lado; em `←`/`→`, passa da borda para a tab anterior/seguinte | continua | 0 |
 | `Tab` / `Shift+Tab` | tab: change | Próxima tab / tab anterior (circular) | continua | 0 |
 | `1`–`9` | go to tab | Ir para a tab N | continua | 0 |
 | `t` | new tab | Nova tab com o painel escolhido no config (terminal por padrão; ou vazia, ADR-039) | termina | 0 |
@@ -85,7 +85,7 @@ No modo noct:
 | `x` | close | Fechar o painel; a tab fecha junto com o último | termina | 0 |
 | `c` | config | Abrir o config | config | 0 |
 | `q` | quit | Pergunta `quit noct?`: `Enter` ou `q` de novo saem, `Esc` cancela | pergunta | 0a |
-| `l` | lock shortcuts | Trava os atalhos, ou destrava: ver [Trava](#trava) | termina | 5 |
+| `b` | lock shortcuts | Trava os atalhos, ou destrava: ver [Trava](#trava) | termina | 5 |
 | `Esc` | cancel | Cancelar o modo noct | termina | 0 |
 | `[` | scroll history | Rolar o histórico do terminal com foco: `↑↓`/`jk` linha, `PgUp`/`PgDn` página, `g`/`Home` topo, `Shift+G`/`End` fim, `Esc` volta ao vivo | rolagem | 0b |
 | `d` | detach | Desconectar: o terminal volta ao shell e os programas continuam; `noct` reconecta à mesma sessão | — | 0b |
@@ -113,10 +113,11 @@ Um segundo modificador, por padrão `Alt` (ADR-024), roda os comandos do modo no
 
 ## Trava
 
-`prefixo` + `l` trava os atalhos, para um programa no painel receber as teclas que seriam do noct (`Alt+P` chega ao programa em vez de abrir um painel); `prefixo` + `l` de novo destrava. Travado:
+`prefixo` + `b` trava os atalhos, para um programa no painel receber as teclas que seriam do noct (`Alt+P` chega ao programa em vez de abrir um painel); `prefixo` + `b` de novo destrava. Travado:
 
-- Andar continua respondendo: o prefixo, o foco (setas e `hjk` depois do prefixo, `Alt` + setas ou `hjkl`), `Tab`, os números das tabs, mover o painel com `Alt+Shift` e a busca (`prefixo` + `Space`, `Alt+Space`).
-- Os outros comandos não rodam. O atalho direto vai para o programa; depois do prefixo, o modo noct se encerra. Nos dois casos, a barra de tabs mostra em destaque (fundo na cor de destaque) como destravar, `ctrl+space+L unlock`, até a próxima tecla. A letra aparece maiúscula para não se confundir com `i`.
+- Andar continua respondendo: o prefixo, o foco (setas ou `hjkl`, depois do prefixo ou com `Alt`), `Tab`, os números das tabs, mover o painel com `Alt+Shift` e a busca (`prefixo` + `Space`, `Alt+Space`).
+- Os outros comandos não rodam. O atalho direto vai para o programa; depois do prefixo, o modo noct se encerra. Nos dois casos, a barra de tabs mostra em destaque (fundo na cor de destaque) como destravar, `ctrl+space+b unlock`, até a próxima tecla.
+- `Alt+B` não trava: só o prefixo trava, e `Alt+B` continua sendo do shell (voltar uma palavra).
 - Travar e destravar avisam na barra de tabs. A trava vale até destravar ou o daemon fechar; não fica no config.
 
 ## Campos de texto

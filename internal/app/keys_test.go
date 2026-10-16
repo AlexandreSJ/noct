@@ -390,12 +390,11 @@ func TestQuitConfirmsWithQToo(t *testing.T) {
 
 func TestVimKeysWorkLikeArrows(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2))
-	a.currentTab().focused = 2
-	press(a, prefixPress, letter('h'))
-	if focusedPaneID(a) != 1 || a.mode != commandMode {
-		t.Fatalf("prefix+h: focus %d, mode %v", focusedPaneID(a), a.mode)
+	press(a, prefixPress, letter('l'))
+	if focusedPaneID(a) != 2 || a.mode != commandMode {
+		t.Fatalf("prefix+l: focus %d, mode %v", focusedPaneID(a), a.mode)
 	}
-	press(a, escPress, prefixPress, letter('a'), letter('l'))
+	press(a, letter('h'), escPress, prefixPress, letter('a'), letter('l'))
 	if got := a.currentTab().tree.Panes(); got[0] != 2 {
 		t.Errorf("move with l: panes %v, want 1 moved right", got)
 	}

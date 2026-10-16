@@ -1,9 +1,7 @@
 package app
 
-import "strings"
-
 // lockKey is the noct mode key that locks the shortcuts and unlocks them.
-const lockKey = "l"
+const lockKey = "b"
 
 // toggleLock locks the shortcuts, or unlocks them, and says which.
 func (a *App) toggleLock() {
@@ -30,7 +28,7 @@ func (a *App) lockedOut(name string, move bool) bool {
 	return true
 }
 
-// unlockKeys are the keys that unlock, with the letter in capitals so l reads apart from i.
+// unlockKeys are the keys that unlock, as they are now.
 func (a *App) unlockKeys() string {
-	return a.prefix.String() + "+" + strings.ToUpper(a.hint("commands", "{"+lockKey+"}"))
+	return a.prefix.String() + "+" + a.hint("commands", "{"+lockKey+"}")
 }

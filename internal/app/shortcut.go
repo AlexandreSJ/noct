@@ -41,8 +41,8 @@ func (d directShortcut) command(key uv.KeyPressEvent, commandKey func(string) (s
 	if mods&uv.ModCtrl != 0 && (pressed == "h" || pressed == "j") {
 		return "", false, false // ctrl+h is also backspace (^H) and ctrl+j a newline (^J)
 	}
-	if name, ok = commandKey(pressed); !ok || name == lockKey && pressed != "l" {
-		return "", false, false // only the prefix locks; l stays the letter for right
+	if name, ok = commandKey(pressed); !ok || name == lockKey {
+		return "", false, false // only the prefix locks: alt+b stays the shell's word back
 	}
 	if mods&uv.ModShift != 0 {
 		_, isArrow := arrowHeadings[name]

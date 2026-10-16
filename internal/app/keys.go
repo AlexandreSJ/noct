@@ -40,7 +40,7 @@ type shortcut struct {
 }
 
 var commandShortcuts = []shortcut{
-	{"←↓↑→ hjk", "focus", true},
+	{"←↓↑→ hjkl", "focus", true},
 	{"tab", "change", true},
 	{"1-9", "go to tab", true},
 	{"t", "new tab", false},
@@ -59,12 +59,12 @@ var commandShortcuts = []shortcut{
 	{"g", "floating panel", false},
 	{"r", "rename tab", true},
 	{"e", "rename panel", true},
-	{"[", "scroll history", true},
+	{"u", "scroll history", true},
 	{"x", "close", true},
 	{"c", "config", false},
 	{"d", "detach", false},
 	{"q", "quit", false},
-	{"l", "lock shortcuts", false},
+	{"b", "lock shortcuts", false},
 	{"esc", "cancel", false},
 }
 
@@ -86,7 +86,7 @@ var arrowHeadings = map[string]layout.Heading{
 }
 
 // actionKeys are the noct mode commands that act, as opposed to moving around.
-var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "[", "x", "c", "d", "q"}
+var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "u", "x", "c", "d", "q"}
 
 var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
 
@@ -294,7 +294,7 @@ func (a *App) runTabAction(name string) {
 		a.startRename()
 	case "e":
 		a.startPaneRename()
-	case "[":
+	case "u":
 		a.startScroll()
 	}
 }
@@ -318,8 +318,6 @@ func shortcutTemplate(keys string) string {
 	switch keys {
 	case "←↓↑→ hjkl":
 		return "{left}{down}{up}{right} {h}{j}{k}{l}"
-	case "←↓↑→ hjk":
-		return "{left}{down}{up}{right} {h}{j}{k}"
 	case "← → h l":
 		return "{left} {right} {h} {l}"
 	case "↑ ↓ k j":
