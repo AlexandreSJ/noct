@@ -347,9 +347,9 @@ func (v *scrollableView) DrawScrolled(uv.Screen, uv.Rectangle, int) {}
 
 func TestScrollModePagesThroughHistory(t *testing.T) {
 	a := testApp(t, newTab(1, &scrollableView{history: 5}))
-	press(a, prefixPress, letter('['))
+	press(a, prefixPress, letter('u'))
 	if a.mode != scrollMode {
-		t.Fatalf("mode %v after prefix+[", a.mode)
+		t.Fatalf("mode %v after prefix+u", a.mode)
 	}
 	press(a, upPress, upPress)
 	if a.scrollOffset != 2 {
@@ -367,7 +367,7 @@ func TestScrollModePagesThroughHistory(t *testing.T) {
 
 func TestScrollNeedsHistory(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2))
-	press(a, prefixPress, letter('['))
+	press(a, prefixPress, letter('u'))
 	if a.mode != normalMode || a.statusMessage == "" {
 		t.Errorf("mode %v message %q for a view without history", a.mode, a.statusMessage)
 	}

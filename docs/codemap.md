@@ -51,7 +51,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/lock.go` | The lock (prefix+b): which commands it holds back and the hint on how to unlock |
 | `internal/app/prompt.go` | Text prompt (tab and panel rename, new folder), yes/no confirmation (quit, delete), a choice of a few options (new directory or script) and an info popup (what a flow's step does) |
 | `internal/app/textfield.go` | The one-line text field every prompt, form, search and config row types into: cursor, shell editing keys, paste (bracketed or OSC 52), cursor view |
-| `internal/app/logs_panel.go` | Logs panel (prefix+v): month calendar marked by runs, the day's logs with weight bars, sorting, opening, clearing; log pruning |
+| `internal/app/logs_panel.go` | Logs panel (prefix+v): month calendar marked by runs, the day's logs with weight bars, sorting, clearing; log pruning |
+| `internal/app/logs_preview.go` | The selected log under the logs panel: a terminal that prints it and follows its end, restarted as the selection moves, and scrolling its history |
 | `internal/app/library_watch.go` | Reading scripts and flows again while a panel shows them and their files changed on disk |
 | `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks |
 | `internal/app/flowchart.go` | Laying out and drawing a flow as a flowchart on its own canvas, and which block is where: steps, empty lists and the gaps where steps are added; ranges and warnings marked |

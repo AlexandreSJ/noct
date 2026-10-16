@@ -19,7 +19,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
-const logsHints = "{tab} calendar/list  {left}{right}{up}{down} day  {[} {]} month  {f} filter  {s} sort  {a} all days  {enter} open  {i} flow run  {delete} clear  {ctrl+d} close"
+const logsHints = "{tab} calendar/list  {left}{right}{up}{down} day  {[} {]} month  {f} filter  {s} sort  {a} all days  {enter} {u} scroll the log  {i} flow run  {delete} clear  {ctrl+d} close"
 
 // logsFilterHints explain the filter line: words and comparisons, all of them at once.
 const logsFilterHints = "{enter} filter  esc cancel  name, date, time, ok/failed, >1MB, <100 lines"
@@ -57,6 +57,9 @@ type logsPanel struct {
 	filter   string
 	order    string
 	selected int
+
+	// preview is the selected log, under the calendar and the list.
+	preview logPreview
 
 	entries  []logstore.Entry
 	runs     []script.Run
@@ -214,9 +217,19 @@ func (p *logsPanel) SendKey(key uv.KeyPressEvent) {
 	switch name {
 	case "ctrl+d":
 		p.close()
+		p.Close()
 		return
+	}
+	if p.preview.focused {
+		p.previewKey(name)
+		return
+	}
+	switch name {
 	case "tab", "shift+tab":
 		p.focusList = !p.focusList
+		return
+	case "u":
+		p.focusPreview(true)
 		return
 	case "s":
 		p.order = cycle(logsOrders, p.order, 1)
@@ -289,9 +302,7 @@ func (p *logsPanel) listKey(name string) {
 	case "esc", "left", "h":
 		p.focusList = false
 	case "enter":
-		if row, ok := p.current(rows); ok {
-			p.app.openLog(row)
-		}
+		p.focusPreview(false)
 	case "i":
 		if row, ok := p.current(rows); ok {
 			p.inspectRun(row)
@@ -387,28 +398,25 @@ func (a *App) removeLogs(entries []logstore.Entry) {
 	a.notice = fmt.Sprintf("deleted %d logs (%s)", len(entries), totalSize(entries))
 }
 
-// openLog shows a log beside the panel by printing it in a terminal, which draws it as the
-// program did. Showing it writes no log of its own.
-func (a *App) openLog(row logRow) {
-	files := row.entry.LogFiles()
-	slices.Reverse(files) // the rotated older part first
-	argv := append([]string{"/bin/sh", "-c", `cat -- "$@"`, "cat"}, files...)
-	title := "log " + row.entry.At.Format("15:04:05") + " " + row.name()
-	a.openPanel(func(id layout.PaneID, frame image.Rectangle) (view, error) {
-		start := func(size pty.Size, onExit func(int)) (view, error) {
-			return a.launch(program{argv: argv, dir: a.workDir, onExit: onExit}, size)
-		}
-		return newRunView(title, &a.palette, start, func() { a.detachView(id) }, contentSize(frame))
-	})
-}
-
 func (p *logsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	if time.Since(p.loaded) > logsReload {
 		p.reload()
 	}
 	pal := &p.app.palette
-	drawText(screen, area.Min.X+1, area.Max.Y-1, area.Max.X, p.app.hint("logs", logsHints), pal.panelMuted)
+	hints := logsHints
+	if p.preview.focused {
+		hints = logsPreviewHints
+	}
+	drawText(screen, area.Min.X+1, area.Max.Y-1, area.Max.X, p.app.hint("logs", hints), pal.panelMuted)
 	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-2)
+	// the log takes the lower half; drawn last, it shows the selection the list settled on
+	preview := image.Rect(body.Min.X+1, body.Max.Y-body.Dy()/2, body.Max.X-1, body.Max.Y)
+	defer func() {
+		row, ok := p.current(p.rows())
+		p.drawPreview(screen, preview, row, ok)
+		p.preview.area = p.preview.area.Sub(area.Min)
+	}()
+	body.Max.Y = preview.Min.Y - 1
 	stats := p.statsByDay()
 	var calendar, list image.Rectangle
 	if body.Dx() >= calendarWidth+34 {
@@ -651,17 +659,23 @@ func groupDigits(n int) string {
 	return text
 }
 
-// WantsMouseAt takes clicks on the month's title, its days and the list.
+// WantsMouseAt takes clicks on the month's title, its days, the list and the log.
 func (p *logsPanel) WantsMouseAt(point image.Point) bool {
 	grid := image.Rectangle{Min: p.grid, Max: p.grid.Add(image.Pt(7*dayCellWidth, 6))}
-	return point.In(p.monthRow) || point.In(grid) || point.In(p.list)
+	return point.In(p.monthRow) || point.In(grid) || point.In(p.list) || point.In(p.preview.area)
 }
 
-// SendMouse picks the day or the log clicked; a double click on a log opens it. The arrows of
+// SendMouse picks the day or the log clicked; a double click on a log, or a click on the log
+// shown, scrolls it. The arrows of
 // the month's title change the month, and the wheel moves through the list.
 func (p *logsPanel) SendMouse(event uv.MouseEvent) {
 	m := event.Mouse()
 	point := image.Pt(m.X, m.Y)
+	if point.In(p.preview.area) {
+		p.previewMouse(event)
+		return
+	}
+	p.preview.focused, p.preview.offset = false, 0
 	switch event.(type) {
 	case uv.MouseClickEvent:
 		if m.Button != uv.MouseLeft {
@@ -712,14 +726,14 @@ func (p *logsPanel) clickList(line int) {
 	again := index == p.selected && p.focusList && time.Since(p.lastClick) < doubleClick
 	p.selected, p.focusList, p.lastClick = index, true, time.Now()
 	if again {
-		p.app.openLog(rows[index])
+		p.focusPreview(false)
 		p.lastClick = time.Time{}
 	}
 }
 
 func (p *logsPanel) Resize(pty.Size) {}
 func (p *logsPanel) Paste(string)    {}
-func (p *logsPanel) Close()          {}
+func (p *logsPanel) Close()          { p.preview.close() }
 
 func (p *logsPanel) Cursor() (uv.Position, bool) {
 	return image.Point{}, false

@@ -208,7 +208,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - Um cliente por vez; um novo attach desconecta o anterior.
 - `noct` inicia o daemon quando ele não está rodando (`noct daemon` numa sessão própria, via `setsid`); `noct quit` o encerra.
 - Cada terminal grava sua saída crua em `~/.local/state/noct/logs/<data>/`, com rotação em 10 MiB.
-- `prefixo` + `[` rola o histórico do terminal com foco; programas de tela cheia não têm histórico.
+- `prefixo` + `u` (era `[`, que no atalho direto `Alt+[` se confunde com `Alt+Esc`) rola o histórico do terminal com foco; programas de tela cheia não têm histórico.
 
 **Consequências.** Quase nada do workspace mudou: o `App` só trocou o terminal real por um cliente conectado. O cliente fica pequeno, e a mesma renderização por diff do `ultraviolet` vale pelo socket. O custo é o daemon renderizar para as capacidades de um terminal que ele não vê diretamente (cores e imagens vêm do `Hello`). Novos terminais abrem no diretório em que o daemon foi iniciado, não no do cliente atual; enviar o diretório do cliente no `Hello` é uma melhoria simples para depois (feita na fase 1, ADR-018). Busca e cópia no histórico ficam para depois.
 

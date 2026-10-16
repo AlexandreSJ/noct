@@ -11,7 +11,7 @@
 | **Ajuda** | `prefixo` + `?`: a ajuda do programa em primeiro plano no terminal com foco (notas, `--help`, `man`), num painel com o pager. | 1 |
 | **Inspect** | `prefixo` + `i`: a lista de fluxos e o fluxograma do selecionado, que se monta passo a passo, se arrasta e tem zoom; roda o fluxo e mostra em cada bloco como foi a última execução; `p` abre o formulário de params (tipos, obrigatórios, últimos valores) e roda; `T` adiciona triggers e `o` os liga e desliga (ver [fluxos.md](fluxos.md)). | 2 |
 | **Execuções** | O que está rodando agora, com status, duração e passo atual. Enter salta para o painel. | 2 |
-| **Logs** | `prefixo` + `v`: o calendário do mês, cada dia marcado pelo que rodou nele e colorido pela quantidade de logs, e os logs do dia com barra de peso, tamanho, linhas e como a execução terminou; abrir, ordenar, filtrar (`f`: data, nome, status, peso ou linhas numa linha só), abrir uma execução de fluxo no fluxograma (`i`) e limpar (ver [fluxos.md](fluxos.md#logs-e-calendário)). | 2 |
+| **Logs** | `prefixo` + `v`: o calendário do mês, cada dia marcado pelo que rodou nele e colorido pela quantidade de logs, e os logs do dia com barra de peso, tamanho, linhas e como a execução terminou; ver o log selecionado embaixo, acompanhando a seleção, ordenar, filtrar (`f`: data, nome, status, peso ou linhas numa linha só), abrir uma execução de fluxo no fluxograma (`i`) e limpar (ver [fluxos.md](fluxos.md#logs-e-calendário)). | 2 |
 | **Aprovações** | Pedidos pendentes da IA ou de triggers, com o comando completo; aprovar/negar. | 3 |
 | **Catálogo** | Programas instalados, faltando e recomendados; instalar abre um painel com o gerenciador escolhido. | 4 |
 
@@ -33,7 +33,7 @@
 - Em todo lugar onde o noct move algo sem que se esteja digitando texto, `hjkl` valem como as setas: foco, mover, resize, rolagem, painéis e o inspect.
 - As listas que rolam (scripts panel, logs, busca e config) mantêm até 4 itens visíveis acima e abaixo da seleção, como o `scrolloff` do vim: a seleção anda dentro da vista e a lista só rola quando chega a 4 da borda, então dá para ver o que vem antes de chegar lá.
 - Cada painel tem título (definido pelo programa, ou o nome do shell) e, no futuro, indicador de estado: rodando, terminou ok, falhou, atividade não vista. Painéis de script já mostram `●`, `✓` ou `✗ <código>`.
-- Rolagem do histórico com `prefixo` + `[` ou com a roda do mouse; a posição aparece no título do painel (`↑ 120/2000`), e rolar de volta até o fim com a roda volta ao vivo. Busca e cópia no histórico ficam para depois.
+- Rolagem do histórico com `prefixo` + `u` (ou `Alt+U`) ou com a roda do mouse; a posição aparece no título do painel (`↑ 120/2000`), e rolar de volta até o fim com a roda volta ao vivo. Busca e cópia no histórico ficam para depois.
 - Durante a rolagem, o prefixo, os atalhos diretos e um clique em outro painel encerram a rolagem e funcionam como sempre: dá para trocar de painel sem voltar ao fim antes.
 - Layouts nomeados podem ser salvos e reabertos (ex.: "claude à esquerda, shell à direita, logs embaixo").
 
@@ -87,7 +87,7 @@ No modo noct:
 | `q` | quit | Pergunta `quit noct?`: `Enter` ou `q` de novo saem, `Esc` cancela | pergunta | 0a |
 | `b` | lock shortcuts | Trava os atalhos, ou destrava: ver [Trava](#trava) | termina | 5 |
 | `Esc` | cancel | Cancelar o modo noct | termina | 0 |
-| `[` | scroll history | Rolar o histórico do terminal com foco: `↑↓`/`jk` linha, `PgUp`/`PgDn` página, `g`/`Home` topo, `Shift+G`/`End` fim, `Esc` volta ao vivo | rolagem | 0b |
+| `u` | scroll history | Rolar o histórico do terminal com foco: `↑↓`/`jk` linha, `PgUp`/`PgDn` página, `g`/`Home` topo, `Shift+G`/`End` fim, `Esc` volta ao vivo | rolagem | 0b |
 | `d` | detach | Desconectar: o terminal volta ao shell e os programas continuam; `noct` reconecta à mesma sessão | — | 0b |
 | `o` | sessions | Popup das sessões, da mais recente à mais antiga: aberta (`●`) ou fechada (`○`), tabs e último uso. `Enter` troca de sessão, `n` cria (vazio dá um número), `r` renomeia, `x` fecha (para os programas e guarda o layout), `d` apaga, `f` filtra pelo nome (sem diferenciar maiúsculas; `Esc` limpa o filtro antes de fechar o popup); ver [Sessões](#sessões) | sessões | 5 |
 | `?` | program help | Ajuda do programa em primeiro plano no terminal com foco; só com o shell, avisa e mantém o popup | termina | 1 |

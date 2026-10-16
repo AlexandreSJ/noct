@@ -315,7 +315,7 @@ func TestScrollModeShowsEarlierOutput(t *testing.T) {
 	waitForScreen(t, noct, "the last row", func(screen string) bool { return strings.Contains(screen, "row60") })
 
 	noct.SendKey(prefix)
-	typeText(noct, "[g")
+	typeText(noct, "ug")
 	waitForScreen(t, noct, "the first rows", func(screen string) bool {
 		return strings.Contains(screen, "row1\x1b") || strings.Contains(screen, "row1 ")
 	})
