@@ -237,3 +237,11 @@ func TestSessionsPopupFiltersByName(t *testing.T) {
 		t.Errorf("prefix+o kept the filter %q", a.sessionFilter)
 	}
 }
+
+func TestSessionsPopupShowsEveryKey(t *testing.T) {
+	a := sessionsApp(t)
+	press(a, prefixPress, letter('o'))
+	if text := screenText(a); !strings.Contains(text, "f filter  esc") {
+		t.Errorf("the keys line is cut:\n%s", text)
+	}
+}

@@ -15,7 +15,7 @@ import (
 
 const (
 	sessionHints       = "{enter} open  {n} new  {r} rename  {x} close  {d} delete  {f} filter  esc"
-	sessionPanelWidth  = 64
+	sessionPanelWidth  = 66
 	sessionNameColumns = 20
 )
 
