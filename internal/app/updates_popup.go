@@ -116,17 +116,20 @@ func (a *App) changelogLines() []styledLine {
 
 // updatesHints are the popup's keys that do something now.
 func (a *App) updatesHints() string {
-	hints := "{c} check"
+	hints := ""
+	if a.canCheck() {
+		hints = "{c} check  "
+	}
 	if _, ok := a.newestRelease(); ok && a.updates.installed == "" && !a.updates.installing {
-		hints += "  {u} update"
+		hints += "{u} update  "
 	}
 	if a.updates.installed != "" {
-		hints += "  {r} restart"
+		hints += "{r} restart  "
 	}
 	if a.updates.manual != "" {
-		hints += "  {y} copy"
+		hints += "{y} copy  "
 	}
-	return a.hint("updates", hints+"  {up}{down} scroll  esc")
+	return a.hint("updates", hints+"{up}{down} scroll  esc")
 }
 
 func (a *App) drawUpdates(screen uv.Screen) {

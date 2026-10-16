@@ -11,8 +11,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 
@@ -81,7 +84,7 @@ func TestPrefixCChecksAndShowsTheChangelog(t *testing.T) {
 	runLoopTask(t, a)
 
 	text := screenText(a)
-	for _, want := range []string{"updates · noct v0.1.0", "v0.2.0 is out: u installs it", "v0.2.0 · Nov 1, 2026 · new", "- faster panes", "v0.1.0 · Oct 16, 2026 · this version", "- first beta", "c check  u update"} {
+	for _, want := range []string{"updates · noct v0.1.0", "v0.2.0 is out: u installs it", "v0.2.0 · Nov 1, 2026 · new", "- faster panes", "v0.1.0 · Oct 16, 2026 · this version", "- first beta", "u update  ↑↓ scroll"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("popup lacks %q:\n%s", want, text)
 		}
@@ -178,5 +181,34 @@ func TestAltCommaOpensTheConfig(t *testing.T) {
 	press(a, uv.KeyPressEvent{Code: ',', Mod: uv.ModAlt})
 	if a.mode != configMode {
 		t.Errorf("alt+, opened mode %v, want the config", a.mode)
+	}
+}
+
+// Holding c sends one request: checks keep a minute apart, and while GitHub's limit is spent,
+// until it resets.
+func TestHoldingCChecksOnce(t *testing.T) {
+	a := updatesApp(t, "v0.1.0")
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(time.Now().Add(30*time.Minute).Unix(), 10))
+		http.Error(w, "API rate limit exceeded", http.StatusForbidden)
+	}))
+	defer server.Close()
+	a.updateSource.API, a.updateSource.Client = server.URL, server.Client()
+
+	press(a, prefixPress, letter('c'))
+	runLoopTask(t, a)
+	press(a, letter('c'), letter('c'), letter('c'))
+	if a.updates.checking || requests.Load() != 1 {
+		t.Errorf("checking=%v after %d requests, want one request", a.updates.checking, requests.Load())
+	}
+	if until := time.Until(a.updates.nextCheck); until < 29*time.Minute {
+		t.Errorf("next check in %v, want when the limit resets", until)
+	}
+	text := screenText(a)
+	if !strings.Contains(text, "GitHub takes no more checks until") || strings.Contains(text, "c check") {
+		t.Errorf("popup:\n%s", text)
 	}
 }

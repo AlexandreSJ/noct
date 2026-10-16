@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/AlexandreSJ/noct/internal/ipc"
@@ -16,6 +17,9 @@ const (
 	updateCheckInterval  = 24 * time.Hour
 	updateCheckTimeout   = 30 * time.Second
 	updateInstallTimeout = 5 * time.Minute
+	// updateCheckCooldown keeps checks apart, so holding c cannot spend GitHub's limit of 60
+	// requests an hour.
+	updateCheckCooldown = time.Minute
 )
 
 // updates is what noct knows of its releases.
@@ -24,6 +28,9 @@ type updates struct {
 	releases []update.Release
 	checked  bool
 	checking bool
+	// nextCheck is when a check may start again: after the cooldown, or when GitHub's limit
+	// resets.
+	nextCheck time.Time
 	// problem says why the last check or install failed.
 	problem    string
 	installing bool
@@ -53,12 +60,18 @@ func (a *App) newestRelease() (update.Release, bool) {
 	return newer[0], true
 }
 
-// checkForUpdates lists the releases in the background.
+// canCheck tells whether a check may start now.
+func (a *App) canCheck() bool {
+	return !a.updates.checking && !time.Now().Before(a.updates.nextCheck)
+}
+
+// checkForUpdates lists the releases in the background, unless a check ran too recently.
 func (a *App) checkForUpdates() {
-	if a.updates.checking {
+	if !a.canCheck() {
 		return
 	}
 	a.updates.checking, a.updates.problem = true, ""
+	a.updates.nextCheck = time.Now().Add(updateCheckCooldown)
 	source := a.updateSource
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), updateCheckTimeout)
@@ -71,6 +84,9 @@ func (a *App) checkForUpdates() {
 // checked keeps what a check found.
 func (a *App) checked(releases []update.Release, err error) {
 	a.updates.checking = false
+	if limited := (*update.RateLimited)(nil); errors.As(err, &limited) && limited.Reset.After(a.updates.nextCheck) {
+		a.updates.nextCheck = limited.Reset
+	}
 	if err != nil {
 		a.updates.problem = err.Error()
 		return

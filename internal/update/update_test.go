@@ -7,13 +7,16 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCompare(t *testing.T) {
@@ -230,5 +233,20 @@ func TestManualCommand(t *testing.T) {
 		" | tar -xzf - -C /tmp noct && sudo install -m 755 /tmp/noct '/opt/my tools/noct'"
 	if got != want {
 		t.Errorf("ManualCommand =\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestReleasesTellsWhenGitHubLimitsTheChecks(t *testing.T) {
+	reset := time.Now().Add(20 * time.Minute).Truncate(time.Second)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(reset.Unix(), 10))
+		http.Error(w, "API rate limit exceeded", http.StatusForbidden)
+	}))
+	defer server.Close()
+	_, err := Source{API: server.URL, Client: server.Client()}.Releases(context.Background())
+	var limited *RateLimited
+	if !errors.As(err, &limited) || !limited.Reset.Equal(reset) {
+		t.Errorf("err = %v, want rate limited until %v", err, reset)
 	}
 }

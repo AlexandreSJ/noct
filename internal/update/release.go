@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"strconv"
 	"time"
 )
 
@@ -78,6 +79,33 @@ func Newer(releases []Release, current string) []Release {
 	return slices.DeleteFunc(slices.Clone(releases), func(r Release) bool { return Compare(r.Version, current) <= 0 })
 }
 
+// RateLimited is the error of a request GitHub turned down because too many came from this
+// address; it takes them again at Reset.
+type RateLimited struct {
+	Reset time.Time
+}
+
+func (e *RateLimited) Error() string {
+	return "GitHub takes no more checks until " + e.Reset.Local().Format("15:04")
+}
+
+// rateLimit tells whether a response turns a request down for coming too often, and until when:
+// the reset GitHub gives, or a while after the retry it asks for, or an hour without either.
+func rateLimit(response *http.Response) (*RateLimited, bool) {
+	limited := response.StatusCode == http.StatusTooManyRequests ||
+		response.StatusCode == http.StatusForbidden && response.Header.Get("X-RateLimit-Remaining") == "0"
+	if !limited {
+		return nil, false
+	}
+	if seconds, err := strconv.Atoi(response.Header.Get("Retry-After")); err == nil {
+		return &RateLimited{Reset: time.Now().Add(time.Duration(seconds) * time.Second)}, true
+	}
+	if reset, err := strconv.ParseInt(response.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
+		return &RateLimited{Reset: time.Unix(reset, 0)}, true
+	}
+	return &RateLimited{Reset: time.Now().Add(time.Hour)}, true
+}
+
 func (s Source) get(ctx context.Context, url string) ([]byte, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -90,6 +118,9 @@ func (s Source) get(ctx context.Context, url string) ([]byte, error) {
 		return nil, err
 	}
 	defer response.Body.Close()
+	if limited, ok := rateLimit(response); ok {
+		return nil, limited
+	}
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s answered %s", url, response.Status)
 	}

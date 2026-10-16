@@ -213,7 +213,7 @@ O noct mostra a versão que roda à direita da barra de tabs, antes do nome da s
 
 | Tecla | O que faz |
 |---|---|
-| `c` | Procurar de novo |
+| `c` | Procurar de novo; no máximo uma vez por minuto, e com o limite do GitHub esgotado, só depois da hora que ele informa (a dica some enquanto isso) |
 | `u` | Instalar a mais nova, quando há uma: baixa o arquivo do sistema, confere o sha256 e troca o binário. Se a pasta do binário não é gravável pelo usuário, mostra o comando que instala com `sudo` |
 | `y` | Copiar esse comando (OSC 52), para colar num terminal; depois é só reiniciar o noct |
 | `r` | Depois de instalar: pergunta e reinicia o noct na versão nova. Os programas nos painéis param, e a sessão abre de novo como estava, como depois de um quit |
