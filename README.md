@@ -46,7 +46,7 @@ noct keeps it all in one place:
 On Linux or macOS, download the archive for your system (`linux` or `darwin`, `amd64` or `arm64`) from the [latest release](https://github.com/AlexandreSJ/noct/releases/latest) and put `noct` on your `PATH`. A folder you own, like `~/.local/bin`, lets noct update itself without `sudo`:
 
 ```sh
-tar -xzf noct_v0.1.0_linux_amd64.tar.gz noct
+tar -xzf noct_v0.1.1_linux_amd64.tar.gz noct
 install -m 755 noct ~/.local/bin/noct
 ```
 
