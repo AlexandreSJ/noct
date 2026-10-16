@@ -27,10 +27,18 @@ func noctVersion() string {
 	if version != "" {
 		return version
 	}
-	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
-		return info.Main.Version
+	info, _ := debug.ReadBuildInfo()
+	return moduleVersion(info)
+}
+
+// moduleVersion is the version go install recorded when it fetched noct as a module, which has
+// a checksum. A build in a checkout records a pseudo-version of its commit too (v0.0.0-…+dirty),
+// but it is a dev build: updating would replace it with a release.
+func moduleVersion(info *debug.BuildInfo) string {
+	if info == nil || info.Main.Sum == "" || !update.IsRelease(info.Main.Version) {
+		return update.Dev
 	}
-	return update.Dev
+	return info.Main.Version
 }
 
 func updateCommand() error {

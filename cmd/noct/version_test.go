@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"testing"
 
@@ -105,5 +106,24 @@ func TestUpdateRefusesADevBuild(t *testing.T) {
 	err := updateNoct(releasesServer(t), update.Dev, installedBinary(t), strings.NewReader("y\n"), &strings.Builder{})
 	if err == nil || !strings.Contains(err.Error(), "development build") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+func TestModuleVersionIsDevForACheckoutBuild(t *testing.T) {
+	tests := []struct {
+		name string
+		info *debug.BuildInfo
+		want string
+	}{
+		{"go install of a tag", &debug.BuildInfo{Main: debug.Module{Version: "v0.1.0", Sum: "h1:abc="}}, "v0.1.0"},
+		{"go install of a commit", &debug.BuildInfo{Main: debug.Module{Version: "v0.1.1-0.20261016160344-08af8c875876", Sum: "h1:abc="}}, "v0.1.1-0.20261016160344-08af8c875876"},
+		{"go build in a checkout", &debug.BuildInfo{Main: debug.Module{Version: "v0.0.0-20261016160344-08af8c875876+dirty"}}, update.Dev},
+		{"go build without VCS", &debug.BuildInfo{Main: debug.Module{Version: "(devel)"}}, update.Dev},
+		{"no build info", nil, update.Dev},
+	}
+	for _, test := range tests {
+		if got := moduleVersion(test.info); got != test.want {
+			t.Errorf("%s: moduleVersion = %q, want %q", test.name, got, test.want)
+		}
 	}
 }
