@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <a href="#por-que-o-noct">Por que o noct</a> · <a href="#instalação">Instalação</a> · <a href="#primeiros-passos">Primeiros passos</a> · <a href="#do-seu-jeito">Do seu jeito</a> · <a href="#scripts">Scripts</a> · <a href="#fluxos">Fluxos</a> · <a href="#ia">IA</a> · <a href="#sessões">Sessões</a> · <a href="#documentação">Docs</a>
+  <a href="#por-que-o-noct">Por que o noct</a> · <a href="#instalação">Instalação</a> · <a href="#primeiros-passos">Primeiros passos</a> · <a href="#do-seu-jeito">Do seu jeito</a> · <a href="#scripts">Scripts</a> · <a href="#fluxos">Fluxos</a> · <a href="#ia">IA</a> · <a href="#sessões">Sessões</a> · <a href="#atualizações">Atualizações</a> · <a href="#documentação">Docs</a>
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@
 </p>
 
 > [!NOTE]
-> **Início do desenvolvimento.** Terminais, scripts, fluxos e a integração com IA já funcionam; espere mudanças antes da primeira versão.
+> **Beta.** A v0.1.0 é o primeiro beta: terminais, scripts, fluxos e a integração com IA já funcionam; espere mudanças antes da v1.0.0.
 
 ## Por que o noct
 
@@ -43,7 +43,14 @@ O noct junta tudo num lugar só:
 
 ## Instalação
 
-Requer Go 1.24 ou mais recente, em Linux ou macOS.
+Em Linux ou macOS, baixe o arquivo do seu sistema (`linux` ou `darwin`, `amd64` ou `arm64`) na [última release](https://github.com/AlexandreSJ/noct/releases/latest) e coloque o `noct` no `PATH`. Uma pasta sua, como `~/.local/bin`, deixa o noct se atualizar sem `sudo`:
+
+```sh
+tar -xzf noct_v0.1.0_linux_amd64.tar.gz noct
+install -m 755 noct ~/.local/bin/noct
+```
+
+Com Go 1.24 ou mais recente:
 
 ```sh
 go install github.com/AlexandreSJ/noct/cmd/noct@latest
@@ -86,7 +93,8 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `[` | Rolar o histórico do terminal |
 | `d` | Desconectar; os programas continuam |
 | `x` | Fechar o painel; a tab fecha junto com o último painel, a não ser que o config mantenha tabs vazias |
-| `c` | Config: tecla prefixo, as teclas de cada tela, atalhos diretos, tema, fundo, mouse, o que uma tab nova abre e se ela fecha quando fica vazia, editor, gerenciador de arquivos, pasta dos scripts, por quanto tempo e quanto guardar dos logs, quanto da saída dos passos os fluxos guardam |
+| `c` | Atualizações: o que há de novo em cada versão e, quando sai uma mais nova, instalá-la |
+| `,` | Config: tecla prefixo, as teclas de cada tela, atalhos diretos, tema, fundo, mouse, o que uma tab nova abre e se ela fecha quando fica vazia, editor, gerenciador de arquivos, pasta dos scripts, por quanto tempo e quanto guardar dos logs, quanto da saída dos passos os fluxos guardam |
 | `q` | Sair, depois de confirmar: `Enter` ou `q` de novo |
 | `b` | Travar os atalhos, para os programas recebê-los; andar continua valendo. De novo destrava |
 | `Esc` | Cancelar |
@@ -105,7 +113,7 @@ O mouse também funciona: clique numa tab ou num painel para selecioná-lo, cliq
   <img src="docs/assets/tour.gif" alt="noct: busca, o calendário dos logs colorido pela atividade, uma segunda sessão, o config e as teclas de cada tela" width="880">
 </p>
 
-`prefixo` + `c` abre o config, salvo em TOML legível em `~/.config/noct/config.toml`; cada mudança vale na hora.
+`prefixo` + `,` (ou `Alt+,`) abre o config, salvo em TOML legível em `~/.config/noct/config.toml`; cada mudança vale na hora.
 
 - **Teclas.** Defina o prefixo apertando-o: quantos modificadores quiser com uma tecla, mostrada como o seu terminal a manda, com um aviso quando ela tomaria uma tecla do noct ou de programas (`ctrl+c`, `ctrl+r`, o `ctrl+b` do tmux). **Binds of every screen** lista cada ação dos modos, painéis e popups do noct com suas teclas: `Enter` troca uma (com várias, `←→` escolhem qual antes), `a` acrescenta outra, `Delete` volta ao padrão. Dicas, popups e rótulos seguem as suas teclas.
 - **Tabs.** Escolha o que uma tab nova abre (vazia, um terminal, scripts, fluxos ou logs) e se uma tab fecha junto com o último painel.
@@ -165,6 +173,8 @@ claude mcp add noct -- noct mcp
 | `noct mcp` | Serve o noct a um cliente de IA por stdin e stdout |
 | `noct check` | Aponta os scripts e fluxos que não carregam |
 | `noct quit` | Fecha todos os painéis e encerra o workspace; as sessões reabrem como estavam |
+| `noct update` | Mostra o que há de novo nas releases depois desta e, se você concordar, instala a mais nova |
+| `noct version` | Imprime a versão do noct |
 
 `noct -h` mostra todas as opções.
 
@@ -176,7 +186,11 @@ Mantenha workspaces separados em sessões com nome: `noct new dev` cria uma, `no
 
 Uma sessão fechada, ou todas depois de `noct quit`, guarda suas tabs e painéis: reabri-la inicia os shells nos diretórios em que estavam e os painéis do noct onde estavam. Um programa que rodava num shell, como `claude` ou `ssh`, não volta sozinho: o painel diz qual era, e `Enter` roda o mesmo comando de novo (`Esc` deixa o shell como está). Com os logs de terminais ligados (`[logs] terminals`), cada shell mostra também o fim do que tinha escrito e continua gravando no mesmo log. Execuções de scripts não voltam.
 
-O daemon continua rodando a versão com que começou. Depois de atualizar ou recompilar o noct, saia (`Ctrl+Space` `q`) e rode `noct` de novo; o noct lembra disso na barra de tabs quando percebe um binário mais novo.
+O daemon continua rodando a versão com que começou. Depois de recompilar o noct, saia (`Ctrl+Space` `q`) e rode `noct` de novo; o noct lembra disso na barra de tabs quando percebe um binário mais novo.
+
+## Atualizações
+
+A barra de tabs mostra a versão do noct antes do nome da sessão, e uma vez por dia o noct procura uma release nova no GitHub: quando sai uma, ela aparece ao lado da versão (`noct v0.1.0 ↑ v0.2.0`). `Ctrl+Space` `c` abre as atualizações: o changelog de cada versão, `u` para instalar a mais nova e, depois de instalada, `r` para reiniciar nela; as sessões reabrem como estavam, e os programas dos painéis podem rodar de novo com `Enter`. Nada é instalado nem reiniciado antes de você apertar uma tecla. Quando o noct está numa pasta que você não pode gravar, como `/usr/local/bin`, o popup mostra o comando que instala com `sudo`, e `y` o copia para colar num terminal. A procura diária pode ser desligada no config (**Updates → check for new versions**). No shell, `noct update` faz o mesmo. O que mudou em cada versão está no [CHANGELOG.md](CHANGELOG.md).
 
 ## Documentação
 

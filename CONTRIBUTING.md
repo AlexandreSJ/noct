@@ -79,3 +79,9 @@ noct stays small and focused by following these rules:
 
 - One logical change per commit, with a short imperative subject (`Add pane resize`, `Fix focus after closing a pane`).
 - Keep the build and the tests green on every commit.
+
+## 5. Releases
+
+- Versions follow semantic versioning: `vMAJOR.MINOR.PATCH`.
+- A change that users notice adds a line to the top section of [CHANGELOG.md](CHANGELOG.md), written for the people who use noct: noct shows it in its updates popup.
+- To release, give the section its version (`## v0.2.0`), commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`. The release workflow runs the checks, builds the archives (`make dist`) and publishes the release with that section as its text; `make dist VERSION=v0.2.0` and `make release-notes VERSION=v0.2.0` show locally what it will publish.

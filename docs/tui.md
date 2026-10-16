@@ -56,7 +56,7 @@ Uma sessão é um conjunto de tabs com nome (ADR-037). O daemon guarda várias; 
 
 ## Atalhos: modo noct
 
-A **tecla prefixo** (padrão `Ctrl+Space`, configurável) liga o **modo noct**. Um popup `commands` no centro da tela lista os comandos disponíveis. Nenhum modo (comandos, mover, redimensionar, confirmar, rolar) escreve seu nome na barra de tabs: o popup ou o título do painel já dizem qual é, e o canto direito da barra fica só para mensagens. Fora do modo, toda tecla vai direto para o painel, então programas como vim e Claude recebem todas as teclas.
+A **tecla prefixo** (padrão `Ctrl+Space`, configurável) liga o **modo noct**. Um popup `commands` no centro da tela lista os comandos disponíveis. Nenhum modo (comandos, mover, redimensionar, confirmar, rolar) escreve seu nome na barra de tabs: o popup ou o título do painel já dizem qual é, e o canto direito da barra fica para mensagens, a versão do noct e o nome da sessão (ver [Atualizações](#atualizações)). Fora do modo, toda tecla vai direto para o painel, então programas como vim e Claude recebem todas as teclas.
 
 No modo noct:
 
@@ -83,7 +83,8 @@ No modo noct:
 | `r` | rename tab | Renomear a tab: `Enter` salva, `Esc` cancela | prompt | 0 |
 | `e` | rename panel | Renomear o painel com foco; vazio volta ao nome do programa | prompt | 2 |
 | `x` | close | Fechar o painel; a tab fecha junto com o último | termina | 0 |
-| `c` | config | Abrir o config | config | 0 |
+| `,` | config | Abrir o config (antes `c`; ADR-047) | config | 0 |
+| `c` | updates and changelog | Popup das atualizações: o que há de novo e o changelog de cada versão; ver [Atualizações](#atualizações) | atualizações | 5 |
 | `q` | quit | Pergunta `quit noct?`: `Enter` ou `q` de novo saem, `Esc` cancela | pergunta | 0a |
 | `b` | lock shortcuts | Trava os atalhos, ou destrava: ver [Trava](#trava) | termina | 5 |
 | `Esc` | cancel | Cancelar o modo noct | termina | 0 |
@@ -140,7 +141,7 @@ O cursor aparece como `▏` no meio do texto, e um texto longo rola para mantê-
 
 ## Trocar as teclas
 
-Todas as teclas dos modos, painéis e popups do noct podem ser trocadas em `prefixo` + `c` → **Keys** → `binds of every screen` (ADR-041). A página lista, por contexto (`commands` depois do prefixo, `move`, `resize`, `scroll history`, `scripts panel`, `inspect flows`, `logs`, `run again after reopening`, `finished run`, `sessions`, `MCP`, perguntas, popups, escolhas, busca, prompts, formulários e o próprio config), cada ação com as teclas que a fazem; `•` marca as trocadas.
+Todas as teclas dos modos, painéis e popups do noct podem ser trocadas em `prefixo` + `,` → **Keys** → `binds of every screen` (ADR-041). A página lista, por contexto (`commands` depois do prefixo, `move`, `resize`, `scroll history`, `scripts panel`, `inspect flows`, `logs`, `run again after reopening`, `finished run`, `sessions`, `MCP`, perguntas, popups, escolhas, busca, prompts, formulários e o próprio config), cada ação com as teclas que a fazem; `•` marca as trocadas.
 
 - `Enter` (ou clique no valor) e aperte a tecla. Numa ação com uma tecla, ela a substitui; com várias (`pgup  ctrl+b`), o primeiro `Enter` marca uma delas entre colchetes, `←`/`→` escolhem qual, e o segundo `Enter` pega a tecla nova no lugar dela, mostrando `[press a key…]` ali e, embaixo, qual está sendo substituída. Com o mouse, clicar numa das teclas já pega a tecla para ela. `a` acrescenta uma tecla, `Delete` volta a ação ao padrão. Como no prefixo, a tecla aparece como o terminal a mandou, `Enter` a usa e `esc` cancela.
 - Uma tecla que outra ação do mesmo contexto já tem gera um aviso (`⚠ n is new script or directory; enter moves it here`); usá-la tira a tecla da outra ação. Contextos diferentes não conflitam.
@@ -168,7 +169,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 
 ## Config
 
-`prefixo` + `c` abre o painel **config**, gravado em `~/.config/noct/config.toml` (TOML legível, editável à mão). Cada mudança vale na hora e é salva. Com o mouse (ADR-040): passar sobre uma linha a destaca, clicar a seleciona, e clicar no valor o muda: em `◂` volta, em qualquer outro ponto (`▸`, `on`/`off`) avança, como `←`/`→`; numa linha de texto, o clique só seleciona, para digitar. A roda move a seleção, e um clique fora fecha o painel.
+`prefixo` + `,` (ou `Alt+,`) abre o painel **config**, gravado em `~/.config/noct/config.toml` (TOML legível, editável à mão). Cada mudança vale na hora e é salva. Com o mouse (ADR-040): passar sobre uma linha a destaca, clicar a seleciona, e clicar no valor o muda: em `◂` volta, em qualquer outro ponto (`▸`, `on`/`off`) avança, como `←`/`→`; numa linha de texto, o clique só seleciona, para digitar. A roda move a seleção, e um clique fora fecha o painel.
 
 | Seção | Item | Valores |
 |---|---|---|
@@ -190,6 +191,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 | **Flows** | `step output kept` (`[flows] output_kb` no arquivo) | Quanto da saída de cada passo o último resultado de um fluxo guarda: `all` (padrão, até 1 MB, o que os templates leem), 256, 64, 16 ou 4 KB. Testes de passos (`t` no inspect) guardam sempre 4 KB (ADR-031). |
 | **Logs** | `keep`, `max size` (`[logs] keep_days`, `max_size_kb` no arquivo) | Por quantos dias e até que tamanho os logs ficam (90 dias e 200 MB por padrão). `←`/`→` passam pelos valores prontos; `Enter` abre o valor para editar e um dígito começa um valor novo: dias (`99`) ou tamanho em KB, MB ou GB (`222 MB`, `20000 KB`, `2 GB`; sem unidade, MB). `Enter` salva, `Esc` descarta, e um valor que não se lê fica aberto com o problema embaixo. Sair da linha também descarta. Um limite novo que apagaria logs pergunta antes (`delete 12 logs (34.5 MB)?`); `Esc` ou `n` mantém o valor anterior e, se estava digitando, o texto. Embaixo, a mesma barra da view de logs mostra quanto os logs ocupam do tamanho máximo (`37% · 74 MB of 200 MB · 312 logs`). (ADR-044) |
 | | `terminals` (`[logs] terminals`) | Desligado (padrão): o que os painéis de terminal mostram não é gravado, para os logs não se encherem com o histórico do shell. Ligado: cada terminal novo grava a saída, como antes. Scripts, fluxos e comandos da IA são sempre gravados. (ADR-044) |
+| **Updates** | `check for new versions` (`[update] check` no arquivo) | Ligado (padrão): o daemon procura releases novas no GitHub ao iniciar e uma vez por dia. Desligado, só procura quando o popup das atualizações pede (`c`). Instalar sempre espera o usuário. (ADR-047) |
 | **Defaults** | `reset all to defaults` | Última linha: só `Enter`, duas vezes em até 1000 ms, volta todas as opções deste painel ao padrão, inclusive a pasta dos scripts e as teclas trocadas; setas, espaço e cliques não fazem nada nessa linha. Depois do primeiro `Enter` aparece `enter again to reset`, que some se o segundo não vier a tempo ou se a seleção sair da linha. As pastas de scripts extras e a política da IA, que não são editadas aqui, ficam. (ADR-040) |
 
 O noct recebe as teclas na codificação legada, a mesma que o shell receberia direto do terminal. Nela, `Ctrl+Shift+A` chega igual a `Ctrl+A` e `Shift+Space` igual a `Space`, então `shift` só vale no prefixo como `Alt+Shift+letra` ou com F1–F12; o config recusa as demais combinações (ADR-012).
@@ -202,6 +204,22 @@ Atalhos do próprio terminal têm prioridade: se o kitty usa `Ctrl+L` para limpa
 # kitty.conf: dentro do noct, Ctrl+L vai para o painel
 map --when-focus-on var:in_noct ctrl+l
 ```
+
+## Atualizações
+
+O noct mostra a versão que roda à direita da barra de tabs, antes do nome da sessão (`noct v0.1.0`; `noct dev` num build sem versão). Quando há uma release mais nova, ela aparece em seguida na cor de destaque (`↑ v0.2.0`), e depois de instalada, `v0.2.0 ready: restart`. (ADR-047)
+
+`prefixo` + `c` (ou `Alt+C`) abre o popup **updates**. No topo, o que está acontecendo ou o que dá para fazer: procurando, `v0.2.0 is out: u installs it`, a versão já é a mais nova, ou o erro da última tentativa. Embaixo, o changelog de cada release, da mais nova à mais antiga, com a data; as mais novas que esta levam `· new` e a que roda, `· this version`. `↑↓`/`jk` rolam, `PgUp`/`PgDn` e `Home`/`End` pulam.
+
+| Tecla | O que faz |
+|---|---|
+| `c` | Procurar de novo |
+| `u` | Instalar a mais nova, quando há uma: baixa o arquivo do sistema, confere o sha256 e troca o binário. Se a pasta do binário não é gravável pelo usuário, mostra o comando que instala com `sudo` |
+| `y` | Copiar esse comando (OSC 52), para colar num terminal; depois é só reiniciar o noct |
+| `r` | Depois de instalar: pergunta e reinicia o noct na versão nova. Os programas nos painéis param, e a sessão abre de novo como estava, como depois de um quit |
+| `q` / `Esc` | Fechar |
+
+Nada é instalado nem reiniciado sem uma tecla do usuário. Sem reiniciar, a versão nova vale no próximo `noct` depois de um quit. Um build `dev` não procura sozinho e não oferece instalar. Na linha de comando, `noct update` mostra o changelog das versões novas e pergunta antes de instalar, e `noct version` imprime a versão.
 
 ## Estética
 

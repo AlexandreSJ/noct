@@ -79,3 +79,9 @@ O noct continua pequeno e focado seguindo estas regras:
 
 - Uma mudança lógica por commit, com assunto curto no imperativo (`Add pane resize`, `Fix focus after closing a pane`).
 - Build e testes verdes em todo commit.
+
+## 5. Releases
+
+- As versões seguem o versionamento semântico: `vMAJOR.MINOR.PATCH`.
+- Uma mudança que o usuário percebe ganha uma linha na seção do topo do [CHANGELOG.md](CHANGELOG.md), escrita para quem usa o noct (em inglês, como a UI): o noct a mostra no popup de atualizações.
+- Para lançar, dê a versão à seção (`## v0.2.0`), faça o commit e então crie e envie a tag: `git tag v0.2.0 && git push origin v0.2.0`. O workflow de release roda as verificações, gera os arquivos (`make dist`) e publica a release com essa seção como texto; `make dist VERSION=v0.2.0` e `make release-notes VERSION=v0.2.0` mostram localmente o que será publicado.

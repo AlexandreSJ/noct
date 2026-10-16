@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <a href="#why-noct">Why noct</a> · <a href="#install">Install</a> · <a href="#getting-started">Getting started</a> · <a href="#make-it-yours">Make it yours</a> · <a href="#scripts">Scripts</a> · <a href="#flows">Flows</a> · <a href="#ai">AI</a> · <a href="#sessions">Sessions</a> · <a href="#documentation">Docs</a>
+  <a href="#why-noct">Why noct</a> · <a href="#install">Install</a> · <a href="#getting-started">Getting started</a> · <a href="#make-it-yours">Make it yours</a> · <a href="#scripts">Scripts</a> · <a href="#flows">Flows</a> · <a href="#ai">AI</a> · <a href="#sessions">Sessions</a> · <a href="#updates">Updates</a> · <a href="#documentation">Docs</a>
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@
 </p>
 
 > [!NOTE]
-> **Early development.** Terminals, scripts, flows and the AI integration work today; expect changes before a first release.
+> **Beta.** v0.1.0 is the first beta: terminals, scripts, flows and the AI integration work today; expect changes before v1.0.0.
 
 ## Why noct
 
@@ -43,7 +43,14 @@ noct keeps it all in one place:
 
 ## Install
 
-Requires Go 1.24 or later, on Linux or macOS.
+On Linux or macOS, download the archive for your system (`linux` or `darwin`, `amd64` or `arm64`) from the [latest release](https://github.com/AlexandreSJ/noct/releases/latest) and put `noct` on your `PATH`. A folder you own, like `~/.local/bin`, lets noct update itself without `sudo`:
+
+```sh
+tar -xzf noct_v0.1.0_linux_amd64.tar.gz noct
+install -m 755 noct ~/.local/bin/noct
+```
+
+With Go 1.24 or later:
 
 ```sh
 go install github.com/AlexandreSJ/noct/cmd/noct@latest
@@ -86,7 +93,8 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `[` | Scroll the terminal's history |
 | `d` | Detach; programs keep running |
 | `x` | Close the pane; a tab closes with its last pane, unless the config keeps empty tabs |
-| `c` | Config: prefix key, the keys of every screen, direct shortcuts, theme, background, mouse, what a new tab opens and whether it closes when empty, editor, file manager, scripts folder, how long and how much of the logs to keep, how much step output flows keep |
+| `c` | Updates: what is new in each version and, when a newer one is out, installing it |
+| `,` | Config: prefix key, the keys of every screen, direct shortcuts, theme, background, mouse, what a new tab opens and whether it closes when empty, editor, file manager, scripts folder, how long and how much of the logs to keep, how much step output flows keep |
 | `q` | Quit, after asking: `Enter` or `q` again |
 | `b` | Lock the shortcuts, so programs get them; moving around still works. Again to unlock |
 | `Esc` | Cancel |
@@ -105,7 +113,7 @@ The mouse works too: click a tab or a pane to select it, click a command in the 
   <img src="docs/assets/tour.gif" alt="noct: search, the logs calendar colored by activity, a second session, the config and the keys of every screen" width="880">
 </p>
 
-`prefix` + `c` opens the config, saved as readable TOML in `~/.config/noct/config.toml`; every change applies at once.
+`prefix` + `,` (or `Alt+,`) opens the config, saved as readable TOML in `~/.config/noct/config.toml`; every change applies at once.
 
 - **Keys.** Set the prefix by pressing it: any modifiers with a key, shown as your terminal sends it, with a warning when it would take a key from noct or from programs (`ctrl+c`, `ctrl+r`, tmux's `ctrl+b`). **Binds of every screen** lists each action of noct's modes, panels and popups with its keys: `Enter` changes one (with several, `←→` choose which first), `a` adds another, `Delete` gives the default back. Hints, popups and labels follow your keys.
 - **Tabs.** Choose what a new tab opens (empty, a terminal, scripts, flows or logs) and whether a tab closes with its last pane.
@@ -165,6 +173,8 @@ claude mcp add noct -- noct mcp
 | `noct mcp` | Serve noct to an AI client over stdin and stdout |
 | `noct check` | Report the scripts and flows that cannot be loaded |
 | `noct quit` | Close every pane and stop the workspace; sessions open again as they were |
+| `noct update` | Show what is new in the releases after this one and, if you agree, install the newest |
+| `noct version` | Print noct's version |
 
 `noct -h` shows every option.
 
@@ -176,7 +186,11 @@ Keep separate workspaces as named sessions: `noct new dev` starts one, `noct att
 
 A closed session, or every session after `noct quit`, keeps its tabs and panes: opening it again starts its shells in the directories they were in and its noct panels where they were. A program that was running in a shell, such as `claude` or `ssh`, does not come back by itself: the pane says what it was, and `Enter` runs the same command again (`Esc` leaves the shell alone). With terminal logs on (`[logs] terminals`), each shell also shows the end of what it printed before and goes on writing the same log. Script runs do not come back.
 
-The daemon keeps running the version it started with. After updating or rebuilding noct, quit it (`Ctrl+Space` `q`) and run `noct` again; noct reminds you in the tab bar when it notices a newer binary.
+The daemon keeps running the version it started with. After rebuilding noct, quit it (`Ctrl+Space` `q`) and run `noct` again; noct reminds you in the tab bar when it notices a newer binary.
+
+## Updates
+
+The tab bar shows noct's version before the session's name, and once a day noct checks GitHub for a new release: when one is out, it shows next to the version (`noct v0.1.0 ↑ v0.2.0`). `Ctrl+Space` `c` opens the updates: the changelog of every version, `u` to install the newest and, once installed, `r` to restart into it; your sessions open again as they were, and programs in panes can be run again with `Enter`. Nothing is installed or restarted until you press a key. When noct lives in a folder you cannot write, like `/usr/local/bin`, the popup shows the command that installs it with `sudo`, and `y` copies it to paste in a terminal. The daily check can be turned off in the config (**Updates → check for new versions**). From the shell, `noct update` does the same. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Documentation
 

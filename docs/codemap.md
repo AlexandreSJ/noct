@@ -6,7 +6,9 @@ Keep this table current: add a row when you add a package or a main file, and fi
 
 | Path | Responsibility |
 |---|---|
-| `cmd/noct/main.go` | Entry point: `noct` (attach to the last session, starting the daemon), dispatch of the session commands, `noct quit`, `noct daemon`, dispatch of the script commands |
+| `cmd/noct/main.go` | Entry point: `noct` (attach to the last session, starting the daemon, and starting the new binary after an update's restart), dispatch of the session commands, `noct quit`, `noct daemon`, `noct version`, dispatch of the script and update commands |
+| `cmd/noct/version.go` | The version the binary was built as (`-X main.version`, or go install's, or dev) and `noct update`: the newer releases' changelog, then installing the newest once the user agrees |
+| `cmd/noct/version_test.go` | Tests of `noct update` against a local release server: install on yes, nothing without, newest, a read-only folder, a dev build |
 | `cmd/noct/sessions.go` | `noct attach`/`a`/`att`/`-a` (listing the sessions without a name), `noct new`, `noct sessions`, `noct kill`: sessions by name, asking the running workspace or, without one, reading `sessions.json` |
 | `cmd/noct/sessions_test.go` | End-to-end tests of sessions: two sessions apart, a missing one refused, a session opened again after quit in its shell's directory, a program offered to run again after quit, kill without noct running |
 | `cmd/noct/mcp.go` | `noct mcp`: the MCP server on stdin and stdout, with the audit log and the daemon as its workspace |
@@ -19,7 +21,11 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/client/client.go` | The terminal side: raw mode, forwarding keys and size, writing frames (and tracing them with `NOCT_TRACE`) |
 | `internal/client/request.go` | Asking the running workspace to do one thing for the MCP server, and reading its answer |
 | `internal/client/pane.go` | Asking the running workspace for a step's pane and waiting for its exit code |
-| `internal/daemon/daemon.go` | Run the daemon; start it in the background when needed |
+| `internal/daemon/daemon.go` | Run the daemon at its version; start it in the background when needed |
+| `internal/update/version.go` | Semantic versions: reading and ordering them, telling a release from a dev build |
+| `internal/update/release.go` | Releases on GitHub: listing them with their changelogs, the ones newer than a version |
+| `internal/update/install.go` | Installing a release: download, checksum, replace the binary atomically; whether its folder is writable; the command that installs it by hand |
+| `internal/update/update_test.go` | Tests of versions, listing releases and installing them against a local server |
 | `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs; appending to one and reading its end |
 | `internal/logstore/entries.go` | Logs by day, each with a flow run's result beside it: listing, line counts, removing, pruning by age and total size, readable sizes |
 | `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, exit code, foreground program and its command line, current directory |
@@ -35,6 +41,9 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/sessions.go` | Sessions: create, switch, close (keeping the layout), delete, rename; saving them and opening a closed one again; the command line's list and delete |
 | `internal/app/rerun.go` | The box over a reopened terminal offering to run again what it ran (enter types it, esc forgets it); typing text into a view |
 | `internal/app/sessions_popup.go` | Sessions popup (prefix+o): the sessions by last use, keys to open, create, rename, close and delete |
+| `internal/app/updates.go` | Updates: checking for releases at start and daily, installing the newest in the background, the command to install by hand, restarting into it |
+| `internal/app/updates_popup.go` | Updates popup (prefix+c): what is new, the changelog of every release, keys to check, update, copy the command and restart |
+| `internal/app/updates_test.go` | Tests of the updates popup, the tab bar's version, installing, restarting and the read-only case |
 | `internal/app/client.go` | Daemon side of an attached terminal: decoding its keys, drawing to it, greeting connections |
 | `internal/app/scroll.go` | Scroll mode through a terminal's history |
 | `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach (in any session) |
@@ -95,6 +104,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `third_party/ultraviolet`, `third_party/vt` | Copies of charmbracelet/ultraviolet and x/vt with throughput and rendering fixes (`noct:` comments); see `third_party/README.md`. `noct_render_test.go` replays the renderer's output into the emulator |
 | `docs/demo/record.sh`, `docs/demo/*.tape` | The README's GIFs (`make demo`): VHS tapes run noct in a home of its own, with the demo scripts and flows of `docs/demo/scripts` and `docs/demo/flows` |
 | `docs/assets/` | The README's logo (`logo.svg`, the home's art as rectangles) and GIFs |
+| `.github/workflows/release.yml`, `Makefile` (`dist`, `release-notes`), `CHANGELOG.md` | Releases: a pushed `vX.Y.Z` tag runs the checks, builds the archives and checksums, and publishes the GitHub release with the tag's CHANGELOG section, which noct's updates read (ADR-047) |
 | `internal/script/script.go` | A script: load, validate (params and outputs), render its command line, create and delete |
 | `internal/script/library.go` | The library: personal scripts, folders of scripts (in the scripts folder, linked, project), IDs, lookups |
 | `internal/script/edit.go` | Creating a script (with optional hints) and updating it from the form's fields, keeping the rest of the YAML; params as YAML text |

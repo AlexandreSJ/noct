@@ -43,6 +43,7 @@ Cada componente é um pacote Go em `internal/`, com interface pequena e testáve
 | `history` | (Não criado: o histórico ficou em `runs.json`, no pacote `script`, e no último resultado de cada fluxo; ADR-029) | — | 2 |
 | `policy` | Decidir se uma ação (da IA ou de trigger) roda, pede confirmação ou é negada | — | 3 |
 | `mcp` | Servidor MCP por stdio (protocolo próprio, sem SDK): ferramentas sobre scripts, fluxos, execuções e logs, e pedidos ao daemon para painéis, execuções e aprovações; política e auditoria (ADR-033) | `script`, `flow`, `logstore`, `config` | 3 |
+| `update` | Releases do noct no GitHub: listar com o changelog, comparar versões, baixar, conferir o checksum e trocar o binário (ADR-047) | — | 5 |
 | `session` | Gravar e ler `sessions.json`: as tabs de cada sessão como formas de layout e os painéis que podem reabrir (ADR-037) | `layout`, `logstore` | 5 |
 | `catalog` | Manifestos de programas, detecção e adaptadores de gerenciadores de pacote | — | 4 |
 
@@ -83,6 +84,7 @@ Como no tmux, **o daemon desenha para o terminal do cliente** (ADR-017):
 - `prefixo` + `d` desconecta; sem cliente, os programas continuam rodando e nada é desenhado. `noct` reconecta.
 - O daemon guarda várias **sessões** (ADR-037), cada uma com suas tabs; o cliente conectado vê uma delas. O `Hello` diz qual (`Session`, ou `NewSession` para criar); sem nome, é a última usada. Uma sessão que não existe é recusada (`Exit.Refused`).
 - `noct quit` fecha tudo e para o daemon, depois de gravar as sessões em `sessions.json`; o próximo `noct` reabre a última. `noct` inicia o daemon sozinho quando ele não está rodando (`noct daemon`, numa sessão própria, com a saída em `daemon.log`).
+- **Reiniciar numa versão nova** (ADR-047): depois de instalar uma release, o daemon para como no quit, mas diz `restart` ao cliente; o cliente, já com o terminal restaurado, se troca (`exec`) pelo binário em disco, que inicia o daemon novo e reabre a sessão usada por último, a que estava na tela. O listener fecha antes de o cliente receber o `Exit`, então o cliente novo nunca encontra o daemon velho.
 - Protocolo: 1 byte de tipo + 4 bytes de tamanho + conteúdo; `Hello`, `Resize` e `Exit` em JSON, `Input` e `Output` em bytes crus.
 
 ## Armazenamento (XDG)
