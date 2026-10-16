@@ -78,7 +78,7 @@ func (s Source) Install(ctx context.Context, version, target string) error {
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", name, err)
 	}
-	return replaceFile(target, binary)
+	return replaceFile(target, binary, 0o755)
 }
 
 // checksumOf finds a file's sha256 in a checksums list, as sha256sum writes it.
@@ -116,16 +116,16 @@ func binaryIn(archive []byte) ([]byte, error) {
 
 // replaceFile writes content next to target and renames it over target, so target is never
 // left half written.
-func replaceFile(target string, content []byte) error {
+func replaceFile(target string, content []byte, mode os.FileMode) error {
 	file, err := os.CreateTemp(filepath.Dir(target), ".noct-update-*")
 	if err != nil {
-		return fmt.Errorf("writing the new noct: %w", err)
+		return fmt.Errorf("writing %s: %w", target, err)
 	}
 	defer os.Remove(file.Name()) // fails harmlessly once renamed
 	_, err = file.Write(content)
-	err = errors.Join(err, file.Chmod(0o755), file.Close())
+	err = errors.Join(err, file.Chmod(mode), file.Close())
 	if err != nil {
-		return fmt.Errorf("writing the new noct: %w", err)
+		return fmt.Errorf("writing %s: %w", target, err)
 	}
 	if err := os.Rename(file.Name(), target); err != nil {
 		return fmt.Errorf("replacing %s: %w", target, err)

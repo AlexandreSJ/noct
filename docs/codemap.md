@@ -24,6 +24,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/daemon/daemon.go` | Run the daemon at its version; start it in the background when needed |
 | `internal/update/version.go` | Semantic versions: reading and ordering them, telling a release from a dev build |
 | `internal/update/release.go` | Releases on GitHub: listing them with their changelogs, the ones newer than a version |
+| `internal/update/cache.go` | `updates.json`: the last check (releases, when, ETag, how long GitHub asked to wait), read at start and written after each check |
 | `internal/update/install.go` | Installing a release: download, checksum, replace the binary atomically; whether its folder is writable; the command that installs it by hand |
 | `internal/update/update_test.go` | Tests of versions, listing releases and installing them against a local server |
 | `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs; appending to one and reading its end |
@@ -41,7 +42,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/sessions.go` | Sessions: create, switch, close (keeping the layout), delete, rename; saving them and opening a closed one again; the command line's list and delete |
 | `internal/app/rerun.go` | The box over a reopened terminal offering to run again what it ran (enter types it, esc forgets it); typing text into a view |
 | `internal/app/sessions_popup.go` | Sessions popup (prefix+o): the sessions by last use, keys to open, create, rename, close and delete |
-| `internal/app/updates.go` | Updates: checking for releases at start and daily, installing the newest in the background, the command to install by hand, restarting into it |
+| `internal/app/updates.go` | Updates: the cache of the last check, checking once it is a day old or on demand (with the ETag and a cooldown), installing the newest in the background, the command to install by hand, restarting into it |
 | `internal/app/updates_popup.go` | Updates popup (prefix+c): what is new, the changelog of every release, keys to check, update, copy the command and restart |
 | `internal/app/updates_test.go` | Tests of the updates popup, the tab bar's version, installing, restarting and the read-only case |
 | `internal/app/client.go` | Daemon side of an attached terminal: decoding its keys, drawing to it, greeting connections |

@@ -3,6 +3,7 @@ package app
 import (
 	"image"
 	"strings"
+	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
@@ -135,7 +136,11 @@ func (a *App) updatesHints() string {
 func (a *App) drawUpdates(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	width := min(updatesPanelWidth, a.size.X-4)
-	source := append(a.updatesStatus(), styledLine{"", a.palette.panelText})
+	source := a.updatesStatus()
+	if !a.updates.lastChecked.IsZero() && !a.updates.checking {
+		source = append(source, styledLine{"checked " + lastUsed(a.updates.lastChecked, time.Now(), false), a.palette.panelMuted})
+	}
+	source = append(source, styledLine{"", a.palette.panelText})
 	source = append(source, a.changelogLines()...)
 	var lines []styledLine
 	for _, line := range source {

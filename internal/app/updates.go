@@ -9,12 +9,16 @@ import (
 	"github.com/AlexandreSJ/noct/internal/update"
 )
 
-// The daemon looks for new releases when it starts and once a day after, unless the config
-// turns that off; the updates popup (prefix+c) checks on demand, installs a release once the
-// user asks, and restarts noct into it.
+// The daemon looks for new releases once a day, unless the config turns that off, and keeps what
+// it found in updates.json, so a restart or the popup does not ask GitHub again before then; the
+// updates popup (prefix+c) checks on demand, installs a release once the user asks, and restarts
+// noct into it.
 
 const (
+	// updateCheckInterval is how old the last check gets before the daemon checks again; it
+	// looks every updateDueTick, so a computer that slept checks soon after waking.
 	updateCheckInterval  = 24 * time.Hour
+	updateDueTick        = time.Hour
 	updateCheckTimeout   = 30 * time.Second
 	updateInstallTimeout = 5 * time.Minute
 	// updateCheckCooldown keeps checks apart, so holding c cannot spend GitHub's limit of 60
@@ -28,6 +32,10 @@ type updates struct {
 	releases []update.Release
 	checked  bool
 	checking bool
+	// lastChecked is when GitHub last answered, and etag what it answered, to ask next time
+	// only whether the releases changed.
+	lastChecked time.Time
+	etag        string
 	// nextCheck is when a check may start again: after the cooldown, or when GitHub's limit
 	// resets.
 	nextCheck time.Time
@@ -51,6 +59,38 @@ func (a *App) checksOnItsOwn() bool {
 	return a.config.Update.Check && update.IsRelease(a.version)
 }
 
+// checkIfDue checks on its own once the last check is a day old.
+func (a *App) checkIfDue() {
+	if a.checksOnItsOwn() && time.Since(a.updates.lastChecked) >= updateCheckInterval {
+		a.checkForUpdates()
+	}
+}
+
+// loadUpdateCache takes what the last check found, so the releases show without asking again.
+func (a *App) loadUpdateCache() {
+	cache, err := update.LoadCache(a.updateCachePath)
+	if err != nil {
+		a.statusMessage = err.Error()
+		return
+	}
+	a.updates.releases, a.updates.lastChecked, a.updates.etag = cache.Releases, cache.Checked, cache.ETag
+	a.updates.checked, a.updates.nextCheck = !cache.Checked.IsZero(), cache.WaitUntil
+}
+
+// saveUpdateCache keeps what the last check found for the next run.
+func (a *App) saveUpdateCache() {
+	if a.updateCachePath == "" {
+		return
+	}
+	cache := update.Cache{Releases: a.updates.releases, Checked: a.updates.lastChecked, ETag: a.updates.etag}
+	if a.updates.nextCheck.After(time.Now().Add(updateCheckCooldown)) {
+		cache.WaitUntil = a.updates.nextCheck // GitHub's limit, which outlasts a restart
+	}
+	if err := update.SaveCache(a.updateCachePath, cache); err != nil {
+		a.updates.problem = err.Error()
+	}
+}
+
 // newestRelease is the newest release after this one, if there is one.
 func (a *App) newestRelease() (update.Release, bool) {
 	newer := update.Newer(a.updates.releases, a.version)
@@ -72,26 +112,31 @@ func (a *App) checkForUpdates() {
 	}
 	a.updates.checking, a.updates.problem = true, ""
 	a.updates.nextCheck = time.Now().Add(updateCheckCooldown)
-	source := a.updateSource
+	source, etag := a.updateSource, a.updates.etag
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), updateCheckTimeout)
 		defer cancel()
-		releases, err := source.Releases(ctx)
-		a.onLoop(func() { a.checked(releases, err) })
+		listing, err := source.Releases(ctx, etag)
+		a.onLoop(func() { a.checked(listing, err) })
 	}()
 }
 
-// checked keeps what a check found.
-func (a *App) checked(releases []update.Release, err error) {
+// checked keeps what a check found, and saves it.
+func (a *App) checked(listing update.Listing, err error) {
 	a.updates.checking = false
 	if limited := (*update.RateLimited)(nil); errors.As(err, &limited) && limited.Reset.After(a.updates.nextCheck) {
 		a.updates.nextCheck = limited.Reset
+		a.saveUpdateCache()
 	}
 	if err != nil {
 		a.updates.problem = err.Error()
 		return
 	}
-	a.updates.releases, a.updates.checked = releases, true
+	if !listing.Unchanged {
+		a.updates.releases = listing.Releases
+	}
+	a.updates.checked, a.updates.lastChecked, a.updates.etag = true, time.Now(), listing.ETag
+	a.saveUpdateCache()
 }
 
 // installUpdate writes the newest release over the binary in the background or, when this user

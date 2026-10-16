@@ -54,6 +54,7 @@ func updatesApp(t *testing.T, version string) *App {
 	}))
 	t.Cleanup(server.Close)
 	a.updateSource = update.Source{API: server.URL + "/api", Downloads: server.URL + "/download", Client: server.Client()}
+	a.updateCachePath = filepath.Join(t.TempDir(), update.CacheFile)
 	a.updateTarget = filepath.Join(t.TempDir(), "noct")
 	if err := os.WriteFile(a.updateTarget, []byte("noct "+version), 0o755); err != nil {
 		t.Fatal(err)
@@ -211,4 +212,48 @@ func TestHoldingCChecksOnce(t *testing.T) {
 	if !strings.Contains(text, "GitHub takes no more checks until") || strings.Contains(text, "c check") {
 		t.Errorf("popup:\n%s", text)
 	}
+
+	restarted := testApp(t)
+	restarted.version, restarted.updateCachePath = "v0.1.0", a.updateCachePath
+	restarted.loadUpdateCache()
+	if until := time.Until(restarted.updates.nextCheck); until < 29*time.Minute {
+		t.Errorf("after a restart, next check in %v, want GitHub's limit kept", until)
+	}
+}
+
+// What a check found is kept: noct started again shows the changelog without asking GitHub, and
+// checks on its own only once the check is a day old.
+func TestTheLastCheckIsKeptAcrossRuns(t *testing.T) {
+	a := updatesApp(t, "v0.1.0")
+	press(a, prefixPress, letter('c'))
+	runLoopTask(t, a)
+
+	restarted := testApp(t)
+	restarted.version, restarted.updateCachePath = "v0.1.0", a.updateCachePath
+	restarted.loadUpdateCache()
+	restarted.checkIfDue()
+	press(restarted, prefixPress, letter('c'))
+	if restarted.updates.checking {
+		t.Fatal("asked GitHub again, with a check from just now")
+	}
+	text := screenText(restarted)
+	for _, want := range []string{"v0.2.0 is out", "checked just now", "- faster panes", "- first beta"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("popup lacks %q:\n%s", want, text)
+		}
+	}
+	if !strings.Contains(firstLine(text), "↑ v0.2.0") {
+		t.Errorf("tab bar = %q, want the newer version from the cache", firstLine(text))
+	}
+
+	restarted.updateSource = a.updateSource
+	restarted.loopTasks, restarted.stopped = make(chan func()), make(chan struct{})
+	defer close(restarted.stopped)
+	restarted.updates.lastChecked = time.Now().Add(-25 * time.Hour)
+	restarted.updates.nextCheck = time.Time{} // the popup's cooldown is not what this tests
+	restarted.checkIfDue()
+	if !restarted.updates.checking {
+		t.Fatal("a day-old check did not check again")
+	}
+	runLoopTask(t, restarted)
 }

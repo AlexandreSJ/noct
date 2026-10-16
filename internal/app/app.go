@@ -144,6 +144,8 @@ type App struct {
 	// replaces; tests point both elsewhere.
 	updateSource update.Source
 	updateTarget string
+	// updateCachePath keeps the last check between runs; empty keeps nothing.
+	updateCachePath string
 	// exitReason is what the attached terminal is told when noct stops: quit, or a restart.
 	exitReason string
 }
@@ -167,6 +169,8 @@ func New(version string) *App {
 	a.launch = a.startProgram
 	a.binary = currentBinary()
 	a.updateTarget, _ = update.Executable() // without it, updates can only be checked
+	a.updateCachePath = filepath.Join(logstore.Dir(), update.CacheFile)
+	a.loadUpdateCache()
 	a.versions = script.NewVersions(a.notifyScreenChanged)
 	a.loadConfig()
 	a.loadMemory()
@@ -228,10 +232,8 @@ func (a *App) loop() error {
 	defer libraryCheck.Stop()
 	saveSessions := time.NewTicker(sessionSaveInterval)
 	defer saveSessions.Stop()
-	if a.checksOnItsOwn() {
-		a.checkForUpdates()
-	}
-	updateCheck := time.NewTicker(updateCheckInterval)
+	a.checkIfDue()
+	updateCheck := time.NewTicker(updateDueTick)
 	defer updateCheck.Stop()
 	for !a.quitting {
 		select {
@@ -257,9 +259,7 @@ func (a *App) loop() error {
 		case <-saveSessions.C:
 			a.saveSessions()
 		case <-updateCheck.C:
-			if a.checksOnItsOwn() {
-				a.checkForUpdates()
-			}
+			a.checkIfDue()
 		case <-a.homeTick:
 			a.advanceHomeArt()
 		case <-a.resetExpired:

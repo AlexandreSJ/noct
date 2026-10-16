@@ -83,10 +83,11 @@ func TestReleasesNewestFirstWithoutDrafts(t *testing.T) {
 	defer server.Close()
 	source := Source{API: server.URL, Client: server.Client()}
 
-	releases, err := source.Releases(context.Background())
+	listing, err := source.Releases(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	releases := listing.Releases
 	if len(releases) != 2 || releases[0].Version != "v0.2.0" || releases[1].Version != "v0.1.0" {
 		t.Fatalf("releases = %+v, want v0.2.0 then v0.1.0", releases)
 	}
@@ -106,7 +107,7 @@ func TestReleasesReportsAFailedAnswer(t *testing.T) {
 		http.Error(w, "rate limited", http.StatusForbidden)
 	}))
 	defer server.Close()
-	_, err := Source{API: server.URL, Client: server.Client()}.Releases(context.Background())
+	_, err := Source{API: server.URL, Client: server.Client()}.Releases(context.Background(), "")
 	if err == nil || !strings.Contains(err.Error(), "403") {
 		t.Errorf("err = %v, want the status", err)
 	}
@@ -244,9 +245,50 @@ func TestReleasesTellsWhenGitHubLimitsTheChecks(t *testing.T) {
 		http.Error(w, "API rate limit exceeded", http.StatusForbidden)
 	}))
 	defer server.Close()
-	_, err := Source{API: server.URL, Client: server.Client()}.Releases(context.Background())
+	_, err := Source{API: server.URL, Client: server.Client()}.Releases(context.Background(), "")
 	var limited *RateLimited
 	if !errors.As(err, &limited) || !limited.Reset.Equal(reset) {
 		t.Errorf("err = %v, want rate limited until %v", err, reset)
+	}
+}
+
+func TestReleasesAsksOnlyWhetherTheyChanged(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("If-None-Match") == `"v1"` {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		w.Header().Set("ETag", `"v1"`)
+		_, _ = w.Write([]byte(`[{"tag_name": "v0.1.0", "body": "first beta"}]`))
+	}))
+	defer server.Close()
+	source := Source{API: server.URL, Client: server.Client()}
+
+	first, err := source.Releases(context.Background(), "")
+	if err != nil || first.Unchanged || first.ETag != `"v1"` || len(first.Releases) != 1 {
+		t.Fatalf("first = %+v, %v; want the release and its ETag", first, err)
+	}
+	again, err := source.Releases(context.Background(), first.ETag)
+	if err != nil || !again.Unchanged || again.ETag != `"v1"` || again.Releases != nil {
+		t.Errorf("again = %+v, %v; want unchanged", again, err)
+	}
+}
+
+func TestCacheKeepsTheLastCheck(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state", CacheFile)
+	if cache, err := LoadCache(path); err != nil || !cache.Checked.IsZero() {
+		t.Fatalf("missing cache = %+v, %v; want empty", cache, err)
+	}
+	want := Cache{
+		Releases: []Release{{Version: "v0.1.0", Notes: "- first beta", Published: time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)}},
+		Checked:  time.Date(2026, 10, 16, 13, 0, 0, 0, time.UTC),
+		ETag:     `"v1"`,
+	}
+	if err := SaveCache(path, want); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadCache(path)
+	if err != nil || len(got.Releases) != 1 || got.Releases[0] != want.Releases[0] || !got.Checked.Equal(want.Checked) || got.ETag != want.ETag || !got.WaitUntil.IsZero() {
+		t.Errorf("loaded %+v, %v; want %+v", got, err, want)
 	}
 }

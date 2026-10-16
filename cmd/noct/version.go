@@ -58,11 +58,11 @@ func updateNoct(source update.Source, current, target string, stdin io.Reader, s
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), updateTimeout)
 	defer cancel()
-	releases, err := source.Releases(ctx)
+	listing, err := source.Releases(ctx, "")
 	if err != nil {
 		return err
 	}
-	newer := update.Newer(releases, current)
+	newer := update.Newer(listing.Releases, current)
 	if len(newer) == 0 {
 		fmt.Fprintf(stdout, "noct %s is the newest release\n", current)
 		return nil

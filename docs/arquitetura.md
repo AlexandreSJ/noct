@@ -98,6 +98,7 @@ Como no tmux, **o daemon desenha para o terminal do cliente** (ADR-017):
 | `~/.local/state/noct/logs/<data>/<hora>-<nome>.log` | Saída crua de cada execução (scripts, fluxos, comandos da IA) e, com `[logs] terminals` ligado, de cada terminal (`pane<N>`), até 10 MiB + um arquivo `.1` com o anterior |
 | `~/.local/state/noct/daemon.log` | Mensagens do daemon |
 | `~/.local/state/noct/sessions.json` | As sessões: nome, criação, último uso e, por tab, o layout e os painéis que reabrem (shells com o diretório, o comando que rodavam e o log, painéis do noct) (ADR-037, ADR-046) |
+| `~/.local/state/noct/updates.json` | A última procura de releases: as releases com o changelog, quando foi, o `ETag` e até quando esperar o limite do GitHub (ADR-047) |
 | `~/.local/state/noct/params.json`, `runs.json` | Últimos valores dos parâmetros; as últimas 1000 execuções de scripts (fase 1) |
 | `~/.local/state/noct/runs.json` | As últimas 1000 execuções de scripts e fluxos: quando, código de saída e log (ADR-029) |
 | `~/.local/state/noct/flows/<fluxo>.json` | Resultado da última execução de cada fluxo, passo a passo (ADR-028) |

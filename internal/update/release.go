@@ -22,9 +22,18 @@ const releasesListed = 30
 
 // Release is one published version of noct and its changelog, as written for the release.
 type Release struct {
-	Version   string
-	Notes     string
-	Published time.Time
+	Version   string    `json:"version"`
+	Notes     string    `json:"notes"`
+	Published time.Time `json:"published"`
+}
+
+// Listing is what a check found: the releases, and the ETag that lets the next check ask only
+// whether they changed. Unchanged says they are still the ones the ETag sent stands for, and
+// Releases is empty then.
+type Listing struct {
+	Releases  []Release
+	ETag      string
+	Unchanged bool
 }
 
 // Source is where releases are listed and downloaded from; tests point it at a local server.
@@ -46,12 +55,21 @@ func GitHub() Source {
 }
 
 // Releases lists the latest published releases, the newest first. Drafts and tags that are not
-// versions are left out.
-func (s Source) Releases(ctx context.Context) ([]Release, error) {
-	body, err := s.get(ctx, fmt.Sprintf("%s/releases?per_page=%d", s.API, releasesListed))
+// versions are left out. With the ETag of an earlier listing, GitHub answers only whether they
+// changed, and an unchanged answer does not count against its limit.
+func (s Source) Releases(ctx context.Context, etag string) (Listing, error) {
+	answer, err := s.fetch(ctx, fmt.Sprintf("%s/releases?per_page=%d", s.API, releasesListed), etag)
 	if err != nil {
-		return nil, fmt.Errorf("listing the releases: %w", err)
+		return Listing{}, fmt.Errorf("listing the releases: %w", err)
 	}
+	if answer.unchanged {
+		return Listing{ETag: etag, Unchanged: true}, nil
+	}
+	releases, err := parseReleases(answer.body)
+	return Listing{Releases: releases, ETag: answer.etag}, err
+}
+
+func parseReleases(body []byte) ([]Release, error) {
 	var listed []struct {
 		Tag       string    `json:"tag_name"`
 		Body      string    `json:"body"`
@@ -106,30 +124,50 @@ func rateLimit(response *http.Response) (*RateLimited, bool) {
 	return &RateLimited{Reset: time.Now().Add(time.Hour)}, true
 }
 
+// answer is what a request got: the body and its ETag, or unchanged when the server said the
+// ETag sent still stands.
+type answer struct {
+	body      []byte
+	etag      string
+	unchanged bool
+}
+
 func (s Source) get(ctx context.Context, url string) ([]byte, error) {
+	answer, err := s.fetch(ctx, url, "")
+	return answer.body, err
+}
+
+// fetch asks for url, sending etag, when there is one, to learn whether it changed.
+func (s Source) fetch(ctx context.Context, url, etag string) (answer, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		return answer{}, err
 	}
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("User-Agent", "noct")
+	if etag != "" {
+		request.Header.Set("If-None-Match", etag)
+	}
 	response, err := s.Client.Do(request)
 	if err != nil {
-		return nil, err
+		return answer{}, err
 	}
 	defer response.Body.Close()
 	if limited, ok := rateLimit(response); ok {
-		return nil, limited
+		return answer{}, limited
 	}
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s answered %s", url, response.Status)
+	switch {
+	case response.StatusCode == http.StatusNotModified && etag != "":
+		return answer{etag: etag, unchanged: true}, nil
+	case response.StatusCode != http.StatusOK:
+		return answer{}, fmt.Errorf("%s answered %s", url, response.Status)
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxDownload+1))
 	if err != nil {
-		return nil, err
+		return answer{}, err
 	}
 	if len(body) > maxDownload {
-		return nil, fmt.Errorf("%s is larger than %d MB", url, maxDownload>>20)
+		return answer{}, fmt.Errorf("%s is larger than %d MB", url, maxDownload>>20)
 	}
-	return body, nil
+	return answer{body: body, etag: response.Header.Get("ETag")}, nil
 }

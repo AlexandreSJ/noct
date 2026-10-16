@@ -209,7 +209,7 @@ map --when-focus-on var:in_noct ctrl+l
 
 O noct mostra a versão que roda à direita da barra de tabs, antes do nome da sessão (`noct v0.1.0`; `noct dev` num build sem versão). Quando há uma release mais nova, ela aparece em seguida na cor de destaque (`↑ v0.2.0`), e depois de instalada, `v0.2.0 ready: restart`. (ADR-047)
 
-`prefixo` + `c` (ou `Alt+C`) abre o popup **updates**. No topo, o que está acontecendo ou o que dá para fazer: procurando, `v0.2.0 is out: u installs it`, a versão já é a mais nova, ou o erro da última tentativa. Embaixo, o changelog de cada release, da mais nova à mais antiga, com a data; as mais novas que esta levam `· new` e a que roda, `· this version`. `↑↓`/`jk` rolam, `PgUp`/`PgDn` e `Home`/`End` pulam.
+`prefixo` + `c` (ou `Alt+C`) abre o popup **updates**. No topo, o que está acontecendo ou o que dá para fazer: procurando, `v0.2.0 is out: u installs it`, a versão já é a mais nova, ou o erro da última tentativa, e quando foi a última procura (`checked 2 h ago`). O popup mostra o que está guardado em `updates.json` e só pergunta ao GitHub quando nada foi procurado ainda ou com `c`. Embaixo, o changelog de cada release, da mais nova à mais antiga, com a data; as mais novas que esta levam `· new` e a que roda, `· this version`. `↑↓`/`jk` rolam, `PgUp`/`PgDn` e `Home`/`End` pulam.
 
 | Tecla | O que faz |
 |---|---|
