@@ -29,6 +29,7 @@ const (
 	infoMode                   // reading about something, such as a flow's step
 	mcpMode                    // AI approvals, connected clients and how to add noct to one
 	sessionsMode               // the sessions: open, create, rename, close, delete
+	updatesMode                // new versions of noct and the changelog
 )
 
 // shortcut is one command as listed in the popups and on the home screen.
@@ -61,7 +62,8 @@ var commandShortcuts = []shortcut{
 	{"e", "rename panel", true},
 	{"u", "scroll history", true},
 	{"x", "close", true},
-	{"c", "config", false},
+	{",", "config", false},
+	{"c", "updates and changelog", false},
 	{"d", "detach", false},
 	{"q", "quit", false},
 	{"b", "lock shortcuts", false},
@@ -86,7 +88,7 @@ var arrowHeadings = map[string]layout.Heading{
 }
 
 // actionKeys are the noct mode commands that act, as opposed to moving around.
-var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "u", "x", "c", "d", "q"}
+var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "u", "x", ",", "c", "d", "q"}
 
 var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
 
@@ -134,6 +136,8 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 		a.handleMCPKey(key)
 	case sessionsMode:
 		a.handleSessionsKey(key)
+	case updatesMode:
+		a.handleUpdatesKey(key)
 	default:
 		a.handleNormalKey(key)
 	}
@@ -223,8 +227,11 @@ func (a *App) runAction(name string) {
 		a.openNewTab()
 	case "g":
 		a.openFloating()
-	case "c":
+	case ",":
 		a.openConfig()
+		return
+	case "c":
+		a.openUpdates()
 		return
 	case "d":
 		if a.client != nil {

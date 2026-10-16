@@ -18,13 +18,14 @@ import (
 // startTimeout bounds how long a new daemon may take to open its socket.
 const startTimeout = 5 * time.Second
 
-// Run serves the workspace on the socket until the user quits.
-func Run(socketPath string) error {
+// Run serves the workspace on the socket until the user quits. version is the noct release this
+// binary was built as, or update.Dev.
+func Run(socketPath, version string) error {
 	listener, err := ipc.Listen(socketPath)
 	if err != nil {
 		return err
 	}
-	return app.New().Serve(listener)
+	return app.New(version).Serve(listener)
 }
 
 // EnsureRunning starts a daemon in the background unless one already answers on the socket.

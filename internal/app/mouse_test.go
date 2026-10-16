@@ -116,7 +116,7 @@ func TestClickingACommandInTheNoctPopupRunsIt(t *testing.T) {
 	if a.mode != commandMode {
 		t.Errorf("mode %v after clicking the focus row, which stands for several keys", a.mode)
 	}
-	clickShortcut(t, a, "c")
+	clickShortcut(t, a, ",")
 	if a.mode != configMode {
 		t.Errorf("mode %v after clicking config", a.mode)
 	}

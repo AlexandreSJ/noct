@@ -3,6 +3,7 @@
 package app
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"image"
@@ -22,6 +23,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/pty"
 	"github.com/AlexandreSJ/noct/internal/script"
 	saved "github.com/AlexandreSJ/noct/internal/session"
+	"github.com/AlexandreSJ/noct/internal/update"
 )
 
 // frameInterval caps rendering at about 60 frames per second; output only marks the screen dirty.
@@ -134,10 +136,23 @@ type App struct {
 	// aiClients are the AI clients running noct mcp right now; mcpSelected is the MCP popup's row.
 	aiClients   []*aiClient
 	mcpSelected int
+
+	// version is the noct release the daemon runs, or update.Dev.
+	version string
+	updates updates
+	// updateSource lists and downloads releases, and updateTarget is the binary an update
+	// replaces; tests point both elsewhere.
+	updateSource update.Source
+	updateTarget string
+	// exitReason is what the attached terminal is told when noct stops: quit, or a restart.
+	exitReason string
 }
 
-func New() *App {
+// New prepares the workspace of a daemon built as version.
+func New(version string) *App {
 	a := &App{
+		version:          version,
+		updateSource:     update.GitHub(),
 		shellArgv:        userShell(),
 		shellEnv:         paneEnvironment(os.Environ()),
 		terminalGraphics: make(chan []byte),
@@ -151,6 +166,7 @@ func New() *App {
 	a.workDir, _ = os.Getwd() // until a terminal attaches and reports its own
 	a.launch = a.startProgram
 	a.binary = currentBinary()
+	a.updateTarget, _ = update.Executable() // without it, updates can only be checked
 	a.versions = script.NewVersions(a.notifyScreenChanged)
 	a.loadConfig()
 	a.loadMemory()
@@ -212,6 +228,11 @@ func (a *App) loop() error {
 	defer libraryCheck.Stop()
 	saveSessions := time.NewTicker(sessionSaveInterval)
 	defer saveSessions.Stop()
+	if a.checksOnItsOwn() {
+		a.checkForUpdates()
+	}
+	updateCheck := time.NewTicker(updateCheckInterval)
+	defer updateCheck.Stop()
 	for !a.quitting {
 		select {
 		case event := <-a.clientEvents():
@@ -235,6 +256,10 @@ func (a *App) loop() error {
 			}
 		case <-saveSessions.C:
 			a.saveSessions()
+		case <-updateCheck.C:
+			if a.checksOnItsOwn() {
+				a.checkForUpdates()
+			}
 		case <-a.homeTick:
 			a.advanceHomeArt()
 		case <-a.resetExpired:
@@ -413,7 +438,7 @@ func (a *App) onLoop(task func()) {
 func (a *App) shutdown() error {
 	// Saved before the programs stop, while shells still tell their directories and commands.
 	if a.client != nil {
-		a.detachClient("quit")
+		a.detachClient(cmp.Or(a.exitReason, "quit"))
 	} else {
 		a.leaveSession()
 	}

@@ -55,6 +55,14 @@ type Config struct {
 	Logs  Logs                           `toml:"logs"`
 	Flows Flows                          `toml:"flows"`
 	MCP   MCP                            `toml:"mcp"`
+	// Update says whether noct looks for new releases on its own.
+	Update Update `toml:"update"`
+}
+
+// Update has noct look for new releases on GitHub when it starts and once a day while it runs.
+// Installing one always waits for the user.
+type Update struct {
+	Check bool `toml:"check"`
 }
 
 // MCP sets what an AI may do through noct mcp. Policy maps a tool's name to PolicyAllow,
@@ -165,6 +173,7 @@ func Default() Config {
 		ScriptsSort:    SortByName,
 		Logs:           Logs{KeepDays: DefaultKeepDays, MaxSizeKB: DefaultMaxSizeKB},
 		MCP:            MCP{ApprovalSeconds: DefaultApprovalSeconds},
+		Update:         Update{Check: true},
 	}
 }
 

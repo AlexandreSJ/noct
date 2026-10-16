@@ -65,6 +65,10 @@ type Request struct {
 	Args   json.RawMessage `json:"args,omitempty"`
 }
 
+// Restart is the Reason of the Exit an attached client gets when noct stops to run the version
+// installed over it: the client starts the binary on disk, which attaches again.
+const Restart = "restart"
+
 // RequestDone is the Reason of an Exit that answers a request that went well.
 const RequestDone = "done"
 

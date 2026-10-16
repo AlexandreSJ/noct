@@ -6,13 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"syscall"
 
 	"github.com/AlexandreSJ/noct/internal/client"
 	"github.com/AlexandreSJ/noct/internal/daemon"
 	"github.com/AlexandreSJ/noct/internal/ipc"
+	"github.com/AlexandreSJ/noct/internal/update"
 )
 
-const usage = "usage: noct [-h] [attach [session] | new [session] | sessions | kill <session> | ls | check | -s <script> [name=value ...] | flow run <flow> [--steps <first>..<last>] [name=value ...] | flow ls | enable <flow> | disable <flow> | promote <flow or script> | mcp | quit]"
+const usage = "usage: noct [-h] [attach [session] | new [session] | sessions | kill <session> | ls | check | -s <script> [name=value ...] | flow run <flow> [--steps <first>..<last>] [name=value ...] | flow ls | enable <flow> | disable <flow> | promote <flow or script> | mcp | update | version | quit]"
 
 const help = `noct: a terminal workspace for people who test.
 
@@ -44,11 +46,15 @@ Usage:
                                     and warn about steps read where they may not have run
   noct quit                         close every pane and stop the workspace; the sessions
                                     are kept and open again as they were
+  noct update                       show what is new in the releases after this one and,
+                                    if you agree, install the newest
+  noct version, -v, --version       print this noct's version
   noct -h, --help                   show this help
 
 Inside noct, press ctrl+space (the prefix) to see the keys.
-Settings: ~/.config/noct/config.toml (prefix+c inside noct). Scripts: prefix+s.
+Settings: ~/.config/noct/config.toml (prefix+, inside noct). Scripts: prefix+s.
 Flows: prefix+i. Logs and the calendar of runs: prefix+v. Sessions: prefix+o.
+Updates and the changelog: prefix+c.
 `
 
 func main() {
@@ -80,7 +86,7 @@ func run(args []string) error {
 	case "quit":
 		return client.Quit(socket)
 	case "daemon":
-		return daemon.Run(socket)
+		return daemon.Run(socket, noctVersion())
 	case "ls":
 		return listScripts(os.Stdout)
 	case "check":
@@ -91,6 +97,11 @@ func run(args []string) error {
 		return flowCommand(args[1:])
 	case "mcp":
 		return serveMCP()
+	case "update":
+		return updateCommand()
+	case "version", "-v", "--version":
+		fmt.Println("noct", noctVersion())
+		return nil
 	case "promote":
 		if len(args) != 2 {
 			return errors.New("usage: noct promote <flow or script>")
@@ -116,8 +127,24 @@ func attach(socket string, target client.Target) error {
 	if err != nil {
 		return err
 	}
+	if reason == ipc.Restart {
+		return restartNoct()
+	}
 	if reason != "quit" {
 		fmt.Printf("[noct %s; run noct to attach again]\n", reason)
+	}
+	return nil
+}
+
+// restartNoct replaces this process with the noct binary now on disk, which starts the new
+// daemon and attaches to the session used last: the one this terminal was showing.
+func restartNoct() error {
+	executable, err := update.Executable()
+	if err != nil {
+		return err
+	}
+	if err := syscall.Exec(executable, []string{"noct"}, os.Environ()); err != nil {
+		return fmt.Errorf("starting the new noct: %w", err)
 	}
 	return nil
 }

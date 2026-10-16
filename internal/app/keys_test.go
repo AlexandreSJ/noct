@@ -219,9 +219,9 @@ func TestScriptsAndTerminalPanelsSplitTheTab(t *testing.T) {
 	if a.mode != normalMode || len(a.currentTab().views) != 3 || a.currentTab().focusedView().Title() != "scripts" {
 		t.Errorf("mode=%v views=%d after prefix+s", a.mode, len(a.currentTab().views))
 	}
-	press(a, prefixPress, letter('c'))
+	press(a, prefixPress, letter(','))
 	if a.mode != configMode {
-		t.Errorf("prefix+c opened mode %v, want the config", a.mode)
+		t.Errorf("prefix+, opened mode %v, want the config", a.mode)
 	}
 }
 

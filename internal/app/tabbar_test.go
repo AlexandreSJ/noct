@@ -114,19 +114,21 @@ func TestWheelOverTheTabBarChangesTab(t *testing.T) {
 	}
 }
 
-// No mode names itself in the tab bar: its popup or title says it. A message still takes room.
+// No mode names itself in the tab bar: its popup or title says it. A message still takes room,
+// as noct's version does.
 func TestTabBarLeavesRoomForAMessageButNotForModes(t *testing.T) {
 	a := manyTabs(t, 20)
 	a.session.activeTab = 19
+	a.version = "v0.1.0"
 	for _, m := range []mode{commandMode, moveMode, resizeMode, confirmMode, scrollMode} {
 		a.mode = m
-		if status := a.tabBarStatus(); status != "" {
+		if status := a.tabBarStatus(); status != " noct v0.1.0 " {
 			t.Errorf("mode %v shows %q in the tab bar", m, status)
 		}
 	}
 	a.statusMessage = "no room in that tab"
 	spans := a.tabBar()
-	room := a.size.X - len(" no room in that tab ") - 2
+	room := a.size.X - len(" no room in that tab  noct v0.1.0 ") - 2
 	if end := spans[len(spans)-1].end; end > room {
 		t.Errorf("tabs end at %d, over the message from %d", end, room)
 	}

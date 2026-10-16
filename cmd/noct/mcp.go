@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"time"
 
 	"github.com/AlexandreSJ/noct/internal/client"
@@ -73,12 +72,4 @@ func (w daemonWorkspace) stayConnected(name, version string, gone <-chan struct{
 		case <-time.After(reconnectEvery):
 		}
 	}
-}
-
-// noctVersion is the module version the binary was built from, or dev.
-func noctVersion() string {
-	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
-		return info.Main.Version
-	}
-	return "dev"
 }

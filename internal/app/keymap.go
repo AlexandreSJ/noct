@@ -54,7 +54,8 @@ var keyContexts = []keyContext{
 		{"rename-panel", "rename panel", []string{"e"}},
 		{"scroll", "scroll history", []string{"u"}},
 		{"close", "close", []string{"x"}},
-		{"config", "config", []string{"c"}},
+		{"config", "config", []string{","}},
+		{"updates", "updates and changelog", []string{"c"}},
 		{"detach", "detach", []string{"d"}},
 		{"quit", "quit", []string{"q"}},
 		{"lock", "lock or unlock the shortcuts", []string{"b"}},
@@ -181,6 +182,19 @@ var keyContexts = []keyContext{
 		{"close-session", "close the session", []string{"x"}},
 		{"delete", "delete", []string{"d", "delete"}},
 		{"filter", "filter by name", []string{"f"}},
+		{"close", "close", []string{"q"}},
+	}},
+	{id: "updates", label: "updates", actions: []keyAction{
+		{"up", "scroll up", []string{"up", "k"}},
+		{"down", "scroll down", []string{"down", "j"}},
+		{"first", "the top", []string{"home"}},
+		{"last", "the end", []string{"end"}},
+		{"page-up", "a page up", []string{"pgup"}},
+		{"page-down", "a page down", []string{"pgdown"}},
+		{"check", "check for new versions", []string{"c"}},
+		{"update", "install the newest", []string{"u"}},
+		{"restart", "restart into the version installed", []string{"r"}},
+		{"copy", "copy the command that updates", []string{"y"}},
 		{"close", "close", []string{"q"}},
 	}},
 	{id: "mcp", label: "MCP", actions: []keyAction{
@@ -433,7 +447,7 @@ var modeKeyContexts = map[mode]string{
 	commandMode: "commands", moveMode: "move", resizeMode: "resize", scrollMode: "scroll",
 	confirmMode: "confirm", infoMode: "info", choiceMode: "choice", finderMode: "search",
 	promptMode: "prompt", formMode: "form", scriptFormMode: "script-form", configMode: "config",
-	mcpMode: "mcp", sessionsMode: "sessions",
+	mcpMode: "mcp", sessionsMode: "sessions", updatesMode: "updates",
 }
 
 // modeKeyContext is the context of the mode on, or none while a combination is being taken,

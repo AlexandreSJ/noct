@@ -40,6 +40,7 @@ const (
 	logsSizeRow
 	logsTerminalsRow
 	flowsOutputRow
+	updateCheckRow
 	resetRow
 	resetBindsRow
 )
@@ -325,6 +326,11 @@ func (a *App) changeSetting(step int) {
 	case flowsOutputRow:
 		i := max(slices.Index(flowOutputChoices, next.Flows.OutputKB), 0)
 		next.Flows.OutputKB = flowOutputChoices[min(max(i+step, 0), len(flowOutputChoices)-1)]
+	case updateCheckRow:
+		next.Update.Check = !next.Update.Check
+		if next.Update.Check && !a.updates.checked {
+			defer a.checkForUpdates()
+		}
 	}
 	a.applyConfig(next)
 }
@@ -481,6 +487,9 @@ func (a *App) configLines() []configLine {
 		configLine{label: "Flows", heading: true},
 		configLine{label: "step output kept", value: "◂ " + flowOutputLabel(a.config.Flows.OutputKB) + " ▸", row: flowsOutputRow},
 		configLine{label: "in each flow's last result; tests keep 4 KB", note: true},
+		configLine{label: "Updates", heading: true},
+		configLine{label: "check for new versions", value: onOff(a.config.Update.Check), row: updateCheckRow},
+		configLine{label: "on GitHub, at start and daily; installing always asks", note: true},
 		configLine{label: "Defaults", heading: true},
 		configLine{label: "reset all to defaults", value: a.resetValue(), row: resetRow},
 	)

@@ -63,6 +63,8 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 		a.drawMCP(screen)
 	case sessionsMode:
 		a.drawSessions(screen)
+	case updatesMode:
+		a.drawUpdates(screen)
 	}
 }
 
@@ -153,16 +155,29 @@ func (a *App) hideCursor() {
 
 // drawTabBarStatus shows, right-aligned, the latest message: a problem in the theme's attention
 // color, a notice in its accent. Modes are not named there: their popups and titles say it.
+// After it come noct's version, with a newer one in the accent, and the session's name.
 func (a *App) drawTabBarStatus(screen uv.Screen, minX int) {
 	text, style := a.statusParts()
+	version, news := a.versionTabBarLabel()
 	label := a.sessionTabBarLabel()
-	width := ansi.StringWidth(text) + ansi.StringWidth(label)
-	if width == 0 {
-		return
-	}
-	x := max(a.size.X-width, minX)
+	x := max(a.size.X-ansi.StringWidth(text+version+news+label), minX)
 	x = drawText(screen, x, 0, a.size.X, text, style)
+	x = drawText(screen, x, 0, a.size.X, version, a.palette.tab)
+	x = drawText(screen, x, 0, a.size.X, news, a.palette.focusedTitle)
 	drawText(screen, x, 0, a.size.X, label, a.palette.tab)
+}
+
+// versionTabBarLabel is noct's version and, once there is one, the newer release: out, or
+// installed and waiting for a restart.
+func (a *App) versionTabBarLabel() (version, news string) {
+	version = " noct " + a.version + " "
+	if a.updates.installed != "" {
+		return version, a.updates.installed + " ready: restart "
+	}
+	if newest, ok := a.newestRelease(); ok {
+		return version, "↑ " + newest.Version + " "
+	}
+	return version, ""
 }
 
 // sessionTabBarLabel names the session on screen, once there is more than one to tell apart.
@@ -192,7 +207,8 @@ func (a *App) statusParts() (text string, style uv.Style) {
 // tabBarStatus is what drawTabBarStatus shows, for the tab bar to leave room for it.
 func (a *App) tabBarStatus() string {
 	text, _ := a.statusParts()
-	return text + a.sessionTabBarLabel()
+	version, news := a.versionTabBarLabel()
+	return text + version + news + a.sessionTabBarLabel()
 }
 
 func (a *App) tabLabel(t *tab) string {
