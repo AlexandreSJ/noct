@@ -1,0 +1,39 @@
+# Publishes a release when a version tag is pushed (git tag v0.1.0 && git push origin v0.1.0):
+# runs the checks, builds the archives with make dist and creates the GitHub release, with the
+# tag's section of CHANGELOG.md as its text. noct's updates read these releases.
+name: release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Check (gofmt, vet, race tests)
+        run: make check
+
+      - name: Build the archives
+        run: make dist VERSION="$GITHUB_REF_NAME"
+
+      - name: Release notes from CHANGELOG.md
+        run: make release-notes VERSION="$GITHUB_REF_NAME" > dist/notes.md
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/checksums.txt \
+            --title "noct $GITHUB_REF_NAME" --notes-file dist/notes.md --verify-tag $prerelease
