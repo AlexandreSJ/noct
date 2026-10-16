@@ -112,9 +112,9 @@ func TestTerminalOffersToRunAgainAfterQuit(t *testing.T) {
 	waitForExit(t, exited, "the attached client did not end when the daemon quit")
 
 	again, _ := s.attach(t)
-	waitForScreen(t, again, "the offer to run it again", func(screen string) bool { return strings.Contains(screen, "was running sh") })
+	waitForScreen(t, again, "the offer to run it again", func(screen string) bool { return strings.Contains(screen, "run again?") })
 	enter(again)
 	waitForScreen(t, again, "the program running again", func(screen string) bool {
-		return strings.Contains(screen, "started") && !strings.Contains(screen, "was running")
+		return strings.Contains(screen, "started") && !strings.Contains(screen, "run again?")
 	})
 }
