@@ -65,7 +65,7 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 
 | Key | Action |
 |---|---|
-| Arrows or `hjkl` | Move between panes; past the edge, into the next or previous tab |
+| Arrows or `hjk` | Move between panes; past the edge, into the next or previous tab |
 | `Tab` / `Shift+Tab` | Change tab |
 | `t` | New tab, with a terminal or the panel chosen in the config |
 | `p` | New terminal panel: splits the current pane, or opens a tab on the home screen |
@@ -88,9 +88,10 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `x` | Close the pane; a tab closes with its last pane, unless the config keeps empty tabs |
 | `c` | Config: prefix key, the keys of every screen, direct shortcuts, theme, background, mouse, what a new tab opens and whether it closes when empty, editor, file manager, scripts folder, how long and how much of the logs to keep, how much step output flows keep |
 | `q` | Quit, after asking: `Enter` or `q` again |
+| `l` | Lock the shortcuts, so programs get them; moving around still works. Again to unlock |
 | `Esc` | Cancel |
 
-A popup lists these keys while noct mode is on. Wherever noct moves something and you are not typing, `hjkl` work like the arrows, and in every list `PgUp`/`PgDn` move a page and `Home`/`End` go to the ends.
+A popup lists these keys while noct mode is on. Wherever noct moves something and you are not typing, `hjkl` work like the arrows (except `l` after the prefix, which locks), and in every list `PgUp`/`PgDn` move a page and `Home`/`End` go to the ends.
 
 Outside noct mode, every key goes straight to the program in the pane, except the **direct shortcuts**: `Alt` with a noct mode key runs that command without the prefix (`Alt+→` moves the focus, `Alt+T` opens a tab, `Alt+A` moves the pane), and `Alt+Shift` with the arrows moves the pane directly. This takes `Alt+F` and `Alt+D` from the shell's word editing; the modifier can be switched to `Ctrl+Alt` or turned off in the config. Every key of noct's modes, panels and popups can also be changed there, under **Keys → binds of every screen**.
 

@@ -33,7 +33,7 @@ var keyContexts = []keyContext{
 		{"focus-left", "focus left, or the previous tab", []string{"left", "h"}},
 		{"focus-down", "focus down", []string{"down", "j"}},
 		{"focus-up", "focus up", []string{"up", "k"}},
-		{"focus-right", "focus right, or the next tab", []string{"right", "l"}},
+		{"focus-right", "focus right, or the next tab", []string{"right"}},
 		{"next-tab", "next tab", []string{"tab"}},
 		{"previous-tab", "previous tab", []string{"shift+tab"}},
 		{"new-tab", "new tab", []string{"t"}},
@@ -57,6 +57,7 @@ var keyContexts = []keyContext{
 		{"config", "config", []string{"c"}},
 		{"detach", "detach", []string{"d"}},
 		{"quit", "quit", []string{"q"}},
+		{"lock", "lock or unlock the shortcuts", []string{"l"}},
 	}},
 	{id: "move", label: "move", actions: []keyAction{
 		{"left", "move left", []string{"left", "h"}},

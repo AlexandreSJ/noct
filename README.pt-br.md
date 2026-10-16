@@ -65,7 +65,7 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 
 | Tecla | Ação |
 |---|---|
-| Setas ou `hjkl` | Mover entre painéis; passando da borda, para a tab seguinte ou anterior |
+| Setas ou `hjk` | Mover entre painéis; passando da borda, para a tab seguinte ou anterior |
 | `Tab` / `Shift+Tab` | Trocar de tab |
 | `t` | Nova tab, com terminal ou o painel escolhido no config |
 | `p` | Novo painel de terminal: divide o painel atual, ou abre uma tab na home |
@@ -88,9 +88,10 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `x` | Fechar o painel; a tab fecha junto com o último painel, a não ser que o config mantenha tabs vazias |
 | `c` | Config: tecla prefixo, as teclas de cada tela, atalhos diretos, tema, fundo, mouse, o que uma tab nova abre e se ela fecha quando fica vazia, editor, gerenciador de arquivos, pasta dos scripts, por quanto tempo e quanto guardar dos logs, quanto da saída dos passos os fluxos guardam |
 | `q` | Sair, depois de confirmar: `Enter` ou `q` de novo |
+| `l` | Travar os atalhos, para os programas recebê-los; andar continua valendo. De novo destrava |
 | `Esc` | Cancelar |
 
-Um popup lista essas teclas enquanto o modo noct está ligado. Onde o noct move algo e você não está digitando, `hjkl` valem como as setas, e em toda lista `PgUp`/`PgDn` andam uma página e `Home`/`End` vão às pontas.
+Um popup lista essas teclas enquanto o modo noct está ligado. Onde o noct move algo e você não está digitando, `hjkl` valem como as setas (menos `l` depois do prefixo, que trava), e em toda lista `PgUp`/`PgDn` andam uma página e `Home`/`End` vão às pontas.
 
 Fora do modo noct, toda tecla vai direto para o programa no painel, exceto os **atalhos diretos**: `Alt` com uma tecla do modo noct roda o comando sem o prefixo (`Alt+→` muda o foco, `Alt+T` abre uma tab, `Alt+A` move o painel), e `Alt+Shift` com as setas move o painel direto. Isso tira do shell `Alt+F` e `Alt+D` (edição por palavra); o modificador pode virar `Ctrl+Alt` ou ser desligado no config. Todas as teclas dos modos, painéis e popups do noct também podem ser trocadas lá, em **Keys → binds of every screen**.
 

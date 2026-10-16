@@ -112,7 +112,7 @@ func TestClickingACommandInTheNoctPopupRunsIt(t *testing.T) {
 	if a.session.activeTab != 1 || a.mode != commandMode {
 		t.Fatalf("tab %d, mode %v after clicking tab: want the next tab, popup still open", a.session.activeTab, a.mode)
 	}
-	clickShortcut(t, a, "←↓↑→ hjkl")
+	clickShortcut(t, a, "←↓↑→ hjk")
 	if a.mode != commandMode {
 		t.Errorf("mode %v after clicking the focus row, which stands for several keys", a.mode)
 	}

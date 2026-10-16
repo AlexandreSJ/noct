@@ -74,6 +74,10 @@ type App struct {
 	// notice is news that is not a problem, such as a copy done; it shows in the theme's accent.
 	notice   string
 	quitting bool
+	// locked leaves the keys of noct's commands to the programs, but for moving around.
+	locked bool
+	// lockHint tells, after a command the lock held back, how to unlock.
+	lockHint bool
 
 	intro *intro
 	// introHeldUntil keeps the home on screen over the session's panes while the intro plays,

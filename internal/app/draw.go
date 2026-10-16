@@ -179,6 +179,8 @@ func (a *App) statusParts() (text string, style uv.Style) {
 	switch {
 	case a.statusMessage != "":
 		text = " " + a.statusMessage + " "
+	case a.lockHint:
+		text, style = " "+a.unlockKeys()+" unlock ", a.palette.activeTab
 	case a.notice != "":
 		text, style = " "+a.notice+" ", a.palette.focusedTitle
 	case len(a.approvals) > 0:

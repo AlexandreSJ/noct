@@ -48,6 +48,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/home.go` | Home screen (no tabs or an empty tab): title, raven, intro and when it plays (animate intro), per-character flicker on hover, shortcuts reveal and timer |
 | `internal/app/raven2.ascii` | The raven logo embedded in the binary |
 | `internal/app/keys.go` | Key routing by mode, command and move modes, the shortcuts table and popup |
+| `internal/app/lock.go` | The lock (prefix+l): which commands it holds back and the hint on how to unlock |
 | `internal/app/prompt.go` | Text prompt (tab and panel rename, new folder), yes/no confirmation (quit, delete), a choice of a few options (new directory or script) and an info popup (what a flow's step does) |
 | `internal/app/textfield.go` | The one-line text field every prompt, form, search and config row types into: cursor, shell editing keys, paste (bracketed or OSC 52), cursor view |
 | `internal/app/logs_panel.go` | Logs panel (prefix+v): month calendar marked by runs, the day's logs with weight bars, sorting, opening, clearing; log pruning |

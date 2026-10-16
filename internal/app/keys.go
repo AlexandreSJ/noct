@@ -40,7 +40,7 @@ type shortcut struct {
 }
 
 var commandShortcuts = []shortcut{
-	{"←↓↑→ hjkl", "focus", true},
+	{"←↓↑→ hjk", "focus", true},
 	{"tab", "change", true},
 	{"1-9", "go to tab", true},
 	{"t", "new tab", false},
@@ -64,6 +64,7 @@ var commandShortcuts = []shortcut{
 	{"c", "config", false},
 	{"d", "detach", false},
 	{"q", "quit", false},
+	{"l", "lock shortcuts", false},
 	{"esc", "cancel", false},
 }
 
@@ -90,7 +91,7 @@ var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "o", "?", 
 var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
 
 func (a *App) handleKey(key uv.KeyPressEvent) {
-	a.statusMessage, a.notice = "", ""
+	a.statusMessage, a.notice, a.lockHint = "", "", false
 	if a.selection != nil && !a.selection.dragging {
 		a.selection = nil
 	}
@@ -143,7 +144,7 @@ func (a *App) handleNormalKey(key uv.KeyPressEvent) {
 		a.mode = commandMode
 		return
 	}
-	if name, move, ok := a.shortcut.command(key, a.commandKey); ok {
+	if name, move, ok := a.shortcut.command(key, a.commandKey); ok && !a.lockedOut(name, move) {
 		a.runShortcut(name, move)
 		return
 	}
@@ -173,7 +174,15 @@ func (a *App) handleCommandKey(key uv.KeyPressEvent) {
 		return
 	}
 	name := key.String()
+	if name == lockKey {
+		a.toggleLock()
+		return
+	}
 	if a.currentTab() != nil && a.navigate(name) {
+		return
+	}
+	if a.lockedOut(name, false) {
+		a.mode = normalMode
 		return
 	}
 	a.runAction(name)
@@ -309,6 +318,8 @@ func shortcutTemplate(keys string) string {
 	switch keys {
 	case "←↓↑→ hjkl":
 		return "{left}{down}{up}{right} {h}{j}{k}{l}"
+	case "←↓↑→ hjk":
+		return "{left}{down}{up}{right} {h}{j}{k}"
 	case "← → h l":
 		return "{left} {right} {h} {l}"
 	case "↑ ↓ k j":
@@ -375,6 +386,10 @@ func (a *App) clickCommandShortcut(point image.Point) {
 		a.mode = normalMode
 	case keys == "tab":
 		a.navigate(keys)
+	case keys == lockKey:
+		a.toggleLock()
+	case a.lockedOut(keys, false):
+		a.mode = normalMode
 	case slices.Contains(actionKeys, keys):
 		a.runAction(keys)
 	}

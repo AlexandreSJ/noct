@@ -37,12 +37,12 @@ func (d directShortcut) command(key uv.KeyPressEvent, commandKey func(string) (s
 	if d.mods == 0 || mods&^uv.ModShift != d.mods {
 		return "", false, false
 	}
-	name = uv.Key{Code: key.Code}.String()
-	if mods&uv.ModCtrl != 0 && (name == "h" || name == "j") {
+	pressed := uv.Key{Code: key.Code}.String()
+	if mods&uv.ModCtrl != 0 && (pressed == "h" || pressed == "j") {
 		return "", false, false // ctrl+h is also backspace (^H) and ctrl+j a newline (^J)
 	}
-	if name, ok = commandKey(name); !ok {
-		return "", false, false
+	if name, ok = commandKey(pressed); !ok || name == lockKey && pressed != "l" {
+		return "", false, false // only the prefix locks; l stays the letter for right
 	}
 	if mods&uv.ModShift != 0 {
 		_, isArrow := arrowHeadings[name]
