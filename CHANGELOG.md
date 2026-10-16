@@ -4,6 +4,14 @@ What changes in each release of noct. The section of a version is the text of it
 GitHub, and what noct shows in its updates popup (`prefix` + `c`), so write it for the people who
 use noct. Versions follow [semantic versioning](https://semver.org): `vMAJOR.MINOR.PATCH`.
 
+## v0.1.1
+
+- The updates popup remembers the last check: the changelog shows right away, even after noct
+  restarts, with when it was checked, and noct asks GitHub again only once a day or when you
+  press `c`.
+- Checks ask GitHub only whether something changed, which does not count against its limit of
+  checks, and a limit reached is still respected after a restart.
+
 ## v0.1.0
 
 The first beta of noct: a terminal workspace for people who test. Expect changes before v1.0.0.
