@@ -35,6 +35,7 @@ func TestCustomEditorIsTypedBelowTheChoice(t *testing.T) {
 	if a.configPanel.selected != editorCommandRow {
 		t.Fatalf("down from custom selected row %d, want the command row", a.configPanel.selected)
 	}
+	press(a, enterPress)
 	typeText(a, "noct-no-such-editor")
 	if note := commandNote(a.configPanel.editor.draft.String()); note != "command not found" {
 		t.Errorf("note %q for a missing command", note)
@@ -73,7 +74,7 @@ func TestScriptsLocationComesFromTheConfig(t *testing.T) {
 
 	elsewhere := t.TempDir()
 	saveScriptIn(t, elsewhere, "remote", "run: true\n")
-	press(a, uv.KeyPressEvent{Code: 'u', Mod: uv.ModCtrl})
+	press(a, enterPress, uv.KeyPressEvent{Code: 'u', Mod: uv.ModCtrl})
 	typeText(a, elsewhere)
 	press(a, enterPress)
 	if a.config.ScriptsDir != elsewhere || a.scriptsDir() != elsewhere {
@@ -81,6 +82,23 @@ func TestScriptsLocationComesFromTheConfig(t *testing.T) {
 	}
 	if _, ok := a.scripts.Find("remote"); !ok {
 		t.Error("the library was not read from the new location")
+	}
+}
+
+func TestScriptsLocationTakesTextOnlyAfterEnter(t *testing.T) {
+	a := openConfigAt(t, scriptsDirRow)
+	before := a.configPanel.scriptsDir.String()
+	press(a, letter('j'))
+	if a.configPanel.selected != scriptHintsRow || a.configPanel.scriptsDir.String() != before {
+		t.Fatalf("j on the location: row %d, text %q", a.configPanel.selected, a.configPanel.scriptsDir.String())
+	}
+	press(a, letter('k'), enterPress, letter('j'), letter('k'))
+	if a.configPanel.selected != scriptsDirRow || a.configPanel.scriptsDir.String() != before+"jk" {
+		t.Fatalf("typing after enter: row %d, text %q", a.configPanel.selected, a.configPanel.scriptsDir.String())
+	}
+	press(a, escPress)
+	if a.mode != configMode || a.configPanel.typing || a.configPanel.scriptsDir.String() != before {
+		t.Errorf("esc while typing: mode %v typing %v text %q", a.mode, a.configPanel.typing, a.configPanel.scriptsDir.String())
 	}
 }
 

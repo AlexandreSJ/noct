@@ -79,6 +79,10 @@ type configPanel struct {
 	editor      programSetting
 	fileManager programSetting
 	scriptsDir  textField
+	// typing is on while the selected typed row takes text, from enter until enter, esc or leaving
+	// the row; typedBefore is its text when typing started, put back by esc.
+	typing      bool
+	typedBefore string
 	// copied says the location was just copied, until the selection or the text changes.
 	copied bool
 	// hover is the row under the mouse, when hovering is true.
@@ -96,7 +100,7 @@ type configLine struct {
 	note    bool
 	// warning notes show in the attention color.
 	warning bool
-	// typed rows take text: their value is edited in place.
+	// typed rows take text: enter opens their value for editing in place.
 	typed bool
 	// bar notes show a bar filled for fraction, then the label, as the logs view's usage bar.
 	bar      bool
@@ -129,6 +133,10 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 	if a.startsNumberEdit(key) || a.pressReset(key) {
 		return
 	}
+	if a.configPanel.typing && key.String() == "esc" {
+		a.cancelTyping()
+		return
+	}
 	switch key.String() {
 	case "esc":
 		a.closeConfig()
@@ -143,8 +151,7 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 		a.jumpConfigSelection(key.String())
 		return
 	}
-	if a.isTypedRow(a.configPanel.selected) {
-		a.typeInConfig(key)
+	if a.isTypedRow(a.configPanel.selected) && a.startsTyping(key) {
 		return
 	}
 	switch key.String() {
@@ -175,7 +182,7 @@ func (a *App) selectConfigRow(row configRow) {
 	}
 	a.commitTyped()
 	a.cancelNumberEdit()
-	a.configPanel.copied, a.configPanel.resetArmedAt = false, time.Time{}
+	a.configPanel.copied, a.configPanel.resetArmedAt, a.configPanel.typing = false, time.Time{}, false
 	a.configPanel.selected = row
 }
 
@@ -223,28 +230,48 @@ func (a *App) typedText(row configRow) *textField {
 	return &a.configPanel.scriptsDir
 }
 
-func (a *App) typeInConfig(key uv.KeyPressEvent) {
-	a.configPanel.copied = false
+// startsTyping handles a key on a typed row: enter opens it for typing, and while it is open every
+// key types, so j and k only move the selection while it is closed. ctrl+c copies the location
+// either way. It tells whether it used the key.
+func (a *App) startsTyping(key uv.KeyPressEvent) bool {
+	p := &a.configPanel
+	p.copied = false
 	switch key.String() {
 	case "ctrl+c", "ctrl+shift+c":
-		if a.configPanel.selected == scriptsDirRow {
-			a.copyToClipboard(script.ResolveDir(a.configPanel.scriptsDir.String()))
-			a.configPanel.copied = true
+		if p.selected == scriptsDirRow {
+			a.copyToClipboard(script.ResolveDir(p.scriptsDir.String()))
+			p.copied = true
 		}
+		return true
 	case "enter":
-		a.commitTyped()
-	default:
+		if p.typing {
+			a.commitTyped()
+		} else {
+			p.typedBefore = a.typedText(p.selected).String()
+		}
+		p.typing = !p.typing
+		return true
+	}
+	if p.typing {
 		a.typeKey(key)
 	}
+	return p.typing
 }
 
-// configTypedField is the selected row's text while a typed row is selected.
+// cancelTyping closes the selected typed row, putting back the text it had when typing started.
+func (a *App) cancelTyping() {
+	p := &a.configPanel
+	*a.typedText(p.selected) = newTextField(p.typedBefore)
+	p.typing = false
+}
+
+// configTypedField is the selected row's text while it is open for typing.
 func (a *App) configTypedField() (*textField, func()) {
 	p := &a.configPanel
 	if p.number != nil {
 		return p.number, func() { p.numberProblem = "" }
 	}
-	if p.capture.active || p.page == bindsPage || !a.isTypedRow(p.selected) {
+	if p.capture.active || p.page == bindsPage || !p.typing || !a.isTypedRow(p.selected) {
 		return nil, nil
 	}
 	return a.typedText(p.selected), func() { p.copied = false }
@@ -464,9 +491,12 @@ func (a *App) configLines() []configLine {
 		configLine{label: "Scripts", heading: true},
 		configLine{label: "location", value: a.configPanel.scriptsDir.String(), row: scriptsDirRow, typed: true},
 	)
-	copyNote := "ctrl+c copy"
-	if a.configPanel.copied {
+	copyNote := "enter edit · ctrl+c copy"
+	switch {
+	case a.configPanel.copied:
 		copyNote = "copied to clipboard"
+	case a.configPanel.typing && a.configPanel.selected == scriptsDirRow:
+		copyNote = "enter saves · esc cancels · ctrl+c copy"
 	}
 	lines = append(lines, configLine{label: copyNote, note: true})
 	if note := scriptsDirNote(a.configPanel.scriptsDir.String()); note != "" {
@@ -579,7 +609,7 @@ func commandNote(command string) string {
 	fields := strings.Fields(command)
 	switch {
 	case len(fields) == 0:
-		return "type the command, e.g. code -w"
+		return "enter, then type the command, e.g. code -w"
 	case !isInstalled(fields[0]):
 		return "command not found"
 	}
@@ -656,7 +686,7 @@ func (a *App) drawConfigPanel(screen uv.Screen) {
 }
 
 // clickConfig selects the row clicked. On its value, a click steps the setting, back on ◂ and
-// forward anywhere else, as ←→ do; on a typed row, it only selects, for typing. A click outside
+// forward anywhere else, as ←→ do; on a typed row, it only selects, and enter opens it for typing. A click outside
 // the panel closes it, as esc does.
 func (a *App) clickConfig(point image.Point) {
 	l := a.configLayout()
@@ -706,7 +736,7 @@ func (a *App) drawConfigLine(screen uv.Screen, inner image.Rectangle, y int, lin
 		drawText(screen, inner.Min.X+1, y, inner.Max.X, "  "+line.label, style)
 		width := inner.Dx() - textColumn - 1
 		value := tail(line.value, width)
-		if line.row == a.configPanel.selected {
+		if line.row == a.configPanel.selected && (a.configPanel.typing || isNumberRow(line.row)) {
 			value = a.typedText(line.row).view(width, false)
 		}
 		drawText(screen, inner.Min.X+textColumn, y, inner.Max.X-1, value, style)
