@@ -157,6 +157,26 @@ func (t *Tree) Show(pane PaneID) {
 	}
 }
 
+// StackHeir is the pane the pane's stack shows once the pane leaves it, as Remove leaves it: the
+// one that takes the pane's place when the pane is shown, the one already shown otherwise. It
+// reports false when the pane is not in a stack.
+func (t *Tree) StackHeir(pane PaneID) (PaneID, bool) {
+	leaf := t.find(pane)
+	if leaf == nil || leaf.parent == nil || !leaf.parent.stacked {
+		return 0, false
+	}
+	stack := leaf.parent
+	heir := stack.children[stack.shownIndex()]
+	if heir == leaf {
+		siblings := slices.DeleteFunc(slices.Clone(stack.children), func(n *node) bool { return n == leaf })
+		heir = siblings[min(leaf.index(), len(siblings)-1)]
+	}
+	for !heir.isLeaf() { // a container in the stack: the pane it shows, or its first
+		heir = heir.children[max(slices.Index(heir.children, heir.shown), 0)]
+	}
+	return heir.pane, true
+}
+
 // Folded tells whether the pane is folded to its title row in a stack.
 func (t *Tree) Folded(pane PaneID) bool {
 	for n := t.find(pane); n != nil && n.parent != nil; n = n.parent {

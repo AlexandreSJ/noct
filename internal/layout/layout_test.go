@@ -364,6 +364,24 @@ func TestAStackLosingItsPaneShownShowsTheNext(t *testing.T) {
 	}
 }
 
+func TestStackHeirIsThePaneShownAfterTheRemove(t *testing.T) {
+	tree := New(1)
+	tree.Split(1, 2, Stacked)
+	tree.Split(2, 3, Stacked)
+	tree.ToggleStacked(1)
+	for _, c := range []struct {
+		shown, removed, heir PaneID
+	}{{2, 2, 3}, {3, 3, 2}, {1, 1, 2}, {1, 2, 1}} {
+		tree.Show(c.shown)
+		if heir, ok := tree.StackHeir(c.removed); !ok || heir != c.heir {
+			t.Errorf("showing %d, removing %d: heir %d (%v), want %d", c.shown, c.removed, heir, ok, c.heir)
+		}
+	}
+	if _, ok := New(1).StackHeir(1); ok {
+		t.Error("a pane outside any stack has an heir")
+	}
+}
+
 func TestMovingKeepsSharesWhole(t *testing.T) {
 	tree := threePanes(t)
 	tree.Split(3, 4, SideBySide)

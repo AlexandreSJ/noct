@@ -426,6 +426,31 @@ func TestStackedLayoutFoldsTheOtherPanes(t *testing.T) {
 	}
 }
 
+// Closing a pane of a stack, by prefix+x or by its program ending, focuses the pane the stack
+// shows in its place, even when the pane used before it is in another column.
+func TestClosingAPaneOfAStackKeepsTheFocusInTheStack(t *testing.T) {
+	for name, close := range map[string]func(a *App){
+		"prefix+x":    func(a *App) { press(a, prefixPress, letter('x')) },
+		"program end": func(a *App) { a.detachView(3) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			a := testApp(t, sideBySideTab(1, 2))
+			tab := a.currentTab()
+			tab.tree.Split(2, 3, layout.Stacked)
+			tab.views[3] = &fakeView{}
+			tab.tree.ToggleStacked(2)
+			tab.focus(3)
+			tab.focus(1) // to the other column and back: pane 1 is the one used before 3
+			tab.focus(3)
+			tab.tree.Show(3) // as drawing does for the focused pane
+			close(a)
+			if focusedPaneID(a) != 2 || tab.tree.Folded(2) {
+				t.Errorf("focus %d, 2 folded %v; want 2, shown in 3's place", focusedPaneID(a), tab.tree.Folded(2))
+			}
+		})
+	}
+}
+
 func TestStackingLeavesOtherColumnsAlone(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2))
 	press(a, prefixPress, letter('w'))

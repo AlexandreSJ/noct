@@ -181,9 +181,11 @@ func (t *tab) resizeViews(area image.Rectangle) {
 	}
 }
 
-// removeView forgets the view and gives the focus back to the pane used before it. When the last
-// tile goes, a floating pane takes its place; with no panes left the tab is empty.
+// removeView forgets the view and gives the focus back to the pane used before it, or, for a pane
+// of a stack, to the pane the stack shows in its place, so the focus stays in the column. When the
+// last tile goes, a floating pane takes its place; with no panes left the tab is empty.
 func (t *tab) removeView(id layout.PaneID) {
+	heir, inStack := t.tree.StackHeir(id)
 	delete(t.views, id)
 	delete(t.paneNames, id)
 	t.history = slices.DeleteFunc(t.history, func(p layout.PaneID) bool { return p == id })
@@ -197,6 +199,11 @@ func (t *tab) removeView(id layout.PaneID) {
 		t.tree, t.floating = layout.New(t.floating[0].id), t.floating[1:]
 	}
 	if t.focused != id {
+		return
+	}
+	if _, ok := t.views[heir]; inStack && ok {
+		t.focused = heir
+		t.history = slices.DeleteFunc(t.history, func(p layout.PaneID) bool { return p == heir })
 		return
 	}
 	t.focused = t.tree.Panes()[0]
