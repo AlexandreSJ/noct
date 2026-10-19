@@ -473,6 +473,9 @@ func (b *Buffer) InsertLine(y, n int, c *Cell) {
 // rectangle's horizontal bounds are affected. Lines are pushed out of the
 // rectangle bounds and lost. This follows terminal [ansi.IL] behavior.
 func (b *Buffer) InsertLineArea(y, n int, c *Cell, area Rectangle) {
+	// noct: only the part of the area inside the buffer is moved. A scroll margin may lie past
+	// the screen (a program that read the size before a resize), and indexing it panicked.
+	area = area.Intersect(b.Bounds())
 	if n <= 0 || y < area.Min.Y || y >= area.Max.Y || y >= b.Height() {
 		return
 	}
@@ -504,6 +507,9 @@ func (b *Buffer) InsertLineArea(y, n int, c *Cell, area Rectangle) {
 // new blank lines are created at the bottom. This follows terminal [ansi.DL]
 // behavior.
 func (b *Buffer) DeleteLineArea(y, n int, c *Cell, area Rectangle) {
+	// noct: only the part of the area inside the buffer is moved. A scroll margin may lie past
+	// the screen (a program that read the size before a resize), and indexing it panicked.
+	area = area.Intersect(b.Bounds())
 	if n <= 0 || y < area.Min.Y || y >= area.Max.Y || y >= b.Height() {
 		return
 	}
@@ -563,6 +569,9 @@ func (b *Buffer) InsertCell(x, y, n int, c *Cell) {
 // optional cell, within the rectangle bounds. Only cells within the
 // rectangle's bounds are affected, following terminal [ansi.ICH] behavior.
 func (b *Buffer) InsertCellArea(x, y, n int, c *Cell, area Rectangle) {
+	// noct: only the part of the area inside the buffer is moved. A scroll margin may lie past
+	// the screen (a program that read the size before a resize), and indexing it panicked.
+	area = area.Intersect(b.Bounds())
 	if n <= 0 || y < area.Min.Y || y >= area.Max.Y || y >= b.Height() ||
 		x < area.Min.X || x >= area.Max.X || x >= b.Width() {
 		return
@@ -598,6 +607,9 @@ func (b *Buffer) DeleteCell(x, y, n int, c *Cell) {
 // optional cell, within the rectangle bounds. Only cells within the
 // rectangle's bounds are affected, following terminal [ansi.DCH] behavior.
 func (b *Buffer) DeleteCellArea(x, y, n int, c *Cell, area Rectangle) {
+	// noct: only the part of the area inside the buffer is moved. A scroll margin may lie past
+	// the screen (a program that read the size before a resize), and indexing it panicked.
+	area = area.Intersect(b.Bounds())
 	if n <= 0 || y < area.Min.Y || y >= area.Max.Y || y >= b.Height() ||
 		x < area.Min.X || x >= area.Max.X || x >= b.Width() {
 		return
