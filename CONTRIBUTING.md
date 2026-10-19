@@ -55,6 +55,7 @@ After implementing, before calling it done, re-read the whole change and check:
 4. Is any comment explaining *what* instead of *why*? Remove it or rename things instead.
 5. Did it add a dependency, option or abstraction that is not needed yet? Remove it.
 6. Do `gofmt`, `go vet` and `go test -race ./...` pass?
+7. If users notice the change, does it have its entry under `## Unreleased` in [CHANGELOG.md](CHANGELOG.md) (see [Releases](#5-releases))?
 
 ## 2. Scope rules
 
@@ -83,5 +84,8 @@ noct stays small and focused by following these rules:
 ## 5. Releases
 
 - Versions follow semantic versioning: `vMAJOR.MINOR.PATCH`.
-- A change that users notice adds a line to the top section of [CHANGELOG.md](CHANGELOG.md), written for the people who use noct: noct shows it in its updates popup.
-- To release, give the section its version (`## v0.2.0`), commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`. The release workflow runs the checks, builds the archives (`make dist`) and publishes the release with that section as its text; `make dist VERSION=v0.2.0` and `make release-notes VERSION=v0.2.0` show locally what it will publish.
+- [CHANGELOG.md](CHANGELOG.md) follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Its sections are the text of the GitHub releases and of noct's updates popup, so they are written for the people who use noct.
+- A change that users notice adds its entry under `## Unreleased` in the same commit as the change. Changes they do not notice (refactors, tests, CI, design docs) get no entry.
+- Entries go under `### Added`, `### Changed`, `### Fixed`, `### Removed` or `### Security`, in that order, and only the groups that have entries appear. A fix of something no release has shipped yet is not a `Fixed` entry: edit the entry it fixes instead.
+- Each entry is one bullet, in English like the UI, in the present tense, saying what the user sees or can do now, and why when that is not obvious. Name keys and settings as noct shows them: `prefix` + `c` and `shortcut` + `c`, never `Ctrl+Space` or `Alt`, which the user may have changed, and settings by their config path (**Updates → check for new versions**). No file names, function names or ADR numbers. A change that breaks a habit, such as a key that moved, says what to do now.
+- To release, rename `## Unreleased` to the version and the date (`## v0.2.0 - 2026-11-03`), add an empty `## Unreleased` above it, commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`. The release workflow runs the checks, builds the archives (`make dist`) and publishes the release with that section as its text; `make dist VERSION=v0.2.0` and `make release-notes VERSION=v0.2.0` show locally what it will publish.

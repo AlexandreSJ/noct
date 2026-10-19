@@ -55,6 +55,7 @@ Depois de implementar, antes de dar como pronto, releia a mudança inteira e con
 4. Algum comentário explica *o que* em vez de *por quê*? Remova, ou renomeie as coisas.
 5. Entrou alguma dependência, opção ou abstração que ainda não é necessária? Remova.
 6. `gofmt`, `go vet` e `go test -race ./...` passam?
+7. Se o usuário percebe a mudança, ela tem sua entrada em `## Unreleased` no [CHANGELOG.md](CHANGELOG.md) (veja [Releases](#5-releases))?
 
 ## 2. Regras de escopo
 
@@ -83,5 +84,8 @@ O noct continua pequeno e focado seguindo estas regras:
 ## 5. Releases
 
 - As versões seguem o versionamento semântico: `vMAJOR.MINOR.PATCH`.
-- Uma mudança que o usuário percebe ganha uma linha na seção do topo do [CHANGELOG.md](CHANGELOG.md), escrita para quem usa o noct (em inglês, como a UI): o noct a mostra no popup de atualizações.
-- Para lançar, dê a versão à seção (`## v0.2.0`), faça o commit e então crie e envie a tag: `git tag v0.2.0 && git push origin v0.2.0`. O workflow de release roda as verificações, gera os arquivos (`make dist`) e publica a release com essa seção como texto; `make dist VERSION=v0.2.0` e `make release-notes VERSION=v0.2.0` mostram localmente o que será publicado.
+- O [CHANGELOG.md](CHANGELOG.md) segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). As seções dele são o texto das releases no GitHub e do popup de atualizações do noct, então são escritas para quem usa o noct.
+- Uma mudança que o usuário percebe ganha sua entrada em `## Unreleased` no mesmo commit da mudança. Mudanças que ele não percebe (refatorações, testes, CI, docs de design) não ganham entrada.
+- As entradas ficam em `### Added`, `### Changed`, `### Fixed`, `### Removed` ou `### Security`, nessa ordem, e só aparecem os grupos que têm entradas. Corrigir algo que nenhuma release publicou ainda não é uma entrada em `Fixed`: edite a entrada que a correção ajusta.
+- Cada entrada é um item, em inglês como a UI, no presente, dizendo o que o usuário vê ou pode fazer agora, e por quê quando não é óbvio. Teclas e opções aparecem como o noct as mostra: `prefix` + `c` e `shortcut` + `c`, nunca `Ctrl+Space` ou `Alt`, que o usuário pode ter trocado, e opções pelo caminho no config (**Updates → check for new versions**). Sem nomes de arquivo, de função ou números de ADR. Uma mudança que quebra um hábito, como uma tecla que mudou de lugar, diz o que fazer agora.
+- Para lançar, renomeie `## Unreleased` para a versão e a data (`## v0.2.0 - 2026-11-03`), crie um `## Unreleased` vazio acima, faça o commit e então crie e envie a tag: `git tag v0.2.0 && git push origin v0.2.0`. O workflow de release roda as verificações, gera os arquivos (`make dist`) e publica a release com essa seção como texto; `make dist VERSION=v0.2.0` e `make release-notes VERSION=v0.2.0` mostram localmente o que será publicado.

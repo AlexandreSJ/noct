@@ -25,7 +25,7 @@ import (
 
 const releasesJSON = `[
 	{"tag_name": "v0.1.0", "body": "- first beta", "published_at": "2026-10-16T12:00:00Z"},
-	{"tag_name": "v0.2.0", "body": "- faster panes\r\n- a fix", "published_at": "2026-11-01T12:00:00Z"}
+	{"tag_name": "v0.2.0", "body": "### Changed\r\n\r\n- faster panes\r\n- a fix", "published_at": "2026-11-01T12:00:00Z"}
 ]`
 
 // updatesApp is a test app at version that finds releasesJSON, can install v0.2.0 over a file
@@ -89,6 +89,9 @@ func TestPrefixCChecksAndShowsTheChangelog(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Errorf("popup lacks %q:\n%s", want, text)
 		}
+	}
+	if !strings.Contains(text, "Changed") || strings.Contains(text, "###") {
+		t.Errorf("popup should show the changelog group without its ### mark:\n%s", text)
 	}
 	if !strings.Contains(firstLine(text), "noct v0.1.0 ↑ v0.2.0") {
 		t.Errorf("tab bar = %q, want the version and the newer one", firstLine(text))

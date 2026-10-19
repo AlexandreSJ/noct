@@ -13,6 +13,7 @@
 - User-facing docs (`README.md`, `CONTRIBUTING.md`) have a `.pt-br.md` twin; update both.
 - A new `go.mod` dependency needs a justification in an ADR.
 - Keep `docs/codemap.md` current when adding a file or moving a responsibility.
+- A change users notice adds its entry under `## Unreleased` in `CHANGELOG.md` in the same commit, following CONTRIBUTING.md §5: Keep a Changelog groups, written for users, keys as `prefix` + `x` / `shortcut` + `x`.
 - Tests that start processes use `sh -c`/`printf`, never the user's shell config.
 - App tests replace `App.launch` with fake views instead of starting real programs.
 - `third_party/` holds patched copies of two Charm libraries; change them only as `third_party/README.md` says.

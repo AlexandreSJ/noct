@@ -108,6 +108,10 @@ func (a *App) changelogLines() []styledLine {
 		}
 		lines = append(lines, styledLine{heading, style})
 		for _, note := range strings.Split(strings.TrimSpace(strings.ReplaceAll(r.Notes, "\r", "")), "\n") {
+			if group, ok := strings.CutPrefix(note, "### "); ok { // a changelog group, such as Added
+				lines = append(lines, styledLine{group, pal.panelMuted})
+				continue
+			}
 			lines = append(lines, styledLine{note, pal.panelText})
 		}
 		lines = append(lines, styledLine{"", pal.panelText})
