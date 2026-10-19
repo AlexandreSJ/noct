@@ -17,6 +17,11 @@ the shortcut is `Alt` by default. How to write an entry is in
   open for typing only on `Enter`, so `j` and `k` move past them instead of typing into them.
   `Enter` again saves, and `Esc` puts back the text as it was.
 
+### Fixed
+
+- Closing a pane of a stack, with `shortcut` + `x` or when its program ends, keeps the focus in
+  the stack, on the pane it shows next, instead of moving it to a pane in another column.
+
 ## v0.1.1 - 2026-10-16
 
 ### Changed
