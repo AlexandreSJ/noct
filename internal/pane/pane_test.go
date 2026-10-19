@@ -242,3 +242,30 @@ func mustEvalSymlinks(t *testing.T, path string) string {
 	}
 	return resolved
 }
+
+// clear sends ESC[2J ESC[3J: the first keeps the screen in the scrollback, the second erases it.
+func TestPaneKeepScrollbackIgnoresErasingIt(t *testing.T) {
+	const clearAfterLines = `printf '1\r\n2\r\n3\r\n4\r\n5\r\n6\r\n7\r\n8\033[H\033[2J\033[3J'`
+	for _, keep := range []bool{false, true} {
+		exited := make(chan struct{})
+		p, err := Start(Options{
+			Argv:           []string{"sh", "-c", clearAfterLines},
+			Env:            []string{"TERM=xterm-256color", "PATH=/usr/bin:/bin"},
+			Size:           pty.Size{Cols: 20, Rows: 5},
+			OnExit:         func(int) { close(exited) },
+			KeepScrollback: keep,
+		})
+		if err != nil {
+			t.Fatalf("starting pane: %v", err)
+		}
+		t.Cleanup(p.Close)
+		waitFor(t, exited)
+		got := p.ScrollbackLen()
+		if keep && got < 8 {
+			t.Errorf("kept %d lines of scrollback, want the 8 printed before the clear", got)
+		}
+		if !keep && got != 0 {
+			t.Errorf("without keeping it, %d lines of scrollback are left, want none", got)
+		}
+	}
+}

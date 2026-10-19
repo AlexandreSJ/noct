@@ -44,6 +44,8 @@ type program struct {
 	env []string
 	// onExit runs on the event loop after the program exits.
 	onExit func(exitCode int)
+	// keepScrollback ignores the program erasing the scrollback, as the logs preview needs.
+	keepScrollback bool
 }
 
 // startProgram runs p in a terminal of the given size, logging its output.
@@ -55,6 +57,7 @@ func (a *App) startProgram(p program, size pty.Size) (view, error) {
 		Size:           size,
 		OnScreenChange: a.notifyScreenChanged,
 		OnExit:         func(code int) { a.onLoop(func() { p.onExit(code) }) },
+		KeepScrollback: p.keepScrollback,
 	}
 	if a.imagesEnabled {
 		opts.Images = kittygfx.NewSession(a.newImageID, a.cellSize)
