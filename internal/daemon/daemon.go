@@ -2,11 +2,14 @@
 package daemon
 
 import (
+	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -25,7 +28,38 @@ func Run(socketPath, version string) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("noct daemon %s started (pid %d)", version, os.Getpid()) // dates the panics after it
 	return app.New(version).Serve(listener)
+}
+
+// crashWindow is how recent daemon.log must be for its last panic to be the one that just
+// stopped the daemon, and not an older one.
+const crashWindow = 10 * time.Second
+
+// Crash tells why the daemon stopped, for the terminal it left: the panic it wrote to
+// daemon.log, when it just wrote one, and where the log is.
+func Crash() string {
+	path := filepath.Join(logstore.Dir(), "daemon.log")
+	info, err := os.Stat(path)
+	if err != nil || time.Since(info.ModTime()) > crashWindow {
+		return "see " + path
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return "see " + path
+	}
+	defer file.Close()
+	last := ""
+	lines := bufio.NewScanner(file)
+	for lines.Scan() {
+		if line := lines.Text(); strings.HasPrefix(line, "panic: ") || strings.HasPrefix(line, "fatal error: ") {
+			last = line
+		}
+	}
+	if last == "" {
+		return "see " + path
+	}
+	return fmt.Sprintf("%s (details in %s)", last, path)
 }
 
 // EnsureRunning starts a daemon in the background unless one already answers on the socket.

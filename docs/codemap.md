@@ -21,7 +21,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/client/client.go` | The terminal side: raw mode, forwarding keys and size, writing frames (and tracing them with `NOCT_TRACE`) |
 | `internal/client/request.go` | Asking the running workspace to do one thing for the MCP server, and reading its answer |
 | `internal/client/pane.go` | Asking the running workspace for a step's pane and waiting for its exit code |
-| `internal/daemon/daemon.go` | Run the daemon at its version; start it in the background when needed |
+| `internal/daemon/daemon.go` | Run the daemon at its version; start it in the background when needed; why it stopped, from the panic in `daemon.log` |
+| `internal/daemon/daemon_test.go` | Tests of telling why the daemon stopped: the last panic of a recent log, or only where the log is |
 | `internal/update/version.go` | Semantic versions: reading and ordering them, telling a release from a dev build |
 | `internal/update/release.go` | Releases on GitHub: listing them with their changelogs, the ones newer than a version |
 | `internal/update/cache.go` | `updates.json`: the last check (releases, when, ETag, how long GitHub asked to wait), read at start and written after each check |
