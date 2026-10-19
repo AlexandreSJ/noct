@@ -42,6 +42,9 @@ type Options struct {
 	Log io.WriteCloser
 	// History is what an earlier program printed in this place, shown above what this one prints.
 	History []byte
+	// KeepScrollback ignores the program erasing the scrollback (ESC[3J, which clear sends), so a
+	// log replayed here keeps what was printed before a clear.
+	KeepScrollback bool
 }
 
 // Pane is a terminal: a program, its pseudo-terminal and the emulated screen it draws on.
@@ -99,6 +102,14 @@ func Start(opts Options) (*Pane, error) {
 		EnableMode:       func(mode ansi.Mode) { p.setMouseMode(mode, true) },
 		DisableMode:      func(mode ansi.Mode) { p.setMouseMode(mode, false) },
 	})
+
+	if opts.KeepScrollback {
+		// handlers registered last run first; the screen itself was erased by ESC[2J already
+		p.screen.RegisterCsiHandler('J', func(params ansi.Params) bool {
+			n, _, _ := params.Param(0, 0)
+			return n == 3
+		})
+	}
 
 	inputQueue := make(chan []byte, inputQueueSize)
 	go p.pumpOutputToScreen(opts.OnScreenChange, opts.OnExit)

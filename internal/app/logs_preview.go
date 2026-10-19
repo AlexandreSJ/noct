@@ -100,7 +100,8 @@ func (p *logsPanel) follow(row logRow, ok bool, size pty.Size) {
 	older := slices.Clone(files[1:])
 	slices.Reverse(older)
 	argv := append([]string{"/bin/sh", "-c", `current=$1; shift; [ $# -eq 0 ] || cat -- "$@"; exec tail -n +1 -f -- "$current"`, "log", files[0]}, older...)
-	terminal, err := p.app.launch(program{argv: argv, dir: p.app.workDir, onExit: func(int) {}}, size)
+	// a clear near the end of the log would otherwise leave nothing above it to scroll to
+	terminal, err := p.app.launch(program{argv: argv, dir: p.app.workDir, onExit: func(int) {}, keepScrollback: true}, size)
 	if err != nil {
 		p.app.statusMessage = err.Error()
 		return
