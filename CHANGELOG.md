@@ -11,6 +11,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+## v0.1.2 - 2026-10-19
+
 ### Changed
 
 - The text rows of the config (the scripts location and a custom editor or file manager command)
