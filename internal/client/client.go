@@ -24,6 +24,9 @@ import (
 // variable cleared.
 const emergencyReset = "\x1b[?1049l\x1b[?2004l\x1b[?1002l\x1b[?1006l\x1b[?25h\x1b[0m\x1b]1337;SetUserVar=in_noct\x07"
 
+// ErrDaemonStopped is the end of an attach when the daemon went away without saying so.
+var ErrDaemonStopped = errors.New("the noct daemon stopped unexpectedly")
+
 // Target is the session to attach to: the one used last when Session is empty, or a new one.
 type Target struct {
 	Session string
@@ -145,7 +148,7 @@ func writeOutput(conn *ipc.Conn, terminal io.Writer) (string, error) {
 	for {
 		message, err := conn.Receive()
 		if errors.Is(err, io.EOF) {
-			return "", errors.New("the noct daemon stopped unexpectedly")
+			return "", ErrDaemonStopped
 		}
 		if err != nil {
 			return "", err

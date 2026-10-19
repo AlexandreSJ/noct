@@ -124,6 +124,9 @@ func attach(socket string, target client.Target) error {
 		return err
 	}
 	reason, err := client.Attach(socket, target)
+	if errors.Is(err, client.ErrDaemonStopped) {
+		return fmt.Errorf("%w: %s", err, daemon.Crash())
+	}
 	if err != nil {
 		return err
 	}

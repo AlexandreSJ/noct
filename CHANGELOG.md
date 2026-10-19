@@ -23,6 +23,7 @@ the shortcut is `Alt` by default. How to write an entry is in
   the stack, on the pane it shows next, instead of moving it to a pane in another column.
 - Moving through the logs (`prefix` + `v`) no longer closes noct. A log of a full-screen program
   run in a taller pane made the preview write past its screen, and the whole workspace stopped.
+- When noct stops unexpectedly, the terminal it leaves says why and where `daemon.log` is.
 
 ## v0.1.1 - 2026-10-16
 
