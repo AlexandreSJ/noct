@@ -42,6 +42,11 @@ the shortcut is `Alt` by default. How to write an entry is in
   its shell is now, or where its script ran. Beside panels without a folder, such as scripts or
   logs, they open in your home folder.
 
+### Fixed
+
+- Making the terminal narrower no longer loses the end of the lines in a pane: widening it again
+  shows the text that did not fit, such as logs and values still to read.
+
 ## v0.1.2 - 2026-10-19
 
 ### Changed
