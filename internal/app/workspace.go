@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"os"
 	"path/filepath"
 	"slices"
 	"time"
@@ -46,6 +47,8 @@ type program struct {
 	onExit func(exitCode int)
 	// keepScrollback ignores the program erasing the scrollback, as the logs preview needs.
 	keepScrollback bool
+	// pane is the pane the program runs in, which output out of focus marks as active; 0 for none.
+	pane layout.PaneID
 }
 
 // startProgram runs p in a terminal of the given size, logging its output.
@@ -55,7 +58,7 @@ func (a *App) startProgram(p program, size pty.Size) (view, error) {
 		Env:            append(slices.Clone(a.shellEnv), p.env...),
 		Dir:            p.dir,
 		Size:           size,
-		OnScreenChange: a.notifyScreenChanged,
+		OnScreenChange: a.screenChangeOf(p.pane),
 		OnExit:         func(code int) { a.onLoop(func() { p.onExit(code) }) },
 		KeepScrollback: p.keepScrollback,
 	}
@@ -86,9 +89,45 @@ func (a *App) startProgram(p program, size pty.Size) (view, error) {
 	return v, nil
 }
 
-// startTerminal opens the user's shell; the pane leaves its tab when the shell exits.
+// startTerminal opens the user's shell beside the focused pane, in its folder; the pane leaves its
+// tab when the shell exits.
 func (a *App) startTerminal(id layout.PaneID, frame image.Rectangle) (view, error) {
-	return a.startShell(id, frame, a.workDir)
+	return a.startShell(id, frame, a.terminalDir(a.currentTab()))
+}
+
+// terminalDir is the folder a terminal opened from t's focused pane starts in: the folder of its
+// shell or where its run started, else home. A shell whose folder the system does not tell (only
+// Linux's /proc does) gives the attached terminal's folder instead. Other programs, such as an
+// editor or help, have folders of their own, often temporary, so they give home.
+func (a *App) terminalDir(t *tab) string {
+	home := homeDir(a.workDir)
+	if t == nil || t.isEmpty() {
+		return home
+	}
+	switch v := t.focusedView().(type) {
+	case *runView:
+		return existingDir(v.Dir(), home)
+	case directoryTeller:
+		if a.shells[t.focused] == nil {
+			return home
+		}
+		if dir := v.Dir(); dir != "" {
+			return existingDir(dir, home) // a deleted folder reads as "/path (deleted)"
+		}
+		return a.workDir
+	}
+	if a.shells[t.focused] != nil {
+		return a.workDir
+	}
+	return home
+}
+
+// homeDir is the user's home folder, or fallback when it is not known.
+func homeDir(fallback string) string {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return home
+	}
+	return fallback
 }
 
 // startShell opens the user's shell in dir, remembered as a shell so its session can open it again.
@@ -99,7 +138,7 @@ func (a *App) startShell(id layout.PaneID, frame image.Rectangle, dir string) (v
 // startShellLogged opens the user's shell going on with the log at logPath, when the config logs
 // terminals: the shell shows the log's end and writes after it. Without logPath it starts a log.
 func (a *App) startShellLogged(id layout.PaneID, frame image.Rectangle, dir, logPath string) (view, error) {
-	p := program{argv: a.shellArgv, dir: dir, onExit: func(int) { a.detachView(id) }}
+	p := program{argv: a.shellArgv, dir: dir, onExit: func(int) { a.detachView(id) }, pane: id}
 	if name := a.terminalLogName(id); name != "" {
 		p.logPath, p.continueLog = logPath, logPath != ""
 		if logPath == "" {
@@ -271,7 +310,7 @@ func (a *App) moveFocusedPane(heading layout.Heading) {
 
 func (a *App) movePaneToAdjacentTab(heading layout.Heading) {
 	source := a.currentTab()
-	id, moved, name := source.focused, source.focusedView(), source.paneNames[source.focused]
+	id, moved, name, colors := source.focused, source.focusedView(), source.paneNames[source.focused], source.paneColors[source.focused]
 	var target *tab
 	if next := a.session.activeTab + tabStep(heading); next >= 0 && next < len(a.session.tabs) {
 		target = a.session.tabs[next]
@@ -297,6 +336,9 @@ func (a *App) movePaneToAdjacentTab(heading layout.Heading) {
 	a.placeArriving(target, id, moved, heading)
 	if name != "" {
 		target.paneNames[id] = name
+	}
+	if colors != nil {
+		target.paneColors[id] = colors
 	}
 	a.session.activeTab = slices.Index(a.session.tabs, target)
 	target.resizeViews(a.workspaceArea())

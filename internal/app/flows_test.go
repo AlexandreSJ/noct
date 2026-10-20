@@ -14,6 +14,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/logstore"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/theme"
 )
 
 func drawApp(a *App) {
@@ -186,7 +187,7 @@ func TestChartDoubleClickAndDrag(t *testing.T) {
 
 func TestZoomChangesTheBoxes(t *testing.T) {
 	f := flow.Flow{Steps: []flow.Step{{ID: "a", Run: "echo a"}}}
-	pal := newPalette(themes[0], false)
+	pal := newPalette(theme.Builtins()[0], false)
 	near := buildChart(f, chartStyle{pal: &pal, zoom: 2, describe: func(string) string { return "" }})
 	far := buildChart(f, chartStyle{pal: &pal, zoom: 0, describe: func(string) string { return "" }})
 	if near.size.X <= far.size.X {

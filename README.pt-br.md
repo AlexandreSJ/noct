@@ -117,7 +117,7 @@ O mouse também funciona: clique numa tab ou num painel para selecioná-lo, cliq
 
 - **Teclas.** Defina o prefixo apertando-o: quantos modificadores quiser com uma tecla, mostrada como o seu terminal a manda, com um aviso quando ela tomaria uma tecla do noct ou de programas (`ctrl+c`, `ctrl+r`, o `ctrl+b` do tmux). **Binds of every screen** lista cada ação dos modos, painéis e popups do noct com suas teclas: `Enter` troca uma (com várias, `←→` escolhem qual antes), `a` acrescenta outra, `Delete` volta ao padrão. Dicas, popups e rótulos seguem as suas teclas.
 - **Tabs.** Escolha o que uma tab nova abre (vazia, um terminal, scripts, fluxos ou logs) e se uma tab fecha junto com o último painel.
-- **Aparência.** Sete temas, com o fundo do terminal ou o do tema; o calendário dos logs colore cada dia pelo quanto rodou nele.
+- **Aparência.** Sete temas, com o fundo do terminal ou o do tema; o calendário dos logs colore cada dia pelo quanto rodou nele. **New theme** e **edit theme** criam os seus: cada parte (nomes das tabs, bordas, títulos, listas, mensagens) ganha uma cor das 256 do terminal ou um `#rrggbb`, com uma pequena workspace ao lado da lista mostrando o resultado. Os temas são arquivos em `~/.config/noct/themes/`, então também podem ser escritos à mão (as chaves estão em `docs/temas.md`). Cada sessão guarda o próprio tema, e escolher uma sessão já a mostra nas cores dela.
 - **Voltar ao padrão.** A última linha do config, e a das binds, volta tudo ao padrão, depois de um segundo `Enter`.
 
 ## Scripts

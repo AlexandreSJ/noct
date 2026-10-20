@@ -39,7 +39,9 @@ type Session struct {
 	Created    time.Time `json:"created"`
 	LastAccess time.Time `json:"last_access"`
 	ActiveTab  int       `json:"active_tab,omitempty"`
-	Tabs       []Tab     `json:"tabs,omitempty"`
+	// Theme is the session's theme; without one, the config's is used.
+	Theme string `json:"theme,omitempty"`
+	Tabs  []Tab  `json:"tabs,omitempty"`
 }
 
 type Tab struct {
@@ -48,6 +50,8 @@ type Tab struct {
 	Focused    layout.PaneID `json:"focused"`
 	Fullscreen bool          `json:"fullscreen,omitempty"`
 	Panes      []Pane        `json:"panes"`
+	// Colors are the tab's own in the tab bar, by the theme file's table and key.
+	Colors map[string]string `json:"colors,omitempty"`
 }
 
 // Pane is a pane of a tab's layout, or one floating over it with its frame.
@@ -61,6 +65,8 @@ type Pane struct {
 	Command string `json:"command,omitempty"`
 	// Log is a terminal's log, which it goes on writing and shows the end of when it opens again.
 	Log string `json:"log,omitempty"`
+	// Colors are the pane's own over the theme, by the theme file's table and key.
+	Colors map[string]string `json:"colors,omitempty"`
 }
 
 type Frame struct {

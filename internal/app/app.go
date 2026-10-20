@@ -23,6 +23,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/pty"
 	"github.com/AlexandreSJ/noct/internal/script"
 	saved "github.com/AlexandreSJ/noct/internal/session"
+	"github.com/AlexandreSJ/noct/internal/theme"
 	"github.com/AlexandreSJ/noct/internal/update"
 )
 
@@ -92,6 +93,28 @@ type App struct {
 	// hovered is the cell the pointer was last seen over on the home.
 	hovered  image.Point
 	homeTick <-chan time.Time
+	// colors is the popup of the focused pane's and its tab's own colors.
+	colors colorsPopup
+	// templateSave is the popup that saves the tab as a template.
+	templateSave templateSave
+	// templates is the popup that opens a template as a new tab.
+	templates templatesPopup
+	// animations are the ones running, animTick their next frame (nil when none runs), lastShot
+	// what the last frame showed and lastFrame its cells, which a pane closing animates.
+	animations []*animation
+	// hoverTarget is what the mouse is over, which hovering animates once per visit.
+	hoverTarget string
+	// activity marks, per pane, that output out of sight was told; unseen are the panes that
+	// pulsed and were not seen since.
+	activity map[layout.PaneID]*atomic.Bool
+	unseen   map[layout.PaneID]bool
+	// clock is the time animations play by; nil is the system's, tests freeze it.
+	clock     func() time.Time
+	animTick  <-chan time.Time
+	lastShot  shot
+	lastFrame *uv.ScreenBuffer
+	// stageTick ends a component's blink on the theme editor's stage.
+	stageTick <-chan time.Time
 
 	homeHintShown   bool
 	homeHintExpired <-chan time.Time
@@ -113,6 +136,10 @@ type App struct {
 	scriptsLoaded int
 	// scriptsSignature and flowsSignature sum up the files as last read (see checkLibrary).
 	scriptsSignature, flowsSignature string
+	// themes are the ones noct comes with and then the user's; themesSignature sums up the
+	// themes folder as last read.
+	themes          []theme.Theme
+	themesSignature string
 	// expanded are the folders open in the scripts panels, by path; folders start closed.
 	expanded map[string]bool
 	versions *script.Versions
@@ -204,7 +231,8 @@ func (a *App) loadConfig() {
 	a.config, a.configPath, a.prefix = cfg, path, prefix
 	a.shortcut = shortcutFromConfig(cfg.Shortcut)
 	a.keymap = newKeymap(cfg.Keys)
-	a.palette = newPalette(themeNamed(cfg.Appearance.Theme), cfg.Appearance.Background == config.BackgroundTheme)
+	a.loadThemes()
+	a.applyPalette()
 	if err != nil {
 		a.statusMessage = err.Error()
 	}
@@ -253,7 +281,8 @@ func (a *App) loop() error {
 		case <-prune.C:
 			a.pruneLogs()
 		case <-libraryCheck.C:
-			if a.client == nil || !a.checkLibrary() {
+			themes := a.checkThemes()
+			if a.client == nil || !a.checkLibrary() && !themes {
 				continue // nothing new to draw
 			}
 		case <-saveSessions.C:
@@ -262,6 +291,11 @@ func (a *App) loop() error {
 			a.checkIfDue()
 		case <-a.homeTick:
 			a.advanceHomeArt()
+		case <-a.stageTick:
+			a.stageTick = nil
+			a.tickStagePreview()
+		case <-a.animTick:
+			a.advanceAnimations(a.now())
 		case <-a.resetExpired:
 			a.resetExpired = nil
 		case <-a.homeHintExpired:
@@ -365,6 +399,7 @@ func (a *App) handleEvent(event uv.Event) error {
 	case uv.WindowSizeEvent:
 		return a.resize(image.Pt(event.Width, event.Height))
 	case uv.KeyPressEvent:
+		a.finishAnimations() // and the key does what it does
 		if a.releaseIntro() {
 			return nil // the key only skips the intro
 		}

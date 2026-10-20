@@ -24,6 +24,9 @@ type tab struct {
 	name string
 	// paneNames are the titles the user gave panes; a pane without one shows its view's title.
 	paneNames map[layout.PaneID]string
+	// paneColors are panes' own colors over the theme, and colors the tab's own in the tab bar.
+	paneColors map[layout.PaneID]colorSet
+	colors     colorSet
 	// floating panes sit over the tiles in frames of their own, the last on top.
 	floating []*floatingPane
 	// fullscreen shows only the focused pane, over the whole tab; the layout stays as it is.
@@ -42,7 +45,7 @@ type placedPane struct {
 }
 
 func newEmptyTab() *tab {
-	return &tab{views: make(map[layout.PaneID]view), paneNames: make(map[layout.PaneID]string)}
+	return &tab{views: make(map[layout.PaneID]view), paneNames: make(map[layout.PaneID]string), paneColors: make(map[layout.PaneID]colorSet)}
 }
 
 func newTab(id layout.PaneID, v view) *tab {
@@ -188,6 +191,7 @@ func (t *tab) removeView(id layout.PaneID) {
 	heir, inStack := t.tree.StackHeir(id)
 	delete(t.views, id)
 	delete(t.paneNames, id)
+	delete(t.paneColors, id)
 	t.history = slices.DeleteFunc(t.history, func(p layout.PaneID) bool { return p == id })
 	if f := t.floatingPane(id); f != nil {
 		t.floating = slices.DeleteFunc(t.floating, func(g *floatingPane) bool { return g == f })

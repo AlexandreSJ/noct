@@ -205,7 +205,7 @@ func (a *App) openTrackedRun(title string, record script.Run, p program) (layout
 			}
 			return a.launch(p, size)
 		}
-		return newRunView(title, &a.palette, start, func() { a.detachView(id) }, contentSize(frame))
+		return newRunView(title, &a.palette, start, func() { a.detachView(id) }, contentSize(frame), p.dir)
 	})
 	return pane, firstLog
 }

@@ -142,9 +142,12 @@ func (a *App) tabBarWidth() int {
 func (a *App) drawTabBar(screen uv.Screen) {
 	x := 0
 	for _, span := range a.tabBar() {
-		style := a.palette.tab
+		active, style := a.palette.tab, a.palette.tab
+		if !span.mark {
+			active, style = a.palette.forTab(a.session.tabs[span.tab].colors)
+		}
 		if span.tab == a.session.activeTab && !span.mark {
-			style = a.palette.activeTab
+			style = active
 		}
 		x = drawText(screen, span.start, 0, a.size.X, span.text, style)
 	}

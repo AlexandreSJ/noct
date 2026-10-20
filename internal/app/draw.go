@@ -22,6 +22,12 @@ func (a *App) render() error {
 }
 
 func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
+	at, shot := a.now(), a.takeShot()
+	if shot.tab != nil {
+		a.seen(shot.focused) // a pane in focus on screen has no activity to tell
+	}
+	a.startAnimations(a.lastShot, shot, at)
+	a.lastShot = shot
 	if a.palette.background != nil {
 		fillRect(screen, area, uv.Style{Bg: a.palette.background})
 	}
@@ -31,7 +37,15 @@ func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 	} else {
 		a.drawPanes(screen, a.currentTab())
 	}
-	a.drawModeOverlay(screen)
+	a.drawAnimations(screen, at)
+	if a.hasPopupAnimation() {
+		before := a.copyOf(screen)
+		a.drawModeOverlay(screen)
+		a.drawPopupAnimations(screen, before, at)
+	} else {
+		a.drawModeOverlay(screen)
+	}
+	a.recordFrame(screen)
 }
 
 // drawModeOverlay shows the panel of the current mode on top of everything else.
@@ -65,20 +79,27 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 		a.drawSessions(screen)
 	case updatesMode:
 		a.drawUpdates(screen)
+	case colorsMode:
+		a.drawColors(screen)
+	case templateSaveMode:
+		a.drawTemplateSave(screen)
+	case templatesMode:
+		a.drawTemplates(screen)
 	}
 }
 
 func (a *App) drawPanes(screen uv.Screen, t *tab) {
-	viewScreen := screen
-	if a.palette.background != nil {
-		viewScreen = themedScreen{Screen: screen, background: a.palette.background, text: a.palette.text}
-	}
 	for _, placed := range t.visible(a.workspaceArea()) {
 		id, frame := placed.id, placed.frame
-		fillRect(screen, frame, uv.Style{Bg: a.palette.background}) // floating panes cover what is below
-		lineStyle, titleStyle := a.palette.unfocusedFrame, a.palette.unfocusedTitle
+		pal := a.palette.forPane(t.paneColors[id])
+		viewScreen := screen
+		if pal.background != nil || pal.text != nil {
+			viewScreen = themedScreen{Screen: screen, background: pal.background, text: pal.text}
+		}
+		fillRect(screen, frame, uv.Style{Bg: pal.background}) // floating panes cover what is below
+		lineStyle, titleStyle := pal.unfocusedFrame, pal.unfocusedTitle
 		if id == t.focused {
-			lineStyle, titleStyle = a.palette.focusedFrame, a.palette.focusedTitle
+			lineStyle, titleStyle = pal.focusedFrame, pal.focusedTitle
 		}
 		title := a.viewTitle(t, id)
 		if !t.fullscreen && t.tree.Folded(id) {

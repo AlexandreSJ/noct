@@ -1,9 +1,11 @@
 package app
 
 import (
+	"image"
 	"strings"
 
 	"github.com/AlexandreSJ/noct/internal/config"
+	"github.com/AlexandreSJ/noct/internal/layout"
 )
 
 // panelKind is a kind of panel a noct mode key opens: its name, as the config calls it, the key,
@@ -35,8 +37,9 @@ func panelKindWithKey(key string) (panelKind, bool) {
 }
 
 // openNewTab opens a tab with the panel the config chooses: none, or a terminal when the config
-// names a panel noct does not have.
+// names a panel noct does not have. A terminal starts in the folder of the pane left behind.
 func (a *App) openNewTab() {
+	dir := a.terminalDir(a.currentTab())
 	a.openEmptyTab()
 	if a.config.NewTab == config.NewTabEmpty {
 		return
@@ -47,7 +50,11 @@ func (a *App) openNewTab() {
 			kind = k
 		}
 	}
-	a.openPanel(kind.start(a))
+	start := kind.start(a)
+	if kind.name == config.NewTabTerminal {
+		start = func(id layout.PaneID, frame image.Rectangle) (view, error) { return a.startShell(id, frame, dir) }
+	}
+	a.openPanel(start)
 }
 
 // newTabChoices are what a new tab can open with, as the config cycles through them.

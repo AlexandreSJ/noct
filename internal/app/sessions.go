@@ -30,6 +30,8 @@ type session struct {
 	tabBarFirst int
 	created     time.Time
 	lastAccess  time.Time
+	// theme is the session's theme, "" for the config's.
+	theme string
 	// closed is the layout of a closed session, nil while it is open.
 	closed *saved.Session
 }
@@ -45,7 +47,7 @@ func (a *App) loadSessions() {
 		if saved.CheckName(s.Name) != nil || a.findSession(s.Name) != nil {
 			continue
 		}
-		a.sessions = append(a.sessions, &session{name: s.Name, created: s.Created, lastAccess: s.LastAccess, closed: &s})
+		a.sessions = append(a.sessions, &session{name: s.Name, created: s.Created, lastAccess: s.LastAccess, theme: s.Theme, closed: &s})
 	}
 	a.session = a.mostRecentSession(nil)
 	if a.session == nil {
@@ -83,6 +85,9 @@ func (a *App) createSession(name string) (*session, error) {
 	}
 	now := time.Now()
 	s := &session{name: name, created: now, lastAccess: now}
+	if a.session != nil {
+		s.theme = a.sessionTheme(a.session) // a new session starts in the colors of the one it came from
+	}
 	a.sessions = append(a.sessions, s)
 	return s, nil
 }
@@ -116,6 +121,8 @@ func (a *App) switchSession(s *session) {
 		a.touchSession() // the user leaves it now; without a terminal, it was left before
 	}
 	a.session = s
+	a.finishAnimations() // what played in the session left stays there
+	a.applyPalette()
 	a.openSession(s)
 	a.touchSession()
 	a.mode, a.drag, a.selection, a.scrollOffset = normalMode, nil, nil, 0
@@ -234,10 +241,10 @@ func (a *App) saveSessions() {
 func (a *App) savedSession(s *session) saved.Session {
 	if s.closed != nil {
 		kept := *s.closed
-		kept.Name, kept.LastAccess = s.name, s.lastAccess
+		kept.Name, kept.LastAccess, kept.Theme = s.name, s.lastAccess, s.theme
 		return kept
 	}
-	out := saved.Session{Name: s.name, Created: s.created, LastAccess: s.lastAccess}
+	out := saved.Session{Name: s.name, Created: s.created, LastAccess: s.lastAccess, Theme: s.theme}
 	for index, t := range s.tabs {
 		st, ok := a.savedTab(t)
 		if !ok {
@@ -257,7 +264,7 @@ func (a *App) savedTab(t *tab) (saved.Tab, bool) {
 	if t.isEmpty() {
 		return saved.Tab{}, false
 	}
-	st := saved.Tab{Name: t.name, Layout: t.tree.Shape(), Focused: t.focused, Fullscreen: t.fullscreen}
+	st := saved.Tab{Name: t.name, Layout: t.tree.Shape(), Focused: t.focused, Fullscreen: t.fullscreen, Colors: t.colors.saved()}
 	for _, id := range t.tree.Panes() {
 		if p, ok := a.savedPane(t, id); ok {
 			st.Panes = append(st.Panes, p)
@@ -283,7 +290,7 @@ type commandTeller interface {
 }
 
 func (a *App) savedPane(t *tab, id layout.PaneID) (saved.Pane, bool) {
-	p := saved.Pane{ID: id, Name: t.paneNames[id]}
+	p := saved.Pane{ID: id, Name: t.paneNames[id], Colors: t.paneColors[id].saved()}
 	switch v := t.views[id].(type) {
 	case *scriptsPanel:
 		p.Kind = saved.Scripts
@@ -322,7 +329,7 @@ func (a *App) restoreTab(st saved.Tab) *tab {
 		return nil
 	}
 	t := newEmptyTab()
-	t.tree, t.name, t.fullscreen = tree, st.Name, st.Fullscreen
+	t.tree, t.name, t.fullscreen, t.colors = tree, st.Name, st.Fullscreen, colorSetFrom(st.Colors)
 	for _, p := range st.Panes {
 		a.restorePane(t, p, newIDs)
 	}
@@ -361,6 +368,9 @@ func (a *App) restorePane(t *tab, p saved.Pane, newIDs map[layout.PaneID]layout.
 	t.views[id] = v
 	if p.Name != "" {
 		t.paneNames[id] = p.Name
+	}
+	if colors := colorSetFrom(p.Colors); len(colors) > 0 {
+		t.paneColors[id] = colors
 	}
 	if f := p.Floating; f != nil {
 		t.floating = append(t.floating, &floatingPane{id: id, frame: image.Rect(f.X, f.Y, f.X+f.Width, f.Y+f.Height)})

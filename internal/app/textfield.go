@@ -142,6 +142,10 @@ func (a *App) typedField() (*textField, func()) {
 		return a.scriptForm.typedField()
 	case configMode:
 		return a.configTypedField()
+	case templateSaveMode:
+		if a.templateSave.selected == 0 {
+			return &a.templateSave.name, nil
+		}
 	}
 	return nil, nil
 }
