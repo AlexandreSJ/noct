@@ -24,6 +24,8 @@ const (
 	shortcutCtrlRow
 	shortcutAltRow
 	themeRow
+	newThemeRow
+	editThemeRow
 	backgroundRow
 	animateIntroRow
 	mouseRow
@@ -51,6 +53,7 @@ type configPage int
 const (
 	settingsPage configPage = iota
 	bindsPage
+	themePage
 )
 
 const configHints = "{up}{down} select  {left}{right} change  esc close"
@@ -88,6 +91,8 @@ type configPanel struct {
 	// hover is the row under the mouse, when hovering is true.
 	hover    configRow
 	hovering bool
+	// edit is the theme being edited on the theme page.
+	edit *themeEdit
 }
 
 // configLine is one line of the panel: a section heading, a row that can be selected, or a note
@@ -122,8 +127,12 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 		a.capturePrefix(key)
 		return
 	}
-	if a.configPanel.page == bindsPage {
+	switch a.configPanel.page {
+	case bindsPage:
 		a.handleBindsKey(key)
+		return
+	case themePage:
+		a.handleThemeEditorKey(key)
 		return
 	}
 	if a.configPanel.number != nil {
@@ -184,6 +193,9 @@ func (a *App) selectConfigRow(row configRow) {
 	a.cancelNumberEdit()
 	a.configPanel.copied, a.configPanel.resetArmedAt, a.configPanel.typing = false, time.Time{}, false
 	a.configPanel.selected = row
+	if c, ok := themeRowAt(row); ok && a.configPanel.edit != nil {
+		a.lightComponent(c)
+	}
 }
 
 // moveConfigSelection selects the next row shown, saving what was typed in the row it leaves.
@@ -312,6 +324,12 @@ func (a *App) changeSetting(step int) {
 		return
 	case bindsRow:
 		a.openBinds()
+		return
+	case newThemeRow:
+		a.startNewTheme()
+		return
+	case editThemeRow:
+		a.editCurrentTheme()
 		return
 	case resetBindsRow, resetRow:
 		return // only enter resets, twice, so neither an arrow nor a click does it by accident
@@ -462,8 +480,15 @@ func onOff(on bool) string {
 
 func (a *App) configLines() []configLine {
 	choice := func(value string) string { return "◂ " + value + " ▸" }
-	if a.configPanel.page == bindsPage {
+	switch a.configPanel.page {
+	case bindsPage:
 		return a.bindLines()
+	case themePage:
+		return a.themeEditorLines()
+	}
+	edit := "enter"
+	if a.themeNamed(a.sessionTheme(a.session)).Builtin {
+		edit = "copy"
 	}
 	binds := "defaults ▸"
 	if n := changedBinds(a.config); n > 0 {
@@ -478,6 +503,8 @@ func (a *App) configLines() []configLine {
 		{label: "alt", value: onOff(a.config.Shortcut.Alt), row: shortcutAltRow},
 		{label: "Appearance", heading: true},
 		{label: "theme", value: choice(a.themeNamed(a.sessionTheme(a.session)).Name), row: themeRow},
+		{label: "new theme", value: "enter", row: newThemeRow},
+		{label: "edit theme", value: edit, row: editThemeRow},
 		{label: "background", value: a.config.Appearance.Background, row: backgroundRow},
 		{label: "animate intro", value: choice(a.config.Appearance.AnimateIntro), row: animateIntroRow},
 		{label: "mouse", value: onOff(a.config.Mouse), row: mouseRow},
@@ -676,10 +703,18 @@ func (line configLine) selectable() bool { return !line.heading && !line.note }
 func (a *App) drawConfigPanel(screen uv.Screen) {
 	l := a.configLayout()
 	title, hints := "config", configHints
-	if a.configPanel.page == bindsPage {
+	switch a.configPanel.page {
+	case bindsPage:
 		title, hints = "config › binds", bindsHints
+	case themePage:
+		title, hints = "config › theme › "+a.configPanel.edit.theme.Name, themeEditorHints
 	}
 	inner := a.drawPanel(screen, l.panel, title)
+	if a.configPanel.page == themePage {
+		a.drawThemeEditor(screen, l, inner)
+		drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
+		return
+	}
 	for i := l.first; i < len(l.rows) && i-l.first < l.visible(); i++ {
 		a.drawConfigLine(screen, inner, inner.Min.Y+i-l.first, l.rows[i])
 	}

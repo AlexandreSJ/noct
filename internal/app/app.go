@@ -93,6 +93,8 @@ type App struct {
 	// hovered is the cell the pointer was last seen over on the home.
 	hovered  image.Point
 	homeTick <-chan time.Time
+	// stageTick ends a component's blink on the theme editor's stage.
+	stageTick <-chan time.Time
 
 	homeHintShown   bool
 	homeHintExpired <-chan time.Time
@@ -269,6 +271,8 @@ func (a *App) loop() error {
 			a.checkIfDue()
 		case <-a.homeTick:
 			a.advanceHomeArt()
+		case <-a.stageTick:
+			a.stageTick = nil
 		case <-a.resetExpired:
 			a.resetExpired = nil
 		case <-a.homeHintExpired:

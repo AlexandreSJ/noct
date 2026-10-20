@@ -160,7 +160,7 @@ func TestThemeAndBackground(t *testing.T) {
 	if a.config.Appearance.Theme != theme.Builtins()[len(theme.Builtins())-1].Name {
 		t.Errorf("theme %q did not wrap to the last one", a.config.Appearance.Theme)
 	}
-	press(a, downPress, enterPress)
+	press(a, downPress, downPress, downPress, enterPress) // past new theme and edit theme
 	if a.palette.background == nil {
 		t.Error("background did not switch to the theme's")
 	}
