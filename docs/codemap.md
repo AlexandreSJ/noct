@@ -100,6 +100,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/environment.go` | Shell and environment given to pane programs |
 | `internal/app/theme.go` | The themes on offer (built-in, then the user's, read again when their folder changes) and the palette of styles drawn from the theme in use |
 | `internal/app/theme_editor.go` | Making and editing themes in the config: the new and edit rows, the name and base, and the page of components beside the stage |
+| `internal/app/color_picker.go` | The color picker: the grid of the terminal's 256 colors, scrolled to the selection, and a typed #rrggbb |
 | `internal/app/stage.go` | The stage: a small made-up workspace with a bit of everything a theme colors, to preview themes in place |
 | `internal/kittygfx/command.go` | Parse and encode kitty graphics commands |
 | `internal/kittygfx/stream.go` | Split graphics commands out of program output, across reads |

@@ -639,7 +639,10 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Leitura:** ao iniciar e a cada segundo, junto do ticker da biblioteca, sempre. Um arquivo com erro (cor inválida, chave desconhecida, base que não existe ou em ciclo) fica de fora, e a mensagem diz qual. O tema em uso que some volta ao padrão.
 - Os embutidos mantêm as cores de antes, e ganham sucesso e erro.
 
-**Consequências.** O `✓` e o `✗` das execuções passam a ter as cores de sucesso e de erro. O fundo dos popups pode ser diferente do fundo do tema. O editor dentro do noct e o tema por sessão vêm depois (ADR-050).
+- **Editor no config:** abaixo de `theme`, `new theme` (nome, depois o tema de onde começa, escolhido na busca, que mostra cada um na tela) e `edit theme` (o tema da sessão; num embutido, uma cópia com outro nome). O editor é uma página do config, como a dos binds, com a lista dos componentes por grupo à esquerda e o palco à direita (uma mini-workspace desenhada pelo noct, com um pouco de cada componente), num painel de 84 colunas. O componente selecionado pisca 400 ms no palco.
+- **Seletor de cores:** uma grade 16×16 com as 256 cores, que rola quando não cabe, a cor selecionada (índice e hex) e um campo `#rrggbb` aberto com `#`. O palco mostra a cor sob a seleção antes do `Enter`; `Enter` grava o arquivo na hora, `Esc` volta sem mudar.
+
+**Consequências.** O `✓` e o `✗` das execuções passam a ter as cores de sucesso e de erro. O fundo dos popups pode ser diferente do fundo do tema. As teclas do editor e do seletor são as do config, com `#` fixo. O tema por sessão está na ADR-050.
 
 ## ADR-050 — Tema por sessão
 

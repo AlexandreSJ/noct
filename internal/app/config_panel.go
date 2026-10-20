@@ -14,6 +14,7 @@ import (
 
 	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/theme"
 )
 
 type configRow int
@@ -283,7 +284,10 @@ func (a *App) configTypedField() (*textField, func()) {
 	if p.number != nil {
 		return p.number, func() { p.numberProblem = "" }
 	}
-	if p.capture.active || p.page == bindsPage || !p.typing || !a.isTypedRow(p.selected) {
+	if p.page == themePage && p.edit.picker != nil && p.edit.picker.typing {
+		return &p.edit.picker.hex, func() { p.edit.picker.problem = "" }
+	}
+	if p.capture.active || p.page == bindsPage || p.page == themePage || !p.typing || !a.isTypedRow(p.selected) {
 		return nil, nil
 	}
 	return a.typedText(p.selected), func() { p.copied = false }
@@ -315,6 +319,10 @@ func (a *App) commitTyped() {
 func (a *App) changeSetting(step int) {
 	if _, ok := bindRowAt(a.configPanel.selected); ok {
 		a.startBindEdit()
+		return
+	}
+	if _, ok := themeRowAt(a.configPanel.selected); ok {
+		a.pickColor()
 		return
 	}
 	next := a.config
@@ -669,7 +677,11 @@ func (a *App) configLayout() configLayout {
 		}
 		l.rows = append(l.rows, line)
 	}
-	l.panel = centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), 72, panelHeight(len(l.rows)+2))
+	width := 72
+	if a.configPanel.page == themePage {
+		width = themePanelWidth // the list of components and the stage side by side
+	}
+	l.panel = centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), width, panelHeight(len(l.rows)+2))
 	for i, line := range l.rows {
 		if line.selectable() && line.row == a.configPanel.selected {
 			last := i // the row and the notes under it, such as what a key being taken would take
@@ -708,6 +720,10 @@ func (a *App) drawConfigPanel(screen uv.Screen) {
 		title, hints = "config › binds", bindsHints
 	case themePage:
 		title, hints = "config › theme › "+a.configPanel.edit.theme.Name, themeEditorHints
+		if picker := a.configPanel.edit.picker; picker != nil {
+			title += " › " + theme.Components[a.configPanel.edit.selected].Label
+			hints = picker.hints()
+		}
 	}
 	inner := a.drawPanel(screen, l.panel, title)
 	if a.configPanel.page == themePage {

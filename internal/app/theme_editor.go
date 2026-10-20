@@ -17,8 +17,12 @@ const themeRowBase configRow = 2000
 // stageBlink is how long a component stays lit on the stage after the editor lands on it.
 const stageBlink = 400 * time.Millisecond
 
-// themeListWidth is the width of the editor's list of components; the stage takes the rest.
-const themeListWidth = 34
+// themeListWidth is the width of the editor's list of components; the stage takes the rest of
+// the themePanelWidth.
+const (
+	themeListWidth  = 40
+	themePanelWidth = 84
+)
 
 const themeEditorHints = "{up}{down} select  {enter} pick a color  esc back"
 
@@ -34,6 +38,34 @@ type themeEdit struct {
 	selected    theme.Component
 	// blinkAt is when the selected component was lit on the stage.
 	blinkAt time.Time
+	// picker picks the selected component's color while it is open.
+	picker *colorPicker
+}
+
+// previewed is the theme as the stage shows it: with the color under the picker's selection.
+func (e *themeEdit) previewed() theme.Theme {
+	t := e.theme
+	if e.picker != nil {
+		t.Colors[e.selected] = e.picker.candidate()
+	}
+	return t
+}
+
+// pickColor opens the picker on the selected component; the color picked is saved at once.
+func (a *App) pickColor() {
+	edit := a.configPanel.edit
+	c := edit.selected
+	edit.picker = newColorPicker(edit.theme.Colors[c], false, func(color theme.Color, ok bool) {
+		edit.picker = nil
+		if !ok {
+			return
+		}
+		edit.theme.Colors[c] = color
+		if err := a.saveTheme(edit.theme, edit.base); err != nil {
+			a.statusMessage = err.Error()
+		}
+		a.applyPalette()
+	})
 }
 
 func themeRowAt(row configRow) (theme.Component, bool) {
@@ -137,7 +169,13 @@ func (a *App) closeThemeEditor() {
 }
 
 func (a *App) handleThemeEditorKey(key uv.KeyPressEvent) {
+	if picker := a.configPanel.edit.picker; picker != nil {
+		picker.handleKey(key)
+		return
+	}
 	switch key.String() {
+	case "enter", "space", "right", "l":
+		a.pickColor()
 	case "esc":
 		a.closeThemeEditor()
 	case "up", "k":
@@ -184,7 +222,10 @@ func (a *App) drawThemeEditor(screen uv.Screen, l configLayout, inner image.Rect
 	edit := a.configPanel.edit
 	list := inner
 	list.Max.X = min(inner.Min.X+themeListWidth, inner.Max.X)
-	for i := l.first; i < len(l.rows) && i-l.first < l.visible(); i++ {
+	if edit.picker != nil {
+		edit.picker.draw(screen, image.Rect(list.Min.X+1, list.Min.Y, list.Max.X, list.Max.Y-2), &a.palette)
+	}
+	for i := l.first; edit.picker == nil && i < len(l.rows) && i-l.first < l.visible(); i++ {
 		y := inner.Min.Y + i - l.first
 		line := l.rows[i]
 		a.drawConfigLine(screen, list, y, line)
@@ -199,6 +240,6 @@ func (a *App) drawThemeEditor(screen uv.Screen, l configLayout, inner image.Rect
 		setRune(screen, list.Max.X, y, "│", a.palette.unfocusedFrame)
 	}
 	stage := image.Rect(list.Max.X+2, inner.Min.Y, inner.Max.X, inner.Max.Y-2)
-	p := newPalette(edit.theme, true) // the stage shows the background whatever the screen keeps
+	p := newPalette(edit.previewed(), true) // the stage shows the background whatever the screen keeps
 	drawStage(screen, stage, &p, edit.selected, time.Since(edit.blinkAt) < stageBlink)
 }

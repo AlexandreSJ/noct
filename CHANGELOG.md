@@ -13,6 +13,9 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Added
 
+- **Appearance → new theme** and **edit theme** make and change themes in noct. Pick each part
+  (tab names, borders, titles, lists, messages) and its color from the 256 the terminal shows,
+  or type a `#rrggbb`, with a small workspace beside the list showing the result.
 - Each session keeps its own theme. **Appearance → theme** changes the session on screen, a new
   session starts with the theme of the one it was made from, and moving through the sessions
   (`prefix` + `o`) or the search shows each session in its colors before you open it.
