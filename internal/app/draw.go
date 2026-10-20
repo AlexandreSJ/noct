@@ -69,16 +69,17 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 }
 
 func (a *App) drawPanes(screen uv.Screen, t *tab) {
-	viewScreen := screen
-	if a.palette.background != nil {
-		viewScreen = themedScreen{Screen: screen, background: a.palette.background, text: a.palette.text}
-	}
 	for _, placed := range t.visible(a.workspaceArea()) {
 		id, frame := placed.id, placed.frame
-		fillRect(screen, frame, uv.Style{Bg: a.palette.background}) // floating panes cover what is below
-		lineStyle, titleStyle := a.palette.unfocusedFrame, a.palette.unfocusedTitle
+		pal := a.palette.forPane(t.paneColors[id])
+		viewScreen := screen
+		if pal.background != nil || pal.text != nil {
+			viewScreen = themedScreen{Screen: screen, background: pal.background, text: pal.text}
+		}
+		fillRect(screen, frame, uv.Style{Bg: pal.background}) // floating panes cover what is below
+		lineStyle, titleStyle := pal.unfocusedFrame, pal.unfocusedTitle
 		if id == t.focused {
-			lineStyle, titleStyle = a.palette.focusedFrame, a.palette.focusedTitle
+			lineStyle, titleStyle = pal.focusedFrame, pal.focusedTitle
 		}
 		title := a.viewTitle(t, id)
 		if !t.fullscreen && t.tree.Folded(id) {

@@ -263,7 +263,7 @@ func (a *App) savedTab(t *tab) (saved.Tab, bool) {
 	if t.isEmpty() {
 		return saved.Tab{}, false
 	}
-	st := saved.Tab{Name: t.name, Layout: t.tree.Shape(), Focused: t.focused, Fullscreen: t.fullscreen}
+	st := saved.Tab{Name: t.name, Layout: t.tree.Shape(), Focused: t.focused, Fullscreen: t.fullscreen, Colors: t.colors.saved()}
 	for _, id := range t.tree.Panes() {
 		if p, ok := a.savedPane(t, id); ok {
 			st.Panes = append(st.Panes, p)
@@ -289,7 +289,7 @@ type commandTeller interface {
 }
 
 func (a *App) savedPane(t *tab, id layout.PaneID) (saved.Pane, bool) {
-	p := saved.Pane{ID: id, Name: t.paneNames[id]}
+	p := saved.Pane{ID: id, Name: t.paneNames[id], Colors: t.paneColors[id].saved()}
 	switch v := t.views[id].(type) {
 	case *scriptsPanel:
 		p.Kind = saved.Scripts
@@ -328,7 +328,7 @@ func (a *App) restoreTab(st saved.Tab) *tab {
 		return nil
 	}
 	t := newEmptyTab()
-	t.tree, t.name, t.fullscreen = tree, st.Name, st.Fullscreen
+	t.tree, t.name, t.fullscreen, t.colors = tree, st.Name, st.Fullscreen, colorSetFrom(st.Colors)
 	for _, p := range st.Panes {
 		a.restorePane(t, p, newIDs)
 	}
@@ -367,6 +367,9 @@ func (a *App) restorePane(t *tab, p saved.Pane, newIDs map[layout.PaneID]layout.
 	t.views[id] = v
 	if p.Name != "" {
 		t.paneNames[id] = p.Name
+	}
+	if colors := colorSetFrom(p.Colors); len(colors) > 0 {
+		t.paneColors[id] = colors
 	}
 	if f := p.Floating; f != nil {
 		t.floating = append(t.floating, &floatingPane{id: id, frame: image.Rect(f.X, f.Y, f.X+f.Width, f.Y+f.Height)})

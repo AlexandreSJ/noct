@@ -308,7 +308,7 @@ func (a *App) moveFocusedPane(heading layout.Heading) {
 
 func (a *App) movePaneToAdjacentTab(heading layout.Heading) {
 	source := a.currentTab()
-	id, moved, name := source.focused, source.focusedView(), source.paneNames[source.focused]
+	id, moved, name, colors := source.focused, source.focusedView(), source.paneNames[source.focused], source.paneColors[source.focused]
 	var target *tab
 	if next := a.session.activeTab + tabStep(heading); next >= 0 && next < len(a.session.tabs) {
 		target = a.session.tabs[next]
@@ -334,6 +334,9 @@ func (a *App) movePaneToAdjacentTab(heading layout.Heading) {
 	a.placeArriving(target, id, moved, heading)
 	if name != "" {
 		target.paneNames[id] = name
+	}
+	if colors != nil {
+		target.paneColors[id] = colors
 	}
 	a.session.activeTab = slices.Index(a.session.tabs, target)
 	target.resizeViews(a.workspaceArea())
