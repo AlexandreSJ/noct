@@ -30,7 +30,18 @@ func (a *App) openSessions() {
 	a.mode = sessionsMode
 }
 
+// handleSessionsKey shows the selected session in its theme while the popup is open, and the
+// session on screen in its own once it closes.
 func (a *App) handleSessionsKey(key uv.KeyPressEvent) {
+	a.moveThroughSessions(key)
+	if a.mode == sessionsMode && len(a.sessionRows) > 0 {
+		a.previewTheme(a.sessionTheme(a.sessionRows[a.sessionSelected]))
+	} else {
+		a.applyPalette()
+	}
+}
+
+func (a *App) moveThroughSessions(key uv.KeyPressEvent) {
 	switch key.String() {
 	case "esc":
 		if a.sessionFilter != "" {

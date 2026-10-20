@@ -60,10 +60,25 @@ func (a *App) checkThemes() bool {
 	return true
 }
 
-// applyPalette draws with the theme in use from now on. The palette is replaced in place, since
-// some views keep a pointer to it.
+// applyPalette draws with the theme of the session on screen from now on.
 func (a *App) applyPalette() {
-	a.palette = newPalette(a.themeNamed(a.config.Appearance.Theme), a.config.Appearance.Background == config.BackgroundTheme)
+	a.previewTheme(a.sessionTheme(a.session))
+}
+
+// previewTheme draws with the theme named, saving nothing. The palette is replaced in place,
+// since some views keep a pointer to it.
+func (a *App) previewTheme(name string) {
+	a.palette = newPalette(a.themeNamed(name), a.config.Appearance.Background == config.BackgroundTheme)
+}
+
+// sessionTheme is the theme s draws with: its own while it exists, else the config's.
+func (a *App) sessionTheme(s *session) string {
+	if s != nil && s.theme != "" {
+		if _, ok := theme.Find(a.themeList(), s.theme); ok {
+			return s.theme
+		}
+	}
+	return a.config.Appearance.Theme
 }
 
 // palette is every style the workspace draws with, for one theme and background choice.

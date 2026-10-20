@@ -39,7 +39,9 @@ type Session struct {
 	Created    time.Time `json:"created"`
 	LastAccess time.Time `json:"last_access"`
 	ActiveTab  int       `json:"active_tab,omitempty"`
-	Tabs       []Tab     `json:"tabs,omitempty"`
+	// Theme is the session's theme; without one, the config's is used.
+	Theme string `json:"theme,omitempty"`
+	Tabs  []Tab  `json:"tabs,omitempty"`
 }
 
 type Tab struct {

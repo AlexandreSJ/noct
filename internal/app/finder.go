@@ -29,6 +29,8 @@ type finder struct {
 type finderItem struct {
 	label string
 	kind  string
+	// theme is the theme the screen shows while the item is selected, as a session's; "" for none.
+	theme string
 	open  func()
 }
 
@@ -61,7 +63,7 @@ func (a *App) finderItems() []finderItem {
 	}
 	for _, s := range a.sessions {
 		if s != a.session {
-			items = append(items, finderItem{label: "session " + s.name, kind: "session", open: func() { a.switchSession(s) }})
+			items = append(items, finderItem{label: "session " + s.name, kind: "session", theme: a.sessionTheme(s), open: func() { a.switchSession(s) }})
 		}
 	}
 	return items
@@ -87,7 +89,18 @@ func (f *finder) filter() {
 	f.selected = 0
 }
 
+// handleFinderKey shows a session in its theme while the selection is on it.
 func (a *App) handleFinderKey(key uv.KeyPressEvent) {
+	a.searchKey(key)
+	f := &a.finder
+	if a.mode == finderMode && len(f.matches) > 0 && f.matches[f.selected].theme != "" {
+		a.previewTheme(f.matches[f.selected].theme)
+	} else if a.mode == finderMode || key.String() == "esc" {
+		a.applyPalette()
+	}
+}
+
+func (a *App) searchKey(key uv.KeyPressEvent) {
 	f := &a.finder
 	switch key.String() {
 	case "esc":

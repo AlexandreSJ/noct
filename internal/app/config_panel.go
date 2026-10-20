@@ -320,7 +320,8 @@ func (a *App) changeSetting(step int) {
 	case shortcutAltRow:
 		next.Shortcut.Alt = !next.Shortcut.Alt
 	case themeRow:
-		next.Appearance.Theme = a.nextThemeName(next.Appearance.Theme, step)
+		next.Appearance.Theme = a.nextThemeName(a.sessionTheme(a.session), step)
+		a.session.theme = next.Appearance.Theme // the session on screen, and sessions without a theme
 	case backgroundRow:
 		next.Appearance.Background = cycle([]string{config.BackgroundTerminal, config.BackgroundTheme}, next.Appearance.Background, step)
 	case animateIntroRow:
@@ -476,7 +477,7 @@ func (a *App) configLines() []configLine {
 		{label: "ctrl", value: onOff(a.config.Shortcut.Ctrl), row: shortcutCtrlRow},
 		{label: "alt", value: onOff(a.config.Shortcut.Alt), row: shortcutAltRow},
 		{label: "Appearance", heading: true},
-		{label: "theme", value: choice(a.themeNamed(a.config.Appearance.Theme).Name), row: themeRow},
+		{label: "theme", value: choice(a.themeNamed(a.sessionTheme(a.session)).Name), row: themeRow},
 		{label: "background", value: a.config.Appearance.Background, row: backgroundRow},
 		{label: "animate intro", value: choice(a.config.Appearance.AnimateIntro), row: animateIntroRow},
 		{label: "mouse", value: onOff(a.config.Mouse), row: mouseRow},

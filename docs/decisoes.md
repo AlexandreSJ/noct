@@ -641,3 +641,16 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** O `✓` e o `✗` das execuções passam a ter as cores de sucesso e de erro. O fundo dos popups pode ser diferente do fundo do tema. O editor dentro do noct e o tema por sessão vêm depois (ADR-050).
 
+## ADR-050 — Tema por sessão
+
+**Contexto.** Com várias sessões, nada mostrava em qual se estava além do nome na barra de tabs. O mantenedor quer que o tema seja da sessão, e que escolher uma sessão já a mostre nas cores dela, antes de abri-la, como ajuda visual. A ADR-037 deixou configurações por sessão para depois; o tema é a primeira. É polimento da fase 5, antecipado pelo mantenedor.
+
+**Decisão.**
+- O tema vai em cada sessão do `sessions.json` (`theme`). Sem tema, ou com um que não existe mais, a sessão usa o `Appearance → theme` do config.
+- `Appearance → theme` muda o tema da sessão na tela e também o do config, que vale para as sessões sem tema.
+- Uma sessão nova nasce com o tema da sessão na tela.
+- Trocar de sessão (pelo popup, pela busca, pelo attach, ao fechar ou apagar) troca o palette.
+- **Prévia:** no popup de sessões, a seleção pinta a tela com o tema da sessão selecionada; na busca, quando a seleção está num item de sessão. Fechar sem trocar volta ao tema da sessão na tela.
+
+**Consequências.** As outras opções do config continuam valendo para o noct inteiro. A prévia só muda o desenho; nada é gravado até a sessão ser aberta.
+

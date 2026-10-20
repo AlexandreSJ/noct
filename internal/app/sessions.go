@@ -30,6 +30,8 @@ type session struct {
 	tabBarFirst int
 	created     time.Time
 	lastAccess  time.Time
+	// theme is the session's theme, "" for the config's.
+	theme string
 	// closed is the layout of a closed session, nil while it is open.
 	closed *saved.Session
 }
@@ -45,7 +47,7 @@ func (a *App) loadSessions() {
 		if saved.CheckName(s.Name) != nil || a.findSession(s.Name) != nil {
 			continue
 		}
-		a.sessions = append(a.sessions, &session{name: s.Name, created: s.Created, lastAccess: s.LastAccess, closed: &s})
+		a.sessions = append(a.sessions, &session{name: s.Name, created: s.Created, lastAccess: s.LastAccess, theme: s.Theme, closed: &s})
 	}
 	a.session = a.mostRecentSession(nil)
 	if a.session == nil {
@@ -83,6 +85,9 @@ func (a *App) createSession(name string) (*session, error) {
 	}
 	now := time.Now()
 	s := &session{name: name, created: now, lastAccess: now}
+	if a.session != nil {
+		s.theme = a.sessionTheme(a.session) // a new session starts in the colors of the one it came from
+	}
 	a.sessions = append(a.sessions, s)
 	return s, nil
 }
@@ -116,6 +121,7 @@ func (a *App) switchSession(s *session) {
 		a.touchSession() // the user leaves it now; without a terminal, it was left before
 	}
 	a.session = s
+	a.applyPalette()
 	a.openSession(s)
 	a.touchSession()
 	a.mode, a.drag, a.selection, a.scrollOffset = normalMode, nil, nil, 0
@@ -234,10 +240,10 @@ func (a *App) saveSessions() {
 func (a *App) savedSession(s *session) saved.Session {
 	if s.closed != nil {
 		kept := *s.closed
-		kept.Name, kept.LastAccess = s.name, s.lastAccess
+		kept.Name, kept.LastAccess, kept.Theme = s.name, s.lastAccess, s.theme
 		return kept
 	}
-	out := saved.Session{Name: s.name, Created: s.created, LastAccess: s.lastAccess}
+	out := saved.Session{Name: s.name, Created: s.created, LastAccess: s.lastAccess, Theme: s.theme}
 	for index, t := range s.tabs {
 		st, ok := a.savedTab(t)
 		if !ok {

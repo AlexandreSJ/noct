@@ -13,6 +13,9 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Added
 
+- Each session keeps its own theme. **Appearance → theme** changes the session on screen, a new
+  session starts with the theme of the one it was made from, and moving through the sessions
+  (`prefix` + `o`) or the search shows each session in its colors before you open it.
 - Your own themes: a theme file in `~/.config/noct/themes/` shows up in **Appearance → theme**,
   and changes to it show at once.
 
