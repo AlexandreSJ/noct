@@ -27,14 +27,15 @@ type colorPicker struct {
 	typing bool
 	// problem says why the typed hex was not taken.
 	problem string
-	// allowTheme lets t hand back "", for the theme's own color.
-	allowTheme bool
+	// emptyName is what t hands back "" for, such as the theme's own color; t does nothing
+	// when it is "".
+	emptyName string
 	// done gets the color picked, or ok false when esc left it as it was.
 	done func(c theme.Color, ok bool)
 }
 
-func newColorPicker(current theme.Color, allowTheme bool, done func(theme.Color, bool)) *colorPicker {
-	p := &colorPicker{current: current, allowTheme: allowTheme, done: done}
+func newColorPicker(current theme.Color, emptyName string, done func(theme.Color, bool)) *colorPicker {
+	p := &colorPicker{current: current, emptyName: emptyName, done: done}
 	if n, err := strconv.Atoi(string(current)); err == nil {
 		p.cell = uint8(n)
 	} else if c := current.Resolve(); c != nil {
@@ -104,7 +105,7 @@ func (p *colorPicker) handleKey(key uv.KeyPressEvent) bool {
 		}
 		p.typing, p.hex, p.problem = true, newTextField(start), ""
 	case "t":
-		if !p.allowTheme {
+		if p.emptyName == "" {
 			return false
 		}
 		p.done("", true)
@@ -138,8 +139,8 @@ func (p *colorPicker) hints() string {
 		return "enter use  esc the grid"
 	}
 	hints := "{left}{right}{up}{down} move  enter use  # hex"
-	if p.allowTheme {
-		hints += "  t the theme's"
+	if p.emptyName != "" {
+		hints += "  t " + p.emptyName
 	}
 	return hints + "  esc back"
 }

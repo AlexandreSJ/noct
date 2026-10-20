@@ -34,7 +34,7 @@ func (a *App) nextThemeName(current string, step int) string {
 }
 
 // loadThemes reads the user's themes again. A theme file that cannot be read is left out and
-// told in the tab bar.
+// told in the tab bar, once until the problem changes.
 func (a *App) loadThemes() {
 	dir, err := theme.Dir()
 	if err != nil {
@@ -44,9 +44,14 @@ func (a *App) loadThemes() {
 	user, errs := theme.LoadDir(dir, theme.Builtins())
 	a.themes = append(theme.Builtins(), user...)
 	a.themesSignature = dirSignature([]string{dir}, 1)
+	problem := ""
 	if err := errors.Join(errs...); err != nil {
-		a.statusMessage = errs[0].Error()
+		problem = errs[0].Error()
 	}
+	if problem != "" && problem != a.themeProblem {
+		a.statusMessage = problem
+	}
+	a.themeProblem = problem
 }
 
 // checkThemes reads the user's themes again when their folder changed, telling whether it did.
@@ -56,8 +61,22 @@ func (a *App) checkThemes() bool {
 		return false
 	}
 	a.loadThemes()
-	a.applyPalette()
+	a.showScreenTheme()
 	return true
+}
+
+// showScreenTheme draws with the theme the screen should show now: the selected session's
+// while the sessions popup or the search is on one, else the session on screen's.
+func (a *App) showScreenTheme() {
+	f := &a.finder
+	switch {
+	case a.mode == sessionsMode && len(a.sessionRows) > 0:
+		a.previewTheme(a.sessionTheme(a.sessionRows[a.sessionSelected]))
+	case a.mode == finderMode && len(f.matches) > 0 && f.matches[f.selected].theme != "":
+		a.previewTheme(f.matches[f.selected].theme)
+	default:
+		a.applyPalette()
+	}
 }
 
 // applyPalette draws with the theme of the session on screen from now on.

@@ -145,3 +145,93 @@ func TestTheEditorDrawsTheListAndTheStage(t *testing.T) {
 		}
 	}
 }
+
+// pickNextColor opens the picker on the selected component and picks the cell after its color.
+func pickNextColor(a *App) {
+	press(a, enterPress, letter('l'), enterPress)
+}
+
+func TestPickingAColorDoesNotTellABrokenThemeAgain(t *testing.T) {
+	a, dir := editorApp(t, editThemeRow)
+	writeUserTheme(t, dir, "broken", "[tabs]\nactive_text = \"nope\"\n")
+	writeUserTheme(t, dir, "mine", "base = \"rose\"\n")
+	a.loadThemes()
+	if a.statusMessage == "" {
+		t.Fatal("the broken theme was not told")
+	}
+	a.statusMessage = ""
+	a.openThemeEditor(a.themeNamed("mine"))
+	pickNextColor(a)
+	if a.statusMessage != "" {
+		t.Errorf("picking a color told %q, want nothing", a.statusMessage)
+	}
+}
+
+func TestAColorThatCannotBeSavedIsNotKept(t *testing.T) {
+	a, dir := editorApp(t, editThemeRow)
+	writeUserTheme(t, dir, "mine", "base = \"rose\"\n")
+	a.loadThemes()
+	a.useTheme("mine")
+	a.openThemeEditor(a.themeNamed("mine"))
+	before := a.palette.background
+	beforeColor := a.configPanel.edit.theme.Colors[theme.Background]
+	readOnly(t, dir)
+	pickNextColor(a)
+	if a.statusMessage == "" {
+		t.Fatal("the failed save was not told")
+	}
+	if got := a.configPanel.edit.theme.Colors[theme.Background]; got != beforeColor {
+		t.Errorf("the editor keeps %q, want %q, which is what the file has", got, beforeColor)
+	}
+	if !colorsEqual(a.palette.background, before) {
+		t.Errorf("the screen shows %v, want %v", a.palette.background, before)
+	}
+}
+
+func TestANewThemeThatCannotBeSavedLeavesNoPreview(t *testing.T) {
+	a, dir := editorApp(t, newThemeRow)
+	readOnly(t, dir)
+	press(a, enterPress)
+	typeInto(a, "mine")
+	press(a, enterPress)
+	typeInto(a, "frost")
+	showsTheme(t, a, "frost")
+	press(a, enterPress)
+	if a.statusMessage == "" || a.mode != configMode {
+		t.Fatalf("mode %v, message %q; want the config with the problem", a.mode, a.statusMessage)
+	}
+	showsTheme(t, a, "noct")
+}
+
+// readOnly keeps files from being written in dir until the test ends.
+func readOnly(t *testing.T, dir string) {
+	t.Helper()
+	if os.Geteuid() == 0 {
+		t.Skip("root writes in read-only folders")
+	}
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+}
+
+func TestABackgroundCanFollowTheThemesBackgroundAgain(t *testing.T) {
+	a, dir := editorApp(t, editThemeRow)
+	writeUserTheme(t, dir, "mine", "base = \"rose\"\n[tabs]\nactive_background = \"#112233\"\n")
+	a.loadThemes()
+	a.openThemeEditor(a.themeNamed("mine"))
+	a.selectConfigRow(themeRowBase + configRow(theme.ActiveTabBackground))
+	press(a, enterPress)
+	if hints := a.configPanel.edit.picker.hints(); !strings.Contains(hints, "t background") {
+		t.Errorf("the picker hints %q, want t background", hints)
+	}
+	press(a, letter('t'))
+	if got := a.themeNamed("mine").Colors[theme.ActiveTabBackground]; got != "" {
+		t.Errorf("mine's active tab background is %q, want the background", got)
+	}
+	a.selectConfigRow(themeRowBase + configRow(theme.ActiveTabText))
+	press(a, enterPress, letter('t'))
+	if a.configPanel.edit.picker == nil {
+		t.Error("t closed the picker of a text, which cannot follow the background")
+	}
+}

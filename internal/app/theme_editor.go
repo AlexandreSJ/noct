@@ -57,15 +57,22 @@ func (e *themeEdit) previewed() theme.Theme {
 func (a *App) pickColor() {
 	edit := a.configPanel.edit
 	c := edit.selected
-	edit.picker = newColorPicker(edit.theme.Colors[c], false, func(color theme.Color, ok bool) {
+	emptyName := ""
+	if theme.FollowsBackground(c) {
+		emptyName = "background"
+	}
+	edit.picker = newColorPicker(edit.theme.Colors[c], emptyName, func(color theme.Color, ok bool) {
 		edit.picker = nil
 		if !ok {
 			return
 		}
-		edit.theme.Colors[c] = color
-		if err := a.saveTheme(edit.theme, edit.base); err != nil {
+		picked := edit.theme
+		picked.Colors[c] = color
+		if err := a.saveTheme(picked, edit.base); err != nil {
 			a.statusMessage = err.Error()
+			return
 		}
+		edit.theme = picked
 		a.applyPalette()
 	})
 }
@@ -137,6 +144,7 @@ func (a *App) createTheme(name string, base theme.Theme) {
 	if err := a.saveTheme(t, base); err != nil {
 		a.statusMessage = err.Error()
 		a.mode = configMode
+		a.applyPalette() // drop the finder's preview of the base
 		return
 	}
 	a.useTheme(name)

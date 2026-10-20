@@ -18,7 +18,11 @@ type pickerResult struct {
 
 func testPicker(current theme.Color, allowTheme bool) (*colorPicker, *pickerResult) {
 	r := &pickerResult{}
-	p := newColorPicker(current, allowTheme, func(c theme.Color, ok bool) {
+	emptyName := ""
+	if allowTheme {
+		emptyName = "the theme's"
+	}
+	p := newColorPicker(current, emptyName, func(c theme.Color, ok bool) {
 		r.color, r.ok = c, ok
 		r.calls++
 	})

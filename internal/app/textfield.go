@@ -180,7 +180,11 @@ func (a *App) typeKey(key uv.KeyPressEvent) bool {
 
 // pasteText types pasted text where text is being typed.
 func (a *App) pasteText(text string) bool {
-	return a.editTypedText(func(field *textField) { field.insert(text) })
+	if !a.editTypedText(func(field *textField) { field.insert(text) }) {
+		return false
+	}
+	a.showScreenTheme() // a paste in the search can land on a session
+	return true
 }
 
 // isPasteKey tells the paste keys apart; terminals that paste on them send the text instead.

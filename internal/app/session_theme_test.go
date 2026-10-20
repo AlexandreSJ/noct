@@ -131,3 +131,28 @@ func TestTheConfigThemeChangesTheSessionOnScreen(t *testing.T) {
 		t.Errorf("session theme %q and config theme %q, want both aurora", a.session.theme, a.config.Appearance.Theme)
 	}
 }
+
+func TestPastingInTheSearchShowsTheSessionsTheme(t *testing.T) {
+	a, _, _ := twoSessions(t)
+	a.openFinder()
+	if err := a.handleEvent(uv.PasteEvent{Content: "session 2"}); err != nil {
+		t.Fatal(err)
+	}
+	showsTheme(t, a, "frost")
+}
+
+func TestReadingTheThemesAgainKeepsTheSessionPreview(t *testing.T) {
+	dir := themesFolder(t)
+	a, _, _ := twoSessions(t)
+	a.loadThemes()
+	a.openSessions()
+	press(a, letter('j'))
+	writeUserTheme(t, dir, "mine", "base = \"rose\"\n")
+	a.checkThemes()
+	showsTheme(t, a, "frost")
+	a.openFinder()
+	typeInto(a, "session 2")
+	writeUserTheme(t, dir, "other", "base = \"rose\"\n")
+	a.checkThemes()
+	showsTheme(t, a, "frost")
+}

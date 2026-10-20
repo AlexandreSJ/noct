@@ -61,7 +61,7 @@ Enquanto se edita, a tela inteira já mostra o tema em edição, como o `theme` 
 - Uma grade 16×16 com as 256 cores do terminal, navegada por `hjkl` ou setas; embaixo, o número e o hex da selecionada.
 - Um campo para digitar `#rrggbb`, para qualquer cor (o noct desenha em truecolor, com fallback para 256).
 - As cores 0–15 são definidas pelo tema do terminal de fora e mudam de um usuário para outro; são gravadas como índice, para continuarem seguindo o terminal. As 16–255 (cubo 6×6×6 e 24 cinzas) são fixas e gravadas como hex.
-- Onde a cor pode voltar ao padrão (cores por painel), a grade tem também `theme`.
+- Onde a cor pode voltar ao padrão, `t` a devolve: `theme` nas cores por painel, e `background` no editor, nos fundos que podem seguir o fundo do tema.
 
 ## O palco
 

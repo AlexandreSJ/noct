@@ -84,7 +84,7 @@ func (a *App) handleColorsKey(key uv.KeyPressEvent) {
 		if !ok {
 			current = a.themeNamed(a.sessionTheme(a.session)).Colors[row.component]
 		}
-		p.picker = newColorPicker(current, true, func(c theme.Color, ok bool) {
+		p.picker = newColorPicker(current, "the theme's", func(c theme.Color, ok bool) {
 			p.picker = nil
 			switch {
 			case !ok:

@@ -140,6 +140,8 @@ type App struct {
 	// themes folder as last read.
 	themes          []theme.Theme
 	themesSignature string
+	// themeProblem is the broken theme last told, so reading the folder again does not repeat it.
+	themeProblem string
 	// expanded are the folders open in the scripts panels, by path; folders start closed.
 	expanded map[string]bool
 	versions *script.Versions

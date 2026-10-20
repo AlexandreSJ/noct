@@ -92,11 +92,8 @@ func (f *finder) filter() {
 // handleFinderKey shows a session in its theme while the selection is on it.
 func (a *App) handleFinderKey(key uv.KeyPressEvent) {
 	a.searchKey(key)
-	f := &a.finder
-	if a.mode == finderMode && len(f.matches) > 0 && f.matches[f.selected].theme != "" {
-		a.previewTheme(f.matches[f.selected].theme)
-	} else if a.mode == finderMode || key.String() == "esc" {
-		a.applyPalette()
+	if a.mode == finderMode || key.String() == "esc" {
+		a.showScreenTheme()
 	}
 }
 

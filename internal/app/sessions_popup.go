@@ -34,11 +34,7 @@ func (a *App) openSessions() {
 // session on screen in its own once it closes.
 func (a *App) handleSessionsKey(key uv.KeyPressEvent) {
 	a.moveThroughSessions(key)
-	if a.mode == sessionsMode && len(a.sessionRows) > 0 {
-		a.previewTheme(a.sessionTheme(a.sessionRows[a.sessionSelected]))
-	} else {
-		a.applyPalette()
-	}
+	a.showScreenTheme()
 }
 
 func (a *App) moveThroughSessions(key uv.KeyPressEvent) {
