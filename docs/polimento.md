@@ -4,7 +4,7 @@ O que vem da fase 5 do [roadmap](roadmap.md), na ordem combinada com o mantenedo
 
 | # | Item | Documento | Estado |
 |---|---|---|---|
-| 1 | Terminal novo no diretório do painel com foco | abaixo | Decidido; antecipado, próximo a implementar |
+| 1 | Terminal novo no diretório do painel com foco | [tui.md](tui.md#tabs-e-painéis), ADR-048 | Feito |
 | 2 | Temas editáveis no noct e tema por sessão | [temas.md](temas.md) | Decidido |
 | 3 | Cores por painel e por tab | [temas.md](temas.md#cores-por-painel-e-por-tab) | Decidido |
 | 4 | Templates de tab | [templates.md](templates.md) | Decidido |
@@ -14,22 +14,7 @@ O palco (a mini-workspace de prévia) nasce no passo 2 e é reutilizado nos pass
 
 ## 1. Terminal novo no diretório do painel com foco
 
-Hoje `p`, `t` e `g` abrem o shell em `a.workDir`: o diretório do terminal de fora que fez o último attach (`hello.Dir`). Como o daemon sobrevive aos attaches, esse lugar muda conforme de onde se reconectou, e um `cd` num painel não vale para o próximo terminal. Kitty, WezTerm, Ghostty e tmux (`-c "#{pane_current_path}"`) abrem no diretório do painel atual.
-
-**Regra**, a primeira que der resposta:
-
-| Painel com foco | Diretório |
-|---|---|
-| Terminal (o shell, ou um programa dentro dele: claude, vim, ssh) | O diretório atual do shell (`Pane.Dir()`, de `/proc/<pid>/cwd`). |
-| Execução de script ou passo de fluxo em painel | O diretório em que a execução começou (`script.WorkingDir`, ou o `dir` do pedido). |
-| Painéis sem diretório (scripts, inspect, logs, ajuda, editor) e a home | `~`. |
-| Terminal cujo diretório não se lê (macOS, sem `/proc`) | O diretório do attach (`a.workDir`), como hoje. |
-
-Um diretório que não existe mais passa para a linha seguinte, como `existingDir` já faz ao reabrir sessões.
-
-- **Sem opção no config:** vira o comportamento padrão (CONTRIBUTING §2).
-- **ssh:** um shell rodando `ssh` tem o diretório local; o terminal novo abre lá, não no servidor.
-- **Ao implementar:** ADR nova; `tui.md` ("Tabs e painéis": "no diretório em que o `noct` foi aberto") passa a descrever a regra; `CHANGELOG.md` em `### Changed`; testes com uma view falsa que implementa `directoryTeller` (como `commandView` em `rerun_test.go`) para terminal, execução, scripts panel, home e diretório ilegível.
+Feito: `p`, `t` e `g` abrem no diretório do painel com foco. A regra está em [tui.md](tui.md#tabs-e-painéis) e a decisão na ADR-048.
 
 ## Teclas novas
 

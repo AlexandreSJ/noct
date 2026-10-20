@@ -121,3 +121,22 @@ func TestNewTerminalWithoutAHomeFolderOpensInTheAttachFolder(t *testing.T) {
 		t.Errorf("opened in %q, want the attach folder %q", got, a.workDir)
 	}
 }
+
+func TestNewTabOpensInTheFolderOfThePanelLeftBehind(t *testing.T) {
+	dir := t.TempDir()
+	a, _ := besideShell(t, dir)
+	if got := openedIn(t, a, a.openNewTab); got != dir {
+		t.Errorf("opened in %q, want the shell's %q", got, dir)
+	}
+	if len(a.session.tabs) != 2 {
+		t.Errorf("%d tabs, want 2", len(a.session.tabs))
+	}
+}
+
+func TestNewTabFromTheHomeScreenOpensAtHome(t *testing.T) {
+	a := testApp(t)
+	home := homeFolder(t)
+	if got := openedIn(t, a, a.openNewTab); got != home {
+		t.Errorf("opened in %q, want home %q", got, home)
+	}
+}
