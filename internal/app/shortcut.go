@@ -41,20 +41,32 @@ func (d directShortcut) command(key uv.KeyPressEvent, commandKey func(string) (s
 	if mods&uv.ModCtrl != 0 && (pressed == "h" || pressed == "j") {
 		return "", false, false // ctrl+h is also backspace (^H) and ctrl+j a newline (^J)
 	}
+	if mods&uv.ModShift != 0 {
+		return shiftedCommand(pressed, commandKey)
+	}
 	if name, ok = commandKey(pressed); !ok || name == lockKey {
 		return "", false, false // only the prefix locks: alt+b stays the shell's word back
 	}
-	if mods&uv.ModShift != 0 {
+	return name, false, isCommandKey(name)
+}
+
+// shiftedCommand is what a key held with shift stands for: an arrow moves the focused pane, and
+// a letter stands for its capital, as prefix + P does. Other keys stay with the program: with
+// the kitty keyboard protocol, alt+shift+, arrives as a comma, which is not prefix + <.
+func shiftedCommand(pressed string, commandKey func(string) (string, bool)) (name string, move, ok bool) {
+	if name, ok := commandKey(pressed); ok {
 		if _, isArrow := arrowHeadings[name]; isArrow {
 			return name, true, true
 		}
-		// with shift, a letter stands for its capital, as prefix + P does
-		if upper, ok := commandKey(strings.ToUpper(pressed)); ok && slices.Contains(actionKeys, upper) {
-			return upper, false, true
-		}
+	}
+	upper := strings.ToUpper(pressed)
+	if upper == pressed {
 		return "", false, false
 	}
-	return name, false, isCommandKey(name)
+	if name, ok := commandKey(upper); ok && slices.Contains(actionKeys, name) {
+		return name, false, true
+	}
+	return "", false, false
 }
 
 func isCommandKey(name string) bool {

@@ -451,6 +451,7 @@ var modeKeyContexts = map[mode]string{
 	confirmMode: "confirm", infoMode: "info", choiceMode: "choice", finderMode: "search",
 	promptMode: "prompt", formMode: "form", scriptFormMode: "script-form", configMode: "config",
 	mcpMode: "mcp", sessionsMode: "sessions", updatesMode: "updates",
+	colorsMode: "config", // the popup moves and picks as the theme editor does
 }
 
 // modeKeyContext is the context of the mode on, or none while a combination is being taken,

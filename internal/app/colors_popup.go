@@ -134,8 +134,7 @@ func (a *App) colorsPreview() (pane, tab colorSet) {
 
 // colorsWarning tells when the pane's own colors read poorly: its text, borders or titles on its
 // background. Pairs where neither color is the pane's own are the theme's business.
-func (a *App) colorsWarning(t *tab, id layout.PaneID) string {
-	own := t.paneColors[id]
+func (a *App) colorsWarning(own colorSet) string {
 	p := a.palette.forPane(own)
 	th := a.themeNamed(a.sessionTheme(a.session))
 	background, text := p.background, p.text
@@ -192,7 +191,7 @@ func (a *App) drawColors(screen uv.Screen) {
 	list.Max.X = min(inner.Min.X+themeListWidth, inner.Max.X)
 	pane, tab := a.colorsPreview()
 	if p.picker != nil {
-		p.picker.draw(screen, image.Rect(list.Min.X+1, list.Min.Y, list.Max.X, list.Max.Y-2), &a.palette)
+		p.picker.draw(screen, image.Rect(list.Min.X+1, list.Min.Y, list.Max.X, list.Max.Y-3), &a.palette) // the warning goes under it
 	} else {
 		for i, row := range p.rows {
 			y := list.Min.Y + i
@@ -225,8 +224,8 @@ func (a *App) drawColors(screen uv.Screen) {
 				drawText(screen, x, y, list.Max.X, "██", style)
 			}
 		}
-		drawText(screen, list.Min.X+1, inner.Max.Y-3, list.Max.X, a.colorsWarning(p.tab, p.pane), a.palette.status)
 	}
+	drawText(screen, list.Min.X+1, inner.Max.Y-3, list.Max.X, a.colorsWarning(pane), a.palette.status)
 	for y := inner.Min.Y; y < inner.Max.Y-2; y++ {
 		setRune(screen, list.Max.X, y, "│", a.palette.unfocusedFrame)
 	}

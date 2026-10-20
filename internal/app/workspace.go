@@ -383,6 +383,9 @@ func (a *App) detachView(id layout.PaneID) {
 	if t == nil {
 		return
 	}
+	if a.mode == colorsMode && a.colors.tab == t && a.colors.pane == id {
+		a.mode, a.colors = normalMode, colorsPopup{}
+	}
 	t.removeView(id)
 	t.resizeViews(a.workspaceArea())
 	if a.config.CloseEmptyTabs {

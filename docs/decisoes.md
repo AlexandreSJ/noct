@@ -671,7 +671,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Popup `prefixo` + `P`:** a lista do painel e da tab à esquerda, o palco à direita com as cores em escolha, o seletor de cores dos temas com `t` para voltar à do tema.
 - **Aviso de contraste**, sem bloquear: abaixo de 4,5:1 para texto e de 3:1 para bordas e títulos, sobre o fundo do painel (WCAG 2), e só nos pares em que uma das cores é do painel; os do tema são do tema.
 - **Persistência:** as cores vão no `sessions.json`, por painel e por tab, com as chaves do arquivo de tema (`panels.focused_border`); passam com o painel quando ele muda de tab e somem quando ele fecha.
-- **`Alt+Shift` + letra** vale como a maiúscula no atalho direto (com o atalho só em `alt`): `Alt+Shift+P` abre o popup. `Alt+Shift+hjkl` continuam movendo o painel.
+- **`Alt+Shift` + letra** vale como a maiúscula no atalho direto (com o atalho só em `alt`): `Alt+Shift+P` abre o popup, mesmo que `p` não seja um comando nos binds. `Alt+Shift+hjkl` continuam movendo o painel. `Shift` com um símbolo não é comando: com o protocolo de teclado do kitty, `Alt+Shift+,` chega como `,` com `Shift` e iria para o config. O popup anda e escolhe com as teclas do contexto `config` dos binds, as mesmas das dicas, e fecha quando o painel dele fecha.
 
 **Consequências.** Com o atalho direto em `ctrl`, não há atalho para `P`: na codificação legada `Ctrl+Shift+P` chega como `Ctrl+P` (ADR-012). Os templates gravam as mesmas cores (ADR-052).
 

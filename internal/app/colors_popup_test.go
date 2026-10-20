@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"strings"
@@ -98,14 +99,14 @@ func TestThemeInThePickerTakesTheColorAway(t *testing.T) {
 func TestLowContrastIsWarnedButAllowed(t *testing.T) {
 	a, tb := openColorsOn(t)
 	tb.paneColors[tb.focused] = colorSet{theme.Background: "#000000", theme.Text: "#111111"}
-	if w := a.colorsWarning(tb, tb.focused); !strings.HasPrefix(w, "low contrast") {
+	if w := a.colorsWarning(tb.paneColors[tb.focused]); !strings.HasPrefix(w, "low contrast") {
 		t.Errorf("warning %q, want low contrast", w)
 	}
 	if !strings.Contains(screenText(a), "low contrast") {
 		t.Error("the popup does not show the warning")
 	}
 	tb.paneColors[tb.focused] = colorSet{theme.Background: "#000000", theme.Text: "#ffffff"}
-	if w := a.colorsWarning(tb, tb.focused); w != "" {
+	if w := a.colorsWarning(tb.paneColors[tb.focused]); w != "" {
 		t.Errorf("white on black warns %q", w)
 	}
 }
@@ -156,15 +157,15 @@ func TestColorsPopupShowsTheStageWithTheCandidate(t *testing.T) {
 
 func TestOnlyThePanesOwnColorsAreWarnedAbout(t *testing.T) {
 	a, tb := openColorsOn(t)
-	if w := a.colorsWarning(tb, tb.focused); w != "" {
+	if w := a.colorsWarning(tb.paneColors[tb.focused]); w != "" {
 		t.Errorf("the theme alone warns %q", w)
 	}
 	tb.paneColors[tb.focused] = colorSet{theme.FocusedTitle: "#ffffff"}
-	if w := a.colorsWarning(tb, tb.focused); w != "" {
+	if w := a.colorsWarning(tb.paneColors[tb.focused]); w != "" {
 		t.Errorf("a readable title warns %q, about the theme's own border", w)
 	}
 	tb.paneColors[tb.focused] = colorSet{theme.UnfocusedBorder: "#1b1c27"}
-	if w := a.colorsWarning(tb, tb.focused); !strings.HasPrefix(w, "low contrast") {
+	if w := a.colorsWarning(tb.paneColors[tb.focused]); !strings.HasPrefix(w, "low contrast") {
 		t.Errorf("a border almost the background warns %q", w)
 	}
 }
@@ -177,5 +178,57 @@ func TestAltShiftLettersThatAreNoCommandReachTheProgram(t *testing.T) {
 	got := tb.focusedView().(*cellView).keys
 	if a.mode != normalMode || len(got) != 1 || got[0].Code != 'z' || got[0].Mod != key.Mod {
 		t.Errorf("alt+shift+z gave mode %v and the program %v", a.mode, got)
+	}
+}
+
+func TestAltShiftLetterDoesNotNeedTheLowercaseToBeACommand(t *testing.T) {
+	a, _ := colorsApp(t)
+	a.shortcut = shortcutFromConfig(config.Shortcut{Alt: true})
+	a.keymap = newKeymap(map[string]map[string][]string{"commands": {"new-panel": {"m"}}})
+	press(a, uv.KeyPressEvent{Code: 'p', Mod: uv.ModAlt | uv.ModShift})
+	if a.mode != colorsMode {
+		t.Errorf("alt+shift+p with p bound to nothing left mode %v, want the colors popup", a.mode)
+	}
+}
+
+// With the kitty keyboard protocol, alt+shift+, arrives as the comma with shift held.
+func TestAltShiftOnASymbolIsNoCommand(t *testing.T) {
+	a, tb := colorsApp(t)
+	a.shortcut = shortcutFromConfig(config.Shortcut{Alt: true})
+	press(a, uv.KeyPressEvent{Code: ',', Mod: uv.ModAlt | uv.ModShift})
+	if a.mode != normalMode || len(tb.focusedView().(*cellView).keys) != 1 {
+		t.Errorf("alt+shift+, left mode %v, want it with the program", a.mode)
+	}
+}
+
+func TestTheColorsPopupClosesWithItsPane(t *testing.T) {
+	a, tb := openColorsOn(t)
+	press(a, enterPress)
+	a.detachView(tb.focused)
+	if a.mode == colorsMode {
+		t.Error("the popup stays open on a pane that closed")
+	}
+}
+
+func TestTheColorsPopupMovesWithTheConfigsKeys(t *testing.T) {
+	a, _ := colorsApp(t)
+	a.keymap = newKeymap(map[string]map[string][]string{"config": {"down": {"ctrl+n"}}})
+	press(a, prefixPress, colorsKey)
+	first := a.colors.selected
+	press(a, uv.KeyPressEvent{Code: 'n', Mod: uv.ModCtrl})
+	if a.colors.selected == first {
+		t.Error("ctrl+n, the config's down, did not move the popup")
+	}
+}
+
+func TestTheContrastWarningJudgesTheColorUnderThePicker(t *testing.T) {
+	a, _ := openColorsOn(t)
+	selectColorRow(t, a, theme.Background, false)
+	press(a, enterPress)
+	r, g, b, _ := a.themeNamed(a.sessionTheme(a.session)).Colors[theme.Text].Resolve().RGBA()
+	a.colors.picker.typing = true
+	a.colors.picker.hex = newTextField(fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8))
+	if text := screenText(a); !strings.Contains(text, "low contrast") {
+		t.Errorf("a background the color of the text does not warn while it is under the picker:\n%s", text)
 	}
 }
