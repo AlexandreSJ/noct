@@ -11,6 +11,12 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Changed
+
+- New terminals (`prefix` + `p`, `prefix` + `g`) open in the folder of the focused panel: where
+  its shell is now, or where its script ran. Beside panels without a folder, such as scripts or
+  logs, they open in your home folder.
+
 ## v0.1.2 - 2026-10-19
 
 ### Changed

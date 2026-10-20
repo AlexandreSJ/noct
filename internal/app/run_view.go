@@ -20,6 +20,8 @@ type runView struct {
 	start   runStarter
 	// close takes the view out of its tab.
 	close func()
+	// dir is the folder the run started in, where a terminal opened beside it starts.
+	dir string
 
 	terminal view
 	size     pty.Size
@@ -29,8 +31,8 @@ type runView struct {
 	run int
 }
 
-func newRunView(name string, p *palette, start runStarter, close func(), size pty.Size) (*runView, error) {
-	v := &runView{name: name, palette: p, start: start, close: close}
+func newRunView(name string, p *palette, start runStarter, close func(), size pty.Size, dir string) (*runView, error) {
+	v := &runView{name: name, palette: p, start: start, close: close, dir: dir}
 	return v, v.begin(size)
 }
 
@@ -45,6 +47,9 @@ func (v *runView) begin(size pty.Size) error {
 	v.terminal, v.running = terminal, true
 	return nil
 }
+
+// Dir is the folder the run started in, not the one its program may have moved to.
+func (v *runView) Dir() string { return v.dir }
 
 func (v *runView) finished(run, exitCode int) {
 	if run == v.run {

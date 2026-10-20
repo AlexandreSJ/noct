@@ -616,3 +616,14 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Reiniciar** (`r`, depois de instalar, com confirmação): o daemon para como no quit, gravando as sessões, mas manda `restart` ao cliente (`ipc.Restart`). O cliente restaura o terminal e se troca (`exec`) pelo binário em disco, que inicia o daemon novo e abre a sessão usada por último, a que estava na tela. Sem reiniciar, a versão nova vale no próximo `noct` depois de um quit.
 
 **Consequências.** Quem instalou com `go install` também atualiza pelo noct: o binário da release substitui o de `~/go/bin`. Um gerenciador de pacotes que venha a empacotar o noct teria o binário trocado por fora dele; se isso acontecer, o noct deve deixar a atualização com o gerenciador. Reiniciar fecha os programas dos painéis, como o quit, e oferece rodá-los de novo (ADR-046). A comparação de versões segue o semver (pseudo-versões do `go install` de um commit ficam entre as releases), sem dependência nova. Quem trocou a tecla do config no arquivo continua com a dele; quem usava `prefixo` + `c` passa a cair no popup de atualizações.
+
+## ADR-048 — Terminal novo no diretório do painel com foco
+
+**Contexto.** Um terminal novo abria no diretório do terminal de fora que fez o último attach. Como o daemon sobrevive aos attaches, esse lugar mudava conforme de onde se reconectou, e um `cd` num painel não valia para o terminal seguinte. Kitty, WezTerm, Ghostty e tmux (`-c "#{pane_current_path}"`) abrem no diretório do painel atual. É polimento da fase 5, antecipado pelo mantenedor (ver [polimento.md](polimento.md)).
+
+**Decisão.**
+- `p` e `g` abrem o shell no diretório do painel com foco (`terminalDir`), o primeiro que der resposta: o diretório atual do shell, lido de `/proc/<pid>/cwd`; numa execução de script ou passo de fluxo, o diretório em que ela começou (o `runView` o guarda); ao lado de painéis sem diretório (scripts, inspect, logs, ajuda, editor) e na home, `~`; num shell cujo diretório não se lê, o diretório do attach, como antes.
+- Um diretório que não existe mais (o Linux o mostra como `/caminho (deleted)`) dá `~`. Sem `$HOME`, o diretório do attach.
+- Sem opção no config: é o comportamento padrão.
+
+**Consequências.** No macOS o diretório de um shell não se lê (não há `/proc`), então lá os terminais continuam abrindo no diretório do attach, como ao reabrir sessões. Um shell rodando `ssh` dá o diretório local, não o do servidor. A execução dá o diretório em que começou, não o atual do programa dela. Uma tab nova (`t`) ainda abre em `~`, porque a tab vazia já existe quando o terminal começa.

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"os"
 	"path/filepath"
 	"slices"
 	"time"
@@ -86,9 +87,37 @@ func (a *App) startProgram(p program, size pty.Size) (view, error) {
 	return v, nil
 }
 
-// startTerminal opens the user's shell; the pane leaves its tab when the shell exits.
+// startTerminal opens the user's shell beside the focused pane, in its folder; the pane leaves its
+// tab when the shell exits.
 func (a *App) startTerminal(id layout.PaneID, frame image.Rectangle) (view, error) {
-	return a.startShell(id, frame, a.workDir)
+	return a.startShell(id, frame, a.terminalDir(a.currentTab()))
+}
+
+// terminalDir is the folder a terminal opened from t's focused pane starts in: the folder of its
+// shell or where its run started, else home. A shell whose folder the system does not tell (only
+// Linux's /proc does) gives the attached terminal's folder instead.
+func (a *App) terminalDir(t *tab) string {
+	home := homeDir(a.workDir)
+	if t == nil || t.isEmpty() {
+		return home
+	}
+	if teller, ok := t.focusedView().(directoryTeller); ok {
+		if dir := teller.Dir(); dir != "" {
+			return existingDir(dir, home) // a deleted folder reads as "/path (deleted)"
+		}
+	}
+	if a.shells[t.focused] != nil {
+		return a.workDir
+	}
+	return home
+}
+
+// homeDir is the user's home folder, or fallback when it is not known.
+func homeDir(fallback string) string {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return home
+	}
+	return fallback
 }
 
 // startShell opens the user's shell in dir, remembered as a shell so its session can open it again.

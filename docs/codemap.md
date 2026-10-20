@@ -48,7 +48,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/updates_test.go` | Tests of the updates popup, the tab bar's version, installing, restarting and the read-only case |
 | `internal/app/client.go` | Daemon side of an attached terminal: decoding its keys, drawing to it, greeting connections |
 | `internal/app/scroll.go` | Scroll mode through a terminal's history |
-| `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach (in any session) |
+| `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), the folder a new terminal opens in (`terminalDir`), tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach (in any session) |
 | `internal/app/view.go` | The `view` interface a pane shows: a terminal or a noct panel |
 | `internal/app/scripts_panel.go` | Scripts panel: list with versions, details and notes, keys to run, edit, create, delete |
 | `internal/app/scripts.go` | Script actions: reload the library, run (form or not) as a tracked run with its log and exit code, create, edit in the configured editor, rename, delete |
