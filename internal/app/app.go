@@ -23,6 +23,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/pty"
 	"github.com/AlexandreSJ/noct/internal/script"
 	saved "github.com/AlexandreSJ/noct/internal/session"
+	"github.com/AlexandreSJ/noct/internal/theme"
 	"github.com/AlexandreSJ/noct/internal/update"
 )
 
@@ -113,6 +114,10 @@ type App struct {
 	scriptsLoaded int
 	// scriptsSignature and flowsSignature sum up the files as last read (see checkLibrary).
 	scriptsSignature, flowsSignature string
+	// themes are the ones noct comes with and then the user's; themesSignature sums up the
+	// themes folder as last read.
+	themes          []theme.Theme
+	themesSignature string
 	// expanded are the folders open in the scripts panels, by path; folders start closed.
 	expanded map[string]bool
 	versions *script.Versions
@@ -204,7 +209,8 @@ func (a *App) loadConfig() {
 	a.config, a.configPath, a.prefix = cfg, path, prefix
 	a.shortcut = shortcutFromConfig(cfg.Shortcut)
 	a.keymap = newKeymap(cfg.Keys)
-	a.palette = newPalette(themeNamed(cfg.Appearance.Theme), cfg.Appearance.Background == config.BackgroundTheme)
+	a.loadThemes()
+	a.applyPalette()
 	if err != nil {
 		a.statusMessage = err.Error()
 	}
@@ -253,7 +259,8 @@ func (a *App) loop() error {
 		case <-prune.C:
 			a.pruneLogs()
 		case <-libraryCheck.C:
-			if a.client == nil || !a.checkLibrary() {
+			themes := a.checkThemes()
+			if a.client == nil || !a.checkLibrary() && !themes {
 				continue // nothing new to draw
 			}
 		case <-saveSessions.C:

@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/AlexandreSJ/noct/internal/config"
+	"github.com/AlexandreSJ/noct/internal/theme"
 )
 
 func openConfigAt(t *testing.T, row configRow) *App {
@@ -152,11 +153,11 @@ func TestResetLetsGoAfterItsWindow(t *testing.T) {
 func TestThemeAndBackground(t *testing.T) {
 	a := openConfigAt(t, themeRow)
 	press(a, rightPress)
-	if a.config.Appearance.Theme != themes[1].name {
-		t.Errorf("theme %q after right, want %q", a.config.Appearance.Theme, themes[1].name)
+	if a.config.Appearance.Theme != theme.Builtins()[1].Name {
+		t.Errorf("theme %q after right, want %q", a.config.Appearance.Theme, theme.Builtins()[1].Name)
 	}
 	press(a, leftPress, leftPress)
-	if a.config.Appearance.Theme != themes[len(themes)-1].name {
+	if a.config.Appearance.Theme != theme.Builtins()[len(theme.Builtins())-1].Name {
 		t.Errorf("theme %q did not wrap to the last one", a.config.Appearance.Theme)
 	}
 	press(a, downPress, enterPress)
@@ -244,7 +245,7 @@ func TestClickingAConfigValueChangesIt(t *testing.T) {
 	theme := a.config.Appearance.Theme
 	p = configPoint(t, a, themeRow, "value end")
 	click(a, p.X, p.Y)
-	if a.config.Appearance.Theme != nextThemeName(theme, 1) {
+	if a.config.Appearance.Theme != a.nextThemeName(theme, 1) {
 		t.Fatalf("theme %s after clicking ▸, want the next one", a.config.Appearance.Theme)
 	}
 	p = configPoint(t, a, themeRow, "value start")

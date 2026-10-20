@@ -627,3 +627,17 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - Sem opção no config: é o comportamento padrão.
 
 **Consequências.** No macOS o diretório de um shell não se lê (não há `/proc`), então lá os terminais continuam abrindo no diretório do attach, como ao reabrir sessões. Um shell rodando `ssh` dá o diretório local, não o do servidor. A execução dá o diretório em que começou, não o atual do programa dela.
+
+## ADR-049 — Temas em arquivo, com todos os componentes
+
+**Contexto.** Os temas eram sete, fixos, de sete cores cada, das quais o noct derivava todos os estilos: não dava para mudar só o nome da tab inativa ou a borda sem foco, nem criar um tema. O mantenedor quer cada componente trocável e temas criados pelo usuário, editados no próprio noct ([temas.md](temas.md)). É polimento da fase 5, antecipado pelo mantenedor.
+
+**Decisão.**
+- **Pacote `theme`**, sem depender do `app`: os 21 componentes (fundo, texto, nome e fundo das tabs ativa e inativa, bordas e títulos com e sem foco, texto, apagado, cabeçalho, linha selecionada, fundo dos popups, mensagem, sucesso, erro, corvo, calendário), as cores, os temas embutidos e os arquivos.
+- **Cores:** `#rrggbb`, um índice de 0 a 255, ou vazio, que segue o fundo do tema (com `background = terminal`, o do terminal). Os índices 0–15 continuam índices, porque são as cores do terminal de fora; os outros viram hex.
+- **Arquivo:** `~/.config/noct/themes/<nome>.toml`, com `base` (outro tema, embutido ou do usuário, até 8 níveis) e só os componentes que diferem dela, em tabelas (`[tabs]`, `[panels]`, `[noct]`, `[state]`, `[other]`, `[background]`). Os embutidos não podem ser sobrescritos por nome.
+- **Leitura:** ao iniciar e a cada segundo, junto do ticker da biblioteca, sempre. Um arquivo com erro (cor inválida, chave desconhecida, base que não existe ou em ciclo) fica de fora, e a mensagem diz qual. O tema em uso que some volta ao padrão.
+- Os embutidos mantêm as cores de antes, e ganham sucesso e erro.
+
+**Consequências.** O `✓` e o `✗` das execuções passam a ter as cores de sucesso e de erro. O fundo dos popups pode ser diferente do fundo do tema. O editor dentro do noct e o tema por sessão vêm depois (ADR-050).
+

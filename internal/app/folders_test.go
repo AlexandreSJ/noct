@@ -10,6 +10,7 @@ import (
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/theme"
 )
 
 // rowLabels are the lines of the panel's list, as drawn.
@@ -103,7 +104,7 @@ func TestMakingAndLinkingFolders(t *testing.T) {
 
 func TestTheBrowsedFolderAndItsBarAreInTheAccent(t *testing.T) {
 	a := testApp(t)
-	a.palette = newPalette(themes[0], false)
+	a.palette = newPalette(theme.Builtins()[0], false)
 	saveScriptIn(t, filepath.Join(script.PersonalDir(), "tests"), "smoke", "run: true\n")
 	saveScriptIn(t, filepath.Join(script.PersonalDir(), "other"), "idle", "run: true\n")
 	panel := openScriptsPanel(t, a)

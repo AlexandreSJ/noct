@@ -98,7 +98,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/tabbar.go` | Tab bar: names cut to fit, scrolling that keeps the active tab in view, marks for hidden tabs, which tab a click or the wheel selects |
 | `internal/app/images.go` | Image support detection, outer image ids, cell size, forwarding to the terminal |
 | `internal/app/environment.go` | Shell and environment given to pane programs |
-| `internal/app/theme.go` | Predefined themes and the palette of styles derived from them |
+| `internal/app/theme.go` | The themes on offer (built-in, then the user's, read again when their folder changes) and the palette of styles drawn from the theme in use |
 | `internal/kittygfx/command.go` | Parse and encode kitty graphics commands |
 | `internal/kittygfx/stream.go` | Split graphics commands out of program output, across reads |
 | `internal/kittygfx/session.go` | Per-pane image state: id translation, uploads, sizing, replies |

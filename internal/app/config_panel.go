@@ -320,7 +320,7 @@ func (a *App) changeSetting(step int) {
 	case shortcutAltRow:
 		next.Shortcut.Alt = !next.Shortcut.Alt
 	case themeRow:
-		next.Appearance.Theme = nextThemeName(next.Appearance.Theme, step)
+		next.Appearance.Theme = a.nextThemeName(next.Appearance.Theme, step)
 	case backgroundRow:
 		next.Appearance.Background = cycle([]string{config.BackgroundTerminal, config.BackgroundTheme}, next.Appearance.Background, step)
 	case animateIntroRow:
@@ -443,7 +443,7 @@ func (a *App) applyConfig(next config.Config) {
 	a.config, a.prefix, a.shortcut = next, prefix, shortcutFromConfig(next.Shortcut)
 	a.keymap = newKeymap(next.Keys)
 	a.applyMouseMode()
-	a.palette = newPalette(themeNamed(next.Appearance.Theme), next.Appearance.Background == config.BackgroundTheme)
+	a.applyPalette()
 	if a.configPath == "" {
 		return // no config directory; the problem was reported at startup
 	}
@@ -476,7 +476,7 @@ func (a *App) configLines() []configLine {
 		{label: "ctrl", value: onOff(a.config.Shortcut.Ctrl), row: shortcutCtrlRow},
 		{label: "alt", value: onOff(a.config.Shortcut.Alt), row: shortcutAltRow},
 		{label: "Appearance", heading: true},
-		{label: "theme", value: choice(themeNamed(a.config.Appearance.Theme).name), row: themeRow},
+		{label: "theme", value: choice(a.themeNamed(a.config.Appearance.Theme).Name), row: themeRow},
 		{label: "background", value: a.config.Appearance.Background, row: backgroundRow},
 		{label: "animate intro", value: choice(a.config.Appearance.AnimateIntro), row: animateIntroRow},
 		{label: "mouse", value: onOff(a.config.Mouse), row: mouseRow},

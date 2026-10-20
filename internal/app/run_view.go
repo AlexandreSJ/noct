@@ -124,9 +124,9 @@ func (v *runView) status() (string, uv.Style) {
 	case v.running:
 		return "running  ctrl+c stops", v.palette.panelMuted
 	case v.exitCode == 0:
-		return "✓ done  r run again  enter close", v.palette.panelMuted
+		return "✓ done  r run again  enter close", v.palette.success
 	}
-	return fmt.Sprintf("✗ exit %d  r run again  enter close", v.exitCode), v.palette.panelMuted
+	return fmt.Sprintf("✗ exit %d  r run again  enter close", v.exitCode), v.palette.failure
 }
 
 // FooterRows is the status line: it is not part of the script's output, so it is not selected.
