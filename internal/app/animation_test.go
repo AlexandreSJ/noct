@@ -25,6 +25,8 @@ func animatedApp(t *testing.T) (*App, *tab) {
 	a.config.Appearance.Animations = config.AnimationsOn
 	a.applyPalette()
 	a.launch = func(program, pty.Size) (view, error) { return &resizeCounter{}, nil }
+	frozen := time.Now()
+	a.clock = func() time.Time { return frozen } // animations move only when a test moves them
 	drawnApp(a)
 	return a, a.currentTab()
 }
@@ -70,7 +72,7 @@ func TestTheSpringGrowsThePaneWithoutResizingIt(t *testing.T) {
 		t.Error("the new pane's corner is already drawn at the start of the spring")
 	}
 	rewind(a, time.Second)
-	a.advanceAnimations(time.Now())
+	a.advanceAnimations(a.now())
 	buf = drawnApp(a)
 	if c := buf.CellAt(frame.Min.X, frame.Min.Y); c == nil || c.Content != "┌" {
 		t.Error("the new pane's corner is missing after the spring")
@@ -85,7 +87,7 @@ func TestAnAnimationEndsInTheNormalFrame(t *testing.T) {
 	a.openPanel(a.startTerminal)
 	drawnApp(a)
 	rewind(a, 300*time.Millisecond)
-	a.advanceAnimations(time.Now())
+	a.advanceAnimations(a.now())
 	if len(a.animations) != 0 || a.animTick != nil {
 		t.Fatalf("animations %v left after their time", a.animations)
 	}

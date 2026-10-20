@@ -69,6 +69,13 @@ func effectNamed(name string) effect {
 	return effectNone
 }
 
+func (a *App) now() time.Time {
+	if a.clock != nil {
+		return a.clock()
+	}
+	return time.Now()
+}
+
 // effectFor is the effect the moment animates with, none while animations are off.
 func (a *App) effectFor(m moment) effect {
 	if a.config.Appearance.Animations == config.AnimationsOff {

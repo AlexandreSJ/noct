@@ -5,7 +5,6 @@ import (
 	"image"
 	"image/color"
 	"path/filepath"
-	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
@@ -23,7 +22,7 @@ func (a *App) render() error {
 }
 
 func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
-	at, shot := time.Now(), a.takeShot()
+	at, shot := a.now(), a.takeShot()
 	a.startAnimations(a.lastShot, shot, at)
 	a.lastShot = shot
 	if a.palette.background != nil {

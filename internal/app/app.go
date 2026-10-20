@@ -102,9 +102,11 @@ type App struct {
 	// animations are the ones running, animTick their next frame (nil when none runs), lastShot
 	// what the last frame showed and lastFrame its cells, which a pane closing animates.
 	animations []*animation
-	animTick   <-chan time.Time
-	lastShot   shot
-	lastFrame  *uv.ScreenBuffer
+	// clock is the time animations play by; nil is the system's, tests freeze it.
+	clock     func() time.Time
+	animTick  <-chan time.Time
+	lastShot  shot
+	lastFrame *uv.ScreenBuffer
 	// stageTick ends a component's blink on the theme editor's stage.
 	stageTick <-chan time.Time
 
@@ -286,7 +288,7 @@ func (a *App) loop() error {
 		case <-a.stageTick:
 			a.stageTick = nil
 		case <-a.animTick:
-			a.advanceAnimations(time.Now())
+			a.advanceAnimations(a.now())
 		case <-a.resetExpired:
 			a.resetExpired = nil
 		case <-a.homeHintExpired:
