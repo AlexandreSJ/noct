@@ -67,6 +67,8 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 		a.drawUpdates(screen)
 	case colorsMode:
 		a.drawColors(screen)
+	case templateSaveMode:
+		a.drawTemplateSave(screen)
 	}
 }
 

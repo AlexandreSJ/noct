@@ -95,6 +95,8 @@ type App struct {
 	homeTick <-chan time.Time
 	// colors is the popup of the focused pane's and its tab's own colors.
 	colors colorsPopup
+	// templateSave is the popup that saves the tab as a template.
+	templateSave templateSave
 	// stageTick ends a component's blink on the theme editor's stage.
 	stageTick <-chan time.Time
 

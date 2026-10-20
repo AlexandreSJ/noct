@@ -53,6 +53,7 @@ var keyContexts = []keyContext{
 		{"rename-tab", "rename tab", []string{"r"}},
 		{"rename-panel", "rename panel", []string{"e"}},
 		{"colors", "colors of the panel and tab", []string{"P", "shift+p"}},
+		{"save-template", "save the tab as a template", []string{"R", "shift+r"}},
 		{"scroll", "scroll history", []string{"u"}},
 		{"close", "close", []string{"x"}},
 		{"config", "config", []string{","}},
