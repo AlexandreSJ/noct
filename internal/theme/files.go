@@ -53,13 +53,21 @@ func readFile(path string) (file, error) {
 			if !ok {
 				return file{}, fmt.Errorf("%s.%s is not something a theme colors", key, name)
 			}
-			text, ok := v.(string)
-			if !ok {
-				return file{}, fmt.Errorf("%s.%s is not a color in quotes", key, name)
+			var text string
+			switch v := v.(type) {
+			case string:
+				text = v
+			case int64:
+				text = strconv.FormatInt(v, 10) // a terminal color written without quotes
+			default:
+				return file{}, fmt.Errorf("%s.%s is not a color", key, name)
 			}
 			color, err := ParseColor(text)
 			if err != nil {
 				return file{}, fmt.Errorf("%s.%s: %w", key, name, err)
+			}
+			if color == "" && !FollowsBackground(c) {
+				return file{}, fmt.Errorf("%s.%s needs a color: only backgrounds can be empty", key, name)
 			}
 			f.colors[c] = color
 		}

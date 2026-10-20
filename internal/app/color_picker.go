@@ -17,7 +17,10 @@ const pickerRows = 2
 
 // colorPicker picks one of the terminal's 256 colors on a grid, or a typed #rrggbb.
 type colorPicker struct {
-	cell uint8
+	// current is the color the picker opened on, kept until the selection moves.
+	current theme.Color
+	moved   bool
+	cell    uint8
 	// first is the first grid row shown when the grid does not fit.
 	first  int
 	hex    textField
@@ -31,7 +34,7 @@ type colorPicker struct {
 }
 
 func newColorPicker(current theme.Color, allowTheme bool, done func(theme.Color, bool)) *colorPicker {
-	p := &colorPicker{allowTheme: allowTheme, done: done}
+	p := &colorPicker{current: current, allowTheme: allowTheme, done: done}
 	if n, err := strconv.Atoi(string(current)); err == nil {
 		p.cell = uint8(n)
 	} else if c := current.Resolve(); c != nil {
@@ -46,6 +49,15 @@ func (p *colorPicker) candidate() theme.Color {
 		if c, err := p.typed(); err == nil {
 			return c
 		}
+	}
+	return p.selected()
+}
+
+// selected is the cell's color, or the color the picker opened on until the selection moves:
+// a hex between two cells is not swapped for the nearest one by enter alone.
+func (p *colorPicker) selected() theme.Color {
+	if !p.moved {
+		return p.current
 	}
 	return theme.Indexed(p.cell)
 }
@@ -62,6 +74,8 @@ func (p *colorPicker) handleKey(key uv.KeyPressEvent) bool {
 	if p.typing {
 		return p.typeKey(key)
 	}
+	before := p.cell
+	defer func() { p.moved = p.moved || p.cell != before }()
 	switch key.String() {
 	case "left", "h":
 		if p.cell%16 > 0 {
@@ -80,11 +94,15 @@ func (p *colorPicker) handleKey(key uv.KeyPressEvent) bool {
 			p.cell += 16
 		}
 	case "enter":
-		p.done(theme.Indexed(p.cell), true)
+		p.done(p.selected(), true)
 	case "esc":
 		p.done("", false)
 	case "#":
-		p.typing, p.hex, p.problem = true, newTextField("#"), ""
+		start := "#"
+		if c := p.selected(); strings.HasPrefix(string(c), "#") {
+			start = string(c)
+		}
+		p.typing, p.hex, p.problem = true, newTextField(start), ""
 	case "t":
 		if !p.allowTheme {
 			return false

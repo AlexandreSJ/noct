@@ -122,3 +122,25 @@ func TestDirIsInTheConfigFolder(t *testing.T) {
 		t.Errorf("Dir() = %q, %v", dir, err)
 	}
 }
+
+func TestOnlyBackgroundsCanFollowTheBackground(t *testing.T) {
+	dir := t.TempDir()
+	writeTheme(t, dir, "nobg", "[background]\ncolor = \"\"\n")
+	writeTheme(t, dir, "nocal", "[other]\ncalendar = \"\"\n")
+	writeTheme(t, dir, "notext", "[background]\ntext = \"\"\n")
+	writeTheme(t, dir, "popup", "[noct]\npopup_background = \"\"\n")
+	themes, errs := LoadDir(dir, Builtins())
+	if len(themes) != 1 || themes[0].Name != "popup" || len(errs) != 3 {
+		t.Errorf("loaded %v with errors %v; want only popup", themes, errs)
+	}
+}
+
+func TestBareNumbersAreTerminalColors(t *testing.T) {
+	dir := t.TempDir()
+	writeTheme(t, dir, "num", "[tabs]\ninactive_text = 60\n")
+	writeTheme(t, dir, "big", "[tabs]\ninactive_text = 300\n")
+	themes, errs := LoadDir(dir, Builtins())
+	if len(themes) != 1 || themes[0].Colors[InactiveTabText] != "60" || len(errs) != 1 {
+		t.Errorf("loaded %v with errors %v; want num with 60", themes, errs)
+	}
+}

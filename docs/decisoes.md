@@ -634,7 +634,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Decisão.**
 - **Pacote `theme`**, sem depender do `app`: os 21 componentes (fundo, texto, nome e fundo das tabs ativa e inativa, bordas e títulos com e sem foco, texto, apagado, cabeçalho, linha selecionada, fundo dos popups, mensagem, sucesso, erro, corvo, calendário), as cores, os temas embutidos e os arquivos.
-- **Cores:** `#rrggbb`, um índice de 0 a 255, ou vazio, que segue o fundo do tema (com `background = terminal`, o do terminal). Os índices 0–15 continuam índices, porque são as cores do terminal de fora; os outros viram hex.
+- **Cores:** `#rrggbb`, um índice de 0 a 255 (com ou sem aspas no arquivo), ou vazio, que segue o fundo do tema (com `background = terminal`, o do terminal). Só os fundos de tabs, linhas e popups podem ficar vazios: um fundo, um texto ou um calendário vazio é erro do arquivo, porque não haveria cor para desenhar nem para misturar. Os índices 0–15 continuam índices, porque são as cores do terminal de fora; os outros viram hex.
 - **Arquivo:** `~/.config/noct/themes/<nome>.toml`, com `base` (outro tema, embutido ou do usuário, até 8 níveis) e só os componentes que diferem dela, em tabelas (`[tabs]`, `[panels]`, `[noct]`, `[state]`, `[other]`, `[background]`). Os embutidos não podem ser sobrescritos por nome.
 - **Leitura:** ao iniciar e a cada segundo, junto do ticker da biblioteca, sempre. Um arquivo com erro (cor inválida, chave desconhecida, base que não existe ou em ciclo) fica de fora, e a mensagem diz qual. O tema em uso que some volta ao padrão.
 - Os embutidos mantêm as cores de antes, e ganham sucesso e erro.

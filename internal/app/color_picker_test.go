@@ -65,8 +65,8 @@ func TestEnterTakesTheColorAsTheThemeStoresIt(t *testing.T) {
 	if r.color != "3" || !r.ok {
 		t.Errorf("enter on 3 gave %q, %v", r.color, r.ok)
 	}
-	p, r = testPicker("60", false)
-	pressPicker(p, "enter")
+	p, r = testPicker("59", false)
+	pressPicker(p, "l", "enter")
 	if r.color != "#5f5f87" || !r.ok {
 		t.Errorf("enter on 60 gave %q, %v", r.color, r.ok)
 	}
@@ -124,7 +124,7 @@ func TestPickingSavesTheThemeFile(t *testing.T) {
 	if a.configPanel.edit.picker == nil {
 		t.Fatal("enter did not open the picker")
 	}
-	a.configPanel.edit.picker.cell = 196
+	a.configPanel.edit.picker.cell, a.configPanel.edit.picker.moved = 196, true
 	press(a, enterPress)
 	content, _ := os.ReadFile(filepath.Join(dir, "mine.toml"))
 	if !strings.Contains(string(content), `focused_border = "#ff0000"`) {
@@ -140,7 +140,7 @@ func TestThePreviewFollowsTheSelection(t *testing.T) {
 	a.size.Y = 40
 	a.selectConfigRow(themeRowBase + configRow(theme.FocusedBorder))
 	press(a, enterPress)
-	a.configPanel.edit.picker.cell = 196
+	a.configPanel.edit.picker.cell, a.configPanel.edit.picker.moved = 196, true
 	if got := a.configPanel.edit.previewed().Colors[theme.FocusedBorder]; got != "#ff0000" {
 		t.Errorf("the stage shows %q, want the color under the selection", got)
 	}
@@ -157,9 +157,50 @@ func TestAShortTerminalStillShowsTheHexField(t *testing.T) {
 	a.size.Y = 20
 	a.selectConfigRow(themeRowBase + configRow(theme.FocusedBorder))
 	press(a, enterPress)
-	a.configPanel.edit.picker.cell = 250 // the grid's last rows
+	a.configPanel.edit.picker.cell, a.configPanel.edit.picker.moved = 250, true // the grid's last rows
 	text := screenText(a)
 	if !strings.Contains(text, "hex") || !strings.Contains(text, "250") {
 		t.Errorf("a short picker hides the hex field or the selected color:\n%s", text)
+	}
+}
+
+func TestEnterWithoutMovingKeepsTheColor(t *testing.T) {
+	p, r := testPicker("#9d7cd8", false)
+	pressPicker(p, "enter")
+	if r.color != "#9d7cd8" || !r.ok {
+		t.Errorf("enter at once gave %q, want #9d7cd8 kept", r.color)
+	}
+	if p, _ := testPicker("#9d7cd8", false); p.candidate() != "#9d7cd8" {
+		t.Errorf("the stage would show %q before any move", p.candidate())
+	}
+}
+
+func TestClicksOnTheThemePageStayInTheList(t *testing.T) {
+	a, _ := editingMine(t)
+	a.size.Y = 40
+	a.selectConfigRow(themeRowBase + configRow(theme.FocusedBorder))
+	press(a, enterPress)
+	l := a.configLayout()
+	inner := l.inner()
+	click(a, inner.Min.X+3, inner.Min.Y+2)
+	if a.configPanel.edit.selected != theme.FocusedBorder || a.configPanel.edit.picker == nil {
+		t.Fatalf("a click with the picker open moved to %s", theme.Components[a.configPanel.edit.selected].Label)
+	}
+	press(a, escPress)
+	click(a, inner.Max.X-3, inner.Min.Y+2) // on the stage, at a row's height
+	if a.configPanel.edit.picker != nil || a.configPanel.edit.selected != theme.FocusedBorder {
+		t.Errorf("a click on the stage picked %s", theme.Components[a.configPanel.edit.selected].Label)
+	}
+}
+
+func TestANewThemeDoesNotOverwriteABrokenFile(t *testing.T) {
+	a, dir := editorApp(t, newThemeRow)
+	writeUserTheme(t, dir, "bad", "[panels]\nfocused_border = \"#12345\"\n")
+	a.loadThemes()
+	press(a, enterPress)
+	typeInto(a, "bad")
+	press(a, enterPress)
+	if a.mode != promptMode {
+		t.Errorf("a name whose file is there went on (mode %v)", a.mode)
 	}
 }

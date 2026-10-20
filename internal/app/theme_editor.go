@@ -3,6 +3,8 @@ package app
 import (
 	"fmt"
 	"image"
+	"os"
+	"path/filepath"
 	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -119,6 +121,11 @@ func (a *App) checkNewThemeName(name string) error {
 	if _, ok := theme.Find(a.themeList(), name); ok {
 		return fmt.Errorf("there is a theme %s already", name)
 	}
+	if dir, err := theme.Dir(); err == nil {
+		if _, err := os.Stat(filepath.Join(dir, name+".toml")); err == nil {
+			return fmt.Errorf("there is a file %s.toml already, which noct could not read", name) // never write over the user's file
+		}
+	}
 	return nil
 }
 
@@ -162,6 +169,21 @@ func (a *App) openThemeEditor(t theme.Theme) {
 	a.configPanel.edit = &themeEdit{theme: t, base: a.themeNamed(t.Base)}
 	a.configPanel.page, a.configPanel.selected = themePage, themeRowBase
 	a.mode = configMode
+}
+
+// clickThemeEditor selects the component clicked in the list, and a click on its color picks
+// one. Clicks on the stage, and any click while the picker is open, do nothing.
+func (a *App) clickThemeEditor(point image.Point, l configLayout) {
+	list := l.inner()
+	list.Max.X = min(list.Min.X+themeListWidth, list.Max.X)
+	line, ok := l.lineAt(point.Y)
+	if a.configPanel.edit.picker != nil || !point.In(list) || !ok || !line.selectable() {
+		return
+	}
+	a.selectConfigRow(line.row)
+	if point.X >= list.Max.X-1-ansi.StringWidth(line.value) {
+		a.pickColor()
+	}
 }
 
 func (a *App) closeThemeEditor() {

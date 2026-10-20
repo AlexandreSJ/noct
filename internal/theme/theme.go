@@ -71,6 +71,12 @@ var Components = [Count]Info{
 	Calendar:              {"other", "calendar", "calendar"},
 }
 
+// FollowsBackground tells whether c may be "", following the theme's background: only the
+// backgrounds of tabs, rows and popups can.
+func FollowsBackground(c Component) bool {
+	return c != Background && strings.HasSuffix(Components[c].Key, "_background")
+}
+
 // Color is "" to follow the theme's background, "#rrggbb", or a terminal color from "0" to "255".
 // Colors 0 to 15 are the outer terminal's own, so they stay indexes to keep following it.
 type Color string

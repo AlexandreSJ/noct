@@ -35,7 +35,16 @@ inactive_text = 60       # índice 0–255; 0–15 seguem as cores do terminal d
 focused_border = "#9d7cd8"
 ```
 
-Cores são `#rrggbb` ou um índice de 0 a 255. Os nomes exatos das chaves ficam para a implementação.
+Cores são `#rrggbb` ou um índice de 0 a 255 (com ou sem aspas). Só os fundos de tabs, linhas e popups aceitam `""`, que segue o fundo do tema. Sem `base`, o tema parte de `noct`. As chaves:
+
+| Tabela | Chaves |
+|---|---|
+| `[background]` | `color`, `text` |
+| `[tabs]` | `active_text`, `active_background`, `inactive_text`, `inactive_background` |
+| `[panels]` | `focused_border`, `unfocused_border`, `focused_title`, `unfocused_title` |
+| `[noct]` | `text`, `muted`, `heading`, `selected_text`, `selected_background`, `popup_background` |
+| `[state]` | `attention`, `success`, `error` |
+| `[other]` | `logo`, `calendar` |
 
 ## Editor de temas
 

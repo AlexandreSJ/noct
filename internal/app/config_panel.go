@@ -747,6 +747,10 @@ func (a *App) clickConfig(point image.Point) {
 		return
 	}
 	a.configPanel.capture, a.configPanel.bindCapture = keyCapture{}, bindCapture{}
+	if a.configPanel.page == themePage {
+		a.clickThemeEditor(point, l)
+		return
+	}
 	line, ok := l.lineAt(point.Y)
 	if !ok || !line.selectable() {
 		return
