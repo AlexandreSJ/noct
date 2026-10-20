@@ -75,7 +75,7 @@ Pacote `catalog`, adaptadores de gerenciadores e view Catálogo (ver [catalogo.m
 
 ## Fase 5 — Polimento
 
-Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase.
+Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase. A ordem dos próximos (diretório herdado, temas, cores por painel, templates, animações) está em [polimento.md](polimento.md).
 
 **Releases e atualização (antecipado, a pedido do mantenedor; ADR-047).** Cada tag `vX.Y.Z` publica uma release no GitHub com os binários de Linux e macOS e o changelog do `CHANGELOG.md`; o noct mostra a versão na barra de tabs, avisa de uma nova, mostra o changelog (`prefixo` + `c`) e se atualiza quando o usuário pede, também por `noct update`. A primeira é a v0.1.0, o primeiro beta.
 

@@ -35,9 +35,10 @@ func (a *App) openRequestedPane(c connection) {
 	}
 	argv := append(slices.Clone(a.shellArgv), "-c", req.Command)
 	title := orDefault(req.Title, "step")
+	dir := orDefault(req.Dir, a.workDir)
 	start := func(id layout.PaneID, frame image.Rectangle) (view, error) {
 		run := func(size pty.Size, onExit func(int)) (view, error) {
-			p := program{argv: argv, dir: orDefault(req.Dir, a.workDir), logName: "step-" + title}
+			p := program{argv: argv, dir: dir, logName: "step-" + title}
 			p.onExit = func(code int) {
 				if req.Wait {
 					answer(ipc.Exit{Reason: ipc.PaneExited, Code: code})
@@ -46,7 +47,7 @@ func (a *App) openRequestedPane(c connection) {
 			}
 			return a.launch(p, size)
 		}
-		return newRunView(title, &a.palette, run, func() { a.detachView(id) }, contentSize(frame))
+		return newRunView(title, &a.palette, run, func() { a.detachView(id) }, contentSize(frame), dir)
 	}
 	var err error
 	if t.isEmpty() {

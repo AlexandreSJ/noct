@@ -23,7 +23,8 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 	want := Config{
 		Prefix:     Prefix{Alt: true, Shift: true, Key: "f2"},
 		Shortcut:   Shortcut{Alt: true},
-		Appearance: Appearance{Theme: "ember", Background: BackgroundTheme, AnimateIntro: IntroAlways},
+		Appearance: Appearance{Theme: "ember", Background: BackgroundTheme, AnimateIntro: IntroAlways, Animations: AnimationsOff},
+		Animations: Animations{Hover: "none", Panels: "fade", Tabs: "spring", Focus: "flicker", Move: "spring", Fullscreen: "01", Popup: "jitter", Activity: "none"},
 		NewTab:     "scripts",
 		// CloseEmptyTabs off: a bool that is on by default must survive being saved off
 		Mouse:         false,
@@ -153,5 +154,32 @@ func TestUnknownMCPPolicyAsks(t *testing.T) {
 	}
 	if cfg.MCP.Policy["run_command"] != PolicyAsk || cfg.MCP.ApprovalSeconds != DefaultApprovalSeconds {
 		t.Errorf("mcp = %+v", cfg.MCP)
+	}
+}
+
+func TestConfigHasTheDefaultEffects(t *testing.T) {
+	d := Default()
+	if d.Appearance.Animations != AnimationsOn {
+		t.Errorf("animations %q, want on", d.Appearance.Animations)
+	}
+	for moment, want := range map[string]string{"hover": "01", "panels": "spring", "tabs": "spring", "focus": "fade", "move": "spring", "fullscreen": "spring", "popup": "jitter", "activity": "fade"} {
+		if got := d.Animations.Effect(moment); got != want {
+			t.Errorf("%s is %q, want %q", moment, got, want)
+		}
+	}
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("[appearance]\nanimations = \"sometimes\"\n[animations]\npanels = \"boing\"\nfocus = \"flicker\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Appearance.Animations != AnimationsOn || c.Animations.Panels != "spring" || c.Animations.Focus != "flicker" {
+		t.Errorf("read animations %q, panels %q, focus %q", c.Appearance.Animations, c.Animations.Panels, c.Animations.Focus)
+	}
+	c.Animations.SetEffect("popup", "none")
+	if c.Animations.Popup != "none" {
+		t.Errorf("SetEffect left popup %q", c.Animations.Popup)
 	}
 }

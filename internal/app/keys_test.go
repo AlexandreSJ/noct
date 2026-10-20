@@ -49,7 +49,8 @@ func testApp(t *testing.T, tabs ...*tab) *App {
 	current := &session{name: "1", tabs: tabs}
 	a := &App{session: current, sessions: []*session{current}, shells: make(map[layout.PaneID]*shell), size: image.Pt(100, 30), configPath: filepath.Join(t.TempDir(), "config.toml")}
 	a.config = config.Default()
-	a.prefix, _ = prefixFromConfig(a.config.Prefix) // the default prefix is always valid
+	a.config.Appearance.Animations = config.AnimationsOff // tests look at the frames as they end
+	a.prefix, _ = prefixFromConfig(a.config.Prefix)       // the default prefix is always valid
 	a.shortcut = shortcutFromConfig(a.config.Shortcut)
 	a.nextPane = 100
 	t.Setenv("XDG_DATA_HOME", t.TempDir())  // personal scripts

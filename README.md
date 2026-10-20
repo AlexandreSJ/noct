@@ -117,7 +117,7 @@ The mouse works too: click a tab or a pane to select it, click a command in the 
 
 - **Keys.** Set the prefix by pressing it: any modifiers with a key, shown as your terminal sends it, with a warning when it would take a key from noct or from programs (`ctrl+c`, `ctrl+r`, tmux's `ctrl+b`). **Binds of every screen** lists each action of noct's modes, panels and popups with its keys: `Enter` changes one (with several, `←→` choose which first), `a` adds another, `Delete` gives the default back. Hints, popups and labels follow your keys.
 - **Tabs.** Choose what a new tab opens (empty, a terminal, scripts, flows or logs) and whether a tab closes with its last pane.
-- **Looks.** Seven themes, with the terminal's background or the theme's; the logs calendar colors each day by how much ran on it.
+- **Looks.** Seven themes, with the terminal's background or the theme's; the logs calendar colors each day by how much ran on it. **New theme** and **edit theme** make your own: every part (tab names, borders, titles, lists, messages) gets a color from the terminal's 256 or a `#rrggbb`, with a small workspace beside the list showing the result. Themes are files in `~/.config/noct/themes/`, so they can also be written by hand (see `docs/temas.md` for the keys). Each session keeps its own theme, and choosing a session shows it in its colors first.
 - **Reset.** The last row of the config, and of the binds, puts everything back to its default, after a second `Enter`.
 
 ## Scripts

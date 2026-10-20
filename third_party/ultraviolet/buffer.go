@@ -340,13 +340,12 @@ func (b *Buffer) Resize(width int, height int) {
 		return
 	}
 
+	// noct: narrowing hides the end of each line in its capacity instead of dropping it, and
+	// widening shows it again, so text printed before a narrow resize is not lost. Clearing to
+	// the end of a line clears its hidden end too (FillArea).
 	if width > curWidth {
-		line := make(Line, width-curWidth)
-		for i := range line {
-			line[i] = EmptyCell
-		}
 		for i := range b.Lines {
-			b.Lines[i] = append(b.Lines[i], line...)
+			b.Lines[i] = widenLine(b.Lines[i], width)
 		}
 	} else if width < curWidth {
 		for i := range b.Lines {
@@ -367,6 +366,30 @@ func (b *Buffer) Resize(width int, height int) {
 	}
 }
 
+// widenLine gives line width cells: the hidden end it kept when it narrowed, then blank cells.
+// The spare capacity a growing line gets is blanked, so it never shows cells that were never set.
+func widenLine(line Line, width int) Line {
+	if width <= cap(line) {
+		return line[:width]
+	}
+	grown := make(Line, width, width+width/4)
+	copy(grown, line[:cap(line)])
+	full := grown[:cap(grown)]
+	for i := cap(line); i < len(full); i++ {
+		full[i] = EmptyCell
+	}
+	return grown
+}
+
+// clearHiddenEnd blanks the end of line y kept from a wider buffer.
+func (b *Buffer) clearHiddenEnd(y int) {
+	line := b.Lines[y]
+	full := line[:cap(line)]
+	for i := len(line); i < len(full); i++ {
+		full[i] = EmptyCell
+	}
+}
+
 // Fill fills the buffer with the given cell and rectangle.
 func (b *Buffer) Fill(c *Cell) {
 	b.FillArea(c, b.Bounds())
@@ -382,6 +405,9 @@ func (b *Buffer) FillArea(c *Cell, area Rectangle) {
 		for x := area.Min.X; x < area.Max.X; x += cellWidth {
 			b.SetCell(x, y, c)
 		}
+		if area.Max.X >= b.Width() && y >= 0 && y < len(b.Lines) {
+			b.clearHiddenEnd(y) // noct: a line cleared to its end has nothing left to show wider
+		}
 	}
 }
 
@@ -392,6 +418,7 @@ func (b *Buffer) Clear() {
 		for x := area.Min.X; x < area.Max.X; x++ {
 			b.Lines[y][x] = EmptyCell
 		}
+		b.clearHiddenEnd(y) // noct: see FillArea
 	}
 }
 

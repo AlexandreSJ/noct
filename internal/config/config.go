@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -29,6 +30,8 @@ type Config struct {
 	Prefix     Prefix     `toml:"prefix"`
 	Shortcut   Shortcut   `toml:"shortcut"`
 	Appearance Appearance `toml:"appearance"`
+	// Animations are the effect of each moment that animates, when Appearance.Animations is on.
+	Animations Animations `toml:"animations"`
 	// NewTab is the panel a new tab opens with, by the name noct gives it (NewTabTerminal,
 	// "scripts"...), or NewTabEmpty for none.
 	NewTab string `toml:"new_tab"`
@@ -157,13 +160,85 @@ type Appearance struct {
 	Background string `toml:"background"`
 	// AnimateIntro is IntroEmpty, IntroAlways or IntroNever.
 	AnimateIntro string `toml:"animate_intro"`
+	// Animations is AnimationsOn or AnimationsOff, for every moment at once.
+	Animations string `toml:"animations"`
+}
+
+const (
+	AnimationsOn  = "on"
+	AnimationsOff = "off"
+)
+
+// Effects are the names of the animation effects, in the order the config offers them.
+var Effects = []string{"none", "01", "spring", "fade", "jitter", "flicker"}
+
+// Animations is the effect of each moment noct animates, by the name in Effects.
+type Animations struct {
+	Hover      string `toml:"hover"`
+	Panels     string `toml:"panels"`
+	Tabs       string `toml:"tabs"`
+	Focus      string `toml:"focus"`
+	Move       string `toml:"move"`
+	Fullscreen string `toml:"fullscreen"`
+	Popup      string `toml:"popup"`
+	Activity   string `toml:"activity"`
+}
+
+// defaultAnimations are the effects noct comes with; flicker is never one of them.
+var defaultAnimations = Animations{Hover: "01", Panels: "spring", Tabs: "spring", Focus: "fade", Move: "spring", Fullscreen: "spring", Popup: "jitter", Activity: "fade"}
+
+func (a *Animations) field(moment string) *string {
+	switch moment {
+	case "hover":
+		return &a.Hover
+	case "panels":
+		return &a.Panels
+	case "tabs":
+		return &a.Tabs
+	case "focus":
+		return &a.Focus
+	case "move":
+		return &a.Move
+	case "fullscreen":
+		return &a.Fullscreen
+	case "popup":
+		return &a.Popup
+	case "activity":
+		return &a.Activity
+	}
+	return nil
+}
+
+// Effect is the effect of the moment named as in the config file, "" for one noct does not know.
+func (a Animations) Effect(moment string) string {
+	if f := a.field(moment); f != nil {
+		return *f
+	}
+	return ""
+}
+
+func (a *Animations) SetEffect(moment, effect string) {
+	if f := a.field(moment); f != nil {
+		*f = effect
+	}
+}
+
+// normalized gives each moment its default when its effect is not one noct knows.
+func (a Animations) normalized() Animations {
+	for _, moment := range []string{"hover", "panels", "tabs", "focus", "move", "fullscreen", "popup", "activity"} {
+		if f := a.field(moment); !slices.Contains(Effects, *f) {
+			*f = defaultAnimations.Effect(moment)
+		}
+	}
+	return a
 }
 
 func Default() Config {
 	return Config{
 		Prefix:         Prefix{Ctrl: true, Key: "space"},
 		Shortcut:       Shortcut{Alt: true},
-		Appearance:     Appearance{Theme: "noct", Background: BackgroundTerminal, AnimateIntro: IntroEmpty},
+		Appearance:     Appearance{Theme: "noct", Background: BackgroundTerminal, AnimateIntro: IntroEmpty, Animations: AnimationsOn},
+		Animations:     defaultAnimations,
 		NewTab:         NewTabTerminal,
 		CloseEmptyTabs: true,
 		Mouse:          true,
@@ -185,6 +260,10 @@ func (c Config) normalized() Config {
 	if c.Appearance.AnimateIntro != IntroAlways && c.Appearance.AnimateIntro != IntroNever {
 		c.Appearance.AnimateIntro = IntroEmpty
 	}
+	if c.Appearance.Animations != AnimationsOff {
+		c.Appearance.Animations = AnimationsOn
+	}
+	c.Animations = c.Animations.normalized()
 	if strings.TrimSpace(c.NewTab) == "" {
 		c.NewTab = NewTabTerminal
 	}

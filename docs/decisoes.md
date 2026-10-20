@@ -132,6 +132,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Título com `✳` (2026-09-28).** Com o Claude Code num painel, a borda do painel ficava desalinhada, e o nome dele aparecia dentro do painel. O título `✳ Claude Code` chega por OSC, e em UTF-8 o `✳` é `E2 9C B3`. A tabela do parser do `x/ansi` trata `0x9C` como o terminador C1 (ST) mesmo dentro de uma string, então o título virava `\xe2` e o resto era impresso na tela. Esse byte solto ainda seguia até o terminal real, que o juntava ao `ESC` seguinte e perdia a posição. Isso afeta todo o bloco U+2700–U+273F (`✅`, `✔`, `✨`, `✳`) e qualquer caractere com `0x9C` no UTF-8, também em links OSC 8 e em DCS. Como no xterm e no kitty em UTF-8, a cópia do `vt` passa a tratar `0x9C` em strings OSC e DCS como dado (`init` com `noct:` em `emulator.go`); `ESC \` e `BEL` continuam terminando. O parser não aceita tabela própria, então a mudança vale para a tabela compartilhada, que no noct só o `vt` usa.
 
+**Texto que some ao estreitar (2026-10-20).** O mantenedor notou que, ao diminuir a largura do terminal, o fim das linhas sumia e não voltava ao aumentar de novo, o que perde logs e valores ainda por ler. O `Buffer.Resize` do `ultraviolet` cortava cada linha na largura nova e, ao crescer, acrescentava células em branco. A cópia (`noct:` em `buffer.go`) mantém o fim cortado na capacidade da própria linha e o mostra de novo ao alargar; como o fim é da linha, ele acompanha a linha quando a tela rola. Limpar uma linha até o fim (`ED`, `EL`, `clear`) limpa também o fim escondido, para nada apagado voltar. Linhas que viraram histórico enquanto o terminal estava estreito ficam como estavam; não há reflow. `third_party/vt/noct_resize_test.go` cobre.
+
 **Emoji com seletor de variação (2026-10-20).** Uma linha com `➡️` (o Claude Code usa em respostas) puxava a borda direita uma coluna para a esquerda, só naquela linha. `➡️` é `U+27A1` + `U+FE0F`: pelas regras de grapheme do Unicode são duas colunas, mas pelo wcwidth, que ignora o seletor, só uma. O programa no painel e o emulador `vt` contam duas; o terminal de fora pode desenhar em uma, e o renderer do `ultraviolet` supõe que o cursor andou a largura da célula e escreve o resto da linha em sequência. A cópia (`noct:` em `terminal_renderer.go`) trata como de largura disputada a célula larga cuja largura pelo wcwidth difere: preenche as colunas dela com espaços, volta, escreve o grapheme e leva o cursor com `CHA` para a coluna depois da célula. Num terminal que desenha estreito, o emoji fica com um espaço ao lado e o resto da linha no lugar. Na última coluna isso não é feito, porque o cursor ficaria esperando a quebra e nenhum movimento diz isso; ali o `CR` do movimento seguinte já realinha. `third_party/ultraviolet/noct_render_test.go` cobre, reproduzindo o quadro no `vt` com e sem o seletor.
 
 ## ADR-012 — Modo noct persistente e protocolo de teclado do kitty
@@ -618,3 +620,86 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Reiniciar** (`r`, depois de instalar, com confirmação): o daemon para como no quit, gravando as sessões, mas manda `restart` ao cliente (`ipc.Restart`). O cliente restaura o terminal e se troca (`exec`) pelo binário em disco, que inicia o daemon novo e abre a sessão usada por último, a que estava na tela. Sem reiniciar, a versão nova vale no próximo `noct` depois de um quit.
 
 **Consequências.** Quem instalou com `go install` também atualiza pelo noct: o binário da release substitui o de `~/go/bin`. Um gerenciador de pacotes que venha a empacotar o noct teria o binário trocado por fora dele; se isso acontecer, o noct deve deixar a atualização com o gerenciador. Reiniciar fecha os programas dos painéis, como o quit, e oferece rodá-los de novo (ADR-046). A comparação de versões segue o semver (pseudo-versões do `go install` de um commit ficam entre as releases), sem dependência nova. Quem trocou a tecla do config no arquivo continua com a dele; quem usava `prefixo` + `c` passa a cair no popup de atualizações.
+
+## ADR-048 — Terminal novo no diretório do painel com foco
+
+**Contexto.** Um terminal novo abria no diretório do terminal de fora que fez o último attach. Como o daemon sobrevive aos attaches, esse lugar mudava conforme de onde se reconectou, e um `cd` num painel não valia para o terminal seguinte. Kitty, WezTerm, Ghostty e tmux (`-c "#{pane_current_path}"`) abrem no diretório do painel atual. É polimento da fase 5, antecipado pelo mantenedor (ver [polimento.md](polimento.md)).
+
+**Decisão.**
+- `p`, `g` e o terminal de uma tab nova (`t`) abrem o shell no diretório do painel com foco (`terminalDir`); a tab nova herda do painel com foco da tab que se deixa, lido antes de ela existir, o primeiro que der resposta: o diretório atual do shell, lido de `/proc/<pid>/cwd`; numa execução de script ou passo de fluxo, o diretório em que ela começou (o `runView` o guarda); ao lado de painéis sem diretório (scripts, inspect, logs, ajuda, editor) e na home, `~`; num shell cujo diretório não se lê, o diretório do attach, como antes.
+- Um diretório que não existe mais (o Linux o mostra como `/caminho (deleted)`) dá `~`. Sem `$HOME`, o diretório do attach.
+- Sem opção no config: é o comportamento padrão.
+
+**Consequências.** No macOS o diretório de um shell não se lê (não há `/proc`), então lá os terminais continuam abrindo no diretório do attach, como ao reabrir sessões. Um shell rodando `ssh` dá o diretório local, não o do servidor. A execução dá o diretório em que começou, não o atual do programa dela.
+
+## ADR-049 — Temas em arquivo, com todos os componentes
+
+**Contexto.** Os temas eram sete, fixos, de sete cores cada, das quais o noct derivava todos os estilos: não dava para mudar só o nome da tab inativa ou a borda sem foco, nem criar um tema. O mantenedor quer cada componente trocável e temas criados pelo usuário, editados no próprio noct ([temas.md](temas.md)). É polimento da fase 5, antecipado pelo mantenedor.
+
+**Decisão.**
+- **Pacote `theme`**, sem depender do `app`: os 21 componentes (fundo, texto, nome e fundo das tabs ativa e inativa, bordas e títulos com e sem foco, texto, apagado, cabeçalho, linha selecionada, fundo dos popups, mensagem, sucesso, erro, corvo, calendário), as cores, os temas embutidos e os arquivos.
+- **Cores:** `#rrggbb`, um índice de 0 a 255 (com ou sem aspas no arquivo), ou vazio, que segue o fundo do tema (com `background = terminal`, o do terminal). Só os fundos de tabs, linhas e popups podem ficar vazios: um fundo, um texto ou um calendário vazio é erro do arquivo, porque não haveria cor para desenhar nem para misturar. Os índices 0–15 continuam índices, porque são as cores do terminal de fora; os outros viram hex.
+- **Arquivo:** `~/.config/noct/themes/<nome>.toml`, com `base` (outro tema, embutido ou do usuário, até 8 níveis) e só os componentes que diferem dela, em tabelas (`[tabs]`, `[panels]`, `[noct]`, `[state]`, `[other]`, `[background]`). Os embutidos não podem ser sobrescritos por nome.
+- **Leitura:** ao iniciar e a cada segundo, junto do ticker da biblioteca, sempre. Um arquivo com erro (cor inválida, chave desconhecida, base que não existe ou em ciclo) fica de fora, e a mensagem diz qual. O tema em uso que some volta ao padrão.
+- Os embutidos mantêm as cores de antes, e ganham sucesso e erro.
+
+- **Editor no config:** abaixo de `theme`, `new theme` (nome, depois o tema de onde começa, escolhido na busca, que mostra cada um na tela) e `edit theme` (o tema da sessão; num embutido, uma cópia com outro nome). O editor é uma página do config, como a dos binds, com a lista dos componentes por grupo à esquerda e o palco à direita (uma mini-workspace desenhada pelo noct, com um pouco de cada componente), num painel de 84 colunas. O componente selecionado pisca 400 ms no palco.
+- **Seletor de cores:** uma grade 16×16 com as 256 cores, que rola quando não cabe, a cor selecionada (índice e hex) e um campo `#rrggbb` aberto com `#`. O palco mostra a cor sob a seleção antes do `Enter`; `Enter` grava o arquivo na hora, `Esc` volta sem mudar.
+
+**Consequências.** O `✓` e o `✗` das execuções passam a ter as cores de sucesso e de erro. O fundo dos popups pode ser diferente do fundo do tema. As teclas do editor e do seletor são as do config, com `#` fixo. O tema por sessão está na ADR-050.
+
+## ADR-050 — Tema por sessão
+
+**Contexto.** Com várias sessões, nada mostrava em qual se estava além do nome na barra de tabs. O mantenedor quer que o tema seja da sessão, e que escolher uma sessão já a mostre nas cores dela, antes de abri-la, como ajuda visual. A ADR-037 deixou configurações por sessão para depois; o tema é a primeira. É polimento da fase 5, antecipado pelo mantenedor.
+
+**Decisão.**
+- O tema vai em cada sessão do `sessions.json` (`theme`). Sem tema, ou com um que não existe mais, a sessão usa o `Appearance → theme` do config.
+- `Appearance → theme` muda o tema da sessão na tela e também o do config, que vale para as sessões sem tema.
+- Uma sessão nova nasce com o tema da sessão na tela.
+- Trocar de sessão (pelo popup, pela busca, pelo attach, ao fechar ou apagar) troca o palette.
+- **Prévia:** no popup de sessões, a seleção pinta a tela com o tema da sessão selecionada; na busca, quando a seleção está num item de sessão. Fechar sem trocar volta ao tema da sessão na tela.
+
+**Consequências.** As outras opções do config continuam valendo para o noct inteiro. A prévia só muda o desenho; nada é gravado até a sessão ser aberta.
+
+## ADR-051 — Cores por painel e por tab
+
+**Contexto.** O mantenedor quer marcar um painel (o shell de produção em vermelho) e uma tab por cor, por cima do tema da sessão, e que as cores fiquem com a sessão e com os templates ([temas.md](temas.md#cores-por-painel-e-por-tab)). Pediu as teclas com shift (`prefixo` + `P`), embora a ADR-047 registre que ele não gosta de maiúsculas: só `m` e `z` estavam livres. É polimento da fase 5, antecipado pelo mantenedor.
+
+**Decisão.**
+- **Componentes:** um painel muda borda e título, com e sem foco, fundo e texto; uma tab muda nome e fundo, ativa e inativa. A ausência quer dizer a cor do tema. Prioridade: painel e tab > tema da sessão.
+- **Fundo e texto do painel** funcionam como o `background = theme`, só naquele painel (o `themedScreen` por painel): mudam o padrão dos programas, e as cores que eles escolhem ficam.
+- **Popup `prefixo` + `P`:** a lista do painel e da tab à esquerda, o palco à direita com as cores em escolha, o seletor de cores dos temas com `t` para voltar à do tema.
+- **Aviso de contraste**, sem bloquear: abaixo de 4,5:1 para texto e de 3:1 para bordas e títulos, sobre o fundo do painel (WCAG 2), e só nos pares em que uma das cores é do painel; os do tema são do tema.
+- **Persistência:** as cores vão no `sessions.json`, por painel e por tab, com as chaves do arquivo de tema (`panels.focused_border`); passam com o painel quando ele muda de tab e somem quando ele fecha.
+- **`Alt+Shift` + letra** vale como a maiúscula no atalho direto (com o atalho só em `alt`): `Alt+Shift+P` abre o popup. `Alt+Shift+hjkl` continuam movendo o painel.
+
+**Consequências.** Com o atalho direto em `ctrl`, não há atalho para `P`: na codificação legada `Ctrl+Shift+P` chega como `Ctrl+P` (ADR-012). Os templates gravam as mesmas cores (ADR-052).
+
+## ADR-052 — Templates de tab
+
+**Contexto.** O mantenedor quer montar uma tab uma vez (layout, painéis, cores, programas) e abri-la de novo onde quiser, escolhendo por painel se o comando roda na hora (um `fastfetch`) ou pergunta antes (um `claude`). Era o item "layouts nomeados" de [tui.md](tui.md). É polimento da fase 5, antecipado pelo mantenedor.
+
+**Decisão.**
+- **Um template é uma tab**, num arquivo YAML em `~/.config/noct/templates/<nome>.yaml` (pacote `templates`): o nome da tab, as cores dela, e o layout como `columns`/`rows` aninhados, com `share` só quando a divisão não é igual e `stacked` para pilhas. Cada painel é `terminal`, `scripts`, `inspect` ou `logs`, com `name`, cores e, num terminal, `run` e `start`. As cores usam as chaves do arquivo de tema, como na sessão.
+- **Gravar (`prefixo` + `R`)** monta o template a partir da tab, como a sessão faz: execuções, editores, ajuda e painéis flutuantes ficam de fora, e o layout se fecha sobre eles. Cada terminal com comando escolhe `run`, `ask` (padrão) ou `none`. Um nome que existe pergunta antes de sobrescrever.
+- **Abrir (`prefixo` + `T`)** lista os templates com a miniatura do layout, nas cores salvas, e abre uma tab nova no fim, com o foco no primeiro painel. Os terminais abrem no diretório que um terminal novo teria (ADR-048). `run` digita o comando no shell; `ask` o oferece na caixa `run?` (ADR-046). Um comando com quebra de linha não é digitado nem oferecido, e um painel que não abre fica de fora, com a mensagem. O arquivo é relido no `Enter`.
+- `e` edita o arquivo no editor do config, `r` renomeia (sem sobrescrever) e `d` apaga, com confirmação.
+
+**Consequências.** Templates de um projeto (vindos por `git pull`) e sessões a partir de templates ficam para depois: com `run`, um template de outra pessoa rodaria comandos ao abrir. Os diretórios de cada terminal não são gravados.
+
+## ADR-053 — Animações por momento
+
+**Contexto.** Havia só a intro do título e o `01` ao passar o mouse nele. O mantenedor quer animações ao abrir e fechar painel e tab, no foco, ao mover, na tela inteira, nos popups, no hover e na atividade, com efeitos à escolha (`01`, mola, fade, jitter, flicker), uma prévia ao escolher e um aviso de epilepsia no flicker ([animacoes.md](animacoes.md)). É polimento da fase 5, antecipado pelo mantenedor.
+
+**Decisão.**
+- **Momento × efeito:** `Appearance → animations` liga ou desliga tudo, e `[animations]` no config dá o efeito de cada momento. Padrões: mola para painéis, tabs, mover e tela inteira, fade no foco e na atividade, jitter nos popups, `01` no hover. Um nome desconhecido volta ao padrão; flicker nunca é padrão.
+- **Retrato do estado no lugar de ganchos:** antes de cada quadro, o que mudou desde o anterior (painéis, tabs, foco, quadro do painel com foco, tela inteira, modo) começa a animação do momento. Fechar usa as células do quadro anterior, guardadas a cada quadro.
+- **Só o desenho muda:** a camada de animações corre depois dos painéis e, para popups, sobre as células que o popup desenhou. Os programas são redimensionados uma vez, como antes. Foco, mover, hover e atividade só tocam a moldura e a barra.
+- **Teclas:** qualquer tecla termina todas as animações e é tratada normalmente. Trocar de sessão ou o tamanho do terminal também termina.
+- **Flicker:** no máximo 3 acesos por segundo (período de 350 ms), e escolhê-lo pede `Enter` depois do aviso.
+- **Prévia:** com uma linha de momento selecionada, o config mostra o palco ao lado, tocando o efeito uma vez com a duração real; `space` repete; sem animações, o palco fica parado com `animations off`.
+- **Hover** liga o modo de movimento do mouse em todo lugar; os programas só recebem movimento se o pediram. **Atividade:** a primeira saída de um shell fora de vista pulsa o título (ou o nome da tab) uma vez, até o painel ser visto.
+- Código próprio (mola, easing, ruído), sem dependência nova. O relógio das animações (`App.clock`) é trocável nos testes.
+
+**Consequências.** Fechar um popup é instantâneo. O hover anima nomes de tabs e títulos de painéis; as listas dos painéis não. Execuções fora de vista não pulsam: têm o próprio status.
+

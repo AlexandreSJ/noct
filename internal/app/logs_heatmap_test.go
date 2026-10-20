@@ -23,7 +23,7 @@ func TestHeatLevelSpreadsDaysOverTheSteps(t *testing.T) {
 // its day in the attention color.
 func TestLogsCalendarColorsDaysByTheirLogs(t *testing.T) {
 	a := testApp(t)
-	a.palette = newPalette(themeNamed("blood"), true)
+	a.palette = newPalette(a.themeNamed("blood"), true)
 	today := dateOf(time.Now())
 	busy := time.Date(today.Year(), today.Month(), 1, 10, 0, 0, 0, time.Local)
 	for i := range 9 {

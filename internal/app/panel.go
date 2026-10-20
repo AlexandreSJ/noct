@@ -12,7 +12,7 @@ import (
 
 // drawPanel clears rect, frames it with the title and returns the area inside the frame and padding.
 func (a *App) drawPanel(screen uv.Screen, rect image.Rectangle, title string) image.Rectangle {
-	fillRect(screen, rect, uv.Style{Bg: a.palette.background})
+	fillRect(screen, rect, uv.Style{Bg: a.palette.popupBackground})
 	drawFrame(screen, rect, title, a.palette.focusedFrame, a.palette.focusedTitle)
 	return rect.Inset(2)
 }

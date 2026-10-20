@@ -45,8 +45,14 @@ func (d directShortcut) command(key uv.KeyPressEvent, commandKey func(string) (s
 		return "", false, false // only the prefix locks: alt+b stays the shell's word back
 	}
 	if mods&uv.ModShift != 0 {
-		_, isArrow := arrowHeadings[name]
-		return name, true, isArrow
+		if _, isArrow := arrowHeadings[name]; isArrow {
+			return name, true, true
+		}
+		// with shift, a letter stands for its capital, as prefix + P does
+		if upper, ok := commandKey(strings.ToUpper(pressed)); ok && slices.Contains(actionKeys, upper) {
+			return upper, false, true
+		}
+		return "", false, false
 	}
 	return name, false, isCommandKey(name)
 }

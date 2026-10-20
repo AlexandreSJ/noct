@@ -14,22 +14,25 @@ import (
 type mode int
 
 const (
-	normalMode     mode = iota // keys go to the focused view
-	commandMode                // after the prefix: noct commands
-	moveMode                   // arrows move the focused pane
-	promptMode                 // typing a line of text, such as a tab name
-	configMode                 // the config panel is open
-	confirmMode                // asking before doing something that cannot be undone
-	scrollMode                 // paging through the focused terminal's history
-	formMode                   // filling in a script's parameters
-	scriptFormMode             // editing a script's name, command line and description
-	resizeMode                 // arrows resize the focused pane
-	choiceMode                 // choosing one of a few things to do
-	finderMode                 // searching actions, scripts and tabs
-	infoMode                   // reading about something, such as a flow's step
-	mcpMode                    // AI approvals, connected clients and how to add noct to one
-	sessionsMode               // the sessions: open, create, rename, close, delete
-	updatesMode                // new versions of noct and the changelog
+	normalMode       mode = iota // keys go to the focused view
+	commandMode                  // after the prefix: noct commands
+	moveMode                     // arrows move the focused pane
+	promptMode                   // typing a line of text, such as a tab name
+	configMode                   // the config panel is open
+	confirmMode                  // asking before doing something that cannot be undone
+	scrollMode                   // paging through the focused terminal's history
+	formMode                     // filling in a script's parameters
+	scriptFormMode               // editing a script's name, command line and description
+	resizeMode                   // arrows resize the focused pane
+	choiceMode                   // choosing one of a few things to do
+	finderMode                   // searching actions, scripts and tabs
+	infoMode                     // reading about something, such as a flow's step
+	mcpMode                      // AI approvals, connected clients and how to add noct to one
+	sessionsMode                 // the sessions: open, create, rename, close, delete
+	updatesMode                  // new versions of noct and the changelog
+	colorsMode                   // the focused pane's and its tab's own colors
+	templateSaveMode             // saving the tab as a template
+	templatesMode                // the templates, to open one as a new tab
 )
 
 // shortcut is one command as listed in the popups and on the home screen.
@@ -45,6 +48,7 @@ var commandShortcuts = []shortcut{
 	{"tab", "change", true},
 	{"1-9", "go to tab", true},
 	{"t", "new tab", false},
+	{"T", "open a template", false},
 	{"p", "new panel", false},
 	{"s", "scripts panel", false},
 	{"i", "inspect flows", false},
@@ -60,6 +64,8 @@ var commandShortcuts = []shortcut{
 	{"g", "floating panel", false},
 	{"r", "rename tab", true},
 	{"e", "rename panel", true},
+	{"P", "colors of the panel and tab", true},
+	{"R", "save the tab as a template", true},
 	{"u", "scroll history", true},
 	{"x", "close", true},
 	{",", "config", false},
@@ -88,7 +94,7 @@ var arrowHeadings = map[string]layout.Heading{
 }
 
 // actionKeys are the noct mode commands that act, as opposed to moving around.
-var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "u", "x", ",", "c", "d", "q"}
+var actionKeys = []string{"t", "T", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "P", "R", "u", "x", ",", "c", "d", "q"}
 
 var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
 
@@ -138,6 +144,12 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 		a.handleSessionsKey(key)
 	case updatesMode:
 		a.handleUpdatesKey(key)
+	case colorsMode:
+		a.handleColorsKey(key)
+	case templateSaveMode:
+		a.handleTemplateSaveKey(key)
+	case templatesMode:
+		a.handleTemplatesKey(key)
 	default:
 		a.handleNormalKey(key)
 	}
@@ -247,6 +259,9 @@ func (a *App) runAction(name string) {
 	case "space":
 		a.openFinder()
 		return
+	case "T":
+		a.openTemplates()
+		return
 	case "y":
 		a.openMCP()
 		return
@@ -282,6 +297,10 @@ func (a *App) runTabAction(name string) {
 	case "x":
 		a.closeFocused()
 		a.mode = normalMode
+	case "P":
+		a.openColors()
+	case "R":
+		a.openTemplateSave()
 	case "a":
 		if !a.currentTab().isEmpty() {
 			a.mode = moveMode

@@ -37,6 +37,9 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/pane/images.go` | Writes image placeholder cells at the cursor and moves it as kitty does |
 | `internal/pane/keys.go` | Key encodings the emulator lacks (modified navigation keys) |
 | `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again (a terminal with its command and log), names, what the command line lists |
+| `internal/theme/theme.go` | Theme components, colors (hex, terminal indexes, following the background) and the themes noct comes with |
+| `internal/theme/files.go` | User themes: the themes folder, reading theme files built on a base, and writing only what differs from it |
+| `internal/templates/templates.go` | Tab templates: the YAML file (panes, groups, colors, how each command starts), layouts to and from it, and the templates folder |
 | `internal/layout/shape.go` | A tree as plain data (`Shape`) and building it again under new pane IDs |
 | `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks of a pane and those below it (one pane shown, the others folded to a row), move by columns, remove, rects, directional focus, draggable dividers |
 | `internal/app/app.go` | App state, event loop, frame pacing, attach (to the session asked for)/detach, config loading, shutdown |
@@ -48,7 +51,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/updates_test.go` | Tests of the updates popup, the tab bar's version, installing, restarting and the read-only case |
 | `internal/app/client.go` | Daemon side of an attached terminal: decoding its keys, drawing to it, greeting connections |
 | `internal/app/scroll.go` | Scroll mode through a terminal's history |
-| `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach (in any session) |
+| `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), the folder a new terminal opens in (`terminalDir`), tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach (in any session) |
 | `internal/app/view.go` | The `view` interface a pane shows: a terminal or a noct panel |
 | `internal/app/scripts_panel.go` | Scripts panel: list with versions, details and notes, keys to run, edit, create, delete |
 | `internal/app/scripts.go` | Script actions: reload the library, run (form or not) as a tracked run with its log and exit code, create, edit in the configured editor, rename, delete |
@@ -96,7 +99,17 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/tabbar.go` | Tab bar: names cut to fit, scrolling that keeps the active tab in view, marks for hidden tabs, which tab a click or the wheel selects |
 | `internal/app/images.go` | Image support detection, outer image ids, cell size, forwarding to the terminal |
 | `internal/app/environment.go` | Shell and environment given to pane programs |
-| `internal/app/theme.go` | Predefined themes and the palette of styles derived from them |
+| `internal/app/theme.go` | The themes on offer (built-in, then the user's, read again when their folder changes) and the palette of styles drawn from the theme in use |
+| `internal/app/theme_editor.go` | Making and editing themes in the config: the new and edit rows, the name and base, and the page of components beside the stage |
+| `internal/app/color_picker.go` | The color picker: the grid of the terminal's 256 colors, scrolled to the selection, and a typed #rrggbb |
+| `internal/app/colorset.go` | A pane's or a tab's own colors over the session's theme: saved by the theme file's keys, and the palette a pane or a tab draws with |
+| `internal/app/colors_popup.go` | The popup of prefix + P: the focused pane's and its tab's own colors, with the stage and the contrast warning |
+| `internal/app/template_save.go` | The popup of prefix + R: the tab as a template, with how each terminal's command starts |
+| `internal/app/templates_popup.go` | The popup of prefix + T: the templates with the layout of the selected one, opening one as a tab, and edit, rename and delete |
+| `internal/app/animation.go` | Animations: what changed since the last frame, the ones running, and drawing them over the frame without touching the programs |
+| `internal/app/effects.go` | The animation effects as functions of time: spring, easing, 01, jitter and flicker |
+| `internal/app/stage_preview.go` | The config's rows of the animations, the flicker warning and the stage playing the selected moment's effect |
+| `internal/app/stage.go` | The stage: a small made-up workspace with a bit of everything a theme colors, to preview themes in place |
 | `internal/kittygfx/command.go` | Parse and encode kitty graphics commands |
 | `internal/kittygfx/stream.go` | Split graphics commands out of program output, across reads |
 | `internal/kittygfx/session.go` | Per-pane image state: id translation, uploads, sizing, replies |

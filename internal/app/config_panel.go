@@ -14,6 +14,7 @@ import (
 
 	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/theme"
 )
 
 type configRow int
@@ -24,8 +25,11 @@ const (
 	shortcutCtrlRow
 	shortcutAltRow
 	themeRow
+	newThemeRow
+	editThemeRow
 	backgroundRow
 	animateIntroRow
+	animationsRow
 	mouseRow
 	newTabRow
 	closeEmptyTabsRow
@@ -51,6 +55,7 @@ type configPage int
 const (
 	settingsPage configPage = iota
 	bindsPage
+	themePage
 )
 
 const configHints = "{up}{down} select  {left}{right} change  esc close"
@@ -88,6 +93,10 @@ type configPanel struct {
 	// hover is the row under the mouse, when hovering is true.
 	hover    configRow
 	hovering bool
+	// edit is the theme being edited on the theme page.
+	edit *themeEdit
+	// preview is the animation the stage plays for the moment selected, nil when none plays.
+	preview *animation
 }
 
 // configLine is one line of the panel: a section heading, a row that can be selected, or a note
@@ -122,8 +131,12 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 		a.capturePrefix(key)
 		return
 	}
-	if a.configPanel.page == bindsPage {
+	switch a.configPanel.page {
+	case bindsPage:
 		a.handleBindsKey(key)
+		return
+	case themePage:
+		a.handleThemeEditorKey(key)
 		return
 	}
 	if a.configPanel.number != nil {
@@ -152,6 +165,10 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 		return
 	}
 	if a.isTypedRow(a.configPanel.selected) && a.startsTyping(key) {
+		return
+	}
+	if m, ok := animationRowAt(a.configPanel.selected); ok && key.String() == "space" {
+		a.playStagePreview(m) // space plays it again; the arrows change it
 		return
 	}
 	switch key.String() {
@@ -184,6 +201,13 @@ func (a *App) selectConfigRow(row configRow) {
 	a.cancelNumberEdit()
 	a.configPanel.copied, a.configPanel.resetArmedAt, a.configPanel.typing = false, time.Time{}, false
 	a.configPanel.selected = row
+	if c, ok := themeRowAt(row); ok && a.configPanel.edit != nil {
+		a.lightComponent(c)
+	}
+	a.configPanel.preview = nil
+	if m, ok := animationRowAt(row); ok {
+		a.playStagePreview(m)
+	}
 }
 
 // moveConfigSelection selects the next row shown, saving what was typed in the row it leaves.
@@ -271,7 +295,10 @@ func (a *App) configTypedField() (*textField, func()) {
 	if p.number != nil {
 		return p.number, func() { p.numberProblem = "" }
 	}
-	if p.capture.active || p.page == bindsPage || !p.typing || !a.isTypedRow(p.selected) {
+	if p.page == themePage && p.edit.picker != nil && p.edit.picker.typing {
+		return &p.edit.picker.hex, func() { p.edit.picker.problem = "" }
+	}
+	if p.capture.active || p.page == bindsPage || p.page == themePage || !p.typing || !a.isTypedRow(p.selected) {
 		return nil, nil
 	}
 	return a.typedText(p.selected), func() { p.copied = false }
@@ -305,6 +332,14 @@ func (a *App) changeSetting(step int) {
 		a.startBindEdit()
 		return
 	}
+	if _, ok := themeRowAt(a.configPanel.selected); ok {
+		a.pickColor()
+		return
+	}
+	if m, ok := animationRowAt(a.configPanel.selected); ok {
+		a.changeAnimation(m, step)
+		return
+	}
 	next := a.config
 	switch a.configPanel.selected {
 	case prefixRow:
@@ -313,6 +348,12 @@ func (a *App) changeSetting(step int) {
 	case bindsRow:
 		a.openBinds()
 		return
+	case newThemeRow:
+		a.startNewTheme()
+		return
+	case editThemeRow:
+		a.editCurrentTheme()
+		return
 	case resetBindsRow, resetRow:
 		return // only enter resets, twice, so neither an arrow nor a click does it by accident
 	case shortcutCtrlRow:
@@ -320,9 +361,15 @@ func (a *App) changeSetting(step int) {
 	case shortcutAltRow:
 		next.Shortcut.Alt = !next.Shortcut.Alt
 	case themeRow:
-		next.Appearance.Theme = nextThemeName(next.Appearance.Theme, step)
+		next.Appearance.Theme = a.nextThemeName(a.sessionTheme(a.session), step)
+		a.session.theme = next.Appearance.Theme // the session on screen, and sessions without a theme
 	case backgroundRow:
 		next.Appearance.Background = cycle([]string{config.BackgroundTerminal, config.BackgroundTheme}, next.Appearance.Background, step)
+	case animationsRow:
+		next.Appearance.Animations = config.AnimationsOff
+		if a.config.Appearance.Animations == config.AnimationsOff {
+			next.Appearance.Animations = config.AnimationsOn
+		}
 	case animateIntroRow:
 		next.Appearance.AnimateIntro = cycle([]string{config.IntroEmpty, config.IntroAlways, config.IntroNever}, next.Appearance.AnimateIntro, step)
 	case mouseRow:
@@ -443,7 +490,7 @@ func (a *App) applyConfig(next config.Config) {
 	a.config, a.prefix, a.shortcut = next, prefix, shortcutFromConfig(next.Shortcut)
 	a.keymap = newKeymap(next.Keys)
 	a.applyMouseMode()
-	a.palette = newPalette(themeNamed(next.Appearance.Theme), next.Appearance.Background == config.BackgroundTheme)
+	a.applyPalette()
 	if a.configPath == "" {
 		return // no config directory; the problem was reported at startup
 	}
@@ -461,8 +508,15 @@ func onOff(on bool) string {
 
 func (a *App) configLines() []configLine {
 	choice := func(value string) string { return "◂ " + value + " ▸" }
-	if a.configPanel.page == bindsPage {
+	switch a.configPanel.page {
+	case bindsPage:
 		return a.bindLines()
+	case themePage:
+		return a.themeEditorLines()
+	}
+	edit := "enter"
+	if a.themeNamed(a.sessionTheme(a.session)).Builtin {
+		edit = "copy"
 	}
 	binds := "defaults ▸"
 	if n := changedBinds(a.config); n > 0 {
@@ -476,10 +530,15 @@ func (a *App) configLines() []configLine {
 		{label: "ctrl", value: onOff(a.config.Shortcut.Ctrl), row: shortcutCtrlRow},
 		{label: "alt", value: onOff(a.config.Shortcut.Alt), row: shortcutAltRow},
 		{label: "Appearance", heading: true},
-		{label: "theme", value: choice(themeNamed(a.config.Appearance.Theme).name), row: themeRow},
+		{label: "theme", value: choice(a.themeNamed(a.sessionTheme(a.session)).Name), row: themeRow},
+		{label: "new theme", value: "enter", row: newThemeRow},
+		{label: "edit theme", value: edit, row: editThemeRow},
 		{label: "background", value: a.config.Appearance.Background, row: backgroundRow},
 		{label: "animate intro", value: choice(a.config.Appearance.AnimateIntro), row: animateIntroRow},
 		{label: "mouse", value: onOff(a.config.Mouse), row: mouseRow},
+	}...)
+	lines = append(lines, a.animationLines()...)
+	lines = append(lines, []configLine{
 		{label: "Tabs", heading: true},
 		{label: "new tab opens", value: choice(a.newTabLabel(a.config.NewTab)), row: newTabRow},
 		{label: "close when empty", value: onOff(a.config.CloseEmptyTabs), row: closeEmptyTabsRow},
@@ -641,7 +700,11 @@ func (a *App) configLayout() configLayout {
 		}
 		l.rows = append(l.rows, line)
 	}
-	l.panel = centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), 72, panelHeight(len(l.rows)+2))
+	width := 72
+	if a.configPanel.page == themePage || a.configShowsStage() {
+		width = themePanelWidth // the list of components and the stage side by side
+	}
+	l.panel = centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), width, panelHeight(len(l.rows)+2))
 	for i, line := range l.rows {
 		if line.selectable() && line.row == a.configPanel.selected {
 			last := i // the row and the notes under it, such as what a key being taken would take
@@ -675,12 +738,32 @@ func (line configLine) selectable() bool { return !line.heading && !line.note }
 func (a *App) drawConfigPanel(screen uv.Screen) {
 	l := a.configLayout()
 	title, hints := "config", configHints
-	if a.configPanel.page == bindsPage {
+	switch a.configPanel.page {
+	case bindsPage:
 		title, hints = "config › binds", bindsHints
+	case themePage:
+		title, hints = "config › theme › "+a.configPanel.edit.theme.Name, themeEditorHints
+		if picker := a.configPanel.edit.picker; picker != nil {
+			title += " › " + theme.Components[a.configPanel.edit.selected].Label
+			hints = picker.hints()
+		}
 	}
 	inner := a.drawPanel(screen, l.panel, title)
+	if a.configPanel.page == themePage {
+		a.drawThemeEditor(screen, l, inner)
+		drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
+		return
+	}
+	list := inner
+	if a.configShowsStage() {
+		list.Max.X = inner.Min.X + themeListWidth
+		for y := inner.Min.Y; y < inner.Max.Y-2; y++ {
+			setRune(screen, list.Max.X, y, "│", a.palette.unfocusedFrame)
+		}
+		a.drawStagePreview(screen, image.Rect(list.Max.X+2, inner.Min.Y, inner.Max.X, inner.Max.Y-2))
+	}
 	for i := l.first; i < len(l.rows) && i-l.first < l.visible(); i++ {
-		a.drawConfigLine(screen, inner, inner.Min.Y+i-l.first, l.rows[i])
+		a.drawConfigLine(screen, list, inner.Min.Y+i-l.first, l.rows[i])
 	}
 	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
 }
@@ -695,6 +778,10 @@ func (a *App) clickConfig(point image.Point) {
 		return
 	}
 	a.configPanel.capture, a.configPanel.bindCapture = keyCapture{}, bindCapture{}
+	if a.configPanel.page == themePage {
+		a.clickThemeEditor(point, l)
+		return
+	}
 	line, ok := l.lineAt(point.Y)
 	if !ok || !line.selectable() {
 		return

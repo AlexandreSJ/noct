@@ -15,6 +15,10 @@ noct é uma TUI em Go que junta, num lugar só, um multiplexador de terminais, u
 | [catalogo.md](catalogo.md) | Catálogo de ferramentas e adaptadores de gerenciadores de pacote |
 | [mcp.md](mcp.md) | Ferramentas expostas à IA e política de segurança |
 | [roadmap.md](roadmap.md) | Fases, critérios de pronto e riscos |
+| [polimento.md](polimento.md) | Roteiro do polimento (fase 5): ordem, diretório herdado, teclas novas e ideias para depois |
+| [temas.md](temas.md) | Editor de temas, seletor de cores, tema por sessão, cores por painel e tab, o palco |
+| [templates.md](templates.md) | Templates de tab: salvar com `R`, abrir com `T`, comandos com `run`/`ask`/`none` |
+| [animacoes.md](animacoes.md) | Animações por momento e efeito, regras, prévia e catálogo de efeitos |
 | [decisoes.md](decisoes.md) | Registro de decisões de arquitetura (ADRs) |
 
 ## Estado
