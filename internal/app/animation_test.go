@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
+
 	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/layout"
 	"github.com/AlexandreSJ/noct/internal/pty"
@@ -290,5 +292,95 @@ func TestEachMomentCanBeTurnedOff(t *testing.T) {
 	drawnApp(a)
 	if animationOf(a, momentFocus) != nil {
 		t.Error("focus animated with its effect off")
+	}
+}
+
+// shyMouseView is a program that turned the mouse on but wants none of it here.
+type shyMouseView struct {
+	cellView
+	got []uv.MouseEvent
+}
+
+func (v *shyMouseView) WantsMouseAt(image.Point) bool { return false }
+func (v *shyMouseView) SendMouse(e uv.MouseEvent)     { v.got = append(v.got, e) }
+
+func motion(x, y int) uv.MouseMotionEvent { return uv.MouseMotionEvent{X: x, Y: y} }
+
+func TestHoverAnimatesATabNameOncePerVisit(t *testing.T) {
+	a, _ := animatedApp(t)
+	a.session.tabs = append(a.session.tabs, newTab(5, &cellView{}))
+	drawnApp(a)
+	var second image.Rectangle
+	for _, span := range a.tabBar() {
+		if span.tab == 1 && !span.mark {
+			second = image.Rect(span.start, 0, span.end, 1)
+		}
+	}
+	a.handleMouse(motion(second.Min.X+1, 0))
+	first := animationOf(a, momentHover)
+	if first == nil || first.area != second {
+		t.Fatalf("hovering the tab gave %v", a.animations)
+	}
+	a.handleMouse(motion(second.Min.X+2, 0))
+	if animationOf(a, momentHover) != first {
+		t.Error("moving inside the tab started the hover again")
+	}
+	a.handleMouse(motion(a.size.X/2, a.size.Y/2))
+	a.handleMouse(motion(second.Min.X+1, 0))
+	if animationOf(a, momentHover) == first {
+		t.Error("coming back to the tab did not hover it again")
+	}
+}
+
+func TestHoverNeedsTheMotionModeOnlyWhenOn(t *testing.T) {
+	a, _ := animatedApp(t)
+	if a.mouseMode() != uv.MouseModeMotion {
+		t.Errorf("with hover on, the mouse mode is %v", a.mouseMode())
+	}
+	a.config.Animations.Hover = "none"
+	if a.mouseMode() != uv.MouseModeDrag {
+		t.Errorf("with hover off, the mouse mode is %v", a.mouseMode())
+	}
+}
+
+func TestProgramsGetMotionOnlyIfTheyAskedForIt(t *testing.T) {
+	a, tb := animatedApp(t)
+	v := &shyMouseView{}
+	tb.views[1] = v
+	inside := contentRect(a.frameOfPane(tb, 1)).Min
+	a.handleMouse(motion(inside.X+2, inside.Y+2))
+	if len(v.got) != 0 {
+		t.Errorf("the program got %v without asking", v.got)
+	}
+}
+
+func TestActivityPulsesOnceUntilSeen(t *testing.T) {
+	a, tb := twoPanesAnimated(t)
+	a.markActivity(2)
+	first := animationOf(a, momentActivity)
+	if first == nil {
+		t.Fatal("output in a pane out of focus did not pulse")
+	}
+	for range 5 {
+		a.markActivity(2)
+	}
+	if animationOf(a, momentActivity) != first {
+		t.Error("more output pulsed again before the pane was seen")
+	}
+	a.focusPane(tb, 2)
+	drawnApp(a)
+	a.focusPane(tb, 1)
+	drawnApp(a)
+	a.markActivity(2)
+	if an := animationOf(a, momentActivity); an == nil || an == first {
+		t.Error("output after the pane was seen did not pulse")
+	}
+}
+
+func TestActivityOfTheFocusedPaneIsIgnored(t *testing.T) {
+	a, _ := twoPanesAnimated(t)
+	a.markActivity(1)
+	if animationOf(a, momentActivity) != nil {
+		t.Error("the focused pane pulsed")
 	}
 }

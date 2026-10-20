@@ -102,6 +102,12 @@ type App struct {
 	// animations are the ones running, animTick their next frame (nil when none runs), lastShot
 	// what the last frame showed and lastFrame its cells, which a pane closing animates.
 	animations []*animation
+	// hoverTarget is what the mouse is over, which hovering animates once per visit.
+	hoverTarget string
+	// activity marks, per pane, that output out of sight was told; unseen are the panes that
+	// pulsed and were not seen since.
+	activity map[layout.PaneID]*atomic.Bool
+	unseen   map[layout.PaneID]bool
 	// clock is the time animations play by; nil is the system's, tests freeze it.
 	clock     func() time.Time
 	animTick  <-chan time.Time

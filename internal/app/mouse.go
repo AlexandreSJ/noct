@@ -45,13 +45,7 @@ func (a *App) applyMouseMode() {
 	if a.screen == nil {
 		return
 	}
-	mode := uv.MouseModeNone
-	if a.config.Mouse {
-		mode = uv.MouseModeDrag
-		if a.onHome() || a.mode == configMode { // the config marks the row under the mouse
-			mode = uv.MouseModeMotion
-		}
-	}
+	mode := a.mouseMode()
 	if mode == a.screen.MouseMode() {
 		return
 	}
@@ -59,6 +53,18 @@ func (a *App) applyMouseMode() {
 		_ = a.screen.SetMouseMode(uv.MouseModeNone) // turning on drag reports leaves every motion on
 	}
 	_ = a.screen.SetMouseMode(mode) // only queued; the next frame's flush reports failures
+}
+
+// mouseMode is what the terminal reports of the mouse: every motion where something follows the
+// pointer (the home, the config's rows, hovering when it animates), else only while dragging.
+func (a *App) mouseMode() uv.MouseMode {
+	switch {
+	case !a.config.Mouse:
+		return uv.MouseModeNone
+	case a.onHome() || a.mode == configMode || a.effectFor(momentHover) != effectNone:
+		return uv.MouseModeMotion
+	}
+	return uv.MouseModeDrag
 }
 
 // onHome tells whether the home shows, with no menu over it.
@@ -86,6 +92,7 @@ func (a *App) handleMouse(event uv.MouseEvent) {
 		case a.mode == configMode:
 			a.hoverConfig(image.Pt(event.Mouse().X, event.Mouse().Y))
 		default:
+			a.hoverAt(image.Pt(event.Mouse().X, event.Mouse().Y))
 			a.forwardMouse(event)
 		}
 	case uv.MouseReleaseEvent:

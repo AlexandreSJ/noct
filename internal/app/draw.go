@@ -23,6 +23,9 @@ func (a *App) render() error {
 
 func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 	at, shot := a.now(), a.takeShot()
+	if shot.tab != nil {
+		a.seen(shot.focused) // a pane in focus on screen has no activity to tell
+	}
 	a.startAnimations(a.lastShot, shot, at)
 	a.lastShot = shot
 	if a.palette.background != nil {

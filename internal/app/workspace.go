@@ -47,6 +47,8 @@ type program struct {
 	onExit func(exitCode int)
 	// keepScrollback ignores the program erasing the scrollback, as the logs preview needs.
 	keepScrollback bool
+	// pane is the pane the program runs in, which output out of focus marks as active; 0 for none.
+	pane layout.PaneID
 }
 
 // startProgram runs p in a terminal of the given size, logging its output.
@@ -56,7 +58,7 @@ func (a *App) startProgram(p program, size pty.Size) (view, error) {
 		Env:            append(slices.Clone(a.shellEnv), p.env...),
 		Dir:            p.dir,
 		Size:           size,
-		OnScreenChange: a.notifyScreenChanged,
+		OnScreenChange: a.screenChangeOf(p.pane),
 		OnExit:         func(code int) { a.onLoop(func() { p.onExit(code) }) },
 		KeepScrollback: p.keepScrollback,
 	}
@@ -136,7 +138,7 @@ func (a *App) startShell(id layout.PaneID, frame image.Rectangle, dir string) (v
 // startShellLogged opens the user's shell going on with the log at logPath, when the config logs
 // terminals: the shell shows the log's end and writes after it. Without logPath it starts a log.
 func (a *App) startShellLogged(id layout.PaneID, frame image.Rectangle, dir, logPath string) (view, error) {
-	p := program{argv: a.shellArgv, dir: dir, onExit: func(int) { a.detachView(id) }}
+	p := program{argv: a.shellArgv, dir: dir, onExit: func(int) { a.detachView(id) }, pane: id}
 	if name := a.terminalLogName(id); name != "" {
 		p.logPath, p.continueLog = logPath, logPath != ""
 		if logPath == "" {

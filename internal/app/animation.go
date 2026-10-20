@@ -1,8 +1,11 @@
 package app
 
 import (
+	"fmt"
 	"image"
 	"image/color"
+	"math"
+	"sync/atomic"
 	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -102,10 +105,15 @@ type animation struct {
 	from      image.Rectangle
 	fromColor color.Color
 	seed      int64
+	// duration, when set, is how long it plays instead of its effect's.
+	duration time.Duration
 }
 
 func (an *animation) progress(at time.Time) float64 {
 	d := effects[an.effect].duration
+	if an.duration > 0 {
+		d = an.duration
+	}
 	if d <= 0 {
 		return 1
 	}
@@ -218,7 +226,107 @@ const (
 	popupPane  layout.PaneID = -1
 	tabsPane   layout.PaneID = -2
 	tabBarPane layout.PaneID = -3
+	hoverPane  layout.PaneID = -4
 )
+
+// pulseDuration is how long a pane out of focus pulses when it prints.
+const pulseDuration = 600 * time.Millisecond
+
+// hoverAt hovers what is under the mouse, a tab's name or a pane's title, once per visit.
+func (a *App) hoverAt(point image.Point) {
+	target, area := a.hoverTargetAt(point)
+	if target == a.hoverTarget {
+		return
+	}
+	a.hoverTarget = target
+	if target == "" {
+		return
+	}
+	if e := a.effectFor(momentHover); e != effectNone {
+		a.addAnimation(&animation{moment: momentHover, effect: e, start: a.now(), pane: hoverPane, area: area, seed: int64(point.X)})
+	}
+}
+
+func (a *App) hoverTargetAt(point image.Point) (string, image.Rectangle) {
+	if point.Y == 0 {
+		for _, span := range a.tabBar() {
+			if !span.mark && point.X >= span.start && point.X < span.end {
+				return fmt.Sprintf("tab %d", span.tab), image.Rect(span.start, 0, span.end, 1)
+			}
+		}
+		return "", image.Rectangle{}
+	}
+	t := a.currentTab()
+	if t == nil || t.isEmpty() {
+		return "", image.Rectangle{}
+	}
+	for _, p := range t.visible(a.workspaceArea()) {
+		if point.Y == p.frame.Min.Y && point.X >= p.frame.Min.X && point.X < p.frame.Max.X {
+			return fmt.Sprintf("pane %d", p.id), image.Rect(p.frame.Min.X, p.frame.Min.Y, p.frame.Max.X, p.frame.Min.Y+1)
+		}
+	}
+	return "", image.Rectangle{}
+}
+
+// screenChangeOf is what a pane's program calls on new output: a frame, and, while the pane is
+// out of sight, its activity marked once until it is seen.
+func (a *App) screenChangeOf(id layout.PaneID) func() {
+	if id == 0 {
+		return a.notifyScreenChanged
+	}
+	marked := &atomic.Bool{}
+	if a.activity == nil {
+		a.activity = map[layout.PaneID]*atomic.Bool{}
+	}
+	a.activity[id] = marked
+	return func() {
+		a.notifyScreenChanged()
+		if !marked.Swap(true) {
+			a.onLoop(func() { a.markActivity(id) })
+		}
+	}
+}
+
+// markActivity pulses the pane's title, or its tab's name when the tab is not on screen, unless
+// the pane is in focus on screen or already pulsed since it was last seen.
+func (a *App) markActivity(id layout.PaneID) {
+	t, _ := a.tabOfPane(id)
+	if t == nil || a.unseen[id] {
+		return
+	}
+	if t == a.currentTab() && t.focused == id {
+		a.seen(id)
+		return
+	}
+	if a.unseen == nil {
+		a.unseen = map[layout.PaneID]bool{}
+	}
+	a.unseen[id] = true
+	area, ok := image.Rectangle{}, false
+	if frame, visible := a.takeShot().frames[id]; visible && t == a.currentTab() {
+		area, ok = image.Rect(frame.Min.X, frame.Min.Y, frame.Max.X, frame.Min.Y+1), true
+	}
+	for i := range a.session.tabs {
+		if !ok && a.session.tabs[i] == t {
+			for _, span := range a.tabBar() {
+				if span.tab == i && !span.mark {
+					area, ok = image.Rect(span.start, 0, span.end, 1), true
+				}
+			}
+		}
+	}
+	if e := a.effectFor(momentActivity); ok && e != effectNone {
+		a.addAnimation(&animation{moment: momentActivity, effect: e, start: a.now(), pane: id, area: area, duration: pulseDuration})
+	}
+}
+
+// seen forgets a pane's activity: its next output out of sight pulses again.
+func (a *App) seen(id layout.PaneID) {
+	delete(a.unseen, id)
+	if marked := a.activity[id]; marked != nil {
+		marked.Store(false)
+	}
+}
 
 // isPopupMode tells the modes that show a popup over the workspace.
 func isPopupMode(m mode) bool {
@@ -439,7 +547,10 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 			switch an.effect {
 			case effectFade, effectSpring: // a spring on a border eases its colors
 				f := easeOut(p)
-				if an.effect == effectSpring {
+				switch {
+				case an.moment == momentActivity:
+					f = 1 - 0.7*math.Sin(math.Pi*p) // dims and comes back: a pulse
+				case an.effect == effectSpring:
 					f = min(springAt(p), 1)
 				}
 				if cell.Style.Fg != nil {
