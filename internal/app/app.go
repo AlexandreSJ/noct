@@ -93,6 +93,8 @@ type App struct {
 	// hovered is the cell the pointer was last seen over on the home.
 	hovered  image.Point
 	homeTick <-chan time.Time
+	// colors is the popup of the focused pane's and its tab's own colors.
+	colors colorsPopup
 	// stageTick ends a component's blink on the theme editor's stage.
 	stageTick <-chan time.Time
 

@@ -13,6 +13,10 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Added
 
+- `prefix` + `P` gives the focused panel and its tab colors of their own: the panel's borders,
+  titles, background and text, and the tab's name and background. They stay with the session,
+  and a warning tells when text gets hard to read. With the direct shortcut on `alt`,
+  `Alt+Shift+P` does the same.
 - **Appearance → new theme** and **edit theme** make and change themes in noct. Pick each part
   (tab names, borders, titles, lists, messages) and its color from the 256 the terminal shows,
   or type a `#rrggbb`, with a small workspace beside the list showing the result.

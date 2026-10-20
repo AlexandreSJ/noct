@@ -1,6 +1,6 @@
 # Temas e cores
 
-**Estado:** temas, editor e tema por sessão implementados (ADR-049, ADR-050); as cores por painel e por tab ainda não (passo 3 de [polimento.md](polimento.md)).
+**Estado:** implementado (ADR-049, ADR-050, ADR-051).
 
 Hoje há sete temas fixos em `internal/app/theme.go`, cada um com sete cores (`accent`, `onAccent`, `muted`, `text`, `attention`, `background`, `logo`), das quais os estilos do `palette` são derivados. Este documento descreve temas criados e editados dentro do noct, o tema de cada sessão e as cores por painel e por tab.
 

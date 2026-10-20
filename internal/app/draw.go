@@ -65,6 +65,8 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 		a.drawSessions(screen)
 	case updatesMode:
 		a.drawUpdates(screen)
+	case colorsMode:
+		a.drawColors(screen)
 	}
 }
 

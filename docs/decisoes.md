@@ -657,3 +657,17 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** As outras opções do config continuam valendo para o noct inteiro. A prévia só muda o desenho; nada é gravado até a sessão ser aberta.
 
+## ADR-051 — Cores por painel e por tab
+
+**Contexto.** O mantenedor quer marcar um painel (o shell de produção em vermelho) e uma tab por cor, por cima do tema da sessão, e que as cores fiquem com a sessão e com os templates ([temas.md](temas.md#cores-por-painel-e-por-tab)). Pediu as teclas com shift (`prefixo` + `P`), embora a ADR-047 registre que ele não gosta de maiúsculas: só `m` e `z` estavam livres. É polimento da fase 5, antecipado pelo mantenedor.
+
+**Decisão.**
+- **Componentes:** um painel muda borda e título, com e sem foco, fundo e texto; uma tab muda nome e fundo, ativa e inativa. A ausência quer dizer a cor do tema. Prioridade: painel e tab > tema da sessão.
+- **Fundo e texto do painel** funcionam como o `background = theme`, só naquele painel (o `themedScreen` por painel): mudam o padrão dos programas, e as cores que eles escolhem ficam.
+- **Popup `prefixo` + `P`:** a lista do painel e da tab à esquerda, o palco à direita com as cores em escolha, o seletor de cores dos temas com `t` para voltar à do tema.
+- **Aviso de contraste**, sem bloquear: abaixo de 4,5:1 para texto e de 3:1 para bordas e títulos, sobre o fundo do painel (WCAG 2), e só nos pares em que uma das cores é do painel; os do tema são do tema.
+- **Persistência:** as cores vão no `sessions.json`, por painel e por tab, com as chaves do arquivo de tema (`panels.focused_border`); passam com o painel quando ele muda de tab e somem quando ele fecha.
+- **`Alt+Shift` + letra** vale como a maiúscula no atalho direto (com o atalho só em `alt`): `Alt+Shift+P` abre o popup. `Alt+Shift+hjkl` continuam movendo o painel.
+
+**Consequências.** Com o atalho direto em `ctrl`, não há atalho para `P`: na codificação legada `Ctrl+Shift+P` chega como `Ctrl+P` (ADR-012). Os templates gravam as mesmas cores (ADR-052).
+

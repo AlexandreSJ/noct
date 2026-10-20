@@ -52,6 +52,7 @@ var keyContexts = []keyContext{
 		{"fullscreen", "fullscreen", []string{"f"}},
 		{"rename-tab", "rename tab", []string{"r"}},
 		{"rename-panel", "rename panel", []string{"e"}},
+		{"colors", "colors of the panel and tab", []string{"P", "shift+p"}},
 		{"scroll", "scroll history", []string{"u"}},
 		{"close", "close", []string{"x"}},
 		{"config", "config", []string{","}},

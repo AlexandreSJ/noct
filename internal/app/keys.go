@@ -30,6 +30,7 @@ const (
 	mcpMode                    // AI approvals, connected clients and how to add noct to one
 	sessionsMode               // the sessions: open, create, rename, close, delete
 	updatesMode                // new versions of noct and the changelog
+	colorsMode                 // the focused pane's and its tab's own colors
 )
 
 // shortcut is one command as listed in the popups and on the home screen.
@@ -60,6 +61,7 @@ var commandShortcuts = []shortcut{
 	{"g", "floating panel", false},
 	{"r", "rename tab", true},
 	{"e", "rename panel", true},
+	{"P", "colors of the panel and tab", true},
 	{"u", "scroll history", true},
 	{"x", "close", true},
 	{",", "config", false},
@@ -88,7 +90,7 @@ var arrowHeadings = map[string]layout.Heading{
 }
 
 // actionKeys are the noct mode commands that act, as opposed to moving around.
-var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "u", "x", ",", "c", "d", "q"}
+var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "P", "u", "x", ",", "c", "d", "q"}
 
 var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
 
@@ -138,6 +140,8 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 		a.handleSessionsKey(key)
 	case updatesMode:
 		a.handleUpdatesKey(key)
+	case colorsMode:
+		a.handleColorsKey(key)
 	default:
 		a.handleNormalKey(key)
 	}
@@ -282,6 +286,8 @@ func (a *App) runTabAction(name string) {
 	case "x":
 		a.closeFocused()
 		a.mode = normalMode
+	case "P":
+		a.openColors()
 	case "a":
 		if !a.currentTab().isEmpty() {
 			a.mode = moveMode

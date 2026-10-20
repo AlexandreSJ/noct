@@ -83,6 +83,7 @@ No modo noct:
 | `g` | floating panel | Terminal num painel flutuante | termina | 1 |
 | `r` | rename tab | Renomear a tab: `Enter` salva, `Esc` cancela | prompt | 0 |
 | `e` | rename panel | Renomear o painel com foco; vazio volta ao nome do programa | prompt | 2 |
+| `P` | colors of the panel and tab | Cores próprias do painel com foco (bordas, títulos, fundo e texto) e da tab dele (nome e fundo, ativa e inativa), por cima do tema da sessão, com o palco ao lado e um aviso de contraste baixo; `Alt+Shift+P` com o atalho direto em `alt` (ADR-051) | popup | 5 |
 | `x` | close | Fechar o painel; a tab fecha junto com o último | termina | 0 |
 | `,` | config | Abrir o config (antes `c`; ADR-047) | config | 0 |
 | `c` | updates and changelog | Popup das atualizações: o que há de novo e o changelog de cada versão; ver [Atualizações](#atualizações) | atualizações | 5 |
@@ -227,7 +228,7 @@ Nada é instalado nem reiniciado sem uma tecla do usuário. Sem reiniciar, a ver
 ## Estética
 
 - Tema definido por tokens (fundo, superfície, texto, acento, sucesso, erro, aviso) em `config.toml`; um tema escuro padrão com identidade própria e um claro.
-- Bordas retas e discretas; o painel com foco destacado pela cor de acento.
+- Bordas retas e discretas; o painel com foco destacado pela cor de acento. Um painel ou uma tab podem ter cores próprias (`prefixo` + `P`), que ficam na sessão; o fundo próprio de um painel funciona como o `background = theme`, só nele (ADR-051).
 - Home com o título `noct` em blocos (cor de destaque) e o corvo de `internal/app/raven2.ascii` na cor das dicas, centralizados; o `raven.ascii` original, maior, fica na raiz do repositório.
 - Suporte a truecolor com fallback para 256 cores.
 - Em toda lista (config e binds, busca, scripts, logs, fluxos do inspect, sessões, MCP, escolhas), `PgUp`/`PgDn` andam uma página, deixando a última linha da página anterior à vista, e `Home`/`End` vão ao primeiro e ao último item (`listJump`); no popup de um passo, rolam o texto. Nos logs, com o calendário em foco, `PgUp`/`PgDn` mudam o mês.
