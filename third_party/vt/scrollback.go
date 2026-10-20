@@ -32,6 +32,9 @@ func (s *Scrollback) Push(line uv.Line) {
 	if s == nil || s.maxLines <= 0 {
 		return
 	}
+	// noct: a line of a narrowed terminal keeps its end in its capacity (uv.Buffer.Resize); the
+	// history keeps it too, so widening shows the line whole there as well.
+	line = line[:cap(line)]
 
 	// Find last non-empty cell to trim trailing empty cells.
 	// This helps with wrapping and window resizing.

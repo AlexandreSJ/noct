@@ -48,7 +48,7 @@ the shortcut is `Alt` by default. How to write an entry is in
 ### Fixed
 
 - Making the terminal narrower no longer loses the end of the lines in a pane: widening it again
-  shows the text that did not fit, such as logs and values still to read.
+  shows the text that did not fit, such as logs and values still to read, in the history too.
 - A line with an emoji such as `➡️` keeps the pane's right border in place. In terminals that
   draw it one column wide, the rest of that line used to move one column left.
 

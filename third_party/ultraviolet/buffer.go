@@ -556,6 +556,7 @@ func (b *Buffer) DeleteLineArea(y, n int, c *Cell, area Rectangle) {
 			for x := area.Min.X; x < area.Max.X; x++ {
 				b.SetCell(x, i, c)
 			}
+			b.clearHiddenEnd(i) // a reused line brings no hidden end of the one it was
 		}
 		return
 	}

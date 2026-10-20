@@ -59,3 +59,33 @@ func TestWideningPastTheOldWidthIsBlank(t *testing.T) {
 		}
 	}
 }
+
+// noct: a line that scrolls into the history while the terminal is narrow keeps its hidden end,
+// so widening shows it whole there too.
+func TestALineScrolledAwayWhileNarrowKeepsItsEnd(t *testing.T) {
+	term := newTestTerminal(t, 30, 2)
+	_, _ = term.Write([]byte("value: 1234567890 tail\r\nsecond"))
+	term.Resize(8, 2)
+	_, _ = term.Write([]byte("\r\nthird"))
+	term.Resize(30, 2)
+	sb := term.Scrollback()
+	if sb.Len() != 1 {
+		t.Fatalf("the history has %d lines, want 1", sb.Len())
+	}
+	if got := strings.TrimRight(sb.Line(0).String(), " "); got != "value: 1234567890 tail" {
+		t.Errorf("the history keeps %q", got)
+	}
+}
+
+// noct: the line a scroll brings in at the bottom is new: nothing of the line it reuses shows
+// when the terminal widens.
+func TestALineScrolledInWhileNarrowIsBlankWhenWider(t *testing.T) {
+	term := newTestTerminal(t, 30, 2)
+	_, _ = term.Write([]byte("value: 1234567890 tail\r\nsecond"))
+	term.Resize(8, 2)
+	_, _ = term.Write([]byte("\r\n"))
+	term.Resize(30, 2)
+	if got := row(term, 1); got != "" {
+		t.Errorf("the new bottom row shows %q after widening", got)
+	}
+}
