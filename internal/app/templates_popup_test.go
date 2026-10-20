@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -192,5 +193,50 @@ func TestALongListOfTemplatesScrolls(t *testing.T) {
 	}
 	if text := screenText(a); !strings.Contains(text, "t39") {
 		t.Errorf("the selected template is not shown:\n%s", text)
+	}
+}
+
+func TestTheTemplatesPanesStartInTheirOrder(t *testing.T) {
+	dir := templatesFolder(t)
+	writeTemplate(t, dir, "dev", devTemplate)
+	a := testApp(t)
+	l := recordLaunches(a)
+	a.openTemplates()
+	press(a, enterPress)
+	tb := a.currentTab()
+	for i, id := range tb.tree.Panes() {
+		if tb.views[id] != l.views[i] {
+			t.Fatalf("pane %d of the layout started as program %d", i, slices.Index(l.views, tb.views[id].(*fakeView)))
+		}
+	}
+}
+
+func TestATemplateThatCannotBeReadIsListedToFix(t *testing.T) {
+	dir := templatesFolder(t)
+	writeTemplate(t, dir, "broken", "panes: [")
+	a := testApp(t)
+	a.config.Editor = "sh"
+	l := recordLaunches(a)
+	a.openTemplates()
+	if len(a.templates.list) != 1 {
+		t.Fatalf("listed %v, want the broken one", a.templates.list)
+	}
+	if text := screenText(a); !strings.Contains(text, "broken") {
+		t.Errorf("the popup does not show the broken template:\n%s", text)
+	}
+	a.statusMessage = ""
+	press(a, enterPress)
+	if len(a.session.tabs) != 0 || a.statusMessage == "" {
+		t.Errorf("enter opened %d tabs with message %q, want the problem", len(a.session.tabs), a.statusMessage)
+	}
+	a.openTemplates()
+	press(a, letter('e'))
+	if argv := l.last(t).argv; argv[len(argv)-1] != filepath.Join(dir, "broken.yaml") {
+		t.Errorf("the editor got %v", argv)
+	}
+	a.openTemplates()
+	press(a, letter('d'), enterPress)
+	if _, err := os.Stat(filepath.Join(dir, "broken.yaml")); err == nil {
+		t.Error("d did not delete the broken template")
 	}
 }

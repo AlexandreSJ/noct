@@ -50,7 +50,7 @@ panes:
         colors: { panels.focused_border: "#f7768e" }
 ```
 
-O layout no arquivo é legível (`columns`/`rows` aninhados), não o `layout.Shape` interno.
+O layout no arquivo é legível (`columns`/`rows` aninhados), não o `layout.Shape` interno. Um grupo com `stacked: true` é uma pilha, e `shown` diz qual painel dela aparece inteiro (a posição, a partir de 0). Um campo desconhecido é erro, para um erro de digitação não sumir em silêncio; um template que não se lê fica na lista, com o erro, para `e` consertá-lo ou `d` apagá-lo.
 
 Só os templates do usuário, por enquanto. Templates num repositório (`.noct/templates/`) trariam por `git pull` comandos com `start: run` de outra pessoa; ver [polimento.md](polimento.md#depois).
 

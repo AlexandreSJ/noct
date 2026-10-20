@@ -3,8 +3,10 @@
 package templates
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -49,10 +51,12 @@ type Template struct {
 }
 
 // Node is a pane, or a group of nodes side by side (Columns) or one under the other (Rows).
-// Share is the part of its group it takes, 0 for an even split.
+// Share is the part of its group it takes, 0 for an even split. Shown is the child a stacked
+// group shows whole.
 type Node struct {
 	Columns, Rows []Node
 	Stacked       bool
+	Shown         int
 	Share         float64
 	Pane          *Pane
 }
@@ -70,8 +74,12 @@ func FromShape(s layout.Shape, panes map[layout.PaneID]Pane) Node {
 		return Node{Pane: &p, Share: s.Share}
 	}
 	var kept []Node
-	for _, child := range s.Children {
+	shown := 0
+	for i, child := range s.Children {
 		if n := FromShape(child, panes); n.Pane != nil || len(n.children()) > 0 {
+			if i == s.Shown {
+				shown = len(kept)
+			}
 			kept = append(kept, n)
 		}
 	}
@@ -82,18 +90,34 @@ func FromShape(s layout.Shape, panes map[layout.PaneID]Pane) Node {
 		kept[0].Share = s.Share
 		return kept[0]
 	}
-	if len(kept) < len(s.Children) || even(kept) {
+	if len(kept) < len(s.Children) {
+		spread(kept) // the layout closed over a pane: the others keep their parts of the rest
+	}
+	if even(kept) {
 		for i := range kept {
-			kept[i].Share = 0 // the layout closed over a pane, or splits evenly: split evenly
+			kept[i].Share = 0
 		}
 	}
-	n := Node{Stacked: s.Stacked, Share: s.Share}
+	n := Node{Stacked: s.Stacked, Shown: shown, Share: s.Share}
 	if s.Direction == layout.SideBySide {
 		n.Columns = kept
 	} else {
 		n.Rows = kept
 	}
 	return n
+}
+
+// spread makes the nodes' shares add up to the whole again, keeping how they compare.
+func spread(nodes []Node) {
+	total := 0.0
+	for _, n := range nodes {
+		total += n.Share
+	}
+	for i := range nodes {
+		if total > 0 {
+			nodes[i].Share /= total
+		}
+	}
 }
 
 func even(nodes []Node) bool {
@@ -116,7 +140,7 @@ func (n Node) Shape(newID func() layout.PaneID) (layout.Shape, map[layout.PaneID
 			panes[id] = *n.Pane
 			return layout.Shape{Pane: id, Share: n.Share}
 		}
-		s := layout.Shape{Direction: layout.SideBySide, Stacked: n.Stacked, Share: n.Share}
+		s := layout.Shape{Direction: layout.SideBySide, Stacked: n.Stacked, Shown: n.Shown, Share: n.Share}
 		if n.Rows != nil {
 			s.Direction = layout.Stacked
 		}
@@ -143,8 +167,8 @@ func (n *Node) UnmarshalYAML(value *yaml.Node) error {
 			if n.Pane != nil {
 				return fmt.Errorf("line %d: one pane per item", v.Line)
 			}
-			var fields struct{ Name, Run, Start string }
-			err = v.Decode(&fields)
+			var fields paneFields
+			err = fields.decode(v)
 			n.Pane = &Pane{Kind: key, Name: fields.Name, Command: fields.Run, Start: Start(fields.Start)}
 		case key == "columns":
 			err = v.Decode(&n.Columns)
@@ -156,13 +180,15 @@ func (n *Node) UnmarshalYAML(value *yaml.Node) error {
 			err = v.Decode(&n.Share)
 		case key == "stacked":
 			err = v.Decode(&n.Stacked)
+		case key == "shown":
+			err = v.Decode(&n.Shown)
 		default:
 			// a pane noct does not know, as from a newer noct: the app leaves it out and says so
 			if n.Pane != nil {
 				return fmt.Errorf("line %d: one pane per item", v.Line)
 			}
-			var fields struct{ Name, Run, Start string }
-			err = v.Decode(&fields)
+			var fields paneFields
+			err = v.Decode(&fields) // a newer noct may have fields this one does not know
 			n.Pane = &Pane{Kind: key, Name: fields.Name, Command: fields.Run, Start: Start(fields.Start)}
 		}
 		if err != nil {
@@ -170,6 +196,19 @@ func (n *Node) UnmarshalYAML(value *yaml.Node) error {
 		}
 	}
 	return n.check(colors, value.Line)
+}
+
+// paneFields are what a pane says about itself: {name, run, start}.
+type paneFields struct{ Name, Run, Start string }
+
+// decode reads the fields, refusing one it does not know, which is most likely misspelled.
+func (f *paneFields) decode(v *yaml.Node) error {
+	for i := 0; v.Kind == yaml.MappingNode && i < len(v.Content); i += 2 {
+		if key := v.Content[i]; key.Value != "name" && key.Value != "run" && key.Value != "start" {
+			return fmt.Errorf("line %d: a pane has name, run and start, not %s", key.Line, key.Value)
+		}
+	}
+	return v.Decode(f)
 }
 
 // check makes the node one thing, a pane or a group, and gives a pane its start.
@@ -189,10 +228,12 @@ func (n *Node) check(colors map[string]string, line int) error {
 		return fmt.Errorf("line %d: colors belong to a pane", line)
 	}
 	if n.Pane == nil {
-		switch children := n.children(); len(children) {
-		case 0:
+		switch children := n.children(); {
+		case n.Shown < 0 || n.Shown > 0 && n.Shown >= len(children):
+			return fmt.Errorf("line %d: shown is the place of a pane in the group, from 0", line)
+		case len(children) == 0:
 			return fmt.Errorf("line %d: an empty group", line)
-		case 1:
+		case len(children) == 1:
 			share := n.Share
 			*n = children[0] // a group of one is that one
 			n.Share = share
@@ -219,7 +260,8 @@ func (n Node) MarshalYAML() (any, error) {
 	add := func(key string, value *yaml.Node) {
 		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: key}, value)
 	}
-	scalar := func(v string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Value: v} }
+	// the tag quotes a text that would read back as something else, such as null or ~
+	scalar := func(v string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: v} }
 	if p := n.Pane; p != nil {
 		fields := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
 		for _, f := range [][2]string{{"name", p.Name}, {"run", p.Command}, {"start", string(p.Start)}} {
@@ -252,6 +294,9 @@ func (n Node) MarshalYAML() (any, error) {
 	if n.Stacked {
 		add("stacked", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"})
 	}
+	if n.Shown != 0 {
+		add("shown", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: fmt.Sprint(n.Shown)})
+	}
 	return node, nil
 }
 
@@ -274,6 +319,7 @@ type file struct {
 	Colors  map[string]string `yaml:"colors,omitempty"`
 	Layout  string            `yaml:"layout,omitempty"`
 	Stacked bool              `yaml:"stacked,omitempty"`
+	Shown   int               `yaml:"shown,omitempty"`
 	Panes   []Node            `yaml:"panes"`
 }
 
@@ -285,10 +331,12 @@ func (f file) template(name string) (Template, error) {
 	case len(f.Panes) == 1:
 		t.Root = f.Panes[0]
 		t.Root.Share = 0
+	case f.Shown < 0 || f.Shown >= len(f.Panes):
+		return t, errors.New("shown is the place of a pane in panes, from 0")
 	case f.Layout == "" || f.Layout == "columns":
-		t.Root = Node{Columns: f.Panes, Stacked: f.Stacked}
+		t.Root = Node{Columns: f.Panes, Stacked: f.Stacked, Shown: f.Shown}
 	case f.Layout == "rows":
-		t.Root = Node{Rows: f.Panes, Stacked: f.Stacked}
+		t.Root = Node{Rows: f.Panes, Stacked: f.Stacked, Shown: f.Shown}
 	default:
 		return t, fmt.Errorf("layout is columns or rows, not %s", f.Layout)
 	}
@@ -301,9 +349,9 @@ func fileOf(t Template) file {
 	case t.Root.Pane != nil:
 		f.Panes = []Node{t.Root}
 	case t.Root.Rows != nil:
-		f.Layout, f.Stacked, f.Panes = "rows", t.Root.Stacked, t.Root.Rows
+		f.Layout, f.Stacked, f.Shown, f.Panes = "rows", t.Root.Stacked, t.Root.Shown, t.Root.Rows
 	default:
-		f.Layout, f.Stacked, f.Panes = "columns", t.Root.Stacked, t.Root.Columns
+		f.Layout, f.Stacked, f.Shown, f.Panes = "columns", t.Root.Stacked, t.Root.Shown, t.Root.Columns
 	}
 	return f
 }
@@ -326,7 +374,9 @@ func Load(dir, name string) (Template, error) {
 		return Template{}, err
 	}
 	var f file
-	if err := yaml.Unmarshal(content, &f); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(content))
+	decoder.KnownFields(true) // a misspelled field is told, not left out
+	if err := decoder.Decode(&f); err != nil && !errors.Is(err, io.EOF) {
 		return Template{}, fmt.Errorf("template %s.yaml: %w", name, err)
 	}
 	t, err := f.template(name)
@@ -336,24 +386,41 @@ func Load(dir, name string) (Template, error) {
 	return t, nil
 }
 
-// LoadAll reads every template in dir, by name. One that cannot be read is left out, with an
-// error naming its file; a missing folder has none.
-func LoadAll(dir string) ([]Template, []error) {
+// Entry is a template file: its template, or Err when it cannot be read.
+type Entry struct {
+	Name     string
+	Template Template
+	Err      error
+}
+
+// List reads every template file in dir, by name, the ones that cannot be read too, so they
+// can be fixed or deleted. A missing folder has none.
+func List(dir string) []Entry {
 	paths, _ := filepath.Glob(filepath.Join(dir, "*.yaml"))
 	sort.Strings(paths)
-	var templates []Template
-	var errs []error
+	var entries []Entry
 	for _, p := range paths {
 		name := strings.TrimSuffix(filepath.Base(p), ".yaml")
 		if CheckName(name) != nil {
 			continue // not a name noct gives, such as a file being written
 		}
 		t, err := Load(dir, name)
-		if err != nil {
-			errs = append(errs, err)
+		entries = append(entries, Entry{Name: name, Template: t, Err: err})
+	}
+	return entries
+}
+
+// LoadAll reads every template in dir, by name. One that cannot be read is left out, with an
+// error naming its file.
+func LoadAll(dir string) ([]Template, []error) {
+	var templates []Template
+	var errs []error
+	for _, e := range List(dir) {
+		if e.Err != nil {
+			errs = append(errs, e.Err)
 			continue
 		}
-		templates = append(templates, t)
+		templates = append(templates, e.Template)
 	}
 	return templates, errs
 }
@@ -377,7 +444,7 @@ func Delete(dir, name string) error { return os.Remove(path(dir, name)) }
 
 // Rename gives a template another name, never over one that exists.
 func Rename(dir, from, to string) error {
-	if err := CheckName(to); err != nil {
+	if err := CheckName(to); err != nil || from == to {
 		return err
 	}
 	if _, err := os.Stat(path(dir, to)); err == nil {

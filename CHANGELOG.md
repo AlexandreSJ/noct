@@ -20,7 +20,9 @@ the shortcut is `Alt` by default. How to write an entry is in
   never resized during one.
 - Tab templates. `prefix` + `R` saves the tab's layout, names and colors as a template, and for
   each terminal whether its command runs when the template opens, asks first, or does not run.
-  `prefix` + `T` opens a template as a new tab, picked from a list that shows its layout.
+  `prefix` + `T` opens a template as a new tab, picked from a list that shows its layout. With
+  the direct shortcut on `alt`, `Alt+Shift+R` and `Alt+Shift+T` do the same. A template that
+  cannot be read stays in the list with its problem, to edit or delete.
 - `prefix` + `P` gives the focused panel and its tab colors of their own: the panel's borders,
   titles, background and text, and the tab's name and background. They stay with the session,
   and a warning tells when text gets hard to read. With the direct shortcut on `alt`,

@@ -206,3 +206,68 @@ func TestAnUnknownPaneKindStaysForTheAppToLeaveOut(t *testing.T) {
 		t.Errorf("loaded %+v, %v", tpl.Root, err)
 	}
 }
+
+func TestTheSharesLeftAreKeptWhenAPaneIsLeftOut(t *testing.T) {
+	shape := layout.Shape{Direction: layout.SideBySide, Children: []layout.Shape{{Pane: 1, Share: 0.6}, {Pane: 2, Share: 0.2}, {Pane: 3, Share: 0.2}}}
+	node := FromShape(shape, map[layout.PaneID]Pane{1: {Kind: "logs"}, 2: {Kind: "logs"}})
+	if math.Abs(node.Columns[0].Share-0.75) > 0.001 || math.Abs(node.Columns[1].Share-0.25) > 0.001 {
+		t.Errorf("shares %v and %v, want 0.75 and 0.25", node.Columns[0].Share, node.Columns[1].Share)
+	}
+}
+
+func TestAStackKeepsThePaneItShows(t *testing.T) {
+	dir := t.TempDir()
+	shape := layout.Shape{Direction: layout.Stacked, Stacked: true, Shown: 2, Children: []layout.Shape{{Pane: 1}, {Pane: 2}, {Pane: 3}}}
+	tpl := Template{Name: "s", Root: FromShape(shape, map[layout.PaneID]Pane{1: {Kind: "logs"}, 3: {Kind: "scripts"}})}
+	if err := Save(dir, tpl); err != nil {
+		t.Fatal(err)
+	}
+	again, err := Load(dir, "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := layout.PaneID(0)
+	back, panes := again.Root.Shape(func() layout.PaneID { next++; return next })
+	if !back.Stacked || panes[back.Children[back.Shown].Pane].Kind != "scripts" {
+		t.Errorf("the stack shows %d of %+v, want the scripts", back.Shown, back)
+	}
+}
+
+func TestTextsThatLookLikeOtherValuesComeBackAsTheyWere(t *testing.T) {
+	dir := t.TempDir()
+	tpl := Template{Name: "x", Tab: "null", Root: Node{Pane: &Pane{Kind: "terminal", Name: "~", Command: "true", Start: Run}}}
+	if err := Save(dir, tpl); err != nil {
+		t.Fatal(err)
+	}
+	again, err := Load(dir, "x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Tab != "null" || again.Root.Pane.Name != "~" || again.Root.Pane.Command != "true" {
+		t.Errorf("read back tab %q, pane %+v", again.Tab, *again.Root.Pane)
+	}
+}
+
+func TestAMisspelledFieldIsAProblem(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "pane", "panes:\n  - terminal: { name: x, comand: ls }\n")
+	write(t, dir, "top", "nmae: dev\npanes:\n  - logs: {}\n")
+	for _, name := range []string{"pane", "top"} {
+		if _, err := Load(dir, name); err == nil {
+			t.Errorf("%s: a misspelled field was taken", name)
+		}
+	}
+}
+
+func TestRenamingToTheSameNameDoesNothing(t *testing.T) {
+	dir := t.TempDir()
+	if err := Save(dir, Template{Name: "a", Root: Node{Pane: &Pane{Kind: "logs"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Rename(dir, "a", "a"); err != nil {
+		t.Errorf("renaming a to a: %v", err)
+	}
+	if _, err := Load(dir, "a"); err != nil {
+		t.Error(err)
+	}
+}

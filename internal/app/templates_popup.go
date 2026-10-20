@@ -21,7 +21,7 @@ const templatesListWidth = 30
 
 // templatesPopup is the popup of prefix + T: the templates, and the layout of the selected one.
 type templatesPopup struct {
-	list     []templates.Template
+	list     []templates.Entry
 	selected int
 	// first is the first template shown when the list does not fit.
 	first int
@@ -33,10 +33,7 @@ func (a *App) openTemplates() {
 		a.statusMessage = err.Error()
 		return
 	}
-	list, errs := templates.LoadAll(dir)
-	if len(errs) > 0 {
-		a.statusMessage = errs[0].Error()
-	}
+	list := templates.List(dir)
 	a.templates = templatesPopup{list: list, selected: min(a.templates.selected, max(len(list)-1, 0))}
 	a.mode = templatesMode
 }
@@ -109,7 +106,8 @@ func (a *App) openTemplate(t templates.Template) error {
 	tb.tree, tb.name, tb.colors = tree, t.Tab, colorSetFrom(t.Colors)
 	area := a.workspaceArea()
 	var problems []error
-	for id, p := range panes {
+	for _, id := range tree.Panes() {
+		p := panes[id]
 		v, err := a.startTemplatePane(id, area, p, dir)
 		if err != nil {
 			problems = append(problems, err)
@@ -196,18 +194,33 @@ func (a *App) drawTemplates(screen uv.Screen) {
 	rows := max(list.Dy()-2, 1)
 	p.first = listFirst(p.first, p.selected, len(p.list), rows)
 	for i := p.first; i < len(p.list) && i-p.first < rows; i++ {
-		t := p.list[i]
+		e := p.list[i]
 		y := list.Min.Y + i - p.first
-		style := a.palette.panelText
+		style, value := a.palette.panelText, ""
+		if e.Err != nil {
+			style, value = a.palette.panelMuted, "cannot read"
+		}
 		if i == p.selected {
 			style = a.palette.selectedRow
 		}
-		drawRow(screen, list, y, t.Name, "", style)
+		drawRow(screen, list, y, e.Name, value, style)
 	}
 	for y := inner.Min.Y; y < inner.Max.Y-2; y++ {
 		setRune(screen, list.Max.X, y, "│", a.palette.unfocusedFrame)
 	}
-	t := p.list[p.selected]
+	stage := image.Rect(list.Max.X+2, inner.Min.Y, inner.Max.X, inner.Max.Y-2)
+	if selected := p.list[p.selected]; selected.Err != nil {
+		for i, line := range wrapText(selected.Err.Error(), max(stage.Dx(), 1)) {
+			drawText(screen, stage.Min.X, stage.Min.Y+i, stage.Max.X, line, a.palette.status)
+		}
+	} else {
+		a.drawTemplateLayout(screen, stage, selected.Template)
+	}
+	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("prompt", templatesHints), a.palette.panelMuted)
+}
+
+// drawTemplateLayout draws t's layout in area, each pane with its name, or its kind, and colors.
+func (a *App) drawTemplateLayout(screen uv.Screen, area image.Rectangle, t templates.Template) {
 	next := layout.PaneID(0)
 	shape, panes := t.Root.Shape(func() layout.PaneID { next++; return next })
 	names, colors := map[layout.PaneID]string{}, map[layout.PaneID]colorSet{}
@@ -218,6 +231,5 @@ func (a *App) drawTemplates(screen uv.Screen) {
 		}
 		colors[id] = colorSetFrom(pane.Colors)
 	}
-	drawLayoutStage(screen, image.Rect(list.Max.X+2, inner.Min.Y, inner.Max.X, inner.Max.Y-2), &a.palette, shape, names, colors)
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("prompt", templatesHints), a.palette.panelMuted)
+	drawLayoutStage(screen, area, &a.palette, shape, names, colors)
 }
