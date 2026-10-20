@@ -32,6 +32,7 @@ const (
 	updatesMode                  // new versions of noct and the changelog
 	colorsMode                   // the focused pane's and its tab's own colors
 	templateSaveMode             // saving the tab as a template
+	templatesMode                // the templates, to open one as a new tab
 )
 
 // shortcut is one command as listed in the popups and on the home screen.
@@ -47,6 +48,7 @@ var commandShortcuts = []shortcut{
 	{"tab", "change", true},
 	{"1-9", "go to tab", true},
 	{"t", "new tab", false},
+	{"T", "open a template", false},
 	{"p", "new panel", false},
 	{"s", "scripts panel", false},
 	{"i", "inspect flows", false},
@@ -92,7 +94,7 @@ var arrowHeadings = map[string]layout.Heading{
 }
 
 // actionKeys are the noct mode commands that act, as opposed to moving around.
-var actionKeys = []string{"t", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "P", "R", "u", "x", ",", "c", "d", "q"}
+var actionKeys = []string{"t", "T", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "P", "R", "u", "x", ",", "c", "d", "q"}
 
 var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
 
@@ -146,6 +148,8 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 		a.handleColorsKey(key)
 	case templateSaveMode:
 		a.handleTemplateSaveKey(key)
+	case templatesMode:
+		a.handleTemplatesKey(key)
 	default:
 		a.handleNormalKey(key)
 	}
@@ -254,6 +258,9 @@ func (a *App) runAction(name string) {
 		return
 	case "space":
 		a.openFinder()
+		return
+	case "T":
+		a.openTemplates()
 		return
 	case "y":
 		a.openMCP()

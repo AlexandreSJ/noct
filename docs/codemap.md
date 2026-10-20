@@ -104,6 +104,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/color_picker.go` | The color picker: the grid of the terminal's 256 colors, scrolled to the selection, and a typed #rrggbb |
 | `internal/app/colorset.go` | A pane's or a tab's own colors over the session's theme: saved by the theme file's keys, and the palette a pane or a tab draws with |
 | `internal/app/colors_popup.go` | The popup of prefix + P: the focused pane's and its tab's own colors, with the stage and the contrast warning |
+| `internal/app/template_save.go` | The popup of prefix + R: the tab as a template, with how each terminal's command starts |
+| `internal/app/templates_popup.go` | The popup of prefix + T: the templates with the layout of the selected one, opening one as a tab, and edit, rename and delete |
 | `internal/app/stage.go` | The stage: a small made-up workspace with a bit of everything a theme colors, to preview themes in place |
 | `internal/kittygfx/command.go` | Parse and encode kitty graphics commands |
 | `internal/kittygfx/stream.go` | Split graphics commands out of program output, across reads |

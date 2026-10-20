@@ -37,6 +37,7 @@ var keyContexts = []keyContext{
 		{"next-tab", "next tab", []string{"tab"}},
 		{"previous-tab", "previous tab", []string{"shift+tab"}},
 		{"new-tab", "new tab", []string{"t"}},
+		{"templates", "open a template", []string{"T", "shift+t"}},
 		{"new-panel", "new panel", []string{"p"}},
 		{"scripts", "scripts panel", []string{"s"}},
 		{"flows", "inspect flows", []string{"i"}},

@@ -97,6 +97,8 @@ type App struct {
 	colors colorsPopup
 	// templateSave is the popup that saves the tab as a template.
 	templateSave templateSave
+	// templates is the popup that opens a template as a new tab.
+	templates templatesPopup
 	// stageTick ends a component's blink on the theme editor's stage.
 	stageTick <-chan time.Time
 

@@ -35,7 +35,7 @@
 - Cada painel tem título (definido pelo programa, ou o nome do shell) e, no futuro, indicador de estado: rodando, terminou ok, falhou, atividade não vista. Painéis de script já mostram `●`, `✓` ou `✗ <código>`.
 - Rolagem do histórico com `prefixo` + `u` (ou `Alt+U`) ou com a roda do mouse; a posição aparece no título do painel (`↑ 120/2000`), e rolar de volta até o fim com a roda volta ao vivo. Busca e cópia no histórico ficam para depois.
 - Durante a rolagem, o prefixo, os atalhos diretos e um clique em outro painel encerram a rolagem e funcionam como sempre: dá para trocar de painel sem voltar ao fim antes.
-- Layouts nomeados podem ser salvos e reabertos (ex.: "claude à esquerda, shell à direita, logs embaixo").
+- **Templates** (ADR-052, [templates.md](templates.md)): `prefixo` + `R` grava a tab como template (layout, tipos e nomes dos painéis, cores, e em cada terminal o comando com `run`, `ask` ou `none`), e `prefixo` + `T` abre um template como tab nova, escolhido numa lista com a miniatura do layout; os terminais abrem no diretório que um terminal novo teria.
 
 - Fechar um painel devolve o foco ao painel usado antes dele, como no i3: rodar um script (que abre à direita) e fechar a execução volta para o scripts panel, não para o primeiro painel da tab. Num stack, o foco fica no stack: vai para o painel que ele mostra no lugar do que fechou, mesmo que o painel usado antes esteja em outra coluna, tanto com `prefixo` + `x` quanto quando o programa termina (`Ctrl+D`).
 - `prefixo` + `n` liga o modo resize: `→`/`↓` aumentam o painel com foco e `←`/`↑` diminuem, movendo a borda com o vizinho (ou, se ele é o último do grupo, com o anterior); `Esc` ou `Enter` terminam.
@@ -72,6 +72,8 @@ No modo noct:
 | `Tab` / `Shift+Tab` | tab: change | Próxima tab / tab anterior (circular) | continua | 0 |
 | `1`–`9` | go to tab | Ir para a tab N | continua | 0 |
 | `t` | new tab | Nova tab com o painel escolhido no config (terminal por padrão; ou vazia, ADR-039) | termina | 0 |
+| `T` | open a template | Lista dos templates com a miniatura do layout: `Enter` abre como tab nova, `e` edita o arquivo, `r` renomeia, `d` apaga (ADR-052) | popup | 5 |
+| `R` | save the tab as a template | Grava a tab como template: nome, e em cada terminal com comando `◂ ask ▸` (`run`, `ask`, `none`); um nome que existe pergunta antes | popup | 5 |
 | `p` | new panel | Painel de terminal: divide o painel com foco; na home, abre uma tab | termina | 0 |
 | `s` | scripts panel | Scripts panel, do mesmo jeito que `p` | termina | 0 |
 | `i` | inspect flows | Inspect: fluxos e o fluxograma, do mesmo jeito que `p` | termina | 2 |

@@ -1,6 +1,6 @@
 # Templates de tab
 
-**Estado: decidido, não implementado** (passo 4 de [polimento.md](polimento.md)).
+**Estado:** implementado (ADR-052).
 
 Um template é **uma tab** gravada para abrir de novo: o layout, o tipo e o nome de cada painel, as cores do painel e da tab ([temas.md](temas.md#cores-por-painel-e-por-tab)) e, em cada terminal, o comando e como ele começa. É o "layouts nomeados podem ser salvos e reabertos" de [tui.md](tui.md).
 

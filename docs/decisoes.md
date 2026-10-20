@@ -671,3 +671,15 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Com o atalho direto em `ctrl`, não há atalho para `P`: na codificação legada `Ctrl+Shift+P` chega como `Ctrl+P` (ADR-012). Os templates gravam as mesmas cores (ADR-052).
 
+## ADR-052 — Templates de tab
+
+**Contexto.** O mantenedor quer montar uma tab uma vez (layout, painéis, cores, programas) e abri-la de novo onde quiser, escolhendo por painel se o comando roda na hora (um `fastfetch`) ou pergunta antes (um `claude`). Era o item "layouts nomeados" de [tui.md](tui.md). É polimento da fase 5, antecipado pelo mantenedor.
+
+**Decisão.**
+- **Um template é uma tab**, num arquivo YAML em `~/.config/noct/templates/<nome>.yaml` (pacote `templates`): o nome da tab, as cores dela, e o layout como `columns`/`rows` aninhados, com `share` só quando a divisão não é igual e `stacked` para pilhas. Cada painel é `terminal`, `scripts`, `inspect` ou `logs`, com `name`, cores e, num terminal, `run` e `start`. As cores usam as chaves do arquivo de tema, como na sessão.
+- **Gravar (`prefixo` + `R`)** monta o template a partir da tab, como a sessão faz: execuções, editores, ajuda e painéis flutuantes ficam de fora, e o layout se fecha sobre eles. Cada terminal com comando escolhe `run`, `ask` (padrão) ou `none`. Um nome que existe pergunta antes de sobrescrever.
+- **Abrir (`prefixo` + `T`)** lista os templates com a miniatura do layout, nas cores salvas, e abre uma tab nova no fim, com o foco no primeiro painel. Os terminais abrem no diretório que um terminal novo teria (ADR-048). `run` digita o comando no shell; `ask` o oferece na caixa `run?` (ADR-046). Um comando com quebra de linha não é digitado nem oferecido, e um painel que não abre fica de fora, com a mensagem. O arquivo é relido no `Enter`.
+- `e` edita o arquivo no editor do config, `r` renomeia (sem sobrescrever) e `d` apaga, com confirmação.
+
+**Consequências.** Templates de um projeto (vindos por `git pull`) e sessões a partir de templates ficam para depois: com `run`, um template de outra pessoa rodaria comandos ao abrir. Os diretórios de cada terminal não são gravados.
+

@@ -7,7 +7,7 @@ O que vem da fase 5 do [roadmap](roadmap.md), na ordem combinada com o mantenedo
 | 1 | Terminal novo no diretório do painel com foco | [tui.md](tui.md#tabs-e-painéis), ADR-048 | Feito |
 | 2 | Temas editáveis no noct e tema por sessão | [temas.md](temas.md), ADR-049, ADR-050 | Feito |
 | 3 | Cores por painel e por tab | [temas.md](temas.md#cores-por-painel-e-por-tab), ADR-051 | Feito |
-| 4 | Templates de tab | [templates.md](templates.md) | Decidido |
+| 4 | Templates de tab | [templates.md](templates.md), ADR-052 | Feito |
 | 5 | Animações por momento, com prévia | [animacoes.md](animacoes.md) | Decidido |
 
 O palco (a mini-workspace de prévia) nasce no passo 2 e é reutilizado nos passos 4 e 5.
