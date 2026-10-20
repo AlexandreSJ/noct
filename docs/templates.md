@@ -40,14 +40,14 @@ Os terminais abrem no diretório que um terminal novo teria naquele momento ([po
 ```yaml
 name: dev                  # o nome da tab
 colors:
-  active_background: "#9ece6a"
+  tabs.active_background: "#9ece6a"   # chaves do arquivo de tema, como na sessão
 layout: columns            # lado a lado; rows = um embaixo do outro
 panes:
   - terminal: { name: info, run: fastfetch, start: run }
   - rows:
       - terminal: { run: claude, start: ask }
       - scripts: {}
-        colors: { focused_border: "#f7768e" }
+        colors: { panels.focused_border: "#f7768e" }
 ```
 
 O layout no arquivo é legível (`columns`/`rows` aninhados), não o `layout.Shape` interno.
