@@ -102,8 +102,12 @@ type App struct {
 	// animations are the ones running, animTick their next frame (nil when none runs), lastShot
 	// what the last frame showed and lastFrame its cells, which a pane closing animates.
 	animations []*animation
-	// hoverTarget is what the mouse is over, which hovering animates once per visit.
+	// hoverTarget is what the mouse is over, which hovering animates once per visit; quietMotion
+	// tells that the last motion changed nothing on screen, so it needs no frame.
 	hoverTarget string
+	quietMotion bool
+	// lastPopup is the popup the last frame drew, which closing it animates.
+	lastPopup drawnPopup
 	// activity marks, per pane, that output out of sight was told; unseen are the panes that
 	// pulsed and were not seen since.
 	activity map[layout.PaneID]*atomic.Bool
@@ -271,6 +275,9 @@ func (a *App) loop() error {
 			if err := a.handleEvent(event); err != nil {
 				return err
 			}
+			if a.quietMotion {
+				continue // the mouse moved over nothing that follows it
+			}
 		case c := <-a.connections:
 			a.handleConnection(c)
 		case commands := <-a.terminalGraphics:
@@ -395,6 +402,7 @@ func (a *App) dropClient() {
 }
 
 func (a *App) handleEvent(event uv.Event) error {
+	a.quietMotion = false
 	switch event := event.(type) {
 	case uv.CellSizeEvent:
 		a.cellPixels.Store(image.Pt(event.Width, event.Height))

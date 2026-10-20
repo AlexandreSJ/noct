@@ -384,3 +384,62 @@ func TestActivityOfTheFocusedPaneIsIgnored(t *testing.T) {
 		t.Error("the focused pane pulsed")
 	}
 }
+
+func TestClosingAPopupPlaysItBackwards(t *testing.T) {
+	a, _ := animatedApp(t)
+	a.openConfig()
+	drawnApp(a)
+	rewind(a, time.Second)
+	a.advanceAnimations(a.now())
+	drawnApp(a)
+	a.closeConfig()
+	drawnApp(a)
+	closing := animationOf(a, momentPopup)
+	if closing == nil || !closing.closing {
+		t.Fatalf("animations %v after closing a popup", a.animations)
+	}
+	if text := screenText(a); !strings.ContainsAny(text, jitterRunes) && !strings.Contains(text, "Appearance") {
+		t.Errorf("the closing popup does not show:\n%s", text)
+	}
+	rewind(a, time.Second)
+	a.advanceAnimations(a.now())
+	if text := screenText(a); strings.Contains(text, "Appearance") {
+		t.Errorf("the popup stays after its animation:\n%s", text)
+	}
+}
+
+func TestTheFrameIsKeptOnlyWhenAnimationsNeedIt(t *testing.T) {
+	a, _ := animatedApp(t)
+	if a.lastFrame == nil {
+		t.Fatal("the last frame is not kept, with panes and tabs animating as they close")
+	}
+	a.config.Appearance.Animations = config.AnimationsOff
+	drawnApp(a)
+	if a.lastFrame != nil {
+		t.Error("the last frame is copied with animations off")
+	}
+}
+
+func TestAMotionThatChangesNothingNeedsNoFrame(t *testing.T) {
+	a, _ := animatedApp(t)
+	middle := motion(a.size.X/2, a.size.Y/2)
+	a.handleMouse(middle)
+	if !a.quietMotion {
+		t.Error("a motion over a pane's content asks for a frame")
+	}
+	a.handleMouse(motion(1, 0))
+	if a.quietMotion {
+		t.Error("hovering a tab's name asks for no frame")
+	}
+}
+
+func TestAKeyAfterAQuietMotionGetsAFrame(t *testing.T) {
+	a, _ := animatedApp(t)
+	a.handleMouse(motion(a.size.X/2, a.size.Y/2))
+	if err := a.handleEvent(letter('x')); err != nil {
+		t.Fatal(err)
+	}
+	if a.quietMotion {
+		t.Error("a key after a motion over nothing would get no frame")
+	}
+}

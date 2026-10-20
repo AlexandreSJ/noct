@@ -164,8 +164,13 @@ func (a *App) startAnimations(prev, now shot, at time.Time) {
 			a.addAnimation(&an)
 		}
 	}
-	if now.mode != prev.mode && isPopupMode(now.mode) {
+	switch {
+	case now.mode == prev.mode:
+	case isPopupMode(now.mode):
 		start(momentPopup, animation{pane: popupPane, area: image.Rect(0, 0, a.size.X, a.size.Y)})
+	case isPopupMode(prev.mode) && !a.lastPopup.area.Empty():
+		box := a.lastPopup.area
+		start(momentPopup, animation{pane: popupPane, area: box, from: centerOf(box), closing: true, cells: a.lastPopup.cells, seed: int64(box.Min.X)})
 	}
 	area := a.workspaceArea()
 	switch {
@@ -232,19 +237,20 @@ const (
 // pulseDuration is how long a pane out of focus pulses when it prints.
 const pulseDuration = 600 * time.Millisecond
 
-// hoverAt hovers what is under the mouse, a tab's name or a pane's title, once per visit.
-func (a *App) hoverAt(point image.Point) {
+// hoverAt hovers what is under the mouse, a tab's name or a pane's title, once per visit,
+// telling whether it started to.
+func (a *App) hoverAt(point image.Point) bool {
 	target, area := a.hoverTargetAt(point)
 	if target == a.hoverTarget {
-		return
+		return false
 	}
 	a.hoverTarget = target
-	if target == "" {
-		return
+	e := a.effectFor(momentHover)
+	if target == "" || e == effectNone {
+		return false
 	}
-	if e := a.effectFor(momentHover); e != effectNone {
-		a.addAnimation(&animation{moment: momentHover, effect: e, start: a.now(), pane: hoverPane, area: area, seed: int64(point.X)})
-	}
+	a.addAnimation(&animation{moment: momentHover, effect: e, start: a.now(), pane: hoverPane, area: area, seed: int64(point.X)})
+	return true
 }
 
 func (a *App) hoverTargetAt(point image.Point) (string, image.Rectangle) {
@@ -378,10 +384,15 @@ func (a *App) finishAnimations() {
 
 // snapshot copies what the last frame showed in area.
 func (a *App) snapshot(area image.Rectangle) uv.ScreenBuffer {
+	return a.copyArea(a.lastFrame, area)
+}
+
+// copyArea copies the cells of area from screen, in a buffer of the screen's size.
+func (a *App) copyArea(screen interface{ CellAt(x, y int) *uv.Cell }, area image.Rectangle) uv.ScreenBuffer {
 	buf := uv.NewScreenBuffer(a.size.X, a.size.Y)
 	for y := area.Min.Y; y < area.Max.Y; y++ {
 		for x := area.Min.X; x < area.Max.X; x++ {
-			if c := a.lastFrame.CellAt(x, y); c != nil {
+			if c := screen.CellAt(x, y); c != nil {
 				cell := *c
 				buf.SetCell(x, y, &cell)
 			}
@@ -390,8 +401,13 @@ func (a *App) snapshot(area image.Rectangle) uv.ScreenBuffer {
 	return buf
 }
 
-// recordFrame keeps what was drawn, for the panes that close from it.
+// recordFrame keeps what was drawn, for the panes and tabs that close from it, only while their
+// closing animates.
 func (a *App) recordFrame(screen uv.Screen) {
+	if a.effectFor(momentPanels) == effectNone && a.effectFor(momentTabs) == effectNone {
+		a.lastFrame = nil
+		return
+	}
 	if a.lastFrame == nil || a.lastFrame.Bounds().Dx() != a.size.X || a.lastFrame.Bounds().Dy() != a.size.Y {
 		buf := uv.NewScreenBuffer(a.size.X, a.size.Y)
 		a.lastFrame = &buf
@@ -409,8 +425,8 @@ func (a *App) recordFrame(screen uv.Screen) {
 // drawAnimations draws the animations running over what the frame drew, the popups' apart.
 func (a *App) drawAnimations(screen uv.Screen, at time.Time) {
 	for _, an := range a.animations {
-		if an.moment == momentPopup {
-			continue
+		if an.moment == momentPopup && !an.closing {
+			continue // drawn over the popup, once it is drawn
 		}
 		p := an.progress(at)
 		switch {
@@ -435,7 +451,7 @@ func (a *App) drawPopupAnimations(screen uv.Screen, before uv.ScreenBuffer, at t
 		return was != nil && is != nil && (was.Content != is.Content || !was.Style.Equal(&is.Style))
 	}
 	for _, an := range a.animations {
-		if an.moment != momentPopup {
+		if an.moment != momentPopup || an.closing {
 			continue
 		}
 		p := an.progress(at)
@@ -455,10 +471,52 @@ func (a *App) drawPopupAnimations(screen uv.Screen, before uv.ScreenBuffer, at t
 	}
 }
 
-// hasPopupAnimation tells whether a popup's animation runs, which needs the frame before the popup.
+// drawnPopup is where a popup was drawn, and its cells there.
+type drawnPopup struct {
+	area  image.Rectangle
+	cells uv.ScreenBuffer
+}
+
+// drawOverlay draws the mode's popup, comparing it with the frame under it only when an
+// animation needs that: one opening plays on the cells the popup drew, and one closing on the
+// cells it last had.
+func (a *App) drawOverlay(screen uv.Screen, at time.Time) {
+	opening := a.hasPopupAnimation()
+	closable := isPopupMode(a.mode) && a.effectFor(momentPopup) != effectNone
+	a.lastPopup = drawnPopup{}
+	if !opening && !closable {
+		a.drawModeOverlay(screen)
+		return
+	}
+	before := a.copyOf(screen)
+	a.drawModeOverlay(screen)
+	if closable {
+		a.lastPopup = a.popupDrawn(screen, before)
+	}
+	if opening {
+		a.drawPopupAnimations(screen, before, at)
+	}
+}
+
+// popupDrawn is the part of the screen the popup changed from before, with its cells.
+func (a *App) popupDrawn(screen uv.Screen, before uv.ScreenBuffer) drawnPopup {
+	box := image.Rectangle{}
+	for y := range a.size.Y {
+		for x := range a.size.X {
+			was, is := before.CellAt(x, y), screen.CellAt(x, y)
+			if was != nil && is != nil && (was.Content != is.Content || !was.Style.Equal(&is.Style)) {
+				box = box.Union(image.Rect(x, y, x+1, y+1))
+			}
+		}
+	}
+	return drawnPopup{area: box, cells: a.copyArea(screen, box)}
+}
+
+// hasPopupAnimation tells whether a popup's opening animation runs, which needs the frame before
+// the popup.
 func (a *App) hasPopupAnimation() bool {
 	for _, an := range a.animations {
-		if an.moment == momentPopup {
+		if an.moment == momentPopup && !an.closing {
 			return true
 		}
 	}
@@ -467,16 +525,7 @@ func (a *App) hasPopupAnimation() bool {
 
 // copyOf is the screen's cells as they are now.
 func (a *App) copyOf(screen uv.Screen) uv.ScreenBuffer {
-	buf := uv.NewScreenBuffer(a.size.X, a.size.Y)
-	for y := range a.size.Y {
-		for x := range a.size.X {
-			if c := screen.CellAt(x, y); c != nil {
-				cell := *c
-				buf.SetCell(x, y, &cell)
-			}
-		}
-	}
-	return buf
+	return a.copyArea(screen, image.Rect(0, 0, a.size.X, a.size.Y))
 }
 
 // onBorder tells the cells of area's border.

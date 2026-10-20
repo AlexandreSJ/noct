@@ -80,6 +80,7 @@ func (a *App) handleMouse(event uv.MouseEvent) {
 	case uv.MouseClickEvent:
 		a.handleClick(event)
 	case uv.MouseMotionEvent:
+		a.quietMotion = false
 		switch {
 		case a.drag != nil && a.drag.kind == dragDivider:
 			a.dragDivider(event.Mouse())
@@ -92,8 +93,8 @@ func (a *App) handleMouse(event uv.MouseEvent) {
 		case a.mode == configMode:
 			a.hoverConfig(image.Pt(event.Mouse().X, event.Mouse().Y))
 		default:
-			a.hoverAt(image.Pt(event.Mouse().X, event.Mouse().Y))
-			a.forwardMouse(event)
+			hovered := a.hoverAt(image.Pt(event.Mouse().X, event.Mouse().Y))
+			a.quietMotion = !a.forwardMouse(event) && !hovered
 		}
 	case uv.MouseReleaseEvent:
 		switch {

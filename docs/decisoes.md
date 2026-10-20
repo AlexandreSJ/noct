@@ -695,13 +695,13 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Decisão.**
 - **Momento × efeito:** `Appearance → animations` liga ou desliga tudo, e `[animations]` no config dá o efeito de cada momento. Padrões: mola para painéis, tabs, mover e tela inteira, fade no foco e na atividade, jitter nos popups, `01` no hover. Um nome desconhecido volta ao padrão; flicker nunca é padrão.
-- **Retrato do estado no lugar de ganchos:** antes de cada quadro, o que mudou desde o anterior (painéis, tabs, foco, quadro do painel com foco, tela inteira, modo) começa a animação do momento. Fechar usa as células do quadro anterior, guardadas a cada quadro.
+- **Retrato do estado no lugar de ganchos:** antes de cada quadro, o que mudou desde o anterior (painéis, tabs, foco, quadro do painel com foco, tela inteira, modo) começa a animação do momento. Fechar usa as células do quadro anterior, guardadas só enquanto fechar painéis ou tabs anima. Fechar um popup toca o efeito ao contrário sobre as células que ele tinha no último quadro, que só são copiadas enquanto há popup aberto com o efeito ligado.
 - **Só o desenho muda:** a camada de animações corre depois dos painéis e, para popups, sobre as células que o popup desenhou. Os programas são redimensionados uma vez, como antes. Foco, mover, hover e atividade só tocam a moldura e a barra.
 - **Teclas:** qualquer tecla termina todas as animações e é tratada normalmente. Trocar de sessão ou o tamanho do terminal também termina.
 - **Flicker:** no máximo 3 acesos por segundo (período de 350 ms), e escolhê-lo pede `Enter` depois do aviso.
 - **Prévia:** com uma linha de momento selecionada, o config mostra o palco ao lado, tocando o efeito uma vez com a duração real; `space` repete; sem animações, o palco fica parado com `animations off`.
-- **Hover** liga o modo de movimento do mouse em todo lugar; os programas só recebem movimento se o pediram. **Atividade:** a primeira saída de um shell fora de vista pulsa o título (ou o nome da tab) uma vez, até o painel ser visto.
+- **Hover** liga o modo de movimento do mouse em todo lugar; os programas só recebem movimento se o pediram, e um movimento que não muda nada na tela (fora de nomes de tabs e títulos, sem programa que o queira) não pede quadro. **Atividade:** a primeira saída de um shell fora de vista pulsa o título (ou o nome da tab) uma vez, até o painel ser visto.
 - Código próprio (mola, easing, ruído), sem dependência nova. O relógio das animações (`App.clock`) é trocável nos testes.
 
-**Consequências.** Fechar um popup é instantâneo. O hover anima nomes de tabs e títulos de painéis; as listas dos painéis não. Execuções fora de vista não pulsam: têm o próprio status.
+**Consequências.** O hover anima nomes de tabs e títulos de painéis; as listas dos painéis não. Execuções fora de vista não pulsam: têm o próprio status.
 
