@@ -293,6 +293,7 @@ func (a *App) loop() error {
 			a.advanceHomeArt()
 		case <-a.stageTick:
 			a.stageTick = nil
+			a.tickStagePreview()
 		case <-a.animTick:
 			a.advanceAnimations(a.now())
 		case <-a.resetExpired:

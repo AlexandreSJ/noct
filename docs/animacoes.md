@@ -1,6 +1,6 @@
 # Animações
 
-**Estado: decidido, não implementado** (passo 5 de [polimento.md](polimento.md)).
+**Estado:** implementado (ADR-053).
 
 Hoje há duas: a intro do título, com os `0`/`1` que revelam o ASCII (ADR-025, ADR-043), e o mesmo efeito ao passar o mouse no título da home. Este documento descreve animações escolhidas por **momento** (o que acontece) e por **efeito** (como aparece), com prévia no config.
 

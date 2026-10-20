@@ -108,6 +108,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/templates_popup.go` | The popup of prefix + T: the templates with the layout of the selected one, opening one as a tab, and edit, rename and delete |
 | `internal/app/animation.go` | Animations: what changed since the last frame, the ones running, and drawing them over the frame without touching the programs |
 | `internal/app/effects.go` | The animation effects as functions of time: spring, easing, 01, jitter and flicker |
+| `internal/app/stage_preview.go` | The config's rows of the animations, the flicker warning and the stage playing the selected moment's effect |
 | `internal/app/stage.go` | The stage: a small made-up workspace with a bit of everything a theme colors, to preview themes in place |
 | `internal/kittygfx/command.go` | Parse and encode kitty graphics commands |
 | `internal/kittygfx/stream.go` | Split graphics commands out of program output, across reads |

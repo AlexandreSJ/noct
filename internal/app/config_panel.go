@@ -29,6 +29,7 @@ const (
 	editThemeRow
 	backgroundRow
 	animateIntroRow
+	animationsRow
 	mouseRow
 	newTabRow
 	closeEmptyTabsRow
@@ -94,6 +95,8 @@ type configPanel struct {
 	hovering bool
 	// edit is the theme being edited on the theme page.
 	edit *themeEdit
+	// preview is the animation the stage plays for the moment selected, nil when none plays.
+	preview *animation
 }
 
 // configLine is one line of the panel: a section heading, a row that can be selected, or a note
@@ -164,6 +167,10 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 	if a.isTypedRow(a.configPanel.selected) && a.startsTyping(key) {
 		return
 	}
+	if m, ok := animationRowAt(a.configPanel.selected); ok && key.String() == "space" {
+		a.playStagePreview(m) // space plays it again; the arrows change it
+		return
+	}
 	switch key.String() {
 	case "k":
 		a.moveConfigSelection(-1)
@@ -196,6 +203,10 @@ func (a *App) selectConfigRow(row configRow) {
 	a.configPanel.selected = row
 	if c, ok := themeRowAt(row); ok && a.configPanel.edit != nil {
 		a.lightComponent(c)
+	}
+	a.configPanel.preview = nil
+	if m, ok := animationRowAt(row); ok {
+		a.playStagePreview(m)
 	}
 }
 
@@ -325,6 +336,10 @@ func (a *App) changeSetting(step int) {
 		a.pickColor()
 		return
 	}
+	if m, ok := animationRowAt(a.configPanel.selected); ok {
+		a.changeAnimation(m, step)
+		return
+	}
 	next := a.config
 	switch a.configPanel.selected {
 	case prefixRow:
@@ -350,6 +365,11 @@ func (a *App) changeSetting(step int) {
 		a.session.theme = next.Appearance.Theme // the session on screen, and sessions without a theme
 	case backgroundRow:
 		next.Appearance.Background = cycle([]string{config.BackgroundTerminal, config.BackgroundTheme}, next.Appearance.Background, step)
+	case animationsRow:
+		next.Appearance.Animations = config.AnimationsOff
+		if a.config.Appearance.Animations == config.AnimationsOff {
+			next.Appearance.Animations = config.AnimationsOn
+		}
 	case animateIntroRow:
 		next.Appearance.AnimateIntro = cycle([]string{config.IntroEmpty, config.IntroAlways, config.IntroNever}, next.Appearance.AnimateIntro, step)
 	case mouseRow:
@@ -516,6 +536,9 @@ func (a *App) configLines() []configLine {
 		{label: "background", value: a.config.Appearance.Background, row: backgroundRow},
 		{label: "animate intro", value: choice(a.config.Appearance.AnimateIntro), row: animateIntroRow},
 		{label: "mouse", value: onOff(a.config.Mouse), row: mouseRow},
+	}...)
+	lines = append(lines, a.animationLines()...)
+	lines = append(lines, []configLine{
 		{label: "Tabs", heading: true},
 		{label: "new tab opens", value: choice(a.newTabLabel(a.config.NewTab)), row: newTabRow},
 		{label: "close when empty", value: onOff(a.config.CloseEmptyTabs), row: closeEmptyTabsRow},
@@ -678,7 +701,7 @@ func (a *App) configLayout() configLayout {
 		l.rows = append(l.rows, line)
 	}
 	width := 72
-	if a.configPanel.page == themePage {
+	if a.configPanel.page == themePage || a.configShowsStage() {
 		width = themePanelWidth // the list of components and the stage side by side
 	}
 	l.panel = centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), width, panelHeight(len(l.rows)+2))
@@ -731,8 +754,16 @@ func (a *App) drawConfigPanel(screen uv.Screen) {
 		drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
 		return
 	}
+	list := inner
+	if a.configShowsStage() {
+		list.Max.X = inner.Min.X + themeListWidth
+		for y := inner.Min.Y; y < inner.Max.Y-2; y++ {
+			setRune(screen, list.Max.X, y, "│", a.palette.unfocusedFrame)
+		}
+		a.drawStagePreview(screen, image.Rect(list.Max.X+2, inner.Min.Y, inner.Max.X, inner.Max.Y-2))
+	}
 	for i := l.first; i < len(l.rows) && i-l.first < l.visible(); i++ {
-		a.drawConfigLine(screen, inner, inner.Min.Y+i-l.first, l.rows[i])
+		a.drawConfigLine(screen, list, inner.Min.Y+i-l.first, l.rows[i])
 	}
 	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
 }

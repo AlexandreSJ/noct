@@ -28,13 +28,10 @@ func drawStage(screen uv.Screen, area image.Rectangle, p *palette, lit theme.Com
 		}
 		return s
 	}
-	x := drawText(screen, area.Min.X, area.Min.Y, area.Max.X, " dev ", style(p.activeTab, theme.ActiveTabText, theme.ActiveTabBackground))
-	drawText(screen, x, area.Min.Y, area.Max.X, " logs ", style(p.tab, theme.InactiveTabText, theme.InactiveTabBackground))
+	active, inactive, left, right, popup := stageGeometry(area)
+	drawText(screen, active.Min.X, active.Min.Y, area.Max.X, " dev ", style(p.activeTab, theme.ActiveTabText, theme.ActiveTabBackground))
+	drawText(screen, inactive.Min.X, inactive.Min.Y, area.Max.X, " logs ", style(p.tab, theme.InactiveTabText, theme.InactiveTabBackground))
 
-	panes := image.Rect(area.Min.X, area.Min.Y+1, area.Max.X, area.Max.Y)
-	left, right := panes, panes
-	left.Max.X = panes.Min.X + panes.Dx()/2
-	right.Min.X = left.Max.X
 	background := style(uv.Style{Bg: p.background}, theme.Background)
 	fillRect(screen, left.Inset(1), background)
 	fillRect(screen, right.Inset(1), background)
@@ -44,7 +41,6 @@ func drawStage(screen uv.Screen, area image.Rectangle, p *palette, lit theme.Com
 	text := style(uv.Style{Fg: p.text, Bg: p.background}, theme.Text)
 	drawText(screen, left.Min.X+1, left.Min.Y+1, left.Max.X-1, "$ ls", text)
 	drawText(screen, left.Min.X+1, left.Min.Y+2, left.Max.X-1, "notes  src", text)
-	popup := image.Rect(left.Min.X+2, left.Min.Y+4, left.Max.X-2, left.Min.Y+7)
 	popupStyle := style(uv.Style{Bg: p.popupBackground}, theme.PopupBackground)
 	fillRect(screen, popup, popupStyle)
 	drawText(screen, popup.Min.X+1, popup.Min.Y+1, popup.Max.X-1, "popup", uv.Style{Fg: p.panelText.Fg, Bg: p.popupBackground, Attrs: popupStyle.Attrs})

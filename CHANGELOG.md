@@ -13,6 +13,11 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Added
 
+- Animations. Panels and tabs open and close with a spring, focus fades from one panel to the
+  other, popups appear with a jitter, and a panel out of focus pulses when it prints. Each moment
+  and its effect (`01`, `spring`, `fade`, `jitter`, `flicker`) is in **Appearance → animations**,
+  with a preview beside the list. Any key ends an animation at once, and programs in panels are
+  never resized during one.
 - Tab templates. `prefix` + `R` saves the tab's layout, names and colors as a template, and for
   each terminal whether its command runs when the template opens, asks first, or does not run.
   `prefix` + `T` opens a template as a new tab, picked from a list that shows its layout.
