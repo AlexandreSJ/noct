@@ -35,7 +35,13 @@ func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 		a.drawPanes(screen, a.currentTab())
 	}
 	a.drawAnimations(screen, at)
-	a.drawModeOverlay(screen)
+	if a.hasPopupAnimation() {
+		before := a.copyOf(screen)
+		a.drawModeOverlay(screen)
+		a.drawPopupAnimations(screen, before, at)
+	} else {
+		a.drawModeOverlay(screen)
+	}
 	a.recordFrame(screen)
 }
 

@@ -2,6 +2,7 @@ package app
 
 import (
 	"image"
+	"image/color"
 	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -94,7 +95,13 @@ type animation struct {
 	// closing plays backwards over cells, what the area showed before it went away.
 	closing bool
 	cells   uv.ScreenBuffer
-	seed    int64
+	// frameOnly animates only the border of area, so what a program shows is never touched.
+	frameOnly bool
+	// from is where a moving or growing area starts, and fromColor the color a fade starts from
+	// (nil for the background).
+	from      image.Rectangle
+	fromColor color.Color
+	seed      int64
 }
 
 func (an *animation) progress(at time.Time) float64 {
@@ -143,21 +150,89 @@ func (a *App) startAnimations(prev, now shot, at time.Time) {
 		a.finishAnimations()
 		return
 	}
-	if prev.tab == nil || prev.tab != now.tab || prev.fullscreen || now.fullscreen {
+	start := func(m moment, an animation) {
+		if an.effect = a.effectFor(m); an.effect != effectNone {
+			an.moment, an.start = m, at
+			a.addAnimation(&an)
+		}
+	}
+	if now.mode != prev.mode && isPopupMode(now.mode) {
+		start(momentPopup, animation{pane: popupPane, area: image.Rect(0, 0, a.size.X, a.size.Y)})
+	}
+	area := a.workspaceArea()
+	switch {
+	case now.tabs > prev.tabs:
+		start(momentTabs, animation{pane: tabsPane, area: area, from: centerOf(area)})
+		if span, ok := a.activeTabSpan(); ok {
+			start(momentTabs, animation{pane: tabBarPane, area: span, from: centerOf(span)})
+		}
+		return
+	case now.tabs < prev.tabs && a.lastFrame != nil:
+		start(momentTabs, animation{pane: tabsPane, area: area, from: centerOf(area), closing: true, cells: a.snapshot(area)})
 		return
 	}
-	if e := a.effectFor(momentPanels); e != effectNone {
-		for id, frame := range now.frames {
-			if _, ok := prev.frames[id]; !ok {
-				a.addAnimation(&animation{moment: momentPanels, effect: e, start: at, pane: id, area: frame, seed: int64(id)})
-			}
+	if prev.tab == nil || prev.tab != now.tab {
+		return
+	}
+	if prev.fullscreen != now.fullscreen {
+		pane := now.frames[now.focused]
+		if now.fullscreen {
+			pane = prev.frames[now.focused]
 		}
-		for id, frame := range prev.frames {
-			if _, ok := now.frames[id]; !ok && a.lastFrame != nil {
-				a.addAnimation(&animation{moment: momentPanels, effect: e, start: at, pane: id, area: frame, seed: int64(id), closing: true, cells: a.snapshot(frame)})
-			}
+		start(momentFullscreen, animation{pane: now.focused, area: area, from: pane})
+		return
+	}
+	_, wasThere := prev.frames[now.focused]
+	if prev.focused != now.focused && wasThere {
+		if frame, ok := now.frames[now.focused]; ok {
+			start(momentFocus, animation{pane: now.focused, area: frame, frameOnly: true, fromColor: a.palette.unfocusedFrame.Fg})
+		}
+		if frame, ok := now.frames[prev.focused]; ok {
+			start(momentFocus, animation{pane: prev.focused, area: frame, frameOnly: true, fromColor: a.palette.focusedFrame.Fg})
 		}
 	}
+	if prev.fullscreen || now.fullscreen {
+		return // only the focused pane shows: panes come and go with the focus
+	}
+	opened := false
+	for id, frame := range now.frames {
+		if _, ok := prev.frames[id]; !ok {
+			start(momentPanels, animation{pane: id, area: frame, from: centerOf(frame), seed: int64(id)})
+			opened = true
+		}
+	}
+	for id, frame := range prev.frames {
+		if _, ok := now.frames[id]; !ok && a.lastFrame != nil {
+			start(momentPanels, animation{pane: id, area: frame, from: centerOf(frame), seed: int64(id), closing: true, cells: a.snapshot(frame)})
+			opened = true
+		}
+	}
+	before, after := prev.frames[now.focused], now.frames[now.focused]
+	if !opened && wasThere && before != after && now.mode != resizeMode {
+		start(momentMove, animation{pane: now.focused, area: after, from: before, frameOnly: true, seed: int64(now.focused)})
+	}
+}
+
+// Animations that are not of one pane take these places of a pane id.
+const (
+	popupPane  layout.PaneID = -1
+	tabsPane   layout.PaneID = -2
+	tabBarPane layout.PaneID = -3
+)
+
+// isPopupMode tells the modes that show a popup over the workspace.
+func isPopupMode(m mode) bool {
+	return m != normalMode && m != scrollMode
+}
+
+// activeTabSpan is where the active tab's name is in the tab bar.
+func (a *App) activeTabSpan() (image.Rectangle, bool) {
+	for _, span := range a.tabBar() {
+		if span.tab == a.session.activeTab && !span.mark {
+			return image.Rect(span.start, 0, span.end, 1), true
+		}
+	}
+	return image.Rectangle{}, false
 }
 
 // addAnimation plays an, in place of what the same moment played on the same pane.
@@ -223,19 +298,83 @@ func (a *App) recordFrame(screen uv.Screen) {
 	}
 }
 
-// drawAnimations draws the animations running over what the frame drew.
+// drawAnimations draws the animations running over what the frame drew, the popups' apart.
 func (a *App) drawAnimations(screen uv.Screen, at time.Time) {
 	for _, an := range a.animations {
+		if an.moment == momentPopup {
+			continue
+		}
 		p := an.progress(at)
-		if an.closing {
+		switch {
+		case an.closing:
 			a.drawClosing(screen, an, p, at)
+		case an.frameOnly && an.moment == momentMove && an.effect == effectSpring:
+			drawFrame(screen, rectAt(an.from, an.area, springAt(p)), "", a.palette.focusedFrame, a.palette.focusedTitle)
+		case an.frameOnly:
+			a.applyEffect(screen, an, an.area, p, at, onBorder(an.area))
+		case an.effect == effectSpring:
+			a.reveal(screen, an.area, rectAt(an.from, an.area, min(springAt(p), 1)), nil)
+		default:
+			a.applyEffect(screen, an, an.area, p, at, nil)
+		}
+	}
+}
+
+// drawPopupAnimations plays the popups' animations on the cells the popup drew over before.
+func (a *App) drawPopupAnimations(screen uv.Screen, before uv.ScreenBuffer, at time.Time) {
+	drawn := func(x, y int) bool {
+		was, is := before.CellAt(x, y), screen.CellAt(x, y)
+		return was != nil && is != nil && (was.Content != is.Content || !was.Style.Equal(&is.Style))
+	}
+	for _, an := range a.animations {
+		if an.moment != momentPopup {
 			continue
 		}
-		if an.effect == effectSpring {
-			a.reveal(screen, an.area, rectAt(centerOf(an.area), an.area, min(springAt(p), 1)))
+		p := an.progress(at)
+		if an.effect != effectSpring {
+			a.applyEffect(screen, an, an.area, p, at, drawn)
 			continue
 		}
-		a.applyEffect(screen, an, an.area, p, at)
+		box := image.Rectangle{}
+		for y := range a.size.Y {
+			for x := range a.size.X {
+				if drawn(x, y) {
+					box = box.Union(image.Rect(x, y, x+1, y+1))
+				}
+			}
+		}
+		a.reveal(screen, box, rectAt(centerOf(box), box, min(springAt(p), 1)), &before)
+	}
+}
+
+// hasPopupAnimation tells whether a popup's animation runs, which needs the frame before the popup.
+func (a *App) hasPopupAnimation() bool {
+	for _, an := range a.animations {
+		if an.moment == momentPopup {
+			return true
+		}
+	}
+	return false
+}
+
+// copyOf is the screen's cells as they are now.
+func (a *App) copyOf(screen uv.Screen) uv.ScreenBuffer {
+	buf := uv.NewScreenBuffer(a.size.X, a.size.Y)
+	for y := range a.size.Y {
+		for x := range a.size.X {
+			if c := screen.CellAt(x, y); c != nil {
+				cell := *c
+				buf.SetCell(x, y, &cell)
+			}
+		}
+	}
+	return buf
+}
+
+// onBorder tells the cells of area's border.
+func onBorder(area image.Rectangle) func(x, y int) bool {
+	return func(x, y int) bool {
+		return x == area.Min.X || x == area.Max.X-1 || y == area.Min.Y || y == area.Max.Y-1
 	}
 }
 
@@ -255,42 +394,56 @@ func (a *App) drawClosing(screen uv.Screen, an *animation, p float64, at time.Ti
 		}
 	}
 	if an.effect != effectSpring {
-		a.applyEffect(screen, an, shown, 1-p, at)
+		a.applyEffect(screen, an, shown, 1-p, at, nil)
 	}
 }
 
-// reveal blanks the cells of area outside shown.
-func (a *App) reveal(screen uv.Screen, area, shown image.Rectangle) {
+// reveal blanks the cells of area outside shown, or puts back what under had there.
+func (a *App) reveal(screen uv.Screen, area, shown image.Rectangle, under *uv.ScreenBuffer) {
 	blank := uv.Cell{Content: " ", Width: 1, Style: uv.Style{Bg: a.palette.background}}
 	for y := area.Min.Y; y < area.Max.Y; y++ {
 		for x := area.Min.X; x < area.Max.X; x++ {
-			if !image.Pt(x, y).In(shown) {
-				cell := blank
-				screen.SetCell(x, y, &cell)
+			if image.Pt(x, y).In(shown) {
+				continue
 			}
+			cell := blank
+			if under != nil {
+				if c := under.CellAt(x, y); c != nil {
+					cell = *c
+				}
+			}
+			screen.SetCell(x, y, &cell)
 		}
 	}
 }
 
-// applyEffect changes the cells of area as the effect looks at progress p.
-func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle, p float64, at time.Time) {
-	background := a.palette.background
-	if background == nil {
-		background = a.themeNamed(a.sessionTheme(a.session)).Colors[theme.Background].Resolve()
+// applyEffect changes the cells of area that only lets through (nil for all) as the effect looks
+// at progress p.
+func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle, p float64, at time.Time, only func(x, y int) bool) {
+	from := an.fromColor
+	if from == nil {
+		from = a.palette.background
+	}
+	if from == nil {
+		from = a.themeNamed(a.sessionTheme(a.session)).Colors[theme.Background].Resolve()
 	}
 	frame := int64(at.Sub(an.start) / frameInterval) // characters change from frame to frame
 	for y := area.Min.Y; y < area.Max.Y; y++ {
 		for x := area.Min.X; x < area.Max.X; x++ {
 			c := screen.CellAt(x, y)
-			if c == nil || c.Width != 1 {
+			if c == nil || c.Width != 1 || only != nil && !only(x, y) {
 				continue
 			}
 			cell := *c
 			runes := []rune(cell.Content)
 			switch an.effect {
-			case effectFade:
+			case effectFade, effectSpring: // a spring on a border eases its colors
+				f := easeOut(p)
+				if an.effect == effectSpring {
+					f = min(springAt(p), 1)
+				}
 				if cell.Style.Fg != nil {
-					cell.Style.Fg = mix(background, cell.Style.Fg, easeOut(p))
+					cell.Style.Fg = mix(from, cell.Style.Fg, f)
 				}
 			case effectJitter:
 				if len(runes) == 1 {
