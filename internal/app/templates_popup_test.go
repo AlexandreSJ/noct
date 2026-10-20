@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -165,5 +166,31 @@ func TestAGoneTemplateSaysSoOnEnter(t *testing.T) {
 	press(a, enterPress)
 	if len(a.session.tabs) != 0 || a.statusMessage == "" {
 		t.Errorf("%d tabs and message %q after opening a deleted template", len(a.session.tabs), a.statusMessage)
+	}
+}
+
+func TestAnUnknownPaneIsLeftOutAndTold(t *testing.T) {
+	dir := templatesFolder(t)
+	writeTemplate(t, dir, "x", "layout: columns\npanes:\n  - logs: {}\n  - editor: {}\n")
+	a := testApp(t)
+	a.openTemplates()
+	press(a, enterPress)
+	if tb := a.currentTab(); tb == nil || len(tb.views) != 1 || !strings.Contains(a.statusMessage, "editor") {
+		t.Errorf("tab %v, message %q", tb, a.statusMessage)
+	}
+}
+
+func TestALongListOfTemplatesScrolls(t *testing.T) {
+	dir := templatesFolder(t)
+	for i := range 40 {
+		writeTemplate(t, dir, fmt.Sprintf("t%02d", i), "panes:\n  - logs: {}\n")
+	}
+	a := testApp(t)
+	a.openTemplates()
+	for range 39 {
+		press(a, downPress)
+	}
+	if text := screenText(a); !strings.Contains(text, "t39") {
+		t.Errorf("the selected template is not shown:\n%s", text)
 	}
 }

@@ -157,7 +157,13 @@ func (n *Node) UnmarshalYAML(value *yaml.Node) error {
 		case key == "stacked":
 			err = v.Decode(&n.Stacked)
 		default:
-			return fmt.Errorf("line %d: %s is not a pane noct can open (%s) nor columns or rows", value.Content[i].Line, key, strings.Join(kinds, ", "))
+			// a pane noct does not know, as from a newer noct: the app leaves it out and says so
+			if n.Pane != nil {
+				return fmt.Errorf("line %d: one pane per item", v.Line)
+			}
+			var fields struct{ Name, Run, Start string }
+			err = v.Decode(&fields)
+			n.Pane = &Pane{Kind: key, Name: fields.Name, Command: fields.Run, Start: Start(fields.Start)}
 		}
 		if err != nil {
 			return err

@@ -145,3 +145,16 @@ func TestSaveTemplateNeedsATab(t *testing.T) {
 		t.Error("prefix + R opened on the home screen")
 	}
 }
+
+func TestSavingATabThatClosedMeanwhileSaysSo(t *testing.T) {
+	templatesFolder(t)
+	a, tb := devTab(t)
+	a.openTemplateSave()
+	for _, id := range tb.tree.Panes() {
+		a.detachView(id)
+	}
+	press(a, enterPress)
+	if a.mode != normalMode || a.statusMessage == "" {
+		t.Errorf("mode %v, message %q", a.mode, a.statusMessage)
+	}
+}

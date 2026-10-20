@@ -124,7 +124,6 @@ func TestUnevenSharesAreKept(t *testing.T) {
 
 func TestABrokenTemplateIsReportedAndSkipped(t *testing.T) {
 	dir := t.TempDir()
-	write(t, dir, "bogus", "panes:\n  - bogus: {}\n")
 	write(t, dir, "both", "panes:\n  - terminal: {}\n    columns: [{logs: {}}, {logs: {}}]\n")
 	write(t, dir, "soon", "panes:\n  - terminal: { run: ls, start: soon }\n")
 	write(t, dir, "none", "panes: []\n")
@@ -133,10 +132,10 @@ func TestABrokenTemplateIsReportedAndSkipped(t *testing.T) {
 	if len(tpls) != 1 || tpls[0].Name != "good" {
 		t.Fatalf("loaded %v", tpls)
 	}
-	if len(errs) != 4 {
+	if len(errs) != 3 {
 		t.Fatalf("errors %v, want one per broken file", errs)
 	}
-	for _, name := range []string{"bogus.yaml", "both.yaml", "soon.yaml", "none.yaml"} {
+	for _, name := range []string{"both.yaml", "soon.yaml", "none.yaml"} {
 		found := false
 		for _, err := range errs {
 			found = found || strings.Contains(err.Error(), name)
@@ -196,5 +195,14 @@ func TestDirIsInTheConfigFolder(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "/tmp/cfg")
 	if dir, err := Dir(); err != nil || dir != "/tmp/cfg/noct/templates" {
 		t.Errorf("Dir() = %q, %v", dir, err)
+	}
+}
+
+func TestAnUnknownPaneKindStaysForTheAppToLeaveOut(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "x", "layout: columns\npanes:\n  - logs: {}\n  - editor: { name: notes }\n")
+	tpl, err := Load(dir, "x")
+	if err != nil || len(tpl.Root.Columns) != 2 || tpl.Root.Columns[1].Pane.Kind != "editor" {
+		t.Errorf("loaded %+v, %v", tpl.Root, err)
 	}
 }

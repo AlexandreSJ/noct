@@ -23,6 +23,8 @@ const templatesListWidth = 30
 type templatesPopup struct {
 	list     []templates.Template
 	selected int
+	// first is the first template shown when the list does not fit.
+	first int
 }
 
 func (a *App) openTemplates() {
@@ -191,11 +193,11 @@ func (a *App) drawTemplates(screen uv.Screen) {
 	}
 	list := inner
 	list.Max.X = inner.Min.X + templatesListWidth
-	for i, t := range p.list {
-		y := list.Min.Y + i
-		if y >= list.Max.Y-2 {
-			break
-		}
+	rows := max(list.Dy()-2, 1)
+	p.first = listFirst(p.first, p.selected, len(p.list), rows)
+	for i := p.first; i < len(p.list) && i-p.first < rows; i++ {
+		t := p.list[i]
+		y := list.Min.Y + i - p.first
 		style := a.palette.panelText
 		if i == p.selected {
 			style = a.palette.selectedRow

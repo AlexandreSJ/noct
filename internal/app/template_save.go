@@ -27,6 +27,8 @@ type templateSave struct {
 	// panes are the ones a template can open again; selected 0 is the name, 1 on the panes.
 	panes    []savePane
 	selected int
+	// first is the first pane row shown when the panes do not fit.
+	first int
 }
 
 type savePane struct {
@@ -105,6 +107,11 @@ func (a *App) handleTemplateSaveKey(key uv.KeyPressEvent) {
 // saveTemplate writes the template, asking first when one has the name.
 func (a *App) saveTemplate() {
 	s := &a.templateSave
+	if s.tab.isEmpty() || !slices.Contains(a.session.tabs, s.tab) {
+		a.mode = normalMode
+		a.statusMessage = "the tab closed before it was saved"
+		return
+	}
 	name := strings.TrimSpace(s.name.String())
 	dir, err := templates.Dir()
 	if err == nil {
@@ -149,6 +156,8 @@ func (a *App) drawTemplateSave(screen uv.Screen) {
 	s := &a.templateSave
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	inner := a.drawPanel(screen, centeredRect(area, 72, panelHeight(len(s.panes)+4)), "save the tab as a template")
+	rows := max(inner.Dy()-4, 1)
+	s.first = listFirst(s.first, max(s.selected-1, 0), len(s.panes), rows)
 	style := func(row int) uv.Style {
 		if row == s.selected {
 			return a.palette.selectedRow
@@ -156,8 +165,9 @@ func (a *App) drawTemplateSave(screen uv.Screen) {
 		return a.palette.panelText
 	}
 	drawRow(screen, inner, inner.Min.Y, "name  "+s.name.view(inner.Dx()-10, false), "", style(0))
-	for i, p := range s.panes {
-		y := inner.Min.Y + 2 + i
+	for i := s.first; i < len(s.panes) && i-s.first < rows; i++ {
+		p := s.panes[i]
+		y := inner.Min.Y + 2 + i - s.first
 		label := "  " + p.kind
 		if p.name != "" {
 			label += " " + p.name
