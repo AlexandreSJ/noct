@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"path/filepath"
+	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
@@ -22,6 +23,9 @@ func (a *App) render() error {
 }
 
 func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
+	at, shot := time.Now(), a.takeShot()
+	a.startAnimations(a.lastShot, shot, at)
+	a.lastShot = shot
 	if a.palette.background != nil {
 		fillRect(screen, area, uv.Style{Bg: a.palette.background})
 	}
@@ -31,7 +35,9 @@ func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 	} else {
 		a.drawPanes(screen, a.currentTab())
 	}
+	a.drawAnimations(screen, at)
 	a.drawModeOverlay(screen)
+	a.recordFrame(screen)
 }
 
 // drawModeOverlay shows the panel of the current mode on top of everything else.

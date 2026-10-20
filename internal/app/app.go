@@ -99,6 +99,12 @@ type App struct {
 	templateSave templateSave
 	// templates is the popup that opens a template as a new tab.
 	templates templatesPopup
+	// animations are the ones running, animTick their next frame (nil when none runs), lastShot
+	// what the last frame showed and lastFrame its cells, which a pane closing animates.
+	animations []*animation
+	animTick   <-chan time.Time
+	lastShot   shot
+	lastFrame  *uv.ScreenBuffer
 	// stageTick ends a component's blink on the theme editor's stage.
 	stageTick <-chan time.Time
 
@@ -279,6 +285,8 @@ func (a *App) loop() error {
 			a.advanceHomeArt()
 		case <-a.stageTick:
 			a.stageTick = nil
+		case <-a.animTick:
+			a.advanceAnimations(time.Now())
 		case <-a.resetExpired:
 			a.resetExpired = nil
 		case <-a.homeHintExpired:
@@ -382,6 +390,7 @@ func (a *App) handleEvent(event uv.Event) error {
 	case uv.WindowSizeEvent:
 		return a.resize(image.Pt(event.Width, event.Height))
 	case uv.KeyPressEvent:
+		a.finishAnimations() // and the key does what it does
 		if a.releaseIntro() {
 			return nil // the key only skips the intro
 		}

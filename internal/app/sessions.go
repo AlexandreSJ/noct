@@ -121,6 +121,7 @@ func (a *App) switchSession(s *session) {
 		a.touchSession() // the user leaves it now; without a terminal, it was left before
 	}
 	a.session = s
+	a.finishAnimations() // what played in the session left stays there
 	a.applyPalette()
 	a.openSession(s)
 	a.touchSession()
