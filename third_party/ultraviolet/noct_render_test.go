@@ -217,3 +217,37 @@ func TestFrameCarriesTheCursorInOneSynchronizedWrite(t *testing.T) {
 		}
 	}
 }
+
+// noct: terminals disagree on the width of some graphemes: ➡️ is two columns by the Unicode
+// grapheme rules but one by wcwidth, which ignores the emoji variation selector after ➡. A
+// terminal that draws it in one column used to pull the rest of the line one column left.
+func TestAGraphemeOfDisputedWidthKeepsTheRestOfTheLineInPlace(t *testing.T) {
+	out := &writeRecorder{}
+	screen := uv.NewTerminalScreen(out, uv.Environ{"TERM=xterm-256color"})
+	_ = screen.Resize(renderWidth, renderHeight)
+	_ = screen.EnterAltScreen()
+	err := screen.Display(uv.DrawableFunc(func(s uv.Screen, _ uv.Rectangle) {
+		s.SetCell(0, 1, &uv.Cell{Content: "│", Width: 1})
+		s.SetCell(1, 1, &uv.Cell{Content: "➡️", Width: 2})
+		s.SetCell(3, 1, &uv.Cell{Content: "x", Width: 1})
+		s.SetCell(renderWidth-2, 1, &uv.Cell{Content: "➡️", Width: 2})
+		s.SetCell(5, 2, &uv.Cell{Content: "│", Width: 1})
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	frame := strings.Join(out.writes, "")
+	// The emulator draws ➡️ in two columns, and ➡ without the selector in one.
+	for name, output := range map[string]string{"wide": frame, "narrow": strings.ReplaceAll(frame, "️", "")} {
+		replay := vt.NewEmulator(renderWidth, renderHeight)
+		_, _ = replay.WriteString(output)
+		for _, want := range []struct {
+			x, y    int
+			content string
+		}{{0, 1, "│"}, {3, 1, "x"}, {5, 2, "│"}} {
+			if cell := replay.CellAt(want.x, want.y); cell == nil || cell.Content != want.content {
+				t.Errorf("%s terminal: cell (%d, %d) is %v, want %q: %q", name, want.x, want.y, cell, want.content, output)
+			}
+		}
+	}
+}

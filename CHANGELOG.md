@@ -11,6 +11,11 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Fixed
+
+- A line with an emoji such as `➡️` keeps the pane's right border in place. In terminals that
+  draw it one column wide, the rest of that line used to move one column left.
+
 ## v0.1.2 - 2026-10-19
 
 ### Changed

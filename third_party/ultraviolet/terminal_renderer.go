@@ -511,7 +511,11 @@ func (s *TerminalRenderer) putAttrCell(newbuf *RenderBuffer, cell *Cell) {
 	if cell == nil {
 		_ = s.buf.WriteByte(' ')
 	} else {
-		_, _ = s.buf.WriteString(cell.Content)
+		if disputedWidth(cell) && s.cur.X+cell.Width < newbuf.Width() {
+			s.putDisputedCell(cell)
+		} else {
+			_, _ = s.buf.WriteString(cell.Content)
+		}
 		cellWidth = cell.Width
 	}
 
@@ -519,6 +523,26 @@ func (s *TerminalRenderer) putAttrCell(newbuf *RenderBuffer, cell *Cell) {
 	if s.cur.X >= newbuf.Width() {
 		s.atPhantom = true
 	}
+}
+
+// noct: terminals disagree on the width of some graphemes: ➡️ is two columns by the Unicode
+// grapheme rules but one by wcwidth, which ignores the emoji variation selector. Writing one
+// and assuming the cursor moved by its width pulls the rest of the line left on a terminal that
+// draws it narrower.
+func disputedWidth(cell *Cell) bool {
+	return cell.Width > 1 && ansi.WcWidth.StringWidth(cell.Content) != cell.Width
+}
+
+// noct: putDisputedCell fills the cell's columns with spaces first, so a terminal that draws the
+// grapheme narrower leaves no old text behind it, then writes it and moves the cursor to the
+// column after the cell itself instead of trusting the terminal's advance. The caller keeps the
+// cell off the last column, where the cursor would wait to wrap and no move can say so.
+func (s *TerminalRenderer) putDisputedCell(cell *Cell) {
+	x := s.cur.X
+	_, _ = s.buf.WriteString(strings.Repeat(" ", cell.Width))
+	_, _ = s.buf.WriteString(ansi.CursorHorizontalAbsolute(x + 1))
+	_, _ = s.buf.WriteString(cell.Content)
+	_, _ = s.buf.WriteString(ansi.CursorHorizontalAbsolute(x + cell.Width + 1))
 }
 
 // putCellLR draws a cell at the lower right corner of the screen.
