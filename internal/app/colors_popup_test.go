@@ -168,3 +168,14 @@ func TestOnlyThePanesOwnColorsAreWarnedAbout(t *testing.T) {
 		t.Errorf("a border almost the background warns %q", w)
 	}
 }
+
+func TestAltShiftLettersThatAreNoCommandReachTheProgram(t *testing.T) {
+	a, tb := colorsApp(t)
+	a.shortcut = shortcutFromConfig(config.Shortcut{Alt: true})
+	key := uv.KeyPressEvent{Code: 'z', Mod: uv.ModAlt | uv.ModShift}
+	press(a, key)
+	got := tb.focusedView().(*cellView).keys
+	if a.mode != normalMode || len(got) != 1 || got[0].Code != 'z' || got[0].Mod != key.Mod {
+		t.Errorf("alt+shift+z gave mode %v and the program %v", a.mode, got)
+	}
+}
