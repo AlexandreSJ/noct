@@ -140,3 +140,12 @@ func TestNewTabFromTheHomeScreenOpensAtHome(t *testing.T) {
 		t.Errorf("opened in %q, want home %q", got, home)
 	}
 }
+
+func TestNewTerminalBesideAProgramThatIsNotAShellOpensAtHome(t *testing.T) {
+	// An editor or help pane is a program with a folder of its own, often a temporary one.
+	a := testApp(t, newTab(1, &dirView{dir: t.TempDir()}))
+	home := homeFolder(t)
+	if got := openedIn(t, a, func() { a.openPanel(a.startTerminal) }); got != home {
+		t.Errorf("opened in %q, want home %q", got, home)
+	}
+}

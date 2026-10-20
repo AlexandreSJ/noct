@@ -95,16 +95,24 @@ func (a *App) startTerminal(id layout.PaneID, frame image.Rectangle) (view, erro
 
 // terminalDir is the folder a terminal opened from t's focused pane starts in: the folder of its
 // shell or where its run started, else home. A shell whose folder the system does not tell (only
-// Linux's /proc does) gives the attached terminal's folder instead.
+// Linux's /proc does) gives the attached terminal's folder instead. Other programs, such as an
+// editor or help, have folders of their own, often temporary, so they give home.
 func (a *App) terminalDir(t *tab) string {
 	home := homeDir(a.workDir)
 	if t == nil || t.isEmpty() {
 		return home
 	}
-	if teller, ok := t.focusedView().(directoryTeller); ok {
-		if dir := teller.Dir(); dir != "" {
+	switch v := t.focusedView().(type) {
+	case *runView:
+		return existingDir(v.Dir(), home)
+	case directoryTeller:
+		if a.shells[t.focused] == nil {
+			return home
+		}
+		if dir := v.Dir(); dir != "" {
 			return existingDir(dir, home) // a deleted folder reads as "/path (deleted)"
 		}
+		return a.workDir
 	}
 	if a.shells[t.focused] != nil {
 		return a.workDir
