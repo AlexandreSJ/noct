@@ -37,6 +37,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/pane/images.go` | Writes image placeholder cells at the cursor and moves it as kitty does |
 | `internal/pane/keys.go` | Key encodings the emulator lacks (modified navigation keys) |
 | `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again (a terminal with its command and log), names, what the command line lists |
+| `internal/theme/theme.go` | Theme components, colors (hex, terminal indexes, following the background) and the themes noct comes with |
+| `internal/theme/files.go` | User themes: the themes folder, reading theme files built on a base, and writing only what differs from it |
 | `internal/layout/shape.go` | A tree as plain data (`Shape`) and building it again under new pane IDs |
 | `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks of a pane and those below it (one pane shown, the others folded to a row), move by columns, remove, rects, directional focus, draggable dividers |
 | `internal/app/app.go` | App state, event loop, frame pacing, attach (to the session asked for)/detach, config loading, shutdown |
