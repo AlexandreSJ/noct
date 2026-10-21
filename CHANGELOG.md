@@ -11,47 +11,40 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+## v0.2.0 - 2026-10-21
+
 ### Added
 
-- Animations. Panels and tabs fade in and out, the panel that gets the focus lights up, popups
-  appear and go with a jitter, and a panel out of focus pulses when it prints. Each moment, its
-  effect (`01`, `fade`, `jitter` or `none`) and its time in milliseconds are in
-  **Appearance → animations**, with a preview beside the list. Moving the focus quickly leaves a
-  trail of the panels it passed; any other animation ends at the next key, and programs in panels
-  are never resized during one.
-- Tab templates. `prefix` + `R` saves the tab's layout, names and colors as a template, and for
-  each terminal whether its command runs when the template opens, asks first, or does not run.
-  `prefix` + `T` opens a template as a new tab, picked from a list that shows its layout. With
-  the direct shortcut on `alt`, `Alt+Shift+R` and `Alt+Shift+T` do the same. A template that
-  cannot be read stays in the list with its problem, to edit or delete.
-- `prefix` + `P` gives the focused panel and its tab colors of their own: the panel's borders,
-  titles, background and text, and the tab's name and background. They stay with the session,
-  and a warning tells when text gets hard to read. With the direct shortcut on `alt`,
-  `Alt+Shift+P` does the same.
-- **Appearance → new theme** and **edit theme** make and change themes in noct. Pick each part
-  (tab names, borders, titles, lists, messages) and its color from the 256 the terminal shows,
-  or type a `#rrggbb`, with a small workspace beside the list showing the result. On the
-  backgrounds of tabs, lists and popups, `t` makes them follow the theme's background again.
-- Each session keeps its own theme. **Appearance → theme** changes the session on screen, a new
-  session starts with the theme of the one it was made from, and moving through the sessions
-  (`prefix` + `o`) or the search shows each session in its colors before you open it.
-- Your own themes: a theme file in `~/.config/noct/themes/` shows up in **Appearance → theme**,
-  and changes to it show at once.
+- Your own themes: **Appearance → new theme** and **edit theme** pick a color for each part
+  (tabs, borders, titles, lists, messages) from the terminal's 256 or a `#rrggbb`, with a
+  preview. Theme files in `~/.config/noct/themes/` work too, and reload when they change.
+- Each session keeps its own theme, and moving through the sessions (`prefix` + `o`) or the
+  search shows each one in its colors.
+- `prefix` + `P` gives the focused panel and its tab their own colors, with a warning when text
+  gets hard to read. They stay with the session.
+- Tab templates: `prefix` + `R` saves the tab (layout, names, colors and each terminal's command,
+  set to `run`, `ask` or `none`), and `prefix` + `T` opens one as a new tab.
+- `shortcut` + `P`, `shortcut` + `R` and `shortcut` + `T` do the same without the prefix, when
+  **Keys → alt** is on.
+- Animations: an effect (`01`, `fade`, `jitter` or `none`) and a time for each moment, with a
+  preview, in **Appearance → animations**. Moving the focus quickly leaves a trail; other
+  animations end at the next key.
 
 ### Changed
 
-- A finished run shows `✓` in the theme's success color and `✗` in its error color.
-
-- New terminals (`prefix` + `p`, `prefix` + `t`, `prefix` + `g`) open in the folder of the focused panel: where
-  its shell is now, or where its script ran. Beside panels without a folder, such as scripts or
-  logs, they open in your home folder.
+- New terminals (`prefix` + `p`, `prefix` + `t`, `prefix` + `g`) open in the focused panel's
+  folder, or in your home folder beside panels without one.
+- A finished run shows `✓` and `✗` in the theme's success and error colors.
+- A config note too long for the panel scrolls while its setting is selected.
+- `shortcut` + `,` closes the config too.
 
 ### Fixed
 
-- Making the terminal narrower no longer loses the end of the lines in a pane: widening it again
-  shows the text that did not fit, such as logs and values still to read, in the history too.
-- A line with an emoji such as `➡️` keeps the pane's right border in place. In terminals that
-  draw it one column wide, the rest of that line used to move one column left.
+- Narrowing the terminal no longer loses the end of lines: widening it shows them again, in the
+  history too.
+- An emoji such as `➡️` no longer moves the pane's right border.
+- The cursor no longer jumps around while noct redraws, in terminals that do not draw frames at
+  once.
 
 ## v0.1.2 - 2026-10-19
 
