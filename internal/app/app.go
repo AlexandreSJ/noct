@@ -106,8 +106,11 @@ type App struct {
 	// tells that the last motion changed nothing on screen, so it needs no frame.
 	hoverTarget string
 	quietMotion bool
-	// lastPopup is the popup the last frame drew, which closing it animates.
-	lastPopup drawnPopup
+	// lastPopup is the popup the last frame drew, which closing it animates. popupArea is where
+	// the popup of the frame being drawn is, kept by drawPanel while drawingPopup.
+	lastPopup    drawnPopup
+	popupArea    image.Rectangle
+	drawingPopup bool
 	// activity marks, per pane, that output out of sight was told; unseen are the panes that
 	// pulsed and were not seen since.
 	activity map[layout.PaneID]*atomic.Bool

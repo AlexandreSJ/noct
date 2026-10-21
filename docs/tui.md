@@ -87,7 +87,7 @@ No modo noct:
 | `e` | rename panel | Renomear o painel com foco; vazio volta ao nome do programa | prompt | 2 |
 | `P` | colors of the panel and tab | Cores próprias do painel com foco (bordas, títulos, fundo e texto) e da tab dele (nome e fundo, ativa e inativa), por cima do tema da sessão, com o palco ao lado e um aviso de contraste baixo; `Alt+Shift+P` com o atalho direto em `alt` (ADR-051) | popup | 5 |
 | `x` | close | Fechar o painel; a tab fecha junto com o último | termina | 0 |
-| `,` | config | Abrir o config (antes `c`; ADR-047) | config | 0 |
+| `,` | config | Abrir o config (antes `c`; ADR-047); com o config aberto, o atalho direto (`shortcut` + `,`) o fecha | config | 0 |
 | `c` | updates and changelog | Popup das atualizações: o que há de novo e o changelog de cada versão; ver [Atualizações](#atualizações) | atualizações | 5 |
 | `q` | quit | Pergunta `quit noct?`: `Enter` ou `q` de novo saem, `Esc` cancela | pergunta | 0a |
 | `b` | lock shortcuts | Trava os atalhos, ou destrava: ver [Trava](#trava) | termina | 5 |

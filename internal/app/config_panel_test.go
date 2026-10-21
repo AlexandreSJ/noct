@@ -297,3 +297,12 @@ func TestWideNoteScrollsWhileItsRowIsSelected(t *testing.T) {
 		t.Errorf("with another row selected, the note stays at its start:\n%s", screenText(a))
 	}
 }
+
+func TestTheConfigsShortcutClosesItToo(t *testing.T) {
+	a := openConfigAt(t, prefixRow)
+	a.shortcut = shortcutFromConfig(config.Shortcut{Alt: true})
+	press(a, uv.KeyPressEvent{Code: ',', Mod: uv.ModAlt})
+	if a.mode != normalMode {
+		t.Errorf("shortcut + , left mode %v, want the config closed", a.mode)
+	}
+}

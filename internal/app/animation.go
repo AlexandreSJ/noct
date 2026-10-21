@@ -93,13 +93,16 @@ func (a *App) newAnimation(m moment, an animation, start time.Time) *animation {
 	return &an
 }
 
-// animation is one moment playing over an area of the screen.
+// animation is one moment playing over a part of the screen: its target, found again on each
+// frame so the animation follows what it plays on when that moves or changes size.
 type animation struct {
 	moment moment
 	effect effect
 	start  time.Time
 	pane   layout.PaneID
-	area   image.Rectangle
+	target target
+	// area is where a targetArea animation plays, such as what a closed pane showed.
+	area image.Rectangle
 	// closing plays backwards over cells, what the area showed before it went away.
 	closing bool
 	cells   uv.ScreenBuffer
@@ -183,7 +186,7 @@ func (a *App) startPopupAnimation(prev, now shot, at time.Time) {
 	switch {
 	case now.mode == prev.mode:
 	case isPopupMode(now.mode):
-		a.startAnimation(momentPopup, animation{pane: popupPane, area: image.Rect(0, 0, a.size.X, a.size.Y)}, at)
+		a.startAnimation(momentPopup, animation{pane: popupPane, target: target{kind: targetPopup}}, at)
 	case isPopupMode(prev.mode) && !a.lastPopup.area.Empty():
 		box := a.lastPopup.area
 		a.startAnimation(momentPopup, animation{pane: popupPane, area: box, closing: true, cells: a.lastPopup.cells, seed: int64(box.Min.X)}, at)
@@ -196,9 +199,7 @@ func (a *App) startTabAnimation(prev, now shot, at time.Time) bool {
 	switch {
 	case now.tabs > prev.tabs:
 		a.startAnimation(momentTabs, animation{pane: tabsPane, area: area}, at)
-		if span, ok := a.activeTabSpan(); ok {
-			a.startAnimation(momentTabs, animation{pane: tabBarPane, area: span}, at)
-		}
+		a.startAnimation(momentTabs, animation{pane: tabBarPane, target: target{kind: targetTabName, tab: a.currentTab()}}, at)
 		return true
 	case now.tabs < prev.tabs && a.lastFrame != nil:
 		a.startAnimation(momentTabs, animation{pane: tabsPane, area: area, closing: true, cells: a.snapshot(area)}, at)
@@ -211,17 +212,17 @@ func (a *App) startTabAnimation(prev, now shot, at time.Time) bool {
 // focus, panes that opened or closed, and the focused pane moving.
 func (a *App) startPaneAnimations(prev, now shot, at time.Time) {
 	_, wasThere := prev.frames[now.focused]
-	if frame, ok := now.frames[now.focused]; ok && prev.focused != now.focused && wasThere {
+	if _, ok := now.frames[now.focused]; ok && prev.focused != now.focused && wasThere {
 		// only the pane that gets the focus lights up; the one it left keeps fading, as a trail
-		a.startAnimation(momentFocus, animation{pane: now.focused, area: frame, frameOnly: true, fromColor: a.palette.unfocusedFrame.Fg}, at)
+		a.startAnimation(momentFocus, animation{pane: now.focused, target: target{kind: targetPane}, frameOnly: true, fromColor: a.palette.unfocusedFrame.Fg}, at)
 	}
 	if prev.fullscreen || now.fullscreen {
 		return // only the focused pane shows: panes come and go with the focus
 	}
 	opened := false
-	for id, frame := range now.frames {
+	for id := range now.frames {
 		if _, ok := prev.frames[id]; !ok {
-			a.startAnimation(momentPanels, animation{pane: id, area: frame, seed: int64(id)}, at)
+			a.startAnimation(momentPanels, animation{pane: id, target: target{kind: targetPane}, seed: int64(id)}, at)
 			opened = true
 		}
 	}
@@ -233,8 +234,53 @@ func (a *App) startPaneAnimations(prev, now shot, at time.Time) {
 	}
 	before, after := prev.frames[now.focused], now.frames[now.focused]
 	if !opened && wasThere && before != after && now.mode != resizeMode {
-		a.startAnimation(momentMove, animation{pane: now.focused, area: after, frameOnly: true, seed: int64(now.focused)}, at)
+		a.startAnimation(momentMove, animation{pane: now.focused, target: target{kind: targetPane}, frameOnly: true, seed: int64(now.focused)}, at)
 	}
+}
+
+// target is what an animation plays on.
+type target struct {
+	kind targetKind
+	// tab is the tab whose name a targetTabName animation plays on.
+	tab *tab
+}
+
+type targetKind int
+
+const (
+	targetArea      targetKind = iota // the animation's own area, which stays put
+	targetPane                        // the frame of the animation's pane
+	targetPaneTitle                   // the top row of that frame, where its title is
+	targetTabName                     // the tab's name in the tab bar
+	targetPopup                       // the popup the frame draws
+)
+
+// placeOf is where the animation plays on this frame, or false when its target is not on screen.
+func (a *App) placeOf(an *animation) (image.Rectangle, bool) {
+	switch an.target.kind {
+	case targetPane, targetPaneTitle:
+		frame, ok := a.lastShot.frames[an.pane]
+		if an.target.kind == targetPaneTitle {
+			frame.Max.Y = frame.Min.Y + 1
+		}
+		return frame, ok
+	case targetTabName:
+		return a.tabNameSpan(an.target.tab)
+	case targetPopup:
+		return a.popupArea, !a.popupArea.Empty()
+	}
+	return an.area, true
+}
+
+// tabNameSpan is where t's name is in the tab bar, when it shows there.
+func (a *App) tabNameSpan(t *tab) (image.Rectangle, bool) {
+	index := slices.Index(a.session.tabs, t)
+	for _, span := range a.tabBar() {
+		if span.tab == index && !span.mark {
+			return image.Rect(span.start, 0, span.end, 1), true
+		}
+	}
+	return image.Rectangle{}, false
 }
 
 // Animations that are not of one pane take these places of a pane id.
@@ -248,38 +294,41 @@ const (
 // hoverAt hovers what is under the mouse, a tab's name or a pane's title, once per visit,
 // telling whether it started to.
 func (a *App) hoverAt(point image.Point) bool {
-	target, area := a.hoverTargetAt(point)
-	if target == a.hoverTarget {
+	name, on := a.hoverTargetAt(point)
+	if name == a.hoverTarget {
 		return false
 	}
-	a.hoverTarget = target
-	an := a.newAnimation(momentHover, animation{pane: hoverPane, area: area, seed: int64(point.X)}, a.now())
-	if target == "" || an == nil {
+	a.hoverTarget = name
+	on.seed = int64(point.X)
+	an := a.newAnimation(momentHover, on, a.now())
+	if name == "" || an == nil {
 		return false
 	}
 	a.addAnimation(an)
 	return true
 }
 
-func (a *App) hoverTargetAt(point image.Point) (string, image.Rectangle) {
+// hoverTargetAt names what is under the mouse, a tab's name or a pane's title, with the
+// animation that plays on it; "" when it is neither.
+func (a *App) hoverTargetAt(point image.Point) (string, animation) {
 	if point.Y == 0 {
 		for _, span := range a.tabBar() {
 			if !span.mark && point.X >= span.start && point.X < span.end {
-				return fmt.Sprintf("tab %d", span.tab), image.Rect(span.start, 0, span.end, 1)
+				return fmt.Sprintf("tab %d", span.tab), animation{pane: hoverPane, target: target{kind: targetTabName, tab: a.session.tabs[span.tab]}}
 			}
 		}
-		return "", image.Rectangle{}
+		return "", animation{}
 	}
 	t := a.currentTab()
 	if t == nil || t.isEmpty() {
-		return "", image.Rectangle{}
+		return "", animation{}
 	}
 	for _, p := range t.visible(a.workspaceArea()) {
 		if point.Y == p.frame.Min.Y && point.X >= p.frame.Min.X && point.X < p.frame.Max.X {
-			return fmt.Sprintf("pane %d", p.id), image.Rect(p.frame.Min.X, p.frame.Min.Y, p.frame.Max.X, p.frame.Min.Y+1)
+			return fmt.Sprintf("pane %d", p.id), animation{pane: p.id, target: target{kind: targetPaneTitle}}
 		}
 	}
-	return "", image.Rectangle{}
+	return "", animation{}
 }
 
 // screenChangeOf is what a pane's program calls on new output: a frame, and, while the pane is
@@ -316,20 +365,11 @@ func (a *App) markActivity(id layout.PaneID) {
 		a.unseen = map[layout.PaneID]bool{}
 	}
 	a.unseen[id] = true
-	area, ok := image.Rectangle{}, false
-	if frame, visible := a.takeShot().frames[id]; visible && t == a.currentTab() {
-		area, ok = image.Rect(frame.Min.X, frame.Min.Y, frame.Max.X, frame.Min.Y+1), true
+	on := target{kind: targetTabName, tab: t}
+	if _, visible := a.takeShot().frames[id]; visible && t == a.currentTab() {
+		on = target{kind: targetPaneTitle}
 	}
-	for i := range a.session.tabs {
-		if !ok && a.session.tabs[i] == t {
-			for _, span := range a.tabBar() {
-				if span.tab == i && !span.mark {
-					area, ok = image.Rect(span.start, 0, span.end, 1), true
-				}
-			}
-		}
-	}
-	if an := a.newAnimation(momentActivity, animation{pane: id, area: area}, a.now()); ok && an != nil {
+	if an := a.newAnimation(momentActivity, animation{pane: id, target: on}, a.now()); an != nil {
 		a.addAnimation(an)
 	}
 }
@@ -345,16 +385,6 @@ func (a *App) seen(id layout.PaneID) {
 // isPopupMode tells the modes that show a popup over the workspace.
 func isPopupMode(m mode) bool {
 	return m != normalMode && m != scrollMode
-}
-
-// activeTabSpan is where the active tab's name is in the tab bar.
-func (a *App) activeTabSpan() (image.Rectangle, bool) {
-	for _, span := range a.tabBar() {
-		if span.tab == a.session.activeTab && !span.mark {
-			return image.Rect(span.start, 0, span.end, 1), true
-		}
-	}
-	return image.Rectangle{}, false
 }
 
 // addAnimation plays an, in place of what the same moment played on the same pane.
@@ -451,30 +481,30 @@ func (a *App) drawAnimations(screen uv.Screen, at time.Time) {
 			continue // drawn over the popup, once it is drawn
 		}
 		p := an.progress(at)
+		area, ok := a.placeOf(an)
 		switch {
+		case !ok: // what it played on is not on screen any more
 		case an.closing:
 			a.drawClosing(screen, an, p, at)
 		case an.moment == momentFocus:
-			a.drawFocus(screen, an, p, at)
+			a.drawFocus(screen, an, area, p, at)
 		case an.frameOnly:
-			a.applyEffect(screen, an, an.area, p, at, onBorder(an.area))
+			a.applyEffect(screen, an, area, p, at, onBorder(area))
 		default:
-			a.applyEffect(screen, an, an.area, p, at, nil)
+			a.applyEffect(screen, an, area, p, at, nil)
 		}
 	}
 }
 
-// drawPopupAnimations plays the popups' animations on the cells the popup drew over before.
-func (a *App) drawPopupAnimations(screen uv.Screen, before uv.ScreenBuffer, at time.Time) {
-	drawn := func(x, y int) bool {
-		was, is := before.CellAt(x, y), screen.CellAt(x, y)
-		return was != nil && is != nil && (was.Content != is.Content || !was.Style.Equal(&is.Style))
-	}
+// drawPopupAnimations plays the popups' opening animations on the popup the frame drew.
+func (a *App) drawPopupAnimations(screen uv.Screen, at time.Time) {
 	for _, an := range a.animations {
 		if an.moment != momentPopup || an.closing {
 			continue
 		}
-		a.applyEffect(screen, an, an.area, an.progress(at), at, drawn)
+		if area, ok := a.placeOf(an); ok {
+			a.applyEffect(screen, an, area, an.progress(at), at, nil)
+		}
 	}
 }
 
@@ -484,55 +514,17 @@ type drawnPopup struct {
 	cells uv.ScreenBuffer
 }
 
-// drawOverlay draws the mode's popup, comparing it with the frame under it only when an
-// animation needs that: one opening plays on the cells the popup drew, and one closing on the
-// cells it last had.
+// drawOverlay draws the mode's popup and plays its opening over it. While a popup with an effect
+// is open, its cells are kept for its closing to play backwards.
 func (a *App) drawOverlay(screen uv.Screen, at time.Time) {
-	opening := a.hasPopupAnimation()
-	closable := isPopupMode(a.mode) && a.effectFor(momentPopup) != effectNone
-	a.lastPopup = drawnPopup{}
-	if !opening && !closable {
-		a.drawModeOverlay(screen)
-		return
-	}
-	before := a.copyOf(screen)
+	a.popupArea, a.drawingPopup = image.Rectangle{}, true
 	a.drawModeOverlay(screen)
-	if closable {
-		a.lastPopup = a.popupDrawn(screen, before)
+	a.drawingPopup = false
+	a.lastPopup = drawnPopup{}
+	if isPopupMode(a.mode) && a.effectFor(momentPopup) != effectNone && !a.popupArea.Empty() {
+		a.lastPopup = drawnPopup{area: a.popupArea, cells: a.copyArea(screen, a.popupArea)}
 	}
-	if opening {
-		a.drawPopupAnimations(screen, before, at)
-	}
-}
-
-// popupDrawn is the part of the screen the popup changed from before, with its cells.
-func (a *App) popupDrawn(screen uv.Screen, before uv.ScreenBuffer) drawnPopup {
-	box := image.Rectangle{}
-	for y := range a.size.Y {
-		for x := range a.size.X {
-			was, is := before.CellAt(x, y), screen.CellAt(x, y)
-			if was != nil && is != nil && (was.Content != is.Content || !was.Style.Equal(&is.Style)) {
-				box = box.Union(image.Rect(x, y, x+1, y+1))
-			}
-		}
-	}
-	return drawnPopup{area: box, cells: a.copyArea(screen, box)}
-}
-
-// hasPopupAnimation tells whether a popup's opening animation runs, which needs the frame before
-// the popup.
-func (a *App) hasPopupAnimation() bool {
-	for _, an := range a.animations {
-		if an.moment == momentPopup && !an.closing {
-			return true
-		}
-	}
-	return false
-}
-
-// copyOf is the screen's cells as they are now.
-func (a *App) copyOf(screen uv.Screen) uv.ScreenBuffer {
-	return a.copyArea(screen, image.Rect(0, 0, a.size.X, a.size.Y))
+	a.drawPopupAnimations(screen, at)
 }
 
 // onBorder tells the cells of area's border.
@@ -542,13 +534,9 @@ func onBorder(area image.Rectangle) func(x, y int) bool {
 	}
 }
 
-// drawFocus lights the border of the pane where it is now. A pane the focus left before its
+// drawFocus lights the border of the pane, frame. A pane the focus left before its
 // animation ended is a trail: what it lit fades back to its own color.
-func (a *App) drawFocus(screen uv.Screen, an *animation, p float64, at time.Time) {
-	frame, ok := a.lastShot.frames[an.pane]
-	if !ok {
-		return
-	}
+func (a *App) drawFocus(screen uv.Screen, an *animation, frame image.Rectangle, p float64, at time.Time) {
 	focus := *an
 	if an.pane != a.lastShot.focused {
 		focus.fromColor = a.palette.focusedFrame.Fg

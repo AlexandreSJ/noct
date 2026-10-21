@@ -134,6 +134,10 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 		a.capturePrefix(key)
 		return
 	}
+	if name, _, ok := a.shortcut.command(key, a.commandKey); ok && name == "," && !a.configPanel.bindCapture.active {
+		a.closeConfig() // the shortcut that opens the config closes it again
+		return
+	}
 	switch a.configPanel.page {
 	case bindsPage:
 		a.handleBindsKey(key)

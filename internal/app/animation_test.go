@@ -311,8 +311,11 @@ func TestHoverAnimatesATabNameOncePerVisit(t *testing.T) {
 	}
 	a.handleMouse(motion(second.Min.X+1, 0))
 	first := animationOf(a, momentHover)
-	if first == nil || first.area != second {
+	if first == nil {
 		t.Fatalf("hovering the tab gave %v", a.animations)
+	}
+	if place, ok := a.placeOf(first); !ok || place != second {
+		t.Fatalf("hovering the tab plays on %v, want its name at %v", place, second)
 	}
 	a.handleMouse(motion(second.Min.X+2, 0))
 	if animationOf(a, momentHover) != first {
@@ -505,5 +508,91 @@ func TestAnAnimationLastsTheTimeOfItsMoment(t *testing.T) {
 	an := animationOf(a, momentFocus)
 	if an == nil || an.progress(an.start.Add(550*time.Millisecond)) >= 1 || an.progress(an.start.Add(600*time.Millisecond)) < 1 {
 		t.Error("the focus does not last its 600 ms")
+	}
+}
+
+// animatedOnlyIn fails when the animations change a cell outside where, compared with the same
+// frame drawn without them.
+func animatedOnlyIn(t *testing.T, a *App, where image.Rectangle) {
+	t.Helper()
+	animated := drawnApp(a)
+	running := a.animations
+	a.animations = nil
+	plain := drawnApp(a)
+	a.animations = running
+	changed := false
+	for y := range a.size.Y {
+		for x := range a.size.X {
+			was, is := plain.CellAt(x, y), animated.CellAt(x, y)
+			if was == nil || is == nil || was.Content == is.Content && was.Style.Equal(&is.Style) {
+				continue
+			}
+			changed = true
+			if !image.Pt(x, y).In(where) {
+				t.Fatalf("the animation changed (%d, %d), outside %v", x, y, where)
+			}
+		}
+	}
+	if !changed {
+		t.Fatalf("nothing animates in %v", where)
+	}
+}
+
+func TestAPopupAnimatesOnlyItsOwnPanel(t *testing.T) {
+	a, _ := animatedApp(t)
+	a.size.Y = 40
+	drawnApp(a) // a new size ends what runs
+	a.openConfig()
+	drawnApp(a)
+	panel := a.configLayout().panel
+	rewind(a, 50*time.Millisecond)
+	animatedOnlyIn(t, a, panel)
+	rewind(a, time.Second)
+	a.advanceAnimations(a.now())
+	drawnApp(a)
+	a.closeConfig()
+	drawnApp(a)
+	if an := animationOf(a, momentPopup); an == nil || !an.closing {
+		t.Fatalf("animations %v after closing the config", a.animations)
+	}
+	rewind(a, 50*time.Millisecond)
+	animatedOnlyIn(t, a, panel)
+}
+
+func TestAPulseFollowsATabNameThatMoves(t *testing.T) {
+	a, first := twoPanesAnimated(t)
+	second := newTab(5, &cellView{})
+	a.session.tabs = append(a.session.tabs, second)
+	second.name = "second"
+	drawnApp(a)
+	a.finishAnimations() // the second tab is already there
+	a.markActivity(5)
+	first.name = "a first tab with a longer name" // the second's name moves right
+	rewind(a, 100*time.Millisecond)
+	var span image.Rectangle
+	for _, s := range a.tabBar() {
+		if s.tab == 1 && !s.mark {
+			span = image.Rect(s.start, 0, s.end, 1)
+		}
+	}
+	animatedOnlyIn(t, a, span)
+}
+
+func TestClosingTheConfigOnTheAnimationsPlaysOverItsPanel(t *testing.T) {
+	a, _ := animatedApp(t)
+	a.size = image.Pt(160, 50)
+	drawnApp(a)
+	a.openConfig()
+	a.selectConfigRow(animationRowBase + configRow(momentPanels))
+	drawnApp(a)
+	rewind(a, time.Second)
+	a.advanceAnimations(a.now())
+	drawnApp(a)
+	panel := a.configLayout().panel
+	a.closeConfig()
+	drawnApp(a)
+	an := animationOf(a, momentPopup)
+	if an == nil || an.area != panel {
+		t.Fatalf("the closing plays over %v, want the config's panel %v", an, panel)
 	}
 }
