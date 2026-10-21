@@ -433,6 +433,8 @@ func (a *App) handleEvent(event uv.Event) error {
 		}
 	case uv.ClipboardEvent:
 		a.pasteText(event.Content)
+	case uv.ModeReportEvent:
+		a.useSynchronizedUpdates(event)
 	}
 	return nil
 }

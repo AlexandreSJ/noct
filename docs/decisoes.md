@@ -458,6 +458,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Respostas a consultas feitas no meio de um quadro (`ESC[6n`) saem quando ele termina. Num terminal sem o mode 2026, o cursor pode ser visto andando durante o desenho de um quadro, já que não é mais escondido.
 
+**Cursor andando nas animações (2026-10-21).** Com as animações, essa consequência apareceu: ao trocar o foco com `fade`, o cursor piscava no painel e em pontos da borda, porque cada quadro da animação muda células longe dele e o terminal mostrava o cursor indo até cada uma. O mesmo vale para qualquer saída fora do painel com foco. Agora o noct pergunta ao terminal, ao conectar, se ele tem o mode 2026 (`DECRQM`, `ESC[?2026$p`). Só com a resposta "reconhecido" (ligado, desligado ou sempre ligado) os quadros vão como atualização sincronizada; até a resposta, e num terminal que não responde ou não tem o mode, o cursor é escondido durante o quadro e mostrado no fim, no mesmo write, como o `ultraviolet` faz sem o mode. Um terminal intermediário (como o ConPTY) que diga ter o mode sem passá-lo adiante ainda mostraria o cursor andando.
+
 ## ADR-036 — Painéis de scripts e fluxos acompanham o disco
 
 **Contexto.** O inspect e o scripts panel liam os arquivos ao abrir. Um fluxo que a IA criava ou transformava em rascunho pelo MCP (que escreve os arquivos direto, ADR-033) só aparecia depois de fechar e abrir o painel.

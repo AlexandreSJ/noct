@@ -10,6 +10,7 @@ import (
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/AlexandreSJ/noct/internal/ipc"
 )
@@ -49,9 +50,6 @@ type client struct {
 func newClient(c connection) *client {
 	screen := uv.NewTerminalScreen(c.conn.Writer(), c.hello.Env)
 	screen.SetColorProfile(colorprofile.Profile(c.hello.ColorProfile))
-	// Each frame goes as one synchronized update (mode 2026) instead of hiding the cursor while
-	// drawing and showing it again, which blinks it; terminals without the mode ignore it.
-	_ = screen.SetSynchronizedUpdates(true) // only records the setting
 	keysReader, keysWriter := io.Pipe()
 	ctx, cancel := context.WithCancel(context.Background())
 	cl := &client{
@@ -133,8 +131,22 @@ func (c *client) start() error {
 		return fmt.Errorf("enabling bracketed paste: %w", err)
 	}
 	_, _ = c.screen.WriteString(setInNoctVariable) // queued; the first frame sends it
+	_, _ = c.screen.WriteString(ansi.RequestModeSynchronizedOutput)
 	c.emitSize(c.hello.Size)
 	return nil
+}
+
+// useSynchronizedUpdates sends each frame as one synchronized update (mode 2026) when the
+// terminal says it has the mode. Until then, and for terminals without it, the cursor is hidden
+// while a frame is drawn: drawing moves it to every cell that changes, and a terminal that shows
+// that makes it jump around the screen on every frame, such as an animation's. Hiding it on
+// terminals that have the mode would only make it blink.
+func (a *App) useSynchronizedUpdates(report uv.ModeReportEvent) {
+	if report.Mode != ansi.ModeSynchronizedOutput || a.screen == nil {
+		return
+	}
+	has := report.Value == ansi.ModeSet || report.Value == ansi.ModeReset || report.Value == ansi.ModePermanentlySet
+	_ = a.screen.SetSynchronizedUpdates(has) // only records it
 }
 
 // end gives the client's terminal back as it was, tells the client why and disconnects it.
