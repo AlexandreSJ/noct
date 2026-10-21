@@ -71,7 +71,7 @@ Uma mini-workspace desenhada pelo noct, sem nenhum programa rodando: uma barra c
 - no config das animações, tocando o efeito do momento selecionado ([animacoes.md](animacoes.md#prévia));
 - no popup de templates, como miniatura do layout de cada um, nas cores salvas ([templates.md](templates.md)).
 
-O palco fica ao lado da lista, ou embaixo dela se o painel for estreito, e some se não houver espaço.
+O palco fica ao lado da lista no editor de temas e no popup de cores, e embaixo dela no config das animações; some se não houver espaço.
 
 ## Tema por sessão
 

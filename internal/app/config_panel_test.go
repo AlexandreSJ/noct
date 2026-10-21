@@ -272,3 +272,28 @@ func TestConfigFollowsTheMouse(t *testing.T) {
 		t.Errorf("mode %v after clicking outside the config", a.mode)
 	}
 }
+
+// A note too wide for the panel scrolls, after a pause, only while the row above it is selected.
+func TestWideNoteScrollsWhileItsRowIsSelected(t *testing.T) {
+	const note = "older and, past the size, oldest logs are deleted"
+	now := time.Unix(0, 0)
+	a := testApp(t, sideBySideTab(1, 2))
+	a.clock = func() time.Time { return now }
+	a.openConfig()
+	a.selectConfigRow(logsSizeRow)
+	if !strings.Contains(screenText(a), note[:40]) {
+		t.Fatalf("before the pause, the note shows its start:\n%s", screenText(a))
+	}
+	now = now.Add(noteHold + 2*noteStep)
+	if text := screenText(a); !strings.Contains(text, note[2:42]) || strings.Contains(text, note[:10]) {
+		t.Errorf("after the pause and two steps, the note moved two cells:\n%s", text)
+	}
+	if a.noteTick == nil {
+		t.Error("a scrolling note asks for its next frame")
+	}
+	a.selectConfigRow(logsTerminalsRow)
+	now = now.Add(noteHold + 2*noteStep)
+	if !strings.Contains(screenText(a), note[:40]) {
+		t.Errorf("with another row selected, the note stays at its start:\n%s", screenText(a))
+	}
+}

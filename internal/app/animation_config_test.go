@@ -1,6 +1,7 @@
 package app
 
 import (
+	"image"
 	"strings"
 	"testing"
 	"time"
@@ -27,12 +28,13 @@ func animationConfig(t *testing.T, m moment) *App {
 
 func TestTheConfigListsEveryMomentWithItsEffect(t *testing.T) {
 	a := animationConfig(t, momentPanels)
-	text := screenText(a)
-	for _, m := range moments {
-		if !strings.Contains(text, m.label) {
+	for i, m := range moments {
+		a.selectConfigRow(animationRowBase + configRow(i))
+		if !strings.Contains(screenText(a), m.label) {
 			t.Errorf("the config does not list %q", m.label)
 		}
 	}
+	a.selectConfigRow(animationRowBase + configRow(momentPanels))
 	press(a, rightPress)
 	if a.config.Animations.Panels != "jitter" {
 		t.Fatalf("panels animate with %q after right, want jitter", a.config.Animations.Panels)
@@ -120,5 +122,57 @@ func TestEachMomentsTimeIsSetInTheConfig(t *testing.T) {
 	press(a, enterPress)
 	if a.config.AnimationTimes.Focus != 450 || a.configPanel.numberProblem == "" {
 		t.Errorf("9 ms was taken as %d, problem %q", a.config.AnimationTimes.Focus, a.configPanel.numberProblem)
+	}
+}
+
+// drawnCell is where text first shows on screen at or after row from, as it was drawn.
+func drawnCell(t *testing.T, a *App, text string, from int) image.Point {
+	t.Helper()
+	lines := strings.Split(screenText(a), "\n")
+	for y := from; y < len(lines); y++ {
+		if x := strings.Index(lines[y], text); x >= 0 {
+			return image.Pt(len([]rune(lines[y][:x])), y)
+		}
+	}
+	t.Fatalf("%q is not on screen:\n%s", text, strings.Join(lines, "\n"))
+	return image.Point{}
+}
+
+func TestTheStageIsUnderTheRowsWithItsNote(t *testing.T) {
+	a := animationConfig(t, momentPanels)
+	row := drawnCell(t, a, "open and close panels", 0)
+	note := drawnCell(t, a, "example · space repeats it", 0)
+	if note.Y <= row.Y {
+		t.Errorf("the stage's note is on row %d, above the rows' %d", note.Y, row.Y)
+	}
+	hints := drawnCell(t, a, "esc close", 0)
+	if hints.Y <= note.Y {
+		t.Errorf("the hints are on row %d, above the stage on %d", hints.Y, note.Y)
+	}
+}
+
+func TestClickingTheArrowsDrawnChangesTheEffect(t *testing.T) {
+	a := animationConfig(t, momentPanels)
+	row := drawnCell(t, a, "open and close panels", 0)
+	next := drawnCell(t, a, "▸", row.Y)
+	if next.Y != row.Y {
+		t.Fatalf("the row's ▸ is not on its line")
+	}
+	click(a, next.X, next.Y)
+	if a.config.Animations.Panels != "jitter" {
+		t.Fatalf("panels on %q after clicking ▸, want jitter", a.config.Animations.Panels)
+	}
+	back := drawnCell(t, a, "◂", row.Y)
+	click(a, back.X, back.Y)
+	if a.config.Animations.Panels != "fade" {
+		t.Errorf("panels on %q after clicking ◂, want fade back", a.config.Animations.Panels)
+	}
+}
+
+func TestAShortTerminalKeepsTheRowsWithoutTheStage(t *testing.T) {
+	a := animationConfig(t, momentPanels)
+	a.size.Y = 24
+	if text := screenText(a); strings.Contains(text, "example ·") {
+		t.Errorf("the stage's note shows where the stage does not fit:\n%s", text)
 	}
 }

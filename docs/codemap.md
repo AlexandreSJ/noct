@@ -49,7 +49,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/updates.go` | Updates: the cache of the last check, checking once it is a day old or on demand (with the ETag and a cooldown), installing the newest in the background, the command to install by hand, restarting into it |
 | `internal/app/updates_popup.go` | Updates popup (prefix+c): what is new, the changelog of every release, keys to check, update, copy the command and restart |
 | `internal/app/updates_test.go` | Tests of the updates popup, the tab bar's version, installing, restarting and the read-only case |
-| `internal/app/client.go` | Daemon side of an attached terminal: decoding its keys, drawing to it, greeting connections |
+| `internal/app/client.go` | Daemon side of an attached terminal: decoding its keys, drawing to it (synchronized updates only when the terminal has mode 2026), greeting connections |
 | `internal/app/scroll.go` | Scroll mode through a terminal's history |
 | `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), the folder a new terminal opens in (`terminalDir`), tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach (in any session) |
 | `internal/app/view.go` | The `view` interface a pane shows: a terminal or a noct panel |
@@ -107,8 +107,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/template_save.go` | The popup of prefix + R: the tab as a template, with how each terminal's command starts |
 | `internal/app/templates_popup.go` | The popup of prefix + T: the templates with the layout of the selected one, opening one as a tab, and edit, rename and delete |
 | `internal/app/animation.go` | Animations: what changed since the last frame, the ones running, and drawing them over the frame without touching the programs |
-| `internal/app/effects.go` | The animation effects as functions of time: spring, easing, 01, jitter and flicker |
-| `internal/app/stage_preview.go` | The config's rows of the animations, the flicker warning and the stage playing the selected moment's effect |
+| `internal/app/effects.go` | The animation effects as functions of time: easing, 01 and jitter |
+| `internal/app/stage_preview.go` | The config's rows of the animations (each moment's effect and time) and the stage under them playing the selected moment's effect |
 | `internal/app/stage.go` | The stage: a small made-up workspace with a bit of everything a theme colors, to preview themes in place |
 | `internal/kittygfx/command.go` | Parse and encode kitty graphics commands |
 | `internal/kittygfx/stream.go` | Split graphics commands out of program output, across reads |

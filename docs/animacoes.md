@@ -63,7 +63,7 @@ O `animate intro` continua como está, à parte.
 
 ## Prévia
 
-O config das animações tem o palco ([temas.md](temas.md#o-palco)) ao lado da lista, tocando o efeito do momento selecionado: na linha "abrir painel", um mini-painel abre no palco; em "popup", um mini-popup aparece; em "hover", um cursor `▲` falso passa sobre uma tab.
+O config das animações tem o palco ([temas.md](temas.md#o-palco)) embaixo da lista, com 30% da altura e o subtítulo `example · space repeats it` (some quando não cabe), tocando o efeito do momento selecionado: na linha "abrir painel", um mini-painel abre no palco; em "popup", um mini-popup aparece; em "hover", um cursor `▲` falso passa sobre uma tab.
 
 - Toca uma vez ao chegar na linha (do efeito ou do tempo) e a cada troca (`←`/`→`); `space` repete. Sem loop.
 - Com o mesmo tempo e a mesma curva de quando acontece de verdade, só menor; mudar o tempo toca de novo.

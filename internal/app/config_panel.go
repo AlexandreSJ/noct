@@ -66,6 +66,8 @@ const textColumn = 20
 type configPanel struct {
 	page     configPage
 	selected configRow
+	// selectedAt is when the selection last moved, which a note too wide for the panel scrolls from.
+	selectedAt time.Time
 	// first is the first line shown when the page does not fit, kept between draws so the
 	// selection moves inside the view before the view moves.
 	first int
@@ -121,6 +123,7 @@ func (a *App) openConfig() {
 		editor:      newProgramSetting(editorChoices(isInstalled), a.config.Editor),
 		fileManager: newProgramSetting(fileManagerChoices(isInstalled), a.config.FileManager),
 		scriptsDir:  newTextField(a.scriptsDir()),
+		selectedAt:  a.now(),
 	}
 	a.refreshLogUsage()
 	a.mode = configMode
@@ -200,7 +203,7 @@ func (a *App) selectConfigRow(row configRow) {
 	a.commitTyped()
 	a.cancelNumberEdit()
 	a.configPanel.copied, a.configPanel.resetArmedAt, a.configPanel.typing = false, time.Time{}, false
-	a.configPanel.selected = row
+	a.configPanel.selected, a.configPanel.selectedAt = row, a.now()
 	if c, ok := themeRowAt(row); ok && a.configPanel.edit != nil {
 		a.lightComponent(c)
 	}
@@ -583,7 +586,7 @@ func (a *App) configLines() []configLine {
 		configLine{label: "in each flow's last result; tests keep 4 KB", note: true},
 		configLine{label: "Updates", heading: true},
 		configLine{label: "check for new versions", value: onOff(a.config.Update.Check), row: updateCheckRow},
-		configLine{label: "on GitHub, at start and daily; installing always asks", note: true},
+		configLine{label: "only checks; install with " + a.prefix.String() + "+" + a.hint("commands", "{c}"), note: true},
 		configLine{label: "Defaults", heading: true},
 		configLine{label: "reset all to defaults", value: a.resetValue(), row: resetRow},
 	)
@@ -690,12 +693,19 @@ func scriptsDirNote(typed string) string {
 
 // configLayout places the config centered over the workspace, a blank line before each section:
 // the panel, the lines it holds and the first one shown. When they do not fit, the panel scrolls
-// to keep the selected row in view.
+// to keep the selected row in view. Drawing and clicks both go by list, the area the lines are
+// drawn in, so a click lands on what is drawn.
 type configLayout struct {
 	panel image.Rectangle
 	rows  []configLine // the panel's content, blank lines included
 	first int
+	list  image.Rectangle
+	// stage is where the animations' example plays under the list, empty when it does not show.
+	stage image.Rectangle
 }
+
+// stageShare is the part of the panel's height the animations' example takes, under the rows.
+const stageShare = 0.3
 
 func (a *App) configLayout() configLayout {
 	var l configLayout
@@ -705,11 +715,21 @@ func (a *App) configLayout() configLayout {
 		}
 		l.rows = append(l.rows, line)
 	}
-	width := 72
-	if a.configPanel.page == themePage || a.configShowsStage() {
+	width, height := 72, panelHeight(len(l.rows)+2)
+	if a.configPanel.page == themePage {
 		width = themePanelWidth // the list of components and the stage side by side
 	}
-	l.panel = centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), width, panelHeight(len(l.rows)+2))
+	showsStage := a.configShowsStage()
+	if showsStage {
+		height = a.size.Y // the example takes its part of the height, under the rows
+	}
+	l.panel = centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), width, height)
+	l.list = l.inner()
+	l.list.Max.Y -= 2 // the hints
+	if stage := int(float64(l.list.Dy()) * stageShare); showsStage && stage > stageMinHeight {
+		l.stage = image.Rect(l.list.Min.X, l.list.Max.Y-stage+1, l.list.Max.X, l.list.Max.Y) // under a rule
+		l.list.Max.Y -= stage
+	}
 	for i, line := range l.rows {
 		if line.selectable() && line.row == a.configPanel.selected {
 			last := i // the row and the notes under it, such as what a key being taken would take
@@ -726,12 +746,12 @@ func (a *App) configLayout() configLayout {
 
 func (l configLayout) inner() image.Rectangle { return l.panel.Inset(2) }
 
-// visible is how many lines fit: the hints take the last two rows.
-func (l configLayout) visible() int { return l.inner().Dy() - 2 }
+// visible is how many lines fit in the list.
+func (l configLayout) visible() int { return l.list.Dy() }
 
 // lineAt is the line drawn on row y of the screen.
 func (l configLayout) lineAt(y int) (configLine, bool) {
-	i := y - l.inner().Min.Y
+	i := y - l.list.Min.Y
 	if i < 0 || i >= l.visible() || l.first+i >= len(l.rows) {
 		return configLine{}, false
 	}
@@ -739,6 +759,41 @@ func (l configLayout) lineAt(y int) (configLine, bool) {
 }
 
 func (line configLine) selectable() bool { return !line.heading && !line.note }
+
+// rowAbove is the row the note at i is under, past the notes between them.
+func (l configLayout) rowAbove(i int) (configRow, bool) {
+	for i--; i >= 0; i-- {
+		switch line := l.rows[i]; {
+		case line.selectable():
+			return line.row, true
+		case !line.note || line.label == "":
+			return 0, false // a heading or the blank line before one
+		}
+	}
+	return 0, false
+}
+
+// A note too wide for the panel scrolls while its row is selected, slowly enough to read: it
+// holds at its start, moves a cell per noteStep until its end shows, holds there and starts over.
+const (
+	noteHold = 1500 * time.Millisecond
+	noteStep = 250 * time.Millisecond
+)
+
+// scrolledNote is the part of text that shows in width now, asking for the frame that moves it.
+func (a *App) scrolledNote(text string, width int) string {
+	overflow := ansi.StringWidth(text) - width
+	if overflow <= 0 || width < 1 {
+		return text
+	}
+	if a.noteTick == nil {
+		a.noteTick = time.After(noteStep)
+	}
+	period := 2*noteHold + time.Duration(overflow)*noteStep
+	elapsed := max(a.now().Sub(a.configPanel.selectedAt), 0) % period
+	offset := min(max(int((elapsed-noteHold)/noteStep), 0), overflow)
+	return ansi.Cut(text, offset, offset+width)
+}
 
 func (a *App) drawConfigPanel(screen uv.Screen) {
 	l := a.configLayout()
@@ -759,16 +814,20 @@ func (a *App) drawConfigPanel(screen uv.Screen) {
 		drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
 		return
 	}
-	list := inner
-	if a.configShowsStage() {
-		list.Max.X = inner.Min.X + themeListWidth
-		for y := inner.Min.Y; y < inner.Max.Y-2; y++ {
-			setRune(screen, list.Max.X, y, "│", a.palette.unfocusedFrame)
+	if !l.stage.Empty() {
+		rule := l.stage.Min.Y - 1
+		for x := inner.Min.X; x < inner.Max.X; x++ {
+			setRune(screen, x, rule, "─", a.palette.unfocusedFrame)
 		}
-		a.drawStagePreview(screen, image.Rect(list.Max.X+2, inner.Min.Y, inner.Max.X, inner.Max.Y-2))
+		drawText(screen, inner.Min.X+2, rule, inner.Max.X, " example · space repeats it ", a.palette.panelMuted)
+		a.drawStagePreview(screen, l.stage)
 	}
 	for i := l.first; i < len(l.rows) && i-l.first < l.visible(); i++ {
-		a.drawConfigLine(screen, list, inner.Min.Y+i-l.first, l.rows[i])
+		line := l.rows[i]
+		if row, ok := l.rowAbove(i); ok && line.note && !line.bar && row == a.configPanel.selected {
+			line.label = a.scrolledNote(line.label, l.list.Dx()-textColumn-1)
+		}
+		a.drawConfigLine(screen, l.list, l.list.Min.Y+i-l.first, line)
 	}
 	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
 }
@@ -792,7 +851,7 @@ func (a *App) clickConfig(point image.Point) {
 		return
 	}
 	a.selectConfigRow(line.row)
-	valueX := l.inner().Max.X - 1 - ansi.StringWidth(line.value)
+	valueX := l.list.Max.X - 1 - ansi.StringWidth(line.value)
 	if line.typed || point.X < valueX || line.value == "" {
 		return
 	}
@@ -811,7 +870,7 @@ func (a *App) clickConfig(point image.Point) {
 func (a *App) hoverConfig(point image.Point) {
 	l := a.configLayout()
 	line, ok := l.lineAt(point.Y)
-	a.configPanel.hovering = ok && line.selectable() && point.In(l.inner())
+	a.configPanel.hovering = ok && line.selectable() && point.In(l.list)
 	a.configPanel.hover = line.row
 }
 

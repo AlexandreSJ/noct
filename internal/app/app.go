@@ -119,6 +119,8 @@ type App struct {
 	lastFrame *uv.ScreenBuffer
 	// stageTick ends a component's blink on the theme editor's stage.
 	stageTick <-chan time.Time
+	// noteTick is the next frame of a config note that scrolls, nil when none shows.
+	noteTick <-chan time.Time
 
 	homeHintShown   bool
 	homeHintExpired <-chan time.Time
@@ -305,6 +307,8 @@ func (a *App) loop() error {
 			a.tickStagePreview()
 		case <-a.animTick:
 			a.advanceAnimations(a.now())
+		case <-a.noteTick:
+			a.noteTick = nil // drawing a note that still scrolls asks for the next
 		case <-a.resetExpired:
 			a.resetExpired = nil
 		case <-a.homeHintExpired:

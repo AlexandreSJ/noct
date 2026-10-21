@@ -159,44 +159,61 @@ func (a *App) startAnimations(prev, now shot, at time.Time) {
 	if prev.tab != now.tab {
 		a.dropAnimations(momentFocus) // the panes they light are not on screen any more
 	}
-	start := func(m moment, an animation) {
-		if started := a.newAnimation(m, an, at); started != nil {
-			a.addAnimation(started)
-		}
-	}
-	switch {
-	case now.mode == prev.mode:
-	case isPopupMode(now.mode):
-		start(momentPopup, animation{pane: popupPane, area: image.Rect(0, 0, a.size.X, a.size.Y)})
-	case isPopupMode(prev.mode) && !a.lastPopup.area.Empty():
-		box := a.lastPopup.area
-		start(momentPopup, animation{pane: popupPane, area: box, closing: true, cells: a.lastPopup.cells, seed: int64(box.Min.X)})
-	}
-	area := a.workspaceArea()
-	switch {
-	case now.tabs > prev.tabs:
-		start(momentTabs, animation{pane: tabsPane, area: area})
-		if span, ok := a.activeTabSpan(); ok {
-			start(momentTabs, animation{pane: tabBarPane, area: span})
-		}
-		return
-	case now.tabs < prev.tabs && a.lastFrame != nil:
-		start(momentTabs, animation{pane: tabsPane, area: area, closing: true, cells: a.snapshot(area)})
-		return
-	}
-	if prev.tab == nil || prev.tab != now.tab {
+	a.startPopupAnimation(prev, now, at)
+	if a.startTabAnimation(prev, now, at) || prev.tab == nil || prev.tab != now.tab {
 		return
 	}
 	if prev.fullscreen != now.fullscreen {
-		start(momentFullscreen, animation{pane: now.focused, area: area})
+		a.startAnimation(momentFullscreen, animation{pane: now.focused, area: a.workspaceArea()}, at)
 		return
 	}
-	_, wasThere := prev.frames[now.focused]
-	if prev.focused != now.focused && wasThere {
-		// only the pane that gets the focus lights up; the one it left keeps fading, as a trail
-		if frame, ok := now.frames[now.focused]; ok {
-			start(momentFocus, animation{pane: now.focused, area: frame, frameOnly: true, fromColor: a.palette.unfocusedFrame.Fg})
+	a.startPaneAnimations(prev, now, at)
+}
+
+// startAnimation plays the moment's animation from at, when the moment animates.
+func (a *App) startAnimation(m moment, an animation, at time.Time) {
+	if started := a.newAnimation(m, an, at); started != nil {
+		a.addAnimation(started)
+	}
+}
+
+// startPopupAnimation plays a popup that opened over the whole screen, or the one that closed
+// backwards over its last cells.
+func (a *App) startPopupAnimation(prev, now shot, at time.Time) {
+	switch {
+	case now.mode == prev.mode:
+	case isPopupMode(now.mode):
+		a.startAnimation(momentPopup, animation{pane: popupPane, area: image.Rect(0, 0, a.size.X, a.size.Y)}, at)
+	case isPopupMode(prev.mode) && !a.lastPopup.area.Empty():
+		box := a.lastPopup.area
+		a.startAnimation(momentPopup, animation{pane: popupPane, area: box, closing: true, cells: a.lastPopup.cells, seed: int64(box.Min.X)}, at)
+	}
+}
+
+// startTabAnimation plays a tab that opened or closed, telling whether one did.
+func (a *App) startTabAnimation(prev, now shot, at time.Time) bool {
+	area := a.workspaceArea()
+	switch {
+	case now.tabs > prev.tabs:
+		a.startAnimation(momentTabs, animation{pane: tabsPane, area: area}, at)
+		if span, ok := a.activeTabSpan(); ok {
+			a.startAnimation(momentTabs, animation{pane: tabBarPane, area: span}, at)
 		}
+		return true
+	case now.tabs < prev.tabs && a.lastFrame != nil:
+		a.startAnimation(momentTabs, animation{pane: tabsPane, area: area, closing: true, cells: a.snapshot(area)}, at)
+		return true
+	}
+	return false
+}
+
+// startPaneAnimations plays what changed among the panes of a tab that stayed on screen: the
+// focus, panes that opened or closed, and the focused pane moving.
+func (a *App) startPaneAnimations(prev, now shot, at time.Time) {
+	_, wasThere := prev.frames[now.focused]
+	if frame, ok := now.frames[now.focused]; ok && prev.focused != now.focused && wasThere {
+		// only the pane that gets the focus lights up; the one it left keeps fading, as a trail
+		a.startAnimation(momentFocus, animation{pane: now.focused, area: frame, frameOnly: true, fromColor: a.palette.unfocusedFrame.Fg}, at)
 	}
 	if prev.fullscreen || now.fullscreen {
 		return // only the focused pane shows: panes come and go with the focus
@@ -204,19 +221,19 @@ func (a *App) startAnimations(prev, now shot, at time.Time) {
 	opened := false
 	for id, frame := range now.frames {
 		if _, ok := prev.frames[id]; !ok {
-			start(momentPanels, animation{pane: id, area: frame, seed: int64(id)})
+			a.startAnimation(momentPanels, animation{pane: id, area: frame, seed: int64(id)}, at)
 			opened = true
 		}
 	}
 	for id, frame := range prev.frames {
 		if _, ok := now.frames[id]; !ok && a.lastFrame != nil {
-			start(momentPanels, animation{pane: id, area: frame, seed: int64(id), closing: true, cells: a.snapshot(frame)})
+			a.startAnimation(momentPanels, animation{pane: id, area: frame, seed: int64(id), closing: true, cells: a.snapshot(frame)}, at)
 			opened = true
 		}
 	}
 	before, after := prev.frames[now.focused], now.frames[now.focused]
 	if !opened && wasThere && before != after && now.mode != resizeMode {
-		start(momentMove, animation{pane: now.focused, area: after, frameOnly: true, seed: int64(now.focused)})
+		a.startAnimation(momentMove, animation{pane: now.focused, area: after, frameOnly: true, seed: int64(now.focused)}, at)
 	}
 }
 
@@ -593,9 +610,4 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 			screen.SetCell(x, y, &cell)
 		}
 	}
-}
-
-func centerOf(r image.Rectangle) image.Rectangle {
-	c := image.Pt((r.Min.X+r.Max.X)/2, (r.Min.Y+r.Max.Y)/2)
-	return image.Rectangle{Min: c, Max: c}
 }
