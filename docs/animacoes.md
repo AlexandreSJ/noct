@@ -25,53 +25,48 @@ A atividade depende do indicador de "atividade não vista", previsto em [tui.md]
 |---|---|
 | `none` | Sem animação |
 | `01` | Células viram `0`/`1` sorteados e se revelam numa varredura com jitter, como a intro |
-| `spring` | O tamanho ou a posição chega ao valor final como uma mola: passa um pouco e volta |
 | `fade` | A cor vai da antiga à nova por mistura (o `mix` que já existe) |
 | `jitter` | Caracteres especiais se misturam até virar o caractere certo, como o *decrypt* de filmes |
-| `flicker` | As cores piscam; ver [segurança](#flicker-e-epilepsia) |
+
+A mola (`spring`) e o `flicker` existiram e saíram (ADR-053, nota de 2026-10-21): na mola o conteúdo aparecia de uma vez e só as bordas chegavam atrasadas, e o flicker era lento e pedia um aviso a cada passagem.
 
 ## Config
 
 `Appearance → animations`:
 
 - uma linha geral, `on`/`off`;
-- embaixo, uma linha por momento, que escolhe o efeito com `←`/`→`. A lista de efeitos vem de um registro, como `new tab opens` vem de `panelKinds`: um efeito novo aparece sozinho em todas as linhas.
+- embaixo, uma linha por momento, que escolhe o efeito com `←`/`→`, e sob ela `time`, o tempo do momento em ms (de 50 a 2000; `←`/`→` andam de 50 em 50, e um número digitado vale direto). A lista de efeitos vem de um registro, como `new tab opens` vem de `panelKinds`: um efeito novo aparece sozinho em todas as linhas.
 
 O `animate intro` continua como está, à parte.
 
 **Padrões:**
 
-| Momento | Efeito |
-|---|---|
-| Abrir e fechar painel, abrir e fechar tab, mover, tela inteira | `spring` |
-| Foco | `fade` |
-| Popup | `jitter` |
-| Atividade | pulso de cor (`fade` indo e voltando) |
-| Hover | `01` só no corvo, como hoje |
-
-`flicker` nunca é padrão.
+| Momento | Efeito | Tempo |
+|---|---|---|
+| Abrir e fechar painel, abrir e fechar tab | `fade` | 300 ms |
+| Mover | `fade` | 200 ms |
+| Tela inteira | `fade` | 250 ms |
+| Foco | `fade` | 150 ms |
+| Popup | `jitter` | 300 ms |
+| Atividade | pulso de cor (`fade` indo e voltando) | 600 ms |
+| Hover | `01` | 400 ms |
 
 ## Regras
 
 - **O programa nunca sabe da animação.** Ela só muda o que é desenhado. O PTY é redimensionado uma vez (no fim, ou no começo), nunca a cada quadro, para não mandar um SIGWINCH por quadro e fazer o shell e o vim redesenharem no meio.
 - **Abrir, fechar e popup** podem animar o conteúdo (o texto do painel novo "decifrando"). **Foco, mover, hover e atividade** só animam a moldura (bordas, títulos, a barra), porque acontecem toda hora e não podem mexer no que se está lendo.
 - **Hover** anima uma vez por passagem; o mouse parado não repete. Nunca no conteúdo dos programas.
-- **Teclas não esperam:** qualquer tecla leva a animação ao estado final e é tratada normalmente, sem ser engolida (diferente da intro, que só pula).
-- **Curtas:** cada efeito tem a própria duração e curva, com o limite de ~60 quadros/s que o desenho já tem. A ideia é ficar entre 100 e 300 ms.
-- **Código próprio:** easing e mola são pouca matemática sobre o laço de quadros da intro e o `mix`; sem dependência nova. Se ficar complexo, o `harmonica` da Charm entra com ADR.
-
-### Flicker e epilepsia
-
-- O flicker nunca passa de 3 flashes por segundo (WCAG 2.3.1), mesmo ligado.
-- Escolher `flicker` mostra um aviso de epilepsia e pede `Enter` de novo para confirmar.
+- **Foco** anima só o painel que ganha o foco. Trocar o foco de novo no meio não interrompe: o painel deixado para trás termina voltando à cor dele, e trocar rápido deixa um rastro.
+- **Teclas não esperam:** qualquer tecla leva as outras animações ao estado final e é tratada normalmente, sem ser engolida (diferente da intro, que só pula).
+- **Curtas:** cada momento tem o próprio tempo, no config, com o limite de ~60 quadros/s que o desenho já tem.
+- **Código próprio:** easing é pouca matemática sobre o laço de quadros da intro e o `mix`; sem dependência nova.
 
 ## Prévia
 
 O config das animações tem o palco ([temas.md](temas.md#o-palco)) ao lado da lista, tocando o efeito do momento selecionado: na linha "abrir painel", um mini-painel abre no palco; em "popup", um mini-popup aparece; em "hover", um cursor `▲` falso passa sobre uma tab.
 
-- Toca uma vez ao chegar na linha e a cada troca de efeito (`←`/`→`); `space` repete. Sem loop.
-- Com a mesma duração e a mesma curva de quando acontece de verdade, só menor.
-- `flicker` só toca depois do aviso confirmado.
+- Toca uma vez ao chegar na linha (do efeito ou do tempo) e a cada troca (`←`/`→`); `space` repete. Sem loop.
+- Com o mesmo tempo e a mesma curva de quando acontece de verdade, só menor; mudar o tempo toca de novo.
 - Com `animations: off`, o palco mostra o estado final parado, com a nota `animations off`.
 
 ## Catálogo para depois

@@ -32,6 +32,8 @@ type Config struct {
 	Appearance Appearance `toml:"appearance"`
 	// Animations are the effect of each moment that animates, when Appearance.Animations is on.
 	Animations Animations `toml:"animations"`
+	// AnimationTimes are how long each moment's animation plays, in milliseconds.
+	AnimationTimes AnimationTimes `toml:"animation_ms"`
 	// NewTab is the panel a new tab opens with, by the name noct gives it (NewTabTerminal,
 	// "scripts"...), or NewTabEmpty for none.
 	NewTab string `toml:"new_tab"`
@@ -170,7 +172,10 @@ const (
 )
 
 // Effects are the names of the animation effects, in the order the config offers them.
-var Effects = []string{"none", "01", "spring", "fade", "jitter", "flicker"}
+var Effects = []string{"none", "01", "fade", "jitter"}
+
+// AnimationMoments are the moments that animate, by their key in the config file.
+var AnimationMoments = []string{"hover", "panels", "tabs", "focus", "move", "fullscreen", "popup", "activity"}
 
 // Animations is the effect of each moment noct animates, by the name in Effects.
 type Animations struct {
@@ -184,8 +189,8 @@ type Animations struct {
 	Activity   string `toml:"activity"`
 }
 
-// defaultAnimations are the effects noct comes with; flicker is never one of them.
-var defaultAnimations = Animations{Hover: "01", Panels: "spring", Tabs: "spring", Focus: "fade", Move: "spring", Fullscreen: "spring", Popup: "jitter", Activity: "fade"}
+// defaultAnimations are the effects noct comes with.
+var defaultAnimations = Animations{Hover: "01", Panels: "fade", Tabs: "fade", Focus: "fade", Move: "fade", Fullscreen: "fade", Popup: "jitter", Activity: "fade"}
 
 func (a *Animations) field(moment string) *string {
 	switch moment {
@@ -225,9 +230,75 @@ func (a *Animations) SetEffect(moment, effect string) {
 
 // normalized gives each moment its default when its effect is not one noct knows.
 func (a Animations) normalized() Animations {
-	for _, moment := range []string{"hover", "panels", "tabs", "focus", "move", "fullscreen", "popup", "activity"} {
+	for _, moment := range AnimationMoments {
 		if f := a.field(moment); !slices.Contains(Effects, *f) {
 			*f = defaultAnimations.Effect(moment)
+		}
+	}
+	return a
+}
+
+// Bounds of an animation's time, in milliseconds: shorter is not seen, longer is in the way.
+const (
+	MinAnimationMs = 50
+	MaxAnimationMs = 2000
+)
+
+// AnimationTimes are how long each moment's animation plays, in milliseconds.
+type AnimationTimes struct {
+	Hover      int `toml:"hover"`
+	Panels     int `toml:"panels"`
+	Tabs       int `toml:"tabs"`
+	Focus      int `toml:"focus"`
+	Move       int `toml:"move"`
+	Fullscreen int `toml:"fullscreen"`
+	Popup      int `toml:"popup"`
+	Activity   int `toml:"activity"`
+}
+
+var defaultAnimationTimes = AnimationTimes{Hover: 400, Panels: 300, Tabs: 300, Focus: 150, Move: 200, Fullscreen: 250, Popup: 300, Activity: 600}
+
+func (a *AnimationTimes) field(moment string) *int {
+	switch moment {
+	case "hover":
+		return &a.Hover
+	case "panels":
+		return &a.Panels
+	case "tabs":
+		return &a.Tabs
+	case "focus":
+		return &a.Focus
+	case "move":
+		return &a.Move
+	case "fullscreen":
+		return &a.Fullscreen
+	case "popup":
+		return &a.Popup
+	case "activity":
+		return &a.Activity
+	}
+	return nil
+}
+
+// Duration is the milliseconds the moment named plays for, 0 for one noct does not know.
+func (a AnimationTimes) Duration(moment string) int {
+	if f := a.field(moment); f != nil {
+		return *f
+	}
+	return 0
+}
+
+func (a *AnimationTimes) SetDuration(moment string, ms int) {
+	if f := a.field(moment); f != nil {
+		*f = ms
+	}
+}
+
+// normalized gives each moment its default time when its own is missing or out of bounds.
+func (a AnimationTimes) normalized() AnimationTimes {
+	for _, moment := range AnimationMoments {
+		if f := a.field(moment); *f < MinAnimationMs || *f > MaxAnimationMs {
+			*f = defaultAnimationTimes.Duration(moment)
 		}
 	}
 	return a
@@ -239,6 +310,7 @@ func Default() Config {
 		Shortcut:       Shortcut{Alt: true},
 		Appearance:     Appearance{Theme: "noct", Background: BackgroundTerminal, AnimateIntro: IntroEmpty, Animations: AnimationsOn},
 		Animations:     defaultAnimations,
+		AnimationTimes: defaultAnimationTimes,
 		NewTab:         NewTabTerminal,
 		CloseEmptyTabs: true,
 		Mouse:          true,
@@ -264,6 +336,7 @@ func (c Config) normalized() Config {
 		c.Appearance.Animations = AnimationsOn
 	}
 	c.Animations = c.Animations.normalized()
+	c.AnimationTimes = c.AnimationTimes.normalized()
 	if strings.TrimSpace(c.NewTab) == "" {
 		c.NewTab = NewTabTerminal
 	}

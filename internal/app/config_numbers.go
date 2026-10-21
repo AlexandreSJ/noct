@@ -26,7 +26,8 @@ const (
 )
 
 func isNumberRow(row configRow) bool {
-	return row == logsKeepRow || row == logsSizeRow
+	_, isTime := animationTimeRowAt(row)
+	return row == logsKeepRow || row == logsSizeRow || isTime
 }
 
 // startsNumberEdit tells whether key opens the selected limit for typing: enter keeps the value
@@ -51,6 +52,9 @@ func (a *App) startsNumberEdit(key uv.KeyPressEvent) bool {
 
 // numberText is a limit as typing starts from it: days, or a size in the largest whole unit.
 func (a *App) numberText(row configRow) string {
+	if m, ok := animationTimeRowAt(row); ok {
+		return strconv.Itoa(a.config.AnimationTimes.Duration(moments[m].key))
+	}
 	if row == logsKeepRow {
 		return strconv.Itoa(a.config.Logs.KeepDays)
 	}
@@ -95,6 +99,16 @@ func (a *App) cancelNumberEdit() {
 // saveNumber applies the typed limit; one that does not read stays open with the problem below it.
 func (a *App) saveNumber() {
 	text := a.configPanel.number.String()
+	if m, ok := animationTimeRowAt(a.configPanel.selected); ok {
+		ms, err := parseAnimationTime(text)
+		if err != nil {
+			a.configPanel.numberProblem = err.Error()
+			return
+		}
+		a.cancelNumberEdit()
+		a.setAnimationTime(m, ms)
+		return
+	}
 	next := a.config
 	var err error
 	if a.configPanel.selected == logsKeepRow {

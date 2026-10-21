@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -46,27 +47,16 @@ type effect int
 const (
 	effectNone effect = iota
 	effect01
-	effectSpring
 	effectFade
 	effectJitter
-	effectFlicker
 )
 
-type effectInfo struct {
-	name     string
-	duration time.Duration
-	// warn asks before the effect is used: flicker can trigger seizures.
-	warn bool
-}
-
-var effects = []effectInfo{
-	{"none", 0, false}, {"01", 400 * time.Millisecond, false}, {"spring", 250 * time.Millisecond, false},
-	{"fade", 150 * time.Millisecond, false}, {"jitter", 300 * time.Millisecond, false}, {"flicker", time.Second, true},
-}
+// effects name each effect as the config file does.
+var effects = []string{"none", "01", "fade", "jitter"}
 
 func effectNamed(name string) effect {
 	for i, e := range effects {
-		if e.name == name {
+		if e == name {
 			return effect(i)
 		}
 	}
@@ -88,6 +78,21 @@ func (a *App) effectFor(m moment) effect {
 	return effectNamed(a.config.Animations.Effect(moments[m].key))
 }
 
+// durationOf is how long the moment's animation plays, as the config has it.
+func (a *App) durationOf(m moment) time.Duration {
+	return time.Duration(a.config.AnimationTimes.Duration(moments[m].key)) * time.Millisecond
+}
+
+// newAnimation is the moment's animation starting at start over area, with the config's effect
+// and time, or nil when the moment does not animate.
+func (a *App) newAnimation(m moment, an animation, start time.Time) *animation {
+	if an.effect = a.effectFor(m); an.effect == effectNone {
+		return nil
+	}
+	an.moment, an.start, an.duration = m, start, a.durationOf(m)
+	return &an
+}
+
 // animation is one moment playing over an area of the screen.
 type animation struct {
 	moment moment
@@ -100,24 +105,17 @@ type animation struct {
 	cells   uv.ScreenBuffer
 	// frameOnly animates only the border of area, so what a program shows is never touched.
 	frameOnly bool
-	// from is where a moving or growing area starts, and fromColor the color a fade starts from
-	// (nil for the background).
-	from      image.Rectangle
+	// fromColor is the color a fade starts from (nil for the background).
 	fromColor color.Color
 	seed      int64
-	// duration, when set, is how long it plays instead of its effect's.
-	duration time.Duration
+	duration  time.Duration
 }
 
 func (an *animation) progress(at time.Time) float64 {
-	d := effects[an.effect].duration
-	if an.duration > 0 {
-		d = an.duration
-	}
-	if d <= 0 {
+	if an.duration <= 0 {
 		return 1
 	}
-	return clamp01(float64(at.Sub(an.start)) / float64(d))
+	return clamp01(float64(at.Sub(an.start)) / float64(an.duration))
 }
 
 // shot is what the screen shows, as the animations compare it from one frame to the next.
@@ -158,10 +156,12 @@ func (a *App) startAnimations(prev, now shot, at time.Time) {
 		a.finishAnimations()
 		return
 	}
+	if prev.tab != now.tab {
+		a.dropAnimations(momentFocus) // the panes they light are not on screen any more
+	}
 	start := func(m moment, an animation) {
-		if an.effect = a.effectFor(m); an.effect != effectNone {
-			an.moment, an.start = m, at
-			a.addAnimation(&an)
+		if started := a.newAnimation(m, an, at); started != nil {
+			a.addAnimation(started)
 		}
 	}
 	switch {
@@ -170,38 +170,32 @@ func (a *App) startAnimations(prev, now shot, at time.Time) {
 		start(momentPopup, animation{pane: popupPane, area: image.Rect(0, 0, a.size.X, a.size.Y)})
 	case isPopupMode(prev.mode) && !a.lastPopup.area.Empty():
 		box := a.lastPopup.area
-		start(momentPopup, animation{pane: popupPane, area: box, from: centerOf(box), closing: true, cells: a.lastPopup.cells, seed: int64(box.Min.X)})
+		start(momentPopup, animation{pane: popupPane, area: box, closing: true, cells: a.lastPopup.cells, seed: int64(box.Min.X)})
 	}
 	area := a.workspaceArea()
 	switch {
 	case now.tabs > prev.tabs:
-		start(momentTabs, animation{pane: tabsPane, area: area, from: centerOf(area)})
+		start(momentTabs, animation{pane: tabsPane, area: area})
 		if span, ok := a.activeTabSpan(); ok {
-			start(momentTabs, animation{pane: tabBarPane, area: span, from: centerOf(span)})
+			start(momentTabs, animation{pane: tabBarPane, area: span})
 		}
 		return
 	case now.tabs < prev.tabs && a.lastFrame != nil:
-		start(momentTabs, animation{pane: tabsPane, area: area, from: centerOf(area), closing: true, cells: a.snapshot(area)})
+		start(momentTabs, animation{pane: tabsPane, area: area, closing: true, cells: a.snapshot(area)})
 		return
 	}
 	if prev.tab == nil || prev.tab != now.tab {
 		return
 	}
 	if prev.fullscreen != now.fullscreen {
-		pane := now.frames[now.focused]
-		if now.fullscreen {
-			pane = prev.frames[now.focused]
-		}
-		start(momentFullscreen, animation{pane: now.focused, area: area, from: pane})
+		start(momentFullscreen, animation{pane: now.focused, area: area})
 		return
 	}
 	_, wasThere := prev.frames[now.focused]
 	if prev.focused != now.focused && wasThere {
+		// only the pane that gets the focus lights up; the one it left keeps fading, as a trail
 		if frame, ok := now.frames[now.focused]; ok {
 			start(momentFocus, animation{pane: now.focused, area: frame, frameOnly: true, fromColor: a.palette.unfocusedFrame.Fg})
-		}
-		if frame, ok := now.frames[prev.focused]; ok {
-			start(momentFocus, animation{pane: prev.focused, area: frame, frameOnly: true, fromColor: a.palette.focusedFrame.Fg})
 		}
 	}
 	if prev.fullscreen || now.fullscreen {
@@ -210,19 +204,19 @@ func (a *App) startAnimations(prev, now shot, at time.Time) {
 	opened := false
 	for id, frame := range now.frames {
 		if _, ok := prev.frames[id]; !ok {
-			start(momentPanels, animation{pane: id, area: frame, from: centerOf(frame), seed: int64(id)})
+			start(momentPanels, animation{pane: id, area: frame, seed: int64(id)})
 			opened = true
 		}
 	}
 	for id, frame := range prev.frames {
 		if _, ok := now.frames[id]; !ok && a.lastFrame != nil {
-			start(momentPanels, animation{pane: id, area: frame, from: centerOf(frame), seed: int64(id), closing: true, cells: a.snapshot(frame)})
+			start(momentPanels, animation{pane: id, area: frame, seed: int64(id), closing: true, cells: a.snapshot(frame)})
 			opened = true
 		}
 	}
 	before, after := prev.frames[now.focused], now.frames[now.focused]
 	if !opened && wasThere && before != after && now.mode != resizeMode {
-		start(momentMove, animation{pane: now.focused, area: after, from: before, frameOnly: true, seed: int64(now.focused)})
+		start(momentMove, animation{pane: now.focused, area: after, frameOnly: true, seed: int64(now.focused)})
 	}
 }
 
@@ -234,9 +228,6 @@ const (
 	hoverPane  layout.PaneID = -4
 )
 
-// pulseDuration is how long a pane out of focus pulses when it prints.
-const pulseDuration = 600 * time.Millisecond
-
 // hoverAt hovers what is under the mouse, a tab's name or a pane's title, once per visit,
 // telling whether it started to.
 func (a *App) hoverAt(point image.Point) bool {
@@ -245,11 +236,11 @@ func (a *App) hoverAt(point image.Point) bool {
 		return false
 	}
 	a.hoverTarget = target
-	e := a.effectFor(momentHover)
-	if target == "" || e == effectNone {
+	an := a.newAnimation(momentHover, animation{pane: hoverPane, area: area, seed: int64(point.X)}, a.now())
+	if target == "" || an == nil {
 		return false
 	}
-	a.addAnimation(&animation{moment: momentHover, effect: e, start: a.now(), pane: hoverPane, area: area, seed: int64(point.X)})
+	a.addAnimation(an)
 	return true
 }
 
@@ -321,8 +312,8 @@ func (a *App) markActivity(id layout.PaneID) {
 			}
 		}
 	}
-	if e := a.effectFor(momentActivity); ok && e != effectNone {
-		a.addAnimation(&animation{moment: momentActivity, effect: e, start: a.now(), pane: id, area: area, duration: pulseDuration})
+	if an := a.newAnimation(momentActivity, animation{pane: id, area: area}, a.now()); ok && an != nil {
+		a.addAnimation(an)
 	}
 }
 
@@ -377,9 +368,23 @@ func (a *App) advanceAnimations(at time.Time) {
 	}
 }
 
-// finishAnimations ends every animation at once, as a key does.
+// finishAnimations ends every animation at once.
 func (a *App) finishAnimations() {
 	a.animations, a.animTick = nil, nil
+}
+
+// finishForKey ends the animations a key would wait for. The focus's only light borders, so
+// they play on, and moving the focus quickly leaves a trail.
+func (a *App) finishForKey() {
+	a.animations = slices.DeleteFunc(a.animations, func(an *animation) bool { return an.moment != momentFocus })
+	if len(a.animations) == 0 {
+		a.animTick = nil
+	}
+}
+
+// dropAnimations ends the animations of moment m.
+func (a *App) dropAnimations(m moment) {
+	a.animations = slices.DeleteFunc(a.animations, func(an *animation) bool { return an.moment == m })
 }
 
 // snapshot copies what the last frame showed in area.
@@ -432,12 +437,10 @@ func (a *App) drawAnimations(screen uv.Screen, at time.Time) {
 		switch {
 		case an.closing:
 			a.drawClosing(screen, an, p, at)
-		case an.frameOnly && an.moment == momentMove && an.effect == effectSpring:
-			drawFrame(screen, rectAt(an.from, an.area, springAt(p)), "", a.palette.focusedFrame, a.palette.focusedTitle)
+		case an.moment == momentFocus:
+			a.drawFocus(screen, an, p, at)
 		case an.frameOnly:
 			a.applyEffect(screen, an, an.area, p, at, onBorder(an.area))
-		case an.effect == effectSpring:
-			a.reveal(screen, an.area, rectAt(an.from, an.area, min(springAt(p), 1)), nil)
 		default:
 			a.applyEffect(screen, an, an.area, p, at, nil)
 		}
@@ -454,20 +457,7 @@ func (a *App) drawPopupAnimations(screen uv.Screen, before uv.ScreenBuffer, at t
 		if an.moment != momentPopup || an.closing {
 			continue
 		}
-		p := an.progress(at)
-		if an.effect != effectSpring {
-			a.applyEffect(screen, an, an.area, p, at, drawn)
-			continue
-		}
-		box := image.Rectangle{}
-		for y := range a.size.Y {
-			for x := range a.size.X {
-				if drawn(x, y) {
-					box = box.Union(image.Rect(x, y, x+1, y+1))
-				}
-			}
-		}
-		a.reveal(screen, box, rectAt(centerOf(box), box, min(springAt(p), 1)), &before)
+		a.applyEffect(screen, an, an.area, an.progress(at), at, drawn)
 	}
 }
 
@@ -535,43 +525,31 @@ func onBorder(area image.Rectangle) func(x, y int) bool {
 	}
 }
 
-// drawClosing draws what a closed pane showed, going away: shrinking with the spring, or the
-// effect played backwards.
-func (a *App) drawClosing(screen uv.Screen, an *animation, p float64, at time.Time) {
-	shown := an.area
-	if an.effect == effectSpring {
-		shown = rectAt(centerOf(an.area), an.area, clamp01(1-springAt(p)))
+// drawFocus lights the border of the pane where it is now. A pane the focus left before its
+// animation ended is a trail: what it lit fades back to its own color.
+func (a *App) drawFocus(screen uv.Screen, an *animation, p float64, at time.Time) {
+	frame, ok := a.lastShot.frames[an.pane]
+	if !ok {
+		return
 	}
-	for y := shown.Min.Y; y < shown.Max.Y; y++ {
-		for x := shown.Min.X; x < shown.Max.X; x++ {
+	focus := *an
+	if an.pane != a.lastShot.focused {
+		focus.fromColor = a.palette.focusedFrame.Fg
+	}
+	a.applyEffect(screen, &focus, frame, p, at, onBorder(frame))
+}
+
+// drawClosing draws what a closed pane showed, going away: its effect played backwards.
+func (a *App) drawClosing(screen uv.Screen, an *animation, p float64, at time.Time) {
+	for y := an.area.Min.Y; y < an.area.Max.Y; y++ {
+		for x := an.area.Min.X; x < an.area.Max.X; x++ {
 			if c := an.cells.CellAt(x, y); c != nil {
 				cell := *c
 				screen.SetCell(x, y, &cell)
 			}
 		}
 	}
-	if an.effect != effectSpring {
-		a.applyEffect(screen, an, shown, 1-p, at, nil)
-	}
-}
-
-// reveal blanks the cells of area outside shown, or puts back what under had there.
-func (a *App) reveal(screen uv.Screen, area, shown image.Rectangle, under *uv.ScreenBuffer) {
-	blank := uv.Cell{Content: " ", Width: 1, Style: uv.Style{Bg: a.palette.background}}
-	for y := area.Min.Y; y < area.Max.Y; y++ {
-		for x := area.Min.X; x < area.Max.X; x++ {
-			if image.Pt(x, y).In(shown) {
-				continue
-			}
-			cell := blank
-			if under != nil {
-				if c := under.CellAt(x, y); c != nil {
-					cell = *c
-				}
-			}
-			screen.SetCell(x, y, &cell)
-		}
-	}
+	a.applyEffect(screen, an, an.area, 1-p, at, nil)
 }
 
 // applyEffect changes the cells of area that only lets through (nil for all) as the effect looks
@@ -594,13 +572,10 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 			cell := *c
 			runes := []rune(cell.Content)
 			switch an.effect {
-			case effectFade, effectSpring: // a spring on a border eases its colors
+			case effectFade:
 				f := easeOut(p)
-				switch {
-				case an.moment == momentActivity:
+				if an.moment == momentActivity {
 					f = 1 - 0.7*math.Sin(math.Pi*p) // dims and comes back: a pulse
-				case an.effect == effectSpring:
-					f = min(springAt(p), 1)
 				}
 				if cell.Style.Fg != nil {
 					cell.Style.Fg = mix(from, cell.Style.Fg, f)
@@ -613,10 +588,6 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 				reveal := 0.7*float64(x-area.Min.X)/float64(max(area.Dx(), 1)) + 0.3*noise(x, y, an.seed)
 				if len(runes) == 1 {
 					cell.Content = string(binaryAt(runes[0], p, reveal, int64(noise(x, y, frame)*2)))
-				}
-			case effectFlicker:
-				if flickerOn(at.Sub(an.start)) {
-					cell.Style.Attrs ^= uv.AttrReverse
 				}
 			}
 			screen.SetCell(x, y, &cell)

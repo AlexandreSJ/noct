@@ -694,14 +694,17 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 **Contexto.** Havia só a intro do título e o `01` ao passar o mouse nele. O mantenedor quer animações ao abrir e fechar painel e tab, no foco, ao mover, na tela inteira, nos popups, no hover e na atividade, com efeitos à escolha (`01`, mola, fade, jitter, flicker), uma prévia ao escolher e um aviso de epilepsia no flicker ([animacoes.md](animacoes.md)). É polimento da fase 5, antecipado pelo mantenedor.
 
 **Decisão.**
-- **Momento × efeito:** `Appearance → animations` liga ou desliga tudo, e `[animations]` no config dá o efeito de cada momento. Padrões: mola para painéis, tabs, mover e tela inteira, fade no foco e na atividade, jitter nos popups, `01` no hover. Um nome desconhecido volta ao padrão; flicker nunca é padrão.
+- **Momento × efeito:** `Appearance → animations` liga ou desliga tudo, e `[animations]` no config dá o efeito de cada momento e `[animation_ms]` o tempo dele, de 50 a 2000 ms. Os efeitos são `none`, `01`, `fade` e `jitter`. Padrões: fade para painéis, tabs, mover, tela inteira, foco e atividade, jitter nos popups, `01` no hover. Um nome desconhecido, ou um tempo fora dos limites, volta ao padrão.
 - **Retrato do estado no lugar de ganchos:** antes de cada quadro, o que mudou desde o anterior (painéis, tabs, foco, quadro do painel com foco, tela inteira, modo) começa a animação do momento. Fechar usa as células do quadro anterior, guardadas só enquanto fechar painéis ou tabs anima. Fechar um popup toca o efeito ao contrário sobre as células que ele tinha no último quadro, que só são copiadas enquanto há popup aberto com o efeito ligado.
 - **Só o desenho muda:** a camada de animações corre depois dos painéis e, para popups, sobre as células que o popup desenhou. Os programas são redimensionados uma vez, como antes. Foco, mover, hover e atividade só tocam a moldura e a barra.
-- **Teclas:** qualquer tecla termina todas as animações e é tratada normalmente. Trocar de sessão ou o tamanho do terminal também termina.
-- **Flicker:** no máximo 3 acesos por segundo (período de 350 ms), e escolhê-lo pede `Enter` depois do aviso.
+- **Foco:** só o painel que ganha o foco anima. Uma tecla não termina essas animações, que só tocam as bordas: trocar o foco rápido deixa um rastro, e o painel que perdeu o foco antes do fim volta à cor dele. Trocar de tab as termina.
+- **Teclas:** qualquer outra tecla termina as animações e é tratada normalmente. Trocar de sessão ou o tamanho do terminal também termina.
 - **Prévia:** com uma linha de momento selecionada, o config mostra o palco ao lado, tocando o efeito uma vez com a duração real; `space` repete; sem animações, o palco fica parado com `animations off`.
 - **Hover** liga o modo de movimento do mouse em todo lugar; os programas só recebem movimento se o pediram, e um movimento que não muda nada na tela (fora de nomes de tabs e títulos, sem programa que o queira) não pede quadro. **Atividade:** a primeira saída de um shell fora de vista pulsa o título (ou o nome da tab) uma vez, até o painel ser visto.
-- Código próprio (mola, easing, ruído), sem dependência nova. O relógio das animações (`App.clock`) é trocável nos testes.
+- Código próprio (easing, ruído), sem dependência nova. O relógio das animações (`App.clock`) é trocável nos testes.
 
 **Consequências.** O hover anima nomes de tabs e títulos de painéis; as listas dos painéis não. Execuções fora de vista não pulsam: têm o próprio status.
 
+
+
+**Sem mola e sem flicker (2026-10-21).** Na mola, o conteúdo do painel aparecia de uma vez e só as bordas chegavam atrasadas, e o flicker era lento, pedia o aviso a cada vez que se passava por ele e atrapalhava escolher. O mantenedor preferiu tirar os dois e deixar cada momento com o tempo próprio. Os arquivos com `spring` ou `flicker` voltam ao padrão do momento.

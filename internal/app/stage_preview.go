@@ -1,7 +1,11 @@
 package app
 
 import (
+	"fmt"
 	"image"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -10,17 +14,36 @@ import (
 	"github.com/AlexandreSJ/noct/internal/theme"
 )
 
-// animationRowBase is the first of the config's rows of animated moments, one per moment.
-const animationRowBase configRow = 3000
+// animationRowBase is the first of the config's rows of animated moments' effects, one per
+// moment, and animationTimeRowBase the first of their times.
+const (
+	animationRowBase     configRow = 3000
+	animationTimeRowBase configRow = 3100
+)
 
-const flickerWarning = "flicker flashes colors up to 3 times a second, which can trigger seizures in people with photosensitive epilepsy. use it?"
+// animationTimeStep is how much the arrows change an animation's time.
+const animationTimeStep = 50
 
 func animationRowAt(row configRow) (moment, bool) {
 	m := moment(row - animationRowBase)
 	return m, row >= animationRowBase && int(m) < len(moments)
 }
 
-// animationLines are the config's rows of the animations: on or off, then each moment's effect.
+func animationTimeRowAt(row configRow) (moment, bool) {
+	m := moment(row - animationTimeRowBase)
+	return m, row >= animationTimeRowBase && int(m) < len(moments)
+}
+
+// previewedMoment is the moment of the selected row of the animations, effect or time.
+func previewedMoment(row configRow) (moment, bool) {
+	if m, ok := animationRowAt(row); ok {
+		return m, true
+	}
+	return animationTimeRowAt(row)
+}
+
+// animationLines are the config's rows of the animations: on or off, then each moment's effect
+// and, under it, its time.
 func (a *App) animationLines() []configLine {
 	lines := []configLine{
 		{label: "Animations", heading: true},
@@ -28,54 +51,60 @@ func (a *App) animationLines() []configLine {
 	}
 	for m, info := range moments {
 		lines = append(lines, configLine{label: info.label, value: "◂ " + a.config.Animations.Effect(info.key) + " ▸", row: animationRowBase + configRow(m)})
+		ms := fmt.Sprintf("%d ms", a.config.AnimationTimes.Duration(info.key))
+		lines = append(lines, a.numberLines("  time", animationTimeRowBase+configRow(m), ms)...)
 	}
 	return lines
 }
 
-// changeAnimation steps a moment's effect; flicker asks first, since it can trigger seizures.
+// changeAnimation steps a moment's effect.
 func (a *App) changeAnimation(m moment, step int) {
 	key := moments[m].key
-	i := 0
-	for j, name := range config.Effects {
-		if name == a.config.Animations.Effect(key) {
-			i = j
-		}
+	next := a.config
+	next.Animations.SetEffect(key, cycle(config.Effects, a.config.Animations.Effect(key), step))
+	a.applyConfig(next)
+	a.playStagePreview(m)
+}
+
+// changeAnimationTime steps a moment's time within its bounds.
+func (a *App) changeAnimationTime(m moment, step int) {
+	a.setAnimationTime(m, a.config.AnimationTimes.Duration(moments[m].key)+step*animationTimeStep)
+}
+
+func (a *App) setAnimationTime(m moment, ms int) {
+	next := a.config
+	next.AnimationTimes.SetDuration(moments[m].key, min(max(ms, config.MinAnimationMs), config.MaxAnimationMs))
+	a.applyConfig(next)
+	a.playStagePreview(m)
+}
+
+var animationTimePattern = regexp.MustCompile(`^(\d+)\s*(ms)?$`)
+
+// parseAnimationTime reads "150" or "150 ms".
+func parseAnimationTime(text string) (int, error) {
+	match := animationTimePattern.FindStringSubmatch(strings.ToLower(strings.TrimSpace(text)))
+	ms := 0
+	if match != nil {
+		ms, _ = strconv.Atoi(match[1])
 	}
-	name := config.Effects[(i+step+len(config.Effects))%len(config.Effects)]
-	use := func() {
-		next := a.config
-		next.Animations.SetEffect(key, name)
-		a.applyConfig(next)
-		a.mode = configMode
-		a.playStagePreview(m)
+	if ms < config.MinAnimationMs || ms > config.MaxAnimationMs {
+		return 0, fmt.Errorf("a time goes from %d to %d ms", config.MinAnimationMs, config.MaxAnimationMs)
 	}
-	if !effects[effectNamed(name)].warn {
-		use()
-		return
-	}
-	a.configPanel.preview = nil // nothing flashes before the warning is answered
-	a.askToConfirm(flickerWarning, use)
-	a.confirm.cancel = func() { a.mode = configMode }
+	return ms, nil
 }
 
 // configShowsStage tells whether the config shows the stage beside its rows: on the animations'.
 func (a *App) configShowsStage() bool {
-	_, ok := animationRowAt(a.configPanel.selected)
+	_, ok := previewedMoment(a.configPanel.selected)
 	return a.configPanel.page == settingsPage && (ok || a.configPanel.selected == animationsRow)
 }
 
 // playStagePreview plays the moment's effect once on the stage, as long as it plays for real.
 func (a *App) playStagePreview(m moment) {
-	e := a.effectFor(m)
-	if e == effectNone {
-		a.configPanel.preview = nil
-		return
+	a.configPanel.preview = a.newAnimation(m, animation{}, a.now())
+	if a.configPanel.preview != nil {
+		a.stageTick = time.After(frameInterval)
 	}
-	a.configPanel.preview = &animation{moment: m, effect: e, start: a.now()}
-	if m == momentActivity {
-		a.configPanel.preview.duration = pulseDuration
-	}
-	a.stageTick = time.After(frameInterval)
 }
 
 func (a *App) stagePreviewRunning() bool {
@@ -124,10 +153,6 @@ func (a *App) drawStagePreview(screen uv.Screen, area image.Rectangle) {
 	progress := an.progress(at)
 	_, inactive, left, right, popup := stageGeometry(area)
 	play := func(where image.Rectangle, only func(x, y int) bool) {
-		if an.effect == effectSpring && only == nil {
-			a.reveal(screen, where, rectAt(centerOf(where), where, min(springAt(progress), 1)), nil)
-			return
-		}
 		a.applyEffect(screen, an, where, progress, at, only)
 	}
 	switch an.moment {
@@ -146,18 +171,9 @@ func (a *App) drawStagePreview(screen uv.Screen, area image.Rectangle) {
 		focus.fromColor = p.unfocusedFrame.Fg
 		a.applyEffect(screen, &focus, right, progress, at, onBorder(right))
 	case momentMove:
-		if an.effect == effectSpring {
-			drawFrame(screen, rectAt(right, left, springAt(progress)), "", p.focusedFrame, p.focusedTitle)
-		} else {
-			play(right, onBorder(right))
-		}
+		play(right, onBorder(right))
 	case momentFullscreen:
-		panes := left.Union(right)
-		if an.effect == effectSpring {
-			a.reveal(screen, panes, rectAt(left, panes, min(springAt(progress), 1)), nil)
-		} else {
-			play(panes, nil)
-		}
+		play(left.Union(right), nil)
 	case momentPopup:
 		play(popup, nil)
 	}

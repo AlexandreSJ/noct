@@ -409,7 +409,7 @@ func (a *App) handleEvent(event uv.Event) error {
 	case uv.WindowSizeEvent:
 		return a.resize(image.Pt(event.Width, event.Height))
 	case uv.KeyPressEvent:
-		a.finishAnimations() // and the key does what it does
+		a.finishForKey() // and the key does what it does
 		if a.releaseIntro() {
 			return nil // the key only skips the intro
 		}

@@ -48,12 +48,12 @@ func TestAnimationsAreOffWhenTurnedOff(t *testing.T) {
 		t.Error("panels animate with animations off")
 	}
 	a.config.Appearance.Animations = config.AnimationsOn
-	if a.effectFor(momentPanels) != effectSpring {
-		t.Errorf("panels animate with %v, want the spring", a.effectFor(momentPanels))
+	if a.effectFor(momentPanels) != effectFade {
+		t.Errorf("panels animate with %v, want the fade", a.effectFor(momentPanels))
 	}
 }
 
-func TestOpeningAPaneStartsASpring(t *testing.T) {
+func TestOpeningAPaneStartsAFade(t *testing.T) {
 	a, tb := animatedApp(t)
 	a.openPanel(a.startTerminal)
 	drawnApp(a)
@@ -62,23 +62,23 @@ func TestOpeningAPaneStartsASpring(t *testing.T) {
 	}
 }
 
-func TestTheSpringGrowsThePaneWithoutResizingIt(t *testing.T) {
+func TestAnOpeningPaneFadesInWithoutResizingIt(t *testing.T) {
 	a, tb := animatedApp(t)
 	a.openPanel(a.startTerminal)
 	opened := tb.views[tb.focused].(*resizeCounter)
 	before := opened.resizes
 	drawnApp(a)
-	rewind(a, 30*time.Millisecond)
+	rewind(a, 100*time.Millisecond)
 	buf := drawnApp(a)
 	frame := a.frameOfPane(tb, tb.focused)
-	if c := buf.CellAt(frame.Min.X, frame.Min.Y); c != nil && c.Content == "┌" {
-		t.Error("the new pane's corner is already drawn at the start of the spring")
+	if c := buf.CellAt(frame.Min.X, frame.Min.Y); c == nil || colorsEqual(c.Style.Fg, a.palette.focusedFrame.Fg) {
+		t.Error("the new pane's corner has its color already at the start of the fade")
 	}
 	rewind(a, time.Second)
 	a.advanceAnimations(a.now())
 	buf = drawnApp(a)
-	if c := buf.CellAt(frame.Min.X, frame.Min.Y); c == nil || c.Content != "┌" {
-		t.Error("the new pane's corner is missing after the spring")
+	if c := buf.CellAt(frame.Min.X, frame.Min.Y); c == nil || !colorsEqual(c.Style.Fg, a.palette.focusedFrame.Fg) {
+		t.Error("the new pane's corner is not in its color after the fade")
 	}
 	if opened.resizes != before {
 		t.Errorf("the program was resized %d times during the animation", opened.resizes-before)
@@ -234,7 +234,7 @@ func TestFocusNeverAnimatesTheContent(t *testing.T) {
 	}
 }
 
-func TestMovingAPaneSlidesItsFrame(t *testing.T) {
+func TestMovingAPaneAnimatesItsFrame(t *testing.T) {
 	a, _ := twoPanesAnimated(t)
 	a.moveFocusedPane(layout.Right)
 	drawnApp(a)
@@ -243,19 +243,12 @@ func TestMovingAPaneSlidesItsFrame(t *testing.T) {
 	}
 }
 
-func TestFullscreenGrowsThePane(t *testing.T) {
-	a, tb := twoPanesAnimated(t)
-	before := a.frameOfPane(tb, 1)
+func TestFullscreenAnimatesThePane(t *testing.T) {
+	a, _ := twoPanesAnimated(t)
 	a.toggleFullscreen()
 	drawnApp(a)
 	if animationOf(a, momentFullscreen) == nil {
 		t.Fatalf("animations %v after fullscreen", a.animations)
-	}
-	rewind(a, 30*time.Millisecond)
-	buf := drawnApp(a)
-	area := a.workspaceArea()
-	if c := buf.CellAt(area.Max.X-1, area.Min.Y); c != nil && c.Content == "┐" && !image.Pt(area.Max.X-1, area.Min.Y).In(before) {
-		t.Error("the whole tab shows at the start of fullscreen")
 	}
 }
 
@@ -441,5 +434,76 @@ func TestAKeyAfterAQuietMotionGetsAFrame(t *testing.T) {
 	}
 	if a.quietMotion {
 		t.Error("a key after a motion over nothing would get no frame")
+	}
+}
+
+// threePanesAnimated is an animated app with panes 1 | 2 | 3, the focus on 1, drawn once.
+func threePanesAnimated(t *testing.T) (*App, *tab) {
+	t.Helper()
+	a, tb := twoPanesAnimated(t)
+	tb.tree.Split(2, 3, layout.SideBySide)
+	tb.views[3] = &cellView{}
+	tb.resizeViews(a.workspaceArea())
+	drawnApp(a)
+	a.finishAnimations()
+	return a, tb
+}
+
+func focusAnimations(a *App) []layout.PaneID {
+	var panes []layout.PaneID
+	for _, an := range a.animations {
+		if an.moment == momentFocus {
+			panes = append(panes, an.pane)
+		}
+	}
+	return panes
+}
+
+func TestOnlyThePaneThatGetsTheFocusAnimates(t *testing.T) {
+	a, tb := twoPanesAnimated(t)
+	a.focusPane(tb, 2)
+	drawnApp(a)
+	if got := focusAnimations(a); len(got) != 1 || got[0] != 2 {
+		t.Errorf("focus animates panes %v, want only 2", got)
+	}
+}
+
+func TestMovingTheFocusQuicklyLeavesATrail(t *testing.T) {
+	a, tb := threePanesAnimated(t)
+	a.focusPane(tb, 2)
+	drawnApp(a)
+	rewind(a, 50*time.Millisecond)
+	if err := a.handleEvent(letter('x')); err != nil { // a key in between ends the other animations
+		t.Fatal(err)
+	}
+	a.focusPane(tb, 3)
+	drawnApp(a)
+	if got := focusAnimations(a); len(got) != 2 || got[0] != 2 || got[1] != 3 {
+		t.Errorf("focus animates panes %v, want 2 still fading and 3", got)
+	}
+}
+
+func TestSwitchingTabsDropsTheFocusAnimations(t *testing.T) {
+	a, tb := twoPanesAnimated(t)
+	a.session.tabs = append(a.session.tabs, newTab(5, &cellView{}))
+	drawnApp(a)
+	a.finishAnimations()
+	a.focusPane(tb, 2)
+	drawnApp(a)
+	a.session.activeTab = 1
+	drawnApp(a)
+	if got := focusAnimations(a); len(got) != 0 {
+		t.Errorf("focus animations %v follow to another tab", got)
+	}
+}
+
+func TestAnAnimationLastsTheTimeOfItsMoment(t *testing.T) {
+	a, tb := twoPanesAnimated(t)
+	a.config.AnimationTimes.Focus = 600
+	a.focusPane(tb, 2)
+	drawnApp(a)
+	an := animationOf(a, momentFocus)
+	if an == nil || an.progress(an.start.Add(550*time.Millisecond)) >= 1 || an.progress(an.start.Add(600*time.Millisecond)) < 1 {
+		t.Error("the focus does not last its 600 ms")
 	}
 }

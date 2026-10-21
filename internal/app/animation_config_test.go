@@ -34,30 +34,11 @@ func TestTheConfigListsEveryMomentWithItsEffect(t *testing.T) {
 		}
 	}
 	press(a, rightPress)
-	if a.config.Animations.Panels != "fade" {
-		t.Fatalf("panels animate with %q after right, want fade", a.config.Animations.Panels)
+	if a.config.Animations.Panels != "jitter" {
+		t.Fatalf("panels animate with %q after right, want jitter", a.config.Animations.Panels)
 	}
-	if saved, err := config.Load(a.configPath); err != nil || saved.Animations.Panels != "fade" {
+	if saved, err := config.Load(a.configPath); err != nil || saved.Animations.Panels != "jitter" {
 		t.Errorf("saved %q, %v", saved.Animations.Panels, err)
-	}
-}
-
-func TestFlickerAsksBeforeItIsUsed(t *testing.T) {
-	a := animationConfig(t, momentPopup)
-	press(a, rightPress)
-	if a.mode != confirmMode || !strings.Contains(a.confirm.question, "epilepsy") {
-		t.Fatalf("mode %v, question %q", a.mode, a.confirm.question)
-	}
-	if a.configPanel.preview != nil {
-		t.Error("the flicker plays before the warning is answered")
-	}
-	press(a, escPress)
-	if a.mode != configMode || a.config.Animations.Popup != "jitter" {
-		t.Fatalf("esc left mode %v and popups on %q", a.mode, a.config.Animations.Popup)
-	}
-	press(a, rightPress, enterPress)
-	if a.config.Animations.Popup != "flicker" || a.mode != configMode {
-		t.Errorf("enter left popups on %q, mode %v", a.config.Animations.Popup, a.mode)
 	}
 }
 
@@ -79,7 +60,7 @@ func TestThePreviewPlaysOnceOnArrivingAndChanging(t *testing.T) {
 	a.selectConfigRow(animationRowBase + configRow(momentPanels))
 	before := a.configPanel.preview
 	press(a, rightPress)
-	if a.configPanel.preview == before || a.configPanel.preview.effect != effectFade {
+	if a.configPanel.preview == before || a.configPanel.preview.effect != effectJitter {
 		t.Error("changing the effect did not play it")
 	}
 }
@@ -87,8 +68,8 @@ func TestThePreviewPlaysOnceOnArrivingAndChanging(t *testing.T) {
 func TestThePreviewUsesTheRealDuration(t *testing.T) {
 	a := animationConfig(t, momentPanels)
 	p := a.configPanel.preview
-	if p.progress(p.start.Add(200*time.Millisecond)) >= 1 || p.progress(p.start.Add(250*time.Millisecond)) < 1 {
-		t.Error("the spring preview does not last 250 ms")
+	if p.progress(p.start.Add(250*time.Millisecond)) >= 1 || p.progress(p.start.Add(300*time.Millisecond)) < 1 {
+		t.Error("the panels' preview does not last their 300 ms")
 	}
 }
 
@@ -111,5 +92,33 @@ func TestEveryPreviewDraws(t *testing.T) {
 			a.configPanel.preview = &animation{moment: moment(m), effect: effect(e), start: a.now().Add(-50 * time.Millisecond)}
 			screenText(a) // no panic, whatever the moment and effect
 		}
+	}
+}
+
+func TestEachMomentsTimeIsSetInTheConfig(t *testing.T) {
+	a := animationConfig(t, momentFocus)
+	a.selectConfigRow(animationTimeRowBase + configRow(momentFocus))
+	if text := screenText(a); !strings.Contains(text, "150 ms") {
+		t.Errorf("the config does not show focus's 150 ms:\n%s", text)
+	}
+	press(a, rightPress)
+	if a.config.AnimationTimes.Focus != 200 {
+		t.Fatalf("focus lasts %d ms after right, want 200", a.config.AnimationTimes.Focus)
+	}
+	if p := a.configPanel.preview; p == nil || p.progress(p.start.Add(190*time.Millisecond)) >= 1 {
+		t.Error("changing the time did not play the preview with it")
+	}
+	typeInto(a, "450")
+	press(a, enterPress)
+	if a.config.AnimationTimes.Focus != 450 {
+		t.Fatalf("focus lasts %d ms after typing 450", a.config.AnimationTimes.Focus)
+	}
+	if saved, err := config.Load(a.configPath); err != nil || saved.AnimationTimes.Focus != 450 {
+		t.Errorf("saved %d, %v", saved.AnimationTimes.Focus, err)
+	}
+	typeInto(a, "9")
+	press(a, enterPress)
+	if a.config.AnimationTimes.Focus != 450 || a.configPanel.numberProblem == "" {
+		t.Errorf("9 ms was taken as %d, problem %q", a.config.AnimationTimes.Focus, a.configPanel.numberProblem)
 	}
 }

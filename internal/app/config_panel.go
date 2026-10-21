@@ -167,7 +167,7 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 	if a.isTypedRow(a.configPanel.selected) && a.startsTyping(key) {
 		return
 	}
-	if m, ok := animationRowAt(a.configPanel.selected); ok && key.String() == "space" {
+	if m, ok := previewedMoment(a.configPanel.selected); ok && key.String() == "space" {
 		a.playStagePreview(m) // space plays it again; the arrows change it
 		return
 	}
@@ -205,7 +205,7 @@ func (a *App) selectConfigRow(row configRow) {
 		a.lightComponent(c)
 	}
 	a.configPanel.preview = nil
-	if m, ok := animationRowAt(row); ok {
+	if m, ok := previewedMoment(row); ok {
 		a.playStagePreview(m)
 	}
 }
@@ -248,7 +248,8 @@ func (a *App) typedText(row configRow) *textField {
 		return &a.configPanel.editor.draft
 	case fileManagerCommandRow:
 		return &a.configPanel.fileManager.draft
-	case logsKeepRow, logsSizeRow:
+	}
+	if isNumberRow(row) {
 		return a.configPanel.number
 	}
 	return &a.configPanel.scriptsDir
@@ -338,6 +339,10 @@ func (a *App) changeSetting(step int) {
 	}
 	if m, ok := animationRowAt(a.configPanel.selected); ok {
 		a.changeAnimation(m, step)
+		return
+	}
+	if m, ok := animationTimeRowAt(a.configPanel.selected); ok {
+		a.changeAnimationTime(m, step)
 		return
 	}
 	next := a.config

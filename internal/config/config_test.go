@@ -21,11 +21,12 @@ func TestLoadMissingFileGivesDefaults(t *testing.T) {
 func TestSaveThenLoadRoundTrips(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "noct", "config.toml")
 	want := Config{
-		Prefix:     Prefix{Alt: true, Shift: true, Key: "f2"},
-		Shortcut:   Shortcut{Alt: true},
-		Appearance: Appearance{Theme: "ember", Background: BackgroundTheme, AnimateIntro: IntroAlways, Animations: AnimationsOff},
-		Animations: Animations{Hover: "none", Panels: "fade", Tabs: "spring", Focus: "flicker", Move: "spring", Fullscreen: "01", Popup: "jitter", Activity: "none"},
-		NewTab:     "scripts",
+		Prefix:         Prefix{Alt: true, Shift: true, Key: "f2"},
+		Shortcut:       Shortcut{Alt: true},
+		Appearance:     Appearance{Theme: "ember", Background: BackgroundTheme, AnimateIntro: IntroAlways, Animations: AnimationsOff},
+		Animations:     Animations{Hover: "none", Panels: "fade", Tabs: "jitter", Focus: "01", Move: "fade", Fullscreen: "01", Popup: "jitter", Activity: "none"},
+		AnimationTimes: AnimationTimes{Hover: 100, Panels: 200, Tabs: 300, Focus: 400, Move: 500, Fullscreen: 600, Popup: 700, Activity: 800},
+		NewTab:         "scripts",
 		// CloseEmptyTabs off: a bool that is on by default must survive being saved off
 		Mouse:         false,
 		Editor:        "code -w",
@@ -162,24 +163,51 @@ func TestConfigHasTheDefaultEffects(t *testing.T) {
 	if d.Appearance.Animations != AnimationsOn {
 		t.Errorf("animations %q, want on", d.Appearance.Animations)
 	}
-	for moment, want := range map[string]string{"hover": "01", "panels": "spring", "tabs": "spring", "focus": "fade", "move": "spring", "fullscreen": "spring", "popup": "jitter", "activity": "fade"} {
+	for moment, want := range map[string]string{"hover": "01", "panels": "fade", "tabs": "fade", "focus": "fade", "move": "fade", "fullscreen": "fade", "popup": "jitter", "activity": "fade"} {
 		if got := d.Animations.Effect(moment); got != want {
 			t.Errorf("%s is %q, want %q", moment, got, want)
 		}
 	}
 	path := filepath.Join(t.TempDir(), "config.toml")
-	if err := os.WriteFile(path, []byte("[appearance]\nanimations = \"sometimes\"\n[animations]\npanels = \"boing\"\nfocus = \"flicker\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("[appearance]\nanimations = \"sometimes\"\n[animations]\npanels = \"boing\"\nfocus = \"01\"\nmove = \"spring\"\npopup = \"flicker\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	c, err := Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Appearance.Animations != AnimationsOn || c.Animations.Panels != "spring" || c.Animations.Focus != "flicker" {
+	if c.Appearance.Animations != AnimationsOn || c.Animations.Panels != "fade" || c.Animations.Focus != "01" {
 		t.Errorf("read animations %q, panels %q, focus %q", c.Appearance.Animations, c.Animations.Panels, c.Animations.Focus)
+	}
+	if c.Animations.Move != "fade" || c.Animations.Popup != "jitter" {
+		t.Errorf("the effects noct no longer has came back as move %q and popup %q, want the defaults", c.Animations.Move, c.Animations.Popup)
 	}
 	c.Animations.SetEffect("popup", "none")
 	if c.Animations.Popup != "none" {
 		t.Errorf("SetEffect left popup %q", c.Animations.Popup)
+	}
+}
+
+func TestEachMomentHasItsOwnTime(t *testing.T) {
+	d := Default()
+	for moment, want := range map[string]int{"hover": 400, "panels": 300, "tabs": 300, "focus": 150, "move": 200, "fullscreen": 250, "popup": 300, "activity": 600} {
+		if got := d.AnimationTimes.Duration(moment); got != want {
+			t.Errorf("%s lasts %d ms, want %d", moment, got, want)
+		}
+	}
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("[animation_ms]\nfocus = 400\npanels = 5\ntabs = 99999\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.AnimationTimes.Focus != 400 || c.AnimationTimes.Panels != 300 || c.AnimationTimes.Tabs != 300 {
+		t.Errorf("read focus %d, panels %d, tabs %d; want 400 and the defaults for the times out of range", c.AnimationTimes.Focus, c.AnimationTimes.Panels, c.AnimationTimes.Tabs)
+	}
+	c.AnimationTimes.SetDuration("popup", 450)
+	if c.AnimationTimes.Popup != 450 {
+		t.Errorf("SetDuration left popup at %d", c.AnimationTimes.Popup)
 	}
 }
