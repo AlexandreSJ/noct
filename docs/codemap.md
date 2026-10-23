@@ -101,7 +101,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/environment.go` | Shell and environment given to pane programs |
 | `internal/app/theme.go` | The themes on offer (built-in, then the user's, read again when their folder changes) and the palette of styles drawn from the theme in use |
 | `internal/app/theme_editor.go` | Making and editing themes in the config: the new and edit rows, the name and base, and the page of components beside the stage |
-| `internal/app/color_picker.go` | The color picker: the grid of the terminal's 256 colors, scrolled to the selection, and a typed #rrggbb |
+| `internal/app/color_picker.go` | The color picker: the terminal's 16 colors, one slice of the cube as a triangle (`,` and `.` change it), and the grays, drawn with Lip Gloss; moves by position; a typed #rrggbb |
 | `internal/app/colorset.go` | A pane's or a tab's own colors over the session's theme: saved by the theme file's keys, and the palette a pane or a tab draws with |
 | `internal/app/colors_popup.go` | The popup of prefix + P: the focused pane's and its tab's own colors, with the stage and the contrast warning |
 | `internal/app/template_save.go` | The popup of prefix + R: the tab as a template, with how each terminal's command starts |
