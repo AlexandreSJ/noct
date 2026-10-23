@@ -269,3 +269,45 @@ func TestPaneKeepScrollbackIgnoresErasingIt(t *testing.T) {
 		}
 	}
 }
+
+// A log replayed here that ends inside a full-screen program scrolls up to the main screen
+// and the history above it; a pane without the option has no history there.
+func TestHistoryUnderFullScreen(t *testing.T) {
+	const endsFullScreen = `printf '1\r\n2\r\n3\r\n4\r\n5\r\n6\r\nshell\033[?1049h\033[Hfull'`
+	for _, under := range []bool{false, true} {
+		exited := make(chan struct{})
+		p, err := Start(Options{
+			Argv:                   []string{"sh", "-c", endsFullScreen},
+			Env:                    []string{"TERM=xterm-256color", "PATH=/usr/bin:/bin"},
+			Size:                   pty.Size{Cols: 20, Rows: 5},
+			OnExit:                 func(int) { close(exited) },
+			HistoryUnderFullScreen: under,
+		})
+		if err != nil {
+			t.Fatalf("starting pane: %v", err)
+		}
+		t.Cleanup(p.Close)
+		waitFor(t, exited)
+		if !p.FullScreen() {
+			t.Fatal("the pane is not on the full screen")
+		}
+		if !under {
+			if got := p.ScrollbackLen(); got != 0 {
+				t.Errorf("without the option, %d lines of history under the full screen, want none", got)
+			}
+			continue
+		}
+		if got := p.ScrollbackLen(); got != 2+5 {
+			t.Fatalf("history of %d lines, want the 2 that scrolled off and the 5 of the main screen", got)
+		}
+		buffer := uv.NewScreenBuffer(20, 5)
+		p.DrawScrolled(buffer, buffer.Bounds(), p.ScrollbackLen())
+		if got := strings.Split(buffer.Render(), "\n"); !strings.HasPrefix(got[0], "1") || !strings.HasPrefix(got[4], "5") {
+			t.Errorf("scrolled to the top:\n%s", buffer.Render())
+		}
+		p.DrawScrolled(buffer, buffer.Bounds(), 1)
+		if got := strings.Split(buffer.Render(), "\n"); !strings.HasPrefix(got[0], "shell") || !strings.HasPrefix(got[1], "full") {
+			t.Errorf("a line up, want the shell's last line over the program:\n%s", buffer.Render())
+		}
+	}
+}

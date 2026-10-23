@@ -61,12 +61,12 @@ var commandShortcuts = []shortcut{
 	{"n", "resize", true},
 	{"w", "stacked or split", true},
 	{"f", "fullscreen", true},
-	{"g", "floating panel", false},
+	{"u", "floating panel", false},
 	{"r", "rename tab", true},
 	{"e", "rename panel", true},
 	{"P", "colors of the panel and tab", true},
 	{"R", "save the tab as a template", true},
-	{"u", "scroll history", true},
+	{"g", "scroll history", true},
 	{"x", "close", true},
 	{",", "config", false},
 	{"c", "updates and changelog", false},
@@ -237,7 +237,7 @@ func (a *App) runAction(name string) {
 	switch name {
 	case "t":
 		a.openNewTab()
-	case "g":
+	case "u":
 		a.openFloating()
 	case ",":
 		a.openConfig()
@@ -321,7 +321,7 @@ func (a *App) runTabAction(name string) {
 		a.startRename()
 	case "e":
 		a.startPaneRename()
-	case "u":
+	case scrollKey:
 		a.startScroll()
 	}
 }
