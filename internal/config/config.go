@@ -190,7 +190,7 @@ type Animations struct {
 }
 
 // defaultAnimations are the effects noct comes with.
-var defaultAnimations = Animations{Hover: "01", Panels: "fade", Tabs: "fade", Focus: "fade", Move: "fade", Fullscreen: "fade", Popup: "jitter", Activity: "fade"}
+var defaultAnimations = Animations{Hover: "fade", Panels: "jitter", Tabs: "jitter", Focus: "none", Move: "fade", Fullscreen: "01", Popup: "01", Activity: "fade"}
 
 func (a *Animations) field(moment string) *string {
 	switch moment {
@@ -256,7 +256,7 @@ type AnimationTimes struct {
 	Activity   int `toml:"activity"`
 }
 
-var defaultAnimationTimes = AnimationTimes{Hover: 400, Panels: 300, Tabs: 300, Focus: 150, Move: 200, Fullscreen: 250, Popup: 300, Activity: 600}
+var defaultAnimationTimes = AnimationTimes{Hover: 150, Panels: 300, Tabs: 300, Focus: 100, Move: 200, Fullscreen: 200, Popup: 200, Activity: 600}
 
 func (a *AnimationTimes) field(moment string) *int {
 	switch moment {
