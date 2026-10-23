@@ -11,6 +11,12 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Added
+
+- Eleven new themes in **Appearance → theme**: `tide`, `moss`, `pumpkin`, `neon`, `cobalt`,
+  `sand`, `slate`, `amber`, `phosphor`, and two light ones, `paper` and `sakura`. Some give
+  popups and inactive tabs a background of their own, a little lighter than the theme's.
+
 ### Changed
 
 - Scrolling a terminal's history moved to `prefix` + `g` (`shortcut` + `g`), and the floating

@@ -52,7 +52,7 @@ func TestBuiltinsKeepTodaysThemes(t *testing.T) {
 			t.Errorf("%s has no background or text", th.Name)
 		}
 	}
-	want := []string{"noct", "aurora", "ember", "rose", "blood", "frost", "mono"}
+	want := []string{"noct", "aurora", "ember", "rose", "blood", "frost", "mono", "tide", "moss", "pumpkin", "neon", "cobalt", "sand", "slate", "amber", "phosphor", "paper", "sakura"}
 	if len(names) != len(want) {
 		t.Fatalf("built-ins %v, want %v", names, want)
 	}

@@ -143,6 +143,15 @@ func builtin(name string, accent, onAccent, muted, text, attention, background, 
 	return t
 }
 
+// raised gives a built-in theme its own heading color, and popups and inactive tabs their own
+// backgrounds; "" keeps the one that follows the theme's background.
+func raised(t Theme, heading, popup, inactiveTab Color) Theme {
+	t.Colors[PanelHeading] = heading
+	t.Colors[PopupBackground] = popup
+	t.Colors[InactiveTabBackground] = inactiveTab
+	return t
+}
+
 // Builtins are the themes noct comes with, in the order the config cycles through them; the
 // first is the default.
 func Builtins() []Theme {
@@ -154,6 +163,17 @@ func Builtins() []Theme {
 		builtin("blood", "#ff6666", "#2e3440", "#7a8494", "#e5e9f0", "#ebcb8b", "#2e3440", "#c25a5a", "#a3be8c", "#ff6666"),
 		builtin("frost", "#88c0d0", "#2e3440", "#616e88", "#e5e9f0", "#ebcb8b", "#2e3440", "#616e88", "#a3be8c", "#bf616a"),
 		builtin("mono", "#d0d0d0", "#111111", "#5c5c5c", "#d0d0d0", "#ffffff", "#111111", "#5c5c5c", "#d0d0d0", "#ffffff"),
+		raised(builtin("tide", "#4fb3d9", "#0b1620", "#4a6478", "#cfe3ee", "#f0c674", "#0b1620", "#3d7fa0", "#7fd1a8", "#f07178"), "#8fd3f0", "#112230", "#112230"),
+		raised(builtin("moss", "#8fbf6a", "#141a12", "#5d6b52", "#dde5d0", "#e6c06b", "#141a12", "#6b8a55", "#a7d48a", "#e07a5f"), "#b8d99c", "#1b2318", ""),
+		raised(builtin("pumpkin", "#ff9e64", "#1d1526", "#6c5a7a", "#e8dcef", "#ffd36e", "#1d1526", "#b07cc6", "#9ece6a", "#ff6b8b"), "#c9a0dc", "#261c33", "#261c33"),
+		raised(builtin("neon", "#ff2a8a", "#0d0a14", "#5a4d7a", "#e6e1ff", "#00e5ff", "#0d0a14", "#8a2be2", "#39ff88", "#ff3355"), "#00e5ff", "#150f22", ""),
+		raised(builtin("cobalt", "#3d8bff", "#0a1230", "#4a5a8a", "#d6e0ff", "#ffcc4d", "#0a1230", "#3d8bff", "#5fd38d", "#ff5f6d"), "#9fc0ff", "#101b42", "#101b42"),
+		raised(builtin("sand", "#d79921", "#282828", "#7c6f64", "#ebdbb2", "#fabd2f", "#282828", "#a89984", "#b8bb26", "#fb4934"), "#fe8019", "#32302f", "#32302f"),
+		raised(builtin("slate", "#a3b1c6", "#1e2228", "#5b6370", "#c8ccd4", "#d8b878", "#1e2228", "#5b6370", "#9fbf9f", "#d08a8a"), "#dfe3ea", "#252a31", ""),
+		raised(builtin("amber", "#ffb000", "#140d00", "#7a5500", "#ffcc66", "#ffe08a", "#140d00", "#b37a00", "#ffcc66", "#ff7a33"), "#ffd280", "#1f1500", ""),
+		raised(builtin("phosphor", "#33ff66", "#020d04", "#1f7a37", "#a8ffbf", "#e5ff66", "#020d04", "#1fa84a", "#66ff99", "#ff5c5c"), "#66ff99", "#06180a", ""),
+		raised(builtin("paper", "#5b4bc4", "#fbf8f1", "#9a9286", "#3a3530", "#b5761b", "#fbf8f1", "#8a7fd6", "#3f8a4a", "#c43d3d"), "#2a2520", "#f1ece1", "#f1ece1"),
+		raised(builtin("sakura", "#d6668c", "#fff5f7", "#b8949f", "#5a3c46", "#c98a2b", "#fff5f7", "#e48fae", "#5c9a6b", "#c7364f"), "#a8406a", "#fbe6ec", "#fbe6ec"),
 	}
 }
 

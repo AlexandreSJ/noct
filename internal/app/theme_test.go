@@ -93,10 +93,10 @@ func TestUserThemesJoinTheConfigCycle(t *testing.T) {
 	writeUserTheme(t, dir, "mine", "base = \"noct\"\n[panels]\nfocused_border = \"#ff0000\"\n")
 	a := openConfigAt(t, themeRow)
 	a.loadThemes()
-	a.applyConfig(withTheme(a.config, "mono"))
+	a.applyConfig(withTheme(a.config, "sakura"))
 	press(a, letter('l'))
 	if a.config.Appearance.Theme != "mine" {
-		t.Fatalf("after mono comes %s, want mine", a.config.Appearance.Theme)
+		t.Fatalf("after sakura comes %s, want mine", a.config.Appearance.Theme)
 	}
 	if !colorsEqual(a.palette.focusedFrame.Fg, colorOf("#ff0000")) {
 		t.Errorf("focused border %v, want mine's red", a.palette.focusedFrame.Fg)
