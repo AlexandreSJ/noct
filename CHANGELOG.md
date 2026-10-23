@@ -14,8 +14,11 @@ the shortcut is `Alt` by default. How to write an entry is in
 ### Added
 
 - Eleven new themes in **Appearance → theme**: `tide`, `moss`, `pumpkin`, `neon`, `cobalt`,
-  `sand`, `slate`, `amber`, `phosphor`, and two light ones, `paper` and `sakura`. Some give
-  popups and inactive tabs a background of their own, a little lighter than the theme's.
+  `sand`, `slate`, `amber`, `phosphor`, `paper` and `sakura`. Some give popups and inactive
+  tabs a background of their own, a little lighter than the theme's.
+- **Appearance → mode** switches every theme noct comes with between its dark and its light
+  colors, so `blood` or any other works in a light terminal too. Your own themes keep their
+  colors in both modes.
 
 ### Changed
 
