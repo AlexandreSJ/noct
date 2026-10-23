@@ -31,6 +31,8 @@ var ErrDaemonStopped = errors.New("the noct daemon stopped unexpectedly")
 type Target struct {
 	Session string
 	New     bool
+	// Setup opens noct's setup once attached.
+	Setup bool
 }
 
 // Attach connects this terminal to a session of the daemon until it detaches or quits, and
@@ -53,6 +55,7 @@ func Attach(socketPath string, target Target) (reason string, err error) {
 		ColorProfile: byte(colorprofile.Detect(stdout, os.Environ())),
 		Session:      target.Session,
 		NewSession:   target.New,
+		Setup:        target.Setup,
 	}
 	state, err := term.MakeRaw(stdin.Fd())
 	if err != nil {

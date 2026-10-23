@@ -68,8 +68,10 @@ release-notes: ## Imprime a seção da VERSION no CHANGELOG.md (o texto da relea
 	if [ -z "$$notes" ]; then echo "CHANGELOG.md não tem a seção ## $(VERSION)" >&2; exit 1; fi; \
 	printf '%s\n' "$$notes"
 
-install: ## Instala o noct no GOPATH/bin (ou GOBIN)
+install: ## Instala o noct no GOPATH/bin (ou GOBIN) e, num terminal, abre o noct setup
 	$(GO) install $(GOFLAGS_EXTRA) $(PKG)
+	@bin="$$($(GO) env GOBIN)"; [ -n "$$bin" ] || bin="$$($(GO) env GOPATH)/bin"; \
+	if [ -t 0 ] && [ -t 1 ]; then "$$bin/noct" setup; fi
 
 ## --- Qualidade --------------------------------------------------------------
 

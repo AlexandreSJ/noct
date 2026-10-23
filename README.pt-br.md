@@ -66,7 +66,7 @@ go build -o noct ./cmd/noct
 
 ## Primeiros passos
 
-Rode `noct`. Ele abre numa home vazia; aperte qualquer tecla para ver a tecla prefixo, que abre os comandos.
+Rode `noct`. Na primeira vez, o **noct setup** pergunta as teclas, os temas e as animações, pode instalar uma demo de fluxos, adicionar o noct aos clientes de IA que você tem e ligar teclas a ferramentas como `less` ou `lazygit`; `noct setup` o abre de novo quando quiser (o `make install` também). Depois o noct abre numa home vazia; aperte qualquer tecla para ver a tecla prefixo, que abre os comandos.
 
 Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a navegação mantém o modo ligado, então você percorre painéis e tabs com um único prefixo:
 
@@ -79,7 +79,7 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `s` | Novo scripts panel: seus scripts, para rodar, editar e criar |
 | `i` | Inspect: seus fluxos como fluxogramas, para montar passo a passo, rodar e revisar |
 | `v` | Logs por dia num calendário colorido pela atividade, com tamanho, linhas e como cada execução terminou |
-| `Space` | Buscar scripts, ações e tabs |
+| `Space` ou `'` | Buscar scripts, ações, tabs e suas binds |
 | `?` | Ajuda do programa rodando no terminal |
 | `o` | Sessões: abrir, criar, renomear, fechar e apagar, e `f` filtra pelo nome |
 | `y` | MCP: aprovar o que uma IA pede para rodar e adicionar o noct a um cliente de IA |
@@ -94,7 +94,7 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `d` | Desconectar; os programas continuam |
 | `x` | Fechar o painel; a tab fecha junto com o último painel, a não ser que o config mantenha tabs vazias |
 | `c` | Atualizações: o que há de novo em cada versão e, quando sai uma mais nova, instalá-la |
-| `,` | Config: tecla prefixo, as teclas de cada tela, atalhos diretos, tema, modo escuro ou claro, fundo, mouse, o que uma tab nova abre e se ela fecha quando fica vazia, editor, gerenciador de arquivos, pasta dos scripts, por quanto tempo e quanto guardar dos logs, quanto da saída dos passos os fluxos guardam |
+| `,` | Config: tecla prefixo, as teclas de cada tela, atalhos diretos, tema, modo escuro ou claro, fundo, mouse, suas binds, o que uma tab nova abre e se ela fecha quando fica vazia, editor, gerenciador de arquivos, pasta dos scripts, por quanto tempo e quanto guardar dos logs, quanto da saída dos passos os fluxos guardam |
 | `q` | Sair, depois de confirmar: `Enter` ou `q` de novo |
 | `b` | Travar os atalhos, para os programas recebê-los; andar continua valendo. De novo destrava |
 | `Esc` | Cancelar |
@@ -162,6 +162,7 @@ claude mcp add noct -- noct mcp
 | `noct` | Conecta à última sessão usada, iniciando o noct se preciso |
 | `noct attach [sessão]` (ou `a`, `att`, `-a`) | Conecta a uma sessão pelo nome; sem nome, lista as sessões |
 | `noct new [sessão]` | Cria uma sessão, com nome ou número, e conecta a ela |
+| `noct setup` | Escolhe as teclas, os temas e as animações, instala a demo, adiciona o noct aos clientes de IA e liga teclas às ferramentas que você tem |
 | `noct sessions` | Lista as sessões: aberta ou fechada, tabs, último uso |
 | `noct kill <sessão>` | Apaga uma sessão: os programas param e o layout é esquecido |
 | `noct -s <script> [nome=valor ...]` | Roda um script neste terminal |

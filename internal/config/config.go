@@ -204,6 +204,9 @@ type Prefix struct {
 
 type Appearance struct {
 	Theme string `toml:"theme"`
+	// Themes are the themes the config offers to choose from, by name; empty offers all of them.
+	// The user's own theme files are always offered.
+	Themes []string `toml:"themes,omitempty"`
 	// Mode is ModeDark or ModeLight.
 	Mode string `toml:"mode"`
 	// Background is BackgroundTerminal to keep the terminal's own background, or BackgroundTheme.

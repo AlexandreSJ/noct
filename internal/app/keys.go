@@ -33,6 +33,7 @@ const (
 	colorsMode                   // the focused pane's and its tab's own colors
 	templateSaveMode             // saving the tab as a template
 	templatesMode                // the templates, to open one as a new tab
+	setupMode                    // noct setup: keys, themes, animations, demo, AI clients, binds
 )
 
 // shortcut is one command as listed in the popups and on the home screen.
@@ -150,6 +151,8 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 		a.handleTemplateSaveKey(key)
 	case templatesMode:
 		a.handleTemplatesKey(key)
+	case setupMode:
+		a.handleSetupKey(key)
 	default:
 		a.handleNormalKey(key)
 	}
