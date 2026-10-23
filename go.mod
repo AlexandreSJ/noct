@@ -3,6 +3,7 @@ module github.com/AlexandreSJ/noct
 go 1.24.2
 
 require (
+	charm.land/lipgloss/v2 v2.0.0
 	github.com/BurntSushi/toml v1.6.0
 	github.com/charmbracelet/colorprofile v0.4.2
 	github.com/charmbracelet/x/ansi v0.11.7
@@ -22,7 +23,7 @@ require (
 )
 
 require (
+	github.com/charmbracelet/ultraviolet v0.0.0-20251205161215-1948445e3318 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/mattn/go-runewidth v0.0.23 // indirect
-	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 )

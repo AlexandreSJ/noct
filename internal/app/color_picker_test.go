@@ -1,10 +1,15 @@
 package app
 
 import (
+	"image"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
+
+	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 
 	"github.com/AlexandreSJ/noct/internal/theme"
 )
@@ -49,7 +54,13 @@ func TestThePickerMovesOnTheGrid(t *testing.T) {
 	steps := []struct {
 		key  string
 		want uint8
-	}{{"h", 0}, {"k", 0}, {"l", 1}, {"j", 17}, {"h", 16}, {"k", 0}, {"right", 1}, {"down", 17}}
+	}{
+		{"h", 0}, {"k", 0}, {"l", 1}, {"j", 9}, {"h", 8}, {"k", 0}, {"right", 1}, {"down", 9},
+		{"j", 196}, // from the bright colors to the triangle's red corner
+		{"j", 166}, // the line under it, half a cell to the left
+		{"l", 161},
+		{"k", 196},
+	}
 	for _, s := range steps {
 		pressPicker(p, s.key)
 		if p.cell != s.want {
@@ -59,7 +70,95 @@ func TestThePickerMovesOnTheGrid(t *testing.T) {
 	p.cell = 255
 	pressPicker(p, "l", "j")
 	if p.cell != 255 {
-		t.Errorf("the picker left the grid's last cell for %d", p.cell)
+		t.Errorf("the picker left the grays' last cell for %d", p.cell)
+	}
+}
+
+func TestUpAndDownGoStraightThroughTheTriangle(t *testing.T) {
+	p, _ := testPicker("196", false)
+	var path []uint8
+	for range 6 {
+		pressPicker(p, "j")
+		path = append(path, p.cell)
+	}
+	want := []uint8{166, 131, 101, 66, 36, 240} // the grays under the column
+	if !slices.Equal(path, want) {
+		t.Errorf("down from red went through %v, want %v", path, want)
+	}
+	cells := swatchCells(p.slice)
+	for _, n := range path[:5] {
+		if x := cells[n].X; x != 15 && x != 16 {
+			t.Errorf("%d is at column %d, off the straight line", n, x)
+		}
+	}
+}
+
+func TestTheSlicesHoldTheCubeOnce(t *testing.T) {
+	seen := map[uint8]int{}
+	for slice := range cubeSlices {
+		cells := swatchCells(slice)
+		taken := map[image.Point]uint8{}
+		for n, at := range cells {
+			if at.Y >= swatchLines || at.X+2 > 39 {
+				t.Errorf("%d is at %v in slice %d, out of the picker", n, at, slice)
+			}
+			if other, ok := taken[at]; ok {
+				t.Errorf("%d and %d share %v in slice %d", other, n, at, slice)
+			}
+			taken[at] = n
+			if inCube(n) {
+				seen[n]++
+			}
+		}
+	}
+	for n := 16; n < 232; n++ {
+		if seen[uint8(n)] != 1 {
+			t.Errorf("%d is in %d slices", n, seen[uint8(n)])
+		}
+	}
+	corners := swatchCells(5)
+	if corners[196].Y != cubeTop || corners[46].Y != cubeTop+5 || corners[21].Y != cubeTop+5 || corners[46].X > corners[21].X {
+		t.Errorf("slice 5 is not red on top, green and blue at the bottom: %v %v %v", corners[196], corners[46], corners[21])
+	}
+}
+
+func TestCommaAndPeriodChangeTheSlice(t *testing.T) {
+	p, _ := testPicker("196", false)
+	if p.slice != 5 {
+		t.Fatalf("the picker opened on 196 shows slice %d", p.slice)
+	}
+	pressPicker(p, ".")
+	if red, _, _ := cubeLevels(p.cell); p.slice != 6 || red != 5 {
+		t.Errorf("a lighter slice went to %d in slice %d, want a red in 6", p.cell, p.slice)
+	}
+	if !p.moved {
+		t.Error("a new slice did not move the selection")
+	}
+	p, _ = testPicker("0", false)
+	pressPicker(p, ",")
+	if p.cell != 0 || p.slice != 4 {
+		t.Errorf("a new slice moved the system color to %d, slice %d", p.cell, p.slice)
+	}
+	p, _ = testPicker("16", false)
+	pressPicker(p, ",", ".")
+	if p.slice != 1 || p.cell == 16 {
+		t.Errorf("from black, the next slice is %d with %d", p.slice, p.cell)
+	}
+}
+
+func TestThePickerDrawsTheSelectionWhereItsCellIs(t *testing.T) {
+	pal := newPalette(theme.Builtins()[0], false)
+	for _, n := range []uint8{0, 15, 16, 21, 52, 124, 231, 232, 255} {
+		p, _ := testPicker(theme.Color(strconv.Itoa(int(n))), false)
+		buf := uv.NewScreenBuffer(40, swatchLines+pickerRows)
+		p.draw(buf, image.Rect(0, 0, 40, swatchLines+pickerRows), &pal)
+		at := swatchCells(p.slice)[n]
+		if c := buf.CellAt(at.X, at.Y); c == nil || c.Content != "[" {
+			t.Errorf("the selection of %d is not at %v", n, at)
+		}
+		if c := buf.CellAt(at.X, at.Y); c != nil && !colorsEqual(c.Style.Bg, theme.Indexed(n).Resolve()) {
+			t.Errorf("the cell of %d has the background %v", n, c.Style.Bg)
+		}
 	}
 }
 
@@ -71,8 +170,8 @@ func TestEnterTakesTheColorAsTheThemeStoresIt(t *testing.T) {
 	}
 	p, r = testPicker("59", false)
 	pressPicker(p, "l", "enter")
-	if r.color != "#5f5f87" || !r.ok {
-		t.Errorf("enter on 60 gave %q, %v", r.color, r.ok)
+	if r.color != "#5f0087" || !r.ok {
+		t.Errorf("enter on 54 gave %q, %v", r.color, r.ok)
 	}
 }
 
@@ -165,6 +264,32 @@ func TestAShortTerminalStillShowsTheHexField(t *testing.T) {
 	text := screenText(a)
 	if !strings.Contains(text, "hex") || !strings.Contains(text, "250") {
 		t.Errorf("a short picker hides the hex field or the selected color:\n%s", text)
+	}
+}
+
+func TestThePickerFitsInItsPanels(t *testing.T) {
+	a, _ := editingMine(t)
+	a.size.Y = 40
+	a.selectConfigRow(themeRowBase + configRow(theme.FocusedBorder))
+	press(a, enterPress)
+	b, _ := openColorsOn(t)
+	b.size.Y = 40
+	selectColorRow(t, b, theme.FocusedBorder, false)
+	press(b, enterPress)
+	for name, open := range map[string]struct {
+		app    *App
+		picker *colorPicker
+	}{"theme editor": {a, a.configPanel.edit.picker}, "panel colors": {b, b.colors.picker}} {
+		open.picker.cell, open.picker.moved = 255, true // the last line of cells
+		text := screenText(open.app)
+		if open.picker.first != 0 {
+			t.Errorf("the %s scrolls the picker by %d lines", name, open.picker.first)
+		}
+		for _, want := range []string{"system", "slice", "232-255", "hex"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("the %s hides %q of the picker:\n%s", name, want, text)
+			}
+		}
 	}
 }
 
