@@ -376,3 +376,29 @@ func TestSortOrderFromTheConfig(t *testing.T) {
 		t.Errorf("sort %q, first %s", a.config.ScriptsSort, a.scripts.Scripts[0].Name)
 	}
 }
+
+// A path parameter completes with tab, from the folder the script runs in; the arrows move.
+func TestTabCompletesAPathParameter(t *testing.T) {
+	a := testApp(t)
+	l := recordLaunches(a)
+	folder := t.TempDir()
+	if err := os.WriteFile(filepath.Join(folder, "README.md"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	saveScript(t, "read", "program: glow\nworkdir: "+folder+"\nrun: glow {{.file}} {{.style}}\nparams:\n  - name: file\n    path: true\n  - name: style\n    default: dark\n")
+	openScriptsPanel(t, a)
+	press(a, enterPress)
+	typeText(a, "REA")
+	press(a, tabPress)
+	if got := a.form.values["file"]; got != "README.md" {
+		t.Fatalf("file is %q after tab, want README.md", got)
+	}
+	press(a, downPress)
+	if a.form.field().Name != "style" {
+		t.Errorf("down went to %q, want style", a.form.field().Name)
+	}
+	press(a, enterPress)
+	if run := l.last(t); !slices.Equal(run.argv[2:], []string{"glow README.md dark"}) {
+		t.Errorf("ran %q", run.argv)
+	}
+}

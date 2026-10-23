@@ -14,6 +14,7 @@ import (
 const (
 	formHints       = "{enter} run  {tab} next  esc cancel"
 	choiceFormHints = "{enter} run  {tab} next  {left}{right} choose  esc cancel"
+	pathFormHints   = "{enter} run  {tab} complete  {down}{up} field  esc cancel"
 )
 
 // paramsForm asks for a script's or a flow's parameters before it runs. A script's parameters
@@ -30,6 +31,8 @@ type paramsForm struct {
 	preview func(values map[string]string) string
 	// submit runs with the values, or tells why it cannot, and the form stays open.
 	submit func(values map[string]string) error
+	// dir is where the program runs, which path fields complete from.
+	dir string
 }
 
 func (a *App) openForm(s script.Script, values map[string]string) {
@@ -43,6 +46,7 @@ func (a *App) openForm(s script.Script, values map[string]string) {
 		title: "run " + s.Name, fields: fields, values: maps.Clone(values),
 		preview: func(values map[string]string) string { return commandPreview(s, values) },
 		submit:  func(values map[string]string) error { a.startRun(s, values); return nil },
+		dir:     s.WorkingDir(a.workDir),
 	}
 	a.mode = formMode
 }
@@ -67,7 +71,13 @@ func (a *App) handleFormKey(key uv.KeyPressEvent) {
 			a.statusMessage = err.Error()
 			a.mode = formMode
 		}
-	case "tab", "down":
+	case "tab":
+		if f.field().Path {
+			f.values[name] = completePath(f.values[name], f.dir)
+			return
+		}
+		f.move(1)
+	case "down":
 		f.move(1)
 	case "shift+tab", "up":
 		f.move(-1)
@@ -95,10 +105,15 @@ func (f *paramsForm) typedField() (*textField, func()) {
 	return &f.input, func() { f.values[p.Name] = f.input.String() }
 }
 
-// hints tell the arrows' choosing only on a field with choices; elsewhere they move the cursor.
+// hints tell the arrows' choosing only on a field with choices, and tab completing on a path.
 func (f *paramsForm) hints() string {
-	if len(f.fields) > 0 && len(f.field().Choices) > 0 {
+	switch {
+	case len(f.fields) == 0:
+		return formHints
+	case len(f.field().Choices) > 0:
 		return choiceFormHints
+	case f.field().Path:
+		return pathFormHints
 	}
 	return formHints
 }

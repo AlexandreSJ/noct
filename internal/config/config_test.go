@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -209,5 +210,39 @@ func TestEachMomentHasItsOwnTime(t *testing.T) {
 	c.AnimationTimes.SetDuration("popup", 450)
 	if c.AnimationTimes.Popup != 450 {
 		t.Errorf("SetDuration left popup at %d", c.AnimationTimes.Popup)
+	}
+}
+
+func TestCustomBindTarget(t *testing.T) {
+	cases := []struct {
+		bind       CustomBind
+		kind, what string
+		fails      bool
+	}{
+		{CustomBind{Key: "ctrl+alt+g", Command: "glow {{.file}}"}, CustomCommand, "glow {{.file}}", false},
+		{CustomBind{Key: "prefix m", Script: "tools/glow"}, CustomScript, "tools/glow", false},
+		{CustomBind{Key: "prefix m", Flow: "demo-deploy"}, CustomFlow, "demo-deploy", false},
+		{CustomBind{Key: "prefix m", Script: "a", Flow: "b"}, "", "", true},
+		{CustomBind{Key: "prefix m"}, "", "", true},
+		{CustomBind{Command: "glow"}, "", "", true},
+	}
+	for _, c := range cases {
+		kind, what, err := c.bind.Target()
+		if (err != nil) != c.fails || kind != c.kind || what != c.what {
+			t.Errorf("%+v: got %q %q %v", c.bind, kind, what, err)
+		}
+	}
+}
+
+func TestCustomBindsRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	cfg := Default()
+	cfg.CustomBinds = []CustomBind{{Key: "ctrl+alt+g", Name: "glow", Command: "glow {{.file}}"}, {Key: "prefix m", Name: "deploy", Flow: "demo-deploy"}}
+	if err := Save(path, cfg); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(path)
+	if err != nil || !slices.Equal(got.CustomBinds, cfg.CustomBinds) {
+		t.Errorf("loaded %+v, %v", got.CustomBinds, err)
 	}
 }
