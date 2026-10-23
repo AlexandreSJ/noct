@@ -728,3 +728,16 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** O binário leva o Lip Gloss e um segundo ultraviolet. Outras telas continuam desenhando direto em células; usar o Lip Gloss nelas é uma decisão à parte.
 
+## ADR-055 — Modo escuro e claro dos temas
+
+**Contexto.** Os temas eram todos escuros, menos `paper` e `sakura`, e quem usa um terminal claro precisava de outro tema. O mantenedor quer o mesmo tema, por exemplo o `blood`, nas duas versões, trocando por uma chave.
+
+**Decisão.**
+- `Theme` ganha `Light`, as cores para fundo claro, ao lado de `Colors`. Só os temas embutidos têm `Light`; `Theme.In(light)` devolve o tema com as cores do modo, e um tema sem `Light` fica com as próprias nos dois.
+- O config ganha `appearance.mode`, `dark` (padrão) ou `light`, com a linha `mode` em **Appearance**. Vale para todas as sessões, que continuam com o próprio tema (ADR-050).
+- Tudo o que a tela desenha passa por `App.shownTheme`, que aplica o modo. O editor de temas continua lendo o tema como está no arquivo, então copiar um tema embutido copia as cores escuras.
+- Cada tema embutido tem as cores claras feitas à mão, com a mesma ideia das escuras: o texto e o texto sobre o destaque com contraste de pelo menos 4,5:1, o destaque, o texto apagado e os estados com pelo menos 3:1 sobre o fundo. `paper` e `sakura`, que eram claros, passam a ter um lado escuro.
+
+**Alternativas.** Derivar as cores claras das escuras automaticamente (inverter a claridade) evitaria fazer 18 paletas, mas os destaques saíam lavados ou sem contraste; fica para os temas do usuário, se for preciso.
+
+**Consequências.** Os temas do usuário e as cores próprias de painel e tab (`prefixo` + `P`) não mudam com o modo; dar a eles um lado claro (tabelas `[light.*]` no arquivo e uma chave no editor) e seguir o fundo do terminal (`mode = auto`, com a consulta OSC 11 vinda do cliente) são passos seguintes.

@@ -1,6 +1,6 @@
 # Temas e cores
 
-**Estado:** implementado (ADR-049, ADR-050, ADR-051).
+**Estado:** implementado (ADR-049, ADR-050, ADR-051, ADR-055).
 
 Hoje há sete temas fixos em `internal/app/theme.go`, cada um com sete cores (`accent`, `onAccent`, `muted`, `text`, `attention`, `background`, `logo`), das quais os estilos do `palette` são derivados. Este documento descreve temas criados e editados dentro do noct, o tema de cada sessão e as cores por painel e por tab.
 
@@ -18,6 +18,8 @@ Um tema dá cor a cada componente desenhado pelo noct, não a uns poucos tokens:
 | Outros | corvo, calendário (os níveis do calendário são misturas dessa cor com o fundo, como hoje) |
 
 Os temas embutidos passam a definir todos os componentes. A lista é a do editor e a do arquivo; um componente novo entra nos dois.
+
+**Modo escuro e claro (ADR-055).** Cada tema embutido tem dois jogos de cores, um para fundo escuro e um para fundo claro, e `appearance.mode` (`dark` ou `light`) escolhe qual a tela mostra. Um arquivo de tema tem um jogo só, que vale nos dois modos; copiar um tema embutido copia as cores escuras dele.
 
 ## Arquivo
 

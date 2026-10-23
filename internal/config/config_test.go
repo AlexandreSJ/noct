@@ -24,7 +24,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 	want := Config{
 		Prefix:         Prefix{Alt: true, Shift: true, Key: "f2"},
 		Shortcut:       Shortcut{Alt: true},
-		Appearance:     Appearance{Theme: "ember", Background: BackgroundTheme, AnimateIntro: IntroAlways, Animations: AnimationsOff},
+		Appearance:     Appearance{Theme: "ember", Mode: ModeLight, Background: BackgroundTheme, AnimateIntro: IntroAlways, Animations: AnimationsOff},
 		Animations:     Animations{Hover: "none", Panels: "fade", Tabs: "jitter", Focus: "01", Move: "fade", Fullscreen: "01", Popup: "jitter", Activity: "none"},
 		AnimationTimes: AnimationTimes{Hover: 100, Panels: 200, Tabs: 300, Focus: 400, Move: 500, Fullscreen: 600, Popup: 700, Activity: 800},
 		NewTab:         "scripts",
@@ -100,6 +100,18 @@ func TestLoadNormalizesUnknownBackground(t *testing.T) {
 	}
 	if cfg.Appearance.Background != BackgroundTerminal {
 		t.Errorf("got %q", cfg.Appearance.Background)
+	}
+}
+
+func TestLoadKeepsLightModeAndMakesAnythingElseDark(t *testing.T) {
+	for value, want := range map[string]string{"light": ModeLight, "dark": ModeDark, "dim": ModeDark, "": ModeDark} {
+		cfg, err := Load(writeConfig(t, "[appearance]\nmode = \""+value+"\"\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Appearance.Mode != want {
+			t.Errorf("mode %q loads as %q, want %q", value, cfg.Appearance.Mode, want)
+		}
 	}
 }
 

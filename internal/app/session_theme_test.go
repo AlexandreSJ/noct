@@ -6,6 +6,7 @@ import (
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 
+	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/theme"
 )
 
@@ -155,4 +156,24 @@ func TestReadingTheThemesAgainKeepsTheSessionPreview(t *testing.T) {
 	writeUserTheme(t, dir, "other", "base = \"rose\"\n")
 	a.checkThemes()
 	showsTheme(t, a, "frost")
+}
+
+func TestModeRowShowsTheLightColorsOfTheTheme(t *testing.T) {
+	a := openConfigAt(t, modeRow)
+	a.applyConfig(withTheme(a.config, "blood"))
+	a.session.theme = "blood"
+	a.applyPalette()
+	press(a, letter('l'))
+	if a.config.Appearance.Mode != config.ModeLight {
+		t.Fatalf("mode %q after the row, want light", a.config.Appearance.Mode)
+	}
+	blood, _ := theme.Find(theme.Builtins(), "blood")
+	if want := blood.Light[theme.FocusedBorder].Resolve(); !colorsEqual(a.palette.focusedFrame.Fg, want) {
+		t.Errorf("the screen shows %v, want blood's light %v", a.palette.focusedFrame.Fg, want)
+	}
+	press(a, letter('l'))
+	if a.config.Appearance.Mode != config.ModeDark {
+		t.Errorf("mode %q after the row again, want dark", a.config.Appearance.Mode)
+	}
+	showsTheme(t, a, "blood")
 }

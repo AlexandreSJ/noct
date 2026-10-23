@@ -27,6 +27,7 @@ const (
 	themeRow
 	newThemeRow
 	editThemeRow
+	modeRow
 	backgroundRow
 	animateIntroRow
 	animationsRow
@@ -375,6 +376,8 @@ func (a *App) changeSetting(step int) {
 	case themeRow:
 		next.Appearance.Theme = a.nextThemeName(a.sessionTheme(a.session), step)
 		a.session.theme = next.Appearance.Theme // the session on screen, and sessions without a theme
+	case modeRow:
+		next.Appearance.Mode = cycle([]string{config.ModeDark, config.ModeLight}, next.Appearance.Mode, step)
 	case backgroundRow:
 		next.Appearance.Background = cycle([]string{config.BackgroundTerminal, config.BackgroundTheme}, next.Appearance.Background, step)
 	case animationsRow:
@@ -545,6 +548,7 @@ func (a *App) configLines() []configLine {
 		{label: "theme", value: choice(a.themeNamed(a.sessionTheme(a.session)).Name), row: themeRow},
 		{label: "new theme", value: "enter", row: newThemeRow},
 		{label: "edit theme", value: edit, row: editThemeRow},
+		{label: "mode", value: a.config.Appearance.Mode, row: modeRow},
 		{label: "background", value: a.config.Appearance.Background, row: backgroundRow},
 		{label: "animate intro", value: choice(a.config.Appearance.AnimateIntro), row: animateIntroRow},
 		{label: "mouse", value: onOff(a.config.Mouse), row: mouseRow},
