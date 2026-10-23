@@ -82,7 +82,7 @@ func (a *App) handleColorsKey(key uv.KeyPressEvent) {
 		row := p.rows[p.selected]
 		current, ok := p.set(row)[row.component]
 		if !ok {
-			current = a.themeNamed(a.sessionTheme(a.session)).Colors[row.component]
+			current = a.shownTheme(a.sessionTheme(a.session)).Colors[row.component]
 		}
 		p.picker = newColorPicker(current, "the theme's", func(c theme.Color, ok bool) {
 			p.picker = nil
@@ -136,7 +136,7 @@ func (a *App) colorsPreview() (pane, tab colorSet) {
 // background. Pairs where neither color is the pane's own are the theme's business.
 func (a *App) colorsWarning(own colorSet) string {
 	p := a.palette.forPane(own)
-	th := a.themeNamed(a.sessionTheme(a.session))
+	th := a.shownTheme(a.sessionTheme(a.session))
 	background, text := p.background, p.text
 	if background == nil {
 		background = th.Colors[theme.Background].Resolve() // what the theme would paint
@@ -229,7 +229,7 @@ func (a *App) drawColors(screen uv.Screen) {
 	for y := inner.Min.Y; y < inner.Max.Y-2; y++ {
 		setRune(screen, list.Max.X, y, "│", a.palette.unfocusedFrame)
 	}
-	base := newPalette(a.themeNamed(a.sessionTheme(a.session)), true)
+	base := newPalette(a.shownTheme(a.sessionTheme(a.session)), true)
 	pal := base.forPane(pane)
 	pal.activeTab, pal.tab = base.forTab(tab)
 	drawStage(screen, image.Rect(list.Max.X+2, inner.Min.Y, inner.Max.X, inner.Max.Y-2), &pal, theme.Background, false)

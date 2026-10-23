@@ -51,6 +51,9 @@ func TestBuiltinsKeepTodaysThemes(t *testing.T) {
 		if th.Colors[Background] == "" || th.Colors[Text] == "" {
 			t.Errorf("%s has no background or text", th.Name)
 		}
+		if th.Light[Background] == "" || th.Light[Text] == "" || th.Light == th.Colors {
+			t.Errorf("%s has no light colors of its own", th.Name)
+		}
 	}
 	want := []string{"noct", "aurora", "ember", "rose", "blood", "frost", "mono", "tide", "moss", "pumpkin", "neon", "cobalt", "sand", "slate", "amber", "phosphor", "paper", "sakura"}
 	if len(names) != len(want) {
@@ -69,6 +72,20 @@ func TestBuiltinsKeepTodaysThemes(t *testing.T) {
 		if got := noct.Colors[c]; got != want {
 			t.Errorf("noct %s = %q, want %q", Components[c].Key, got, want)
 		}
+	}
+}
+
+func TestInShowsTheLightColorsOnlyWhereAThemeHasThem(t *testing.T) {
+	blood, _ := Find(Builtins(), "blood")
+	if got := blood.In(true).Colors; got != blood.Light {
+		t.Errorf("blood in light mode shows %v, want its light colors", got)
+	}
+	if got := blood.In(false).Colors; got != blood.Colors {
+		t.Errorf("blood in dark mode shows %v, want its dark colors", got)
+	}
+	mine := Theme{Name: "mine", Colors: blood.Colors}
+	if got := mine.In(true).Colors; got != mine.Colors {
+		t.Errorf("a theme without light colors shows %v in light mode, want its own", got)
 	}
 }
 

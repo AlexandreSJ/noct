@@ -19,6 +19,12 @@ const (
 	BackgroundTheme    = "theme"
 )
 
+// The colors the themes noct comes with show: for a dark background, the default, or a light one.
+const (
+	ModeDark  = "dark"
+	ModeLight = "light"
+)
+
 // When the title's intro plays as a terminal attaches: on the home only, every time, or never.
 const (
 	IntroEmpty  = "empty"
@@ -158,6 +164,8 @@ type Prefix struct {
 
 type Appearance struct {
 	Theme string `toml:"theme"`
+	// Mode is ModeDark or ModeLight.
+	Mode string `toml:"mode"`
 	// Background is BackgroundTerminal to keep the terminal's own background, or BackgroundTheme.
 	Background string `toml:"background"`
 	// AnimateIntro is IntroEmpty, IntroAlways or IntroNever.
@@ -308,7 +316,7 @@ func Default() Config {
 	return Config{
 		Prefix:         Prefix{Ctrl: true, Key: "space"},
 		Shortcut:       Shortcut{Alt: true},
-		Appearance:     Appearance{Theme: "noct", Background: BackgroundTerminal, AnimateIntro: IntroEmpty, Animations: AnimationsOn},
+		Appearance:     Appearance{Theme: "noct", Mode: ModeDark, Background: BackgroundTerminal, AnimateIntro: IntroEmpty, Animations: AnimationsOn},
 		Animations:     defaultAnimations,
 		AnimationTimes: defaultAnimationTimes,
 		NewTab:         NewTabTerminal,
@@ -326,6 +334,9 @@ func Default() Config {
 
 // normalized replaces values noct does not know with defaults, so a hand-edited file never breaks it.
 func (c Config) normalized() Config {
+	if c.Appearance.Mode != ModeLight {
+		c.Appearance.Mode = ModeDark
+	}
 	if c.Appearance.Background != BackgroundTheme {
 		c.Appearance.Background = BackgroundTerminal
 	}
