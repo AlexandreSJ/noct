@@ -45,6 +45,10 @@ type Options struct {
 	// KeepScrollback ignores the program erasing the scrollback (ESC[3J, which clear sends), so a
 	// log replayed here keeps what was printed before a clear.
 	KeepScrollback bool
+	// HistoryUnderFullScreen keeps the history scrollable while a full-screen program shows,
+	// with the main screen above that program, so a log replayed here that ends inside one
+	// still scrolls.
+	HistoryUnderFullScreen bool
 }
 
 // Pane is a terminal: a program, its pseudo-terminal and the emulated screen it draws on.
@@ -59,6 +63,8 @@ type Pane struct {
 	screen     *vt.Emulator
 	size       pty.Size
 	closed     atomic.Bool
+	// historyUnderFullScreen is Options.HistoryUnderFullScreen.
+	historyUnderFullScreen bool
 
 	title         atomic.Value
 	cursorVisible atomic.Bool
@@ -88,6 +94,8 @@ func Start(opts Options) (*Pane, error) {
 		images:             opts.Images,
 		onTerminalGraphics: opts.OnTerminalGraphics,
 		log:                opts.Log,
+
+		historyUnderFullScreen: opts.HistoryUnderFullScreen,
 	}
 	p.title.Store("")
 	p.cursorVisible.Store(true)
@@ -299,7 +307,7 @@ func (p *Pane) Draw(target uv.Screen, area uv.Rectangle) {
 }
 
 // ScrollbackLen is how many lines that scrolled off the top are kept. Full-screen programs
-// (the alternate screen) have none.
+// (the alternate screen) have none, unless HistoryUnderFullScreen puts the main screen there.
 func (p *Pane) ScrollbackLen() int {
 	p.screenLock.RLock()
 	defer p.screenLock.RUnlock()
@@ -307,10 +315,20 @@ func (p *Pane) ScrollbackLen() int {
 }
 
 func (p *Pane) historyLen() int {
-	if p.screen.IsAltScreen() {
-		return 0
+	if !p.screen.IsAltScreen() {
+		return p.screen.ScrollbackLen()
 	}
-	return p.screen.ScrollbackLen()
+	if p.historyUnderFullScreen {
+		return p.screen.ScrollbackLen() + p.screen.Height()
+	}
+	return 0
+}
+
+// FullScreen tells whether a full-screen program shows, on the alternate screen.
+func (p *Pane) FullScreen() bool {
+	p.screenLock.RLock()
+	defer p.screenLock.RUnlock()
+	return p.screen.IsAltScreen()
 }
 
 // DrawScrolled draws the pane as it looked offset lines up its history; 0 is the live screen.
@@ -338,12 +356,16 @@ func (p *Pane) DrawScrolled(target uv.Screen, area uv.Rectangle, offset int) {
 	}
 }
 
-// lineCell reads a cell of the history-and-screen sequence.
+// lineCell reads a cell of the history-and-screen sequence. Under a full-screen program the
+// history ends with the main screen, when HistoryUnderFullScreen keeps it.
 func (p *Pane) lineCell(x, line, history int) *uv.Cell {
-	if line < history {
-		return p.screen.ScrollbackCellAt(x, line)
+	if line >= history {
+		return p.screen.CellAt(x, line-history)
 	}
-	return p.screen.CellAt(x, line-history)
+	if scrollback := p.screen.ScrollbackLen(); line >= scrollback {
+		return p.screen.MainScreenCellAt(x, line-scrollback)
+	}
+	return p.screen.ScrollbackCellAt(x, line)
 }
 
 // Cursor returns the cursor position relative to the pane and whether the program shows it.

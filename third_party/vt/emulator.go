@@ -492,6 +492,15 @@ func (e *Emulator) ClearScrollback() {
 	}
 }
 
+// MainScreenCellAt returns the cell at the given position of the main screen, even while the
+// alternate screen shows.
+//
+// noct: a log replayed in noct that ends inside a full-screen program still scrolls up to what
+// was printed before that program, which stays on the main screen.
+func (e *Emulator) MainScreenCellAt(x, y int) *uv.Cell {
+	return e.scrs[0].CellAt(x, y)
+}
+
 // IsAltScreen returns whether the terminal is in alternate screen mode.
 func (e *Emulator) IsAltScreen() bool {
 	return e.scr == &e.scrs[1]

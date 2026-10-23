@@ -27,10 +27,10 @@ func TestClosingARunGivesTheFocusBackToThePaneBeforeIt(t *testing.T) {
 
 func openFloatingPane(t *testing.T, a *App) *floatingPane {
 	t.Helper()
-	press(a, prefixPress, letter('g'))
+	press(a, prefixPress, letter('u'))
 	f := a.currentTab().floatingPane(focusedPaneID(a))
 	if f == nil {
-		t.Fatal("prefix+g did not open a floating pane")
+		t.Fatal("prefix+u did not open a floating pane")
 	}
 	return f
 }
