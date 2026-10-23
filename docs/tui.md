@@ -33,14 +33,14 @@
 - Em todo lugar onde o noct move algo sem que se esteja digitando texto, `hjkl` valem como as setas: foco, mover, resize, rolagem, painéis e o inspect.
 - As listas que rolam (scripts panel, logs, busca e config) mantêm até 4 itens visíveis acima e abaixo da seleção, como o `scrolloff` do vim: a seleção anda dentro da vista e a lista só rola quando chega a 4 da borda, então dá para ver o que vem antes de chegar lá.
 - Cada painel tem título (definido pelo programa, ou o nome do shell) e, no futuro, indicador de estado: rodando, terminou ok, falhou, atividade não vista. Painéis de script já mostram `●`, `✓` ou `✗ <código>`.
-- Rolagem do histórico com `prefixo` + `u` (ou `Alt+U`) ou com a roda do mouse; a posição aparece no título do painel (`↑ 120/2000`), e rolar de volta até o fim com a roda volta ao vivo. Busca e cópia no histórico ficam para depois.
+- Rolagem do histórico com `prefixo` + `g` (ou `Alt+G`) ou com a roda do mouse; a posição aparece à direita na borda do painel (`↑ 120/2000`), e rolar de volta até o fim com a roda volta ao vivo. Rolando, valem as teclas do vim e as setas; qualquer outra tecla volta ao vivo sem chegar ao programa. Busca e cópia no histórico ficam para depois.
 - Durante a rolagem, o prefixo, os atalhos diretos e um clique em outro painel encerram a rolagem e funcionam como sempre: dá para trocar de painel sem voltar ao fim antes.
 - **Templates** (ADR-052, [templates.md](templates.md)): `prefixo` + `R` grava a tab como template (layout, tipos e nomes dos painéis, cores, e em cada terminal o comando com `run`, `ask` ou `none`), e `prefixo` + `T` abre um template como tab nova, escolhido numa lista com a miniatura do layout; os terminais abrem no diretório que um terminal novo teria.
 
 - Fechar um painel devolve o foco ao painel usado antes dele, como no i3: rodar um script (que abre à direita) e fechar a execução volta para o scripts panel, não para o primeiro painel da tab. Num stack, o foco fica no stack: vai para o painel que ele mostra no lugar do que fechou, mesmo que o painel usado antes esteja em outra coluna, tanto com `prefixo` + `x` quanto quando o programa termina (`Ctrl+D`).
 - `prefixo` + `n` liga o modo resize: `→`/`↓` aumentam o painel com foco e `←`/`↑` diminuem, movendo a borda com o vizinho (ou, se ele é o último do grupo, com o anterior); `Esc` ou `Enter` terminam.
-- `prefixo` + `f` alterna o fullscreen: só o painel com foco aparece, ocupando a tab, e o título mostra `⛶ fullscreen`. É só visual: o layout continua o mesmo, e as setas navegam por ele, mostrando em tela cheia o painel que recebe o foco.
-- `prefixo` + `g` abre um terminal num **painel flutuante**, centralizado sobre os outros. Setas chegam nele a partir do painel embaixo do meio dele, e saem dele para o painel mais próximo naquela direção. Mover (`a`) desloca o painel flutuante; resize (`n`) muda o tamanho. Com o mouse: botão esquerdo na borda arrasta, botão direito na borda redimensiona por aquele lado, e clique dentro dá foco e o traz para a frente. Se o último painel fixo fecha, um flutuante vira o painel da tab (ADR-023).
+- `prefixo` + `f` alterna o fullscreen: só o painel com foco aparece, ocupando a tab, e a borda mostra `⛶ fullscreen` à direita, junto com a posição da rolagem (`↑ 0/18`); o título do painel é cortado com `…` para dar lugar a eles. É só visual: o layout continua o mesmo, e as setas navegam por ele, mostrando em tela cheia o painel que recebe o foco.
+- `prefixo` + `u` abre um terminal num **painel flutuante**, centralizado sobre os outros. Setas chegam nele a partir do painel embaixo do meio dele, e saem dele para o painel mais próximo naquela direção. Mover (`a`) desloca o painel flutuante; resize (`n`) muda o tamanho. Com o mouse: botão esquerdo na borda arrasta, botão direito na borda redimensiona por aquele lado, e clique dentro dá foco e o traz para a frente. Se o último painel fixo fecha, um flutuante vira o painel da tab (ADR-023).
 
 ## Sessões
 
@@ -82,7 +82,7 @@ No modo noct:
 | `n` | resize | Modo resize: setas aumentam ou diminuem o painel | modo resize | 1 |
 | `w` | stacked or split | Empilhar o painel com foco e os de baixo na coluna, ou dividir a pilha de novo | termina | 2 |
 | `f` | fullscreen | Mostrar só o painel com foco, ou o layout de novo | termina | 1 |
-| `g` | floating panel | Terminal num painel flutuante | termina | 1 |
+| `u` | floating panel | Terminal num painel flutuante (antes `g`) | termina | 1 |
 | `r` | rename tab | Renomear a tab: `Enter` salva, `Esc` cancela | prompt | 0 |
 | `e` | rename panel | Renomear o painel com foco; vazio volta ao nome do programa | prompt | 2 |
 | `P` | colors of the panel and tab | Cores próprias do painel com foco (bordas, títulos, fundo e texto) e da tab dele (nome e fundo, ativa e inativa), por cima do tema da sessão, com o palco ao lado e um aviso de contraste baixo; `Alt+Shift+P` com o atalho direto em `alt` (ADR-051) | popup | 5 |
@@ -92,7 +92,7 @@ No modo noct:
 | `q` | quit | Pergunta `quit noct?`: `Enter` ou `q` de novo saem, `Esc` cancela | pergunta | 0a |
 | `b` | lock shortcuts | Trava os atalhos, ou destrava: ver [Trava](#trava) | termina | 5 |
 | `Esc` | cancel | Cancelar o modo noct | termina | 0 |
-| `u` | scroll history | Rolar o histórico do terminal com foco: `↑↓`/`jk` linha, `PgUp`/`PgDn` página, `g`/`Home` topo, `Shift+G`/`End` fim, `Esc` volta ao vivo | rolagem | 0b |
+| `g` | scroll history | Rolar o histórico do terminal com foco (antes `u`), com as teclas do vim e as setas: `↑↓`/`jk`/`Ctrl+Y`/`Ctrl+E` linha, `Ctrl+U`/`Ctrl+D` meia página, `PgUp`/`PgDn`/`Ctrl+B`/`Ctrl+F` página, `g`/`Home` topo, `Shift+G`/`End` fim; qualquer outra tecla, ou o atalho de novo, volta ao vivo sem chegar ao programa | rolagem | 0b |
 | `d` | detach | Desconectar: o terminal volta ao shell e os programas continuam; `noct` reconecta à mesma sessão | — | 0b |
 | `o` | sessions | Popup das sessões, da mais recente à mais antiga: aberta (`●`) ou fechada (`○`), tabs e último uso. `Enter` troca de sessão, `n` cria (vazio dá um número), `r` renomeia, `x` fecha (para os programas e guarda o layout), `d` apaga, `f` filtra pelo nome (sem diferenciar maiúsculas; `Esc` limpa o filtro antes de fechar o popup); ver [Sessões](#sessões) | sessões | 5 |
 | `?` | program help | Ajuda do programa em primeiro plano no terminal com foco; só com o shell, avisa e mantém o popup | termina | 1 |

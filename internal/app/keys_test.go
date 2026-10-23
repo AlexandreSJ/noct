@@ -348,9 +348,9 @@ func (v *scrollableView) DrawScrolled(uv.Screen, uv.Rectangle, int) {}
 
 func TestScrollModePagesThroughHistory(t *testing.T) {
 	a := testApp(t, newTab(1, &scrollableView{history: 5}))
-	press(a, prefixPress, letter('u'))
+	press(a, prefixPress, letter('g'))
 	if a.mode != scrollMode {
-		t.Fatalf("mode %v after prefix+u", a.mode)
+		t.Fatalf("mode %v after prefix+g", a.mode)
 	}
 	press(a, upPress, upPress)
 	if a.scrollOffset != 2 {
@@ -366,9 +366,38 @@ func TestScrollModePagesThroughHistory(t *testing.T) {
 	}
 }
 
+// Scrolling takes vim's keys and the arrows; any other key goes back to live, and so does the
+// scroll shortcut pressed again.
+func TestScrollModeTakesVimKeysAndLeavesOnAnyOther(t *testing.T) {
+	a := testApp(t, newTab(1, &scrollableView{history: 100}))
+	ctrl := func(r rune) uv.KeyPressEvent { return uv.KeyPressEvent{Code: r, Mod: uv.ModCtrl} }
+	press(a, prefixPress, letter('g'), ctrl('u'))
+	half := a.scrollOffset
+	if half < 2 {
+		t.Fatalf("offset %d after ctrl+u, want half a page", half)
+	}
+	press(a, ctrl('y'), ctrl('e'), ctrl('e'), ctrl('d'))
+	if a.scrollOffset != 0 || a.mode != scrollMode {
+		t.Errorf("offset %d mode %v after ctrl+y, ctrl+e twice and ctrl+d", a.scrollOffset, a.mode)
+	}
+	press(a, uv.KeyPressEvent{Code: uv.KeyLeftShift}, letter('x'))
+	if a.mode != normalMode {
+		t.Errorf("mode %v after x, want back to live", a.mode)
+	}
+	alt := uv.KeyPressEvent{Code: 'g', Mod: uv.ModAlt}
+	press(a, alt, upPress)
+	if a.mode != scrollMode || a.scrollOffset != 1 {
+		t.Fatalf("mode %v offset %d after alt+g and up", a.mode, a.scrollOffset)
+	}
+	press(a, alt)
+	if a.mode != normalMode {
+		t.Errorf("mode %v after alt+g while scrolling, want back to live", a.mode)
+	}
+}
+
 func TestScrollNeedsHistory(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2))
-	press(a, prefixPress, letter('u'))
+	press(a, prefixPress, letter('g'))
 	if a.mode != normalMode || a.statusMessage == "" {
 		t.Errorf("mode %v message %q for a view without history", a.mode, a.statusMessage)
 	}
