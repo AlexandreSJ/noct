@@ -87,10 +87,10 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `n` | Resize the pane with the arrows |
 | `w` | Stack the panes of the focused group, as in zellij: the focused one takes the height, the others show as a title row each; again to split them |
 | `f` | Fullscreen: show only the focused pane, or the layout again |
-| `g` | New floating panel with a terminal, over the others; drag its border with the left button to move it, with the right one to resize it |
+| `u` | New floating panel with a terminal, over the others; drag its border with the left button to move it, with the right one to resize it |
 | `r` | Rename the tab |
 | `e` | Rename the pane; an empty name gives back the program's |
-| `[` | Scroll the terminal's history |
+| `g` | Scroll the terminal's history with vim's keys and the arrows; any other key goes back to live |
 | `d` | Detach; programs keep running |
 | `x` | Close the pane; a tab closes with its last pane, unless the config keeps empty tabs |
 | `c` | Updates: what is new in each version and, when a newer one is out, installing it |

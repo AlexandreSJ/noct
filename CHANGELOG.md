@@ -13,12 +13,26 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Changed
 
+- Scrolling a terminal's history moved to `prefix` + `g` (`shortcut` + `g`), and the floating
+  panel to `prefix` + `u` (`shortcut` + `u`). Keys you changed in the binds stay as you set them.
+- While scrolling, vim's keys work as well as the arrows: `ctrl+u`/`ctrl+d` half a page,
+  `ctrl+y`/`ctrl+e` a line, `ctrl+b`/`ctrl+f` a page. Any other key goes back to live, and so
+  does `shortcut` + `g` again.
+- `⛶ fullscreen` and the scroll position (`↑ 0/18`) sit at the right of the panel's border, and
+  a long panel name is cut with `…` to make room for them. The logs' preview does the same.
+
 - The color picker of **Appearance → edit theme** and `prefix` + `P` groups the 256 colors:
   the terminal's 16, the color cube as a triangle with red, green and blue at its corners, and
   the grays. `,` and `.` make the triangle darker or lighter, keeping the color's mix of red,
   green and blue, and the selected color stays visible under its mark. In a terminal at
   least 25 lines tall the whole picker fits in its panel, without scrolling. Thanks to
   [Ryan](https://github.com/aishiteirai) for the triangle idea.
+
+### Fixed
+
+- A log in `prefix` + `v` that ended inside a full-screen program (a TUI, `nano`, `less` left
+  open) could not be scrolled at all. It now scrolls up past the program's last screen to what
+  the shell printed before it, and the title says `▣ ends in a full-screen program`.
 
 ## v0.2.0 - 2026-10-21
 

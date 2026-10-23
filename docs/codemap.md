@@ -31,7 +31,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs; appending to one and reading its end |
 | `internal/logstore/entries.go` | Logs by day, each with a flow run's result beside it: listing, line counts, removing, pruning by age and total size, readable sizes |
 | `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, exit code, foreground program and its command line, current directory |
-| `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing, mouse modes and forwarding |
+| `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing and its history (the main screen under a full-screen program, for the logs preview), mouse modes and forwarding |
 | `internal/pane/history.go` | An earlier program's output drawn on a screen of its own and replayed as text and colors above a new one |
 | `internal/pane/sync.go` | Holds back a synchronized-output frame (mode 2026) until it ends, so it never shows half drawn |
 | `internal/pane/images.go` | Writes image placeholder cells at the cursor and moves it as kitty does |
@@ -50,7 +50,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/updates_popup.go` | Updates popup (prefix+c): what is new, the changelog of every release, keys to check, update, copy the command and restart |
 | `internal/app/updates_test.go` | Tests of the updates popup, the tab bar's version, installing, restarting and the read-only case |
 | `internal/app/client.go` | Daemon side of an attached terminal: decoding its keys, drawing to it (synchronized updates only when the terminal has mode 2026), greeting connections |
-| `internal/app/scroll.go` | Scroll mode through a terminal's history |
+| `internal/app/scroll.go` | Scroll mode through a terminal's history: vim's keys and the arrows, shared with the logs preview; any other key leaves |
 | `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), the folder a new terminal opens in (`terminalDir`), tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach (in any session) |
 | `internal/app/view.go` | The `view` interface a pane shows: a terminal or a noct panel |
 | `internal/app/scripts_panel.go` | Scripts panel: list with versions, details and notes, keys to run, edit, create, delete |
@@ -95,7 +95,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/tab.go` | A tab: its views, pane names, focus history, floating panes, fullscreen, visible frames, size rules |
 | `internal/app/floating.go` | Floating panes: opening, keyboard moves and resizes, mouse drags, focus navigation over both layers |
 | `internal/app/resize.go` | Resize mode (prefix+n): arrows grow or shrink the focused tile or floating pane |
-| `internal/app/draw.go` | Frame drawing: panes (folded ones as a title row), the tab bar's status, mode overlays, cursor placement |
+| `internal/app/draw.go` | Frame drawing: panes (folded ones as a title row) with their status (fullscreen, scroll position) at the right of the border, the tab bar's status, mode overlays, cursor placement |
 | `internal/app/tabbar.go` | Tab bar: names cut to fit, scrolling that keeps the active tab in view, marks for hidden tabs, which tab a click or the wheel selects |
 | `internal/app/images.go` | Image support detection, outer image ids, cell size, forwarding to the terminal |
 | `internal/app/environment.go` | Shell and environment given to pane programs |

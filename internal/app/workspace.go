@@ -47,6 +47,8 @@ type program struct {
 	onExit func(exitCode int)
 	// keepScrollback ignores the program erasing the scrollback, as the logs preview needs.
 	keepScrollback bool
+	// historyUnderFullScreen scrolls above a full-screen program, as the logs preview needs.
+	historyUnderFullScreen bool
 	// pane is the pane the program runs in, which output out of focus marks as active; 0 for none.
 	pane layout.PaneID
 }
@@ -61,6 +63,8 @@ func (a *App) startProgram(p program, size pty.Size) (view, error) {
 		OnScreenChange: a.screenChangeOf(p.pane),
 		OnExit:         func(code int) { a.onLoop(func() { p.onExit(code) }) },
 		KeepScrollback: p.keepScrollback,
+
+		HistoryUnderFullScreen: p.historyUnderFullScreen,
 	}
 	if a.imagesEnabled {
 		opts.Images = kittygfx.NewSession(a.newImageID, a.cellSize)

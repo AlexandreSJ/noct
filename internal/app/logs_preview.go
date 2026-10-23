@@ -48,24 +48,14 @@ func (v *logPreview) close() {
 // previewKey scrolls the log's history; leaving goes back to the list, at the live end.
 func (p *logsPanel) previewKey(name string) {
 	v := &p.preview
-	page := max(v.size.Rows-1, 1)
+	if offset, ok := scrollStep(name, v.offset, max(v.size.Rows-1, 1), v.scrollback()); ok {
+		v.offset = offset
+		return
+	}
 	switch name {
-	case "up", "k":
-		v.offset++
-	case "down", "j":
-		v.offset--
-	case "pgup", "ctrl+b":
-		v.offset += page
-	case "pgdown", "ctrl+f":
-		v.offset -= page
-	case "home", "g":
-		v.offset = v.scrollback()
-	case "end", "G", "shift+g":
-		v.offset = 0
 	case "esc", "q", "left", "h":
 		v.focused, v.offset = false, 0
 	}
-	v.offset = min(max(v.offset, 0), v.scrollback())
 }
 
 func (v *logPreview) scrollback() int {
@@ -100,8 +90,9 @@ func (p *logsPanel) follow(row logRow, ok bool, size pty.Size) {
 	older := slices.Clone(files[1:])
 	slices.Reverse(older)
 	argv := append([]string{"/bin/sh", "-c", `current=$1; shift; [ $# -eq 0 ] || cat -- "$@"; exec tail -n +1 -f -- "$current"`, "log", files[0]}, older...)
-	// a clear near the end of the log would otherwise leave nothing above it to scroll to
-	terminal, err := p.app.launch(program{argv: argv, dir: p.app.workDir, onExit: func(int) {}, keepScrollback: true}, size)
+	// a clear near the end of the log would otherwise leave nothing above it to scroll to, and a
+	// log ending inside a full-screen program no history at all
+	terminal, err := p.app.launch(program{argv: argv, dir: p.app.workDir, onExit: func(int) {}, keepScrollback: true, historyUnderFullScreen: true}, size)
 	if err != nil {
 		p.app.statusMessage = err.Error()
 		return
@@ -124,13 +115,14 @@ func (p *logsPanel) drawPreview(screen uv.Screen, area image.Rectangle, row logR
 	if v.focused {
 		style = pal.focusedTitle
 	}
-	title := v.title
-	if offset > 0 {
-		title += fmt.Sprintf("  ↑ %d/%d", offset, v.scrollback())
+	var status []string
+	if s, ok := v.terminal.(fullScreener); ok && s.FullScreen() {
+		status = append(status, "▣ ends in a full-screen program")
 	}
-	x := drawText(screen, area.Min.X, area.Min.Y, area.Max.X, "─ ", pal.unfocusedFrame)
-	x = drawText(screen, x, area.Min.Y, area.Max.X, title+" ", style)
-	drawText(screen, x, area.Min.Y, area.Max.X, strings.Repeat("─", max(area.Max.X-x, 0)), pal.unfocusedFrame)
+	if offset > 0 {
+		status = append(status, fmt.Sprintf("↑ %d/%d", offset, v.scrollback()))
+	}
+	drawTitleLine(screen, area.Min.X, area.Max.X, area.Min.Y, v.title, strings.Join(status, "  "), pal.unfocusedFrame, style)
 	v.area = area
 	if v.terminal == nil {
 		return

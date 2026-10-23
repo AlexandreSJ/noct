@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"path/filepath"
+	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
@@ -100,17 +101,19 @@ func (a *App) drawPanes(screen uv.Screen, t *tab) {
 			drawFoldedPane(screen, frame, title, lineStyle, titleStyle)
 			continue
 		}
+		var status []string
 		if t.fullscreen {
-			title += "  ⛶ fullscreen"
+			status = append(status, "⛶ fullscreen")
 		}
 		scrolled, isScrollable := t.views[id].(scrollable)
 		if id == t.focused && a.mode == scrollMode && isScrollable {
-			drawFrame(screen, frame, title+"  "+a.scrollPosition(), lineStyle, titleStyle)
+			status = append(status, a.scrollPosition())
+			drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
 			scrolled.DrawScrolled(viewScreen, contentRect(frame), a.scrollOffset)
 			a.highlightSelection(screen, t, id)
 			continue
 		}
-		drawFrame(screen, frame, title, lineStyle, titleStyle)
+		drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
 		t.views[id].Draw(viewScreen, contentRect(frame))
 		if command := a.pendingRerun(id); command != "" {
 			a.drawRerun(screen, contentRect(frame), command)
@@ -258,12 +261,18 @@ func drawFoldedPane(screen uv.Screen, frame image.Rectangle, title string, lineS
 }
 
 func drawFrame(screen uv.Screen, frame image.Rectangle, title string, lineStyle, titleStyle uv.Style) {
+	drawFrameStatus(screen, frame, title, "", lineStyle, titleStyle)
+}
+
+// drawFrameStatus draws a frame with a status, such as the scroll position, at the right of its
+// top line.
+func drawFrameStatus(screen uv.Screen, frame image.Rectangle, title, status string, lineStyle, titleStyle uv.Style) {
 	if frame.Dx() < 2 || frame.Dy() < 2 {
 		return
 	}
 	right, bottom := frame.Max.X-1, frame.Max.Y-1
+	drawTitleLine(screen, frame.Min.X+1, right, frame.Min.Y, title, status, lineStyle, titleStyle)
 	for x := frame.Min.X + 1; x < right; x++ {
-		setRune(screen, x, frame.Min.Y, "─", lineStyle)
 		setRune(screen, x, bottom, "─", lineStyle)
 	}
 	for y := frame.Min.Y + 1; y < bottom; y++ {
@@ -274,8 +283,23 @@ func drawFrame(screen uv.Screen, frame image.Rectangle, title string, lineStyle,
 	setRune(screen, right, frame.Min.Y, "┐", lineStyle)
 	setRune(screen, frame.Min.X, bottom, "└", lineStyle)
 	setRune(screen, right, bottom, "┘", lineStyle)
-	if title != "" {
-		drawText(screen, frame.Min.X+2, frame.Min.Y, right-1, " "+title+" ", titleStyle)
+}
+
+// drawTitleLine draws a frame's line from x up to maxX, with the title near its start and the
+// status near its end. The title gives way to the status, cut with "…".
+func drawTitleLine(screen uv.Screen, x, maxX, y int, title, status string, lineStyle, titleStyle uv.Style) {
+	for column := x; column < maxX; column++ {
+		setRune(screen, column, y, "─", lineStyle)
+	}
+	titleEnd := maxX - 1
+	if status != "" {
+		status = " " + status + " "
+		start := max(maxX-1-ansi.StringWidth(status), x+1)
+		drawText(screen, start, y, maxX-1, status, titleStyle)
+		titleEnd = start - 1
+	}
+	if room := titleEnd - x - 3; title != "" && room > 0 {
+		drawText(screen, x+1, y, titleEnd, " "+ansi.Truncate(title, room, "…")+" ", titleStyle)
 	}
 }
 

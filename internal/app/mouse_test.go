@@ -327,7 +327,7 @@ func TestPrefixLeavesScrollingToChangePane(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2))
 	a.currentTab().views[1] = &historyView{lines: numberedLines(100)}
 	a.currentTab().resizeViews(a.workspaceArea())
-	press(a, prefixPress, letter('u'), upPress)
+	press(a, prefixPress, letter('g'), upPress)
 	if a.mode != scrollMode {
 		t.Fatalf("mode %v, want scrolling", a.mode)
 	}
