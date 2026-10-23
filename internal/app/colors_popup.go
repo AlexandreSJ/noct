@@ -186,7 +186,7 @@ func luminance(c color.Color) float64 {
 func (a *App) drawColors(screen uv.Screen) {
 	p := &a.colors
 	height := panelHeight(len(p.rows) + 3)
-	inner := a.drawPanel(screen, centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), themePanelWidth, max(height, stageMinHeight+4)), "colors of the panel and tab")
+	inner := a.drawPanel(screen, centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), themePanelWidth, max(height, stageMinHeight+4, panelHeight(pickerHeight+3))), "colors of the panel and tab")
 	list := inner
 	list.Max.X = min(inner.Min.X+themeListWidth, inner.Max.X)
 	pane, tab := a.colorsPreview()
