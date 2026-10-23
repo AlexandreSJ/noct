@@ -29,6 +29,8 @@ type runView struct {
 	exitCode int
 	// run counts starts, so the exit of a run that was replaced is not taken for the new one's.
 	run int
+	// closeOnSuccess closes the view when the run ends with 0, leaving only failures to read.
+	closeOnSuccess bool
 }
 
 func newRunView(name string, p *palette, start runStarter, close func(), size pty.Size, dir string) (*runView, error) {
@@ -52,8 +54,13 @@ func (v *runView) begin(size pty.Size) error {
 func (v *runView) Dir() string { return v.dir }
 
 func (v *runView) finished(run, exitCode int) {
-	if run == v.run {
-		v.running, v.exitCode = false, exitCode
+	if run != v.run {
+		return
+	}
+	v.running, v.exitCode = false, exitCode
+	if exitCode == 0 && v.closeOnSuccess {
+		v.close()
+		v.Close()
 	}
 }
 

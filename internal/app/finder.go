@@ -58,6 +58,7 @@ func (a *App) finderItems() []finderItem {
 			items = append(items, finderItem{label: s.label, kind: "prefix " + a.hint("commands", shortcutTemplate(s.keys)), open: func() { a.runAction(s.keys) }})
 		}
 	}
+	items = append(items, a.customBindItems()...)
 	for i, t := range a.session.tabs {
 		items = append(items, finderItem{label: "tab " + a.tabLabel(t), kind: "tab", open: func() { a.selectTab(i) }})
 	}

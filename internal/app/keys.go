@@ -160,6 +160,10 @@ func (a *App) handleNormalKey(key uv.KeyPressEvent) {
 		a.mode = commandMode
 		return
 	}
+	if b, ok := a.customBindFor(key, false); ok {
+		a.runCustomBind(b)
+		return
+	}
 	if name, move, ok := a.shortcut.command(key, a.commandKey); ok && !a.lockedOut(name, move) {
 		a.runShortcut(name, move)
 		return
@@ -192,6 +196,11 @@ func (a *App) handleCommandKey(key uv.KeyPressEvent) {
 	name := key.String()
 	if name == lockKey {
 		a.toggleLock()
+		return
+	}
+	if b, ok := a.customBindFor(key, true); ok {
+		a.mode = normalMode
+		a.runCustomBind(b)
 		return
 	}
 	if a.currentTab() != nil && a.navigate(name) {

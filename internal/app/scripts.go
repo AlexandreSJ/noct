@@ -141,6 +141,12 @@ func (a *App) getenv(name string) string {
 
 // runScript asks for the script's parameters, when it has any to ask, and runs it.
 func (a *App) runScript(s script.Script) {
+	a.askAndRun(s, false)
+}
+
+// askAndRun asks for the script's parameters, when it has any to ask, and runs it; with
+// closeOnSuccess, its pane closes once it ends with 0, as for a custom bind.
+func (a *App) askAndRun(s script.Script, closeOnSuccess bool) {
 	if s.Problem != nil {
 		a.statusMessage = s.Problem.Error()
 		return
@@ -152,15 +158,15 @@ func (a *App) runScript(s script.Script) {
 	values := s.StartingValues(a.memory.Values(s), a.getenv)
 	for _, p := range s.Params {
 		if p.Asked() {
-			a.openForm(s, values)
+			a.openForm(s, values, closeOnSuccess)
 			return
 		}
 	}
-	a.startRun(s, values)
+	a.startRun(s, values, closeOnSuccess)
 }
 
 // startRun runs the script in the user's shell, in a pane beside the focused one.
-func (a *App) startRun(s script.Script, values map[string]string) {
+func (a *App) startRun(s script.Script, values map[string]string, closeOnSuccess bool) {
 	if err := s.CheckValues(values); err != nil {
 		a.statusMessage = err.Error()
 		return
@@ -174,7 +180,10 @@ func (a *App) startRun(s script.Script, values map[string]string) {
 		a.statusMessage = err.Error() // the run goes on; only the memory is lost
 	}
 	run := program{argv: []string{a.shellArgv[0], "-c", command}, dir: s.WorkingDir(a.workDir)}
-	a.openTrackedRun(s.Name, script.Run{Script: s.ID()}, run)
+	pane, _ := a.openTrackedRun(s.Name, script.Run{Script: s.ID()}, run)
+	if v, ok := a.currentTab().views[pane].(*runView); ok && closeOnSuccess {
+		v.closeOnSuccess = true
+	}
 }
 
 // openTrackedRun runs p in a run view beside the focused pane. Each start, the first and every
