@@ -41,5 +41,6 @@
 | Writing a flow or script YAML by hand | `docs/writing-flows.md` |
 | MCP and AI policy (phase 3) | `docs/mcp.md` |
 | Package installation (phase 4) | `docs/catalogo.md` |
+| Setup, custom binds and the demo | `docs/instalador.md` |
 | Library bugs and workarounds | ADR-011 in `docs/decisoes.md` |
 | Images from pane programs | ADR-014 in `docs/decisoes.md` |

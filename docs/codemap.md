@@ -81,6 +81,11 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/flows.go` | Flow actions: create, run and test steps (as tracked runs), add, edit in the editor, move and remove steps, what a step does and its kept output |
 | `internal/app/keymap.go` | Changeable keys: the contexts and their actions (`keyContexts`), the keymap built from the config, turning a pressed key into the default one a handler knows, hints written with the keys as they are |
 | `internal/app/binds.go` | The config's binds page: a row per action, taking a key with conflicts, moving keys between actions, reset |
+| `internal/app/custom_binds.go` | The user's own binds: which key each takes and why one cannot be used, running a command, a script or a flow on it |
+| `internal/app/custom_binds_page.go` | The custom section of the binds page: adding a bind (key, kind, what it runs, name), editing and removing one |
+| `internal/app/complete_path.go` | Tab completion of a path param in the form, to the common prefix of the matches in its folder |
+| `internal/app/setup.go` | noct setup (ADR-056): when it opens, its steps and keys, the draft config and saving it, the demo and the AI clients at the end |
+| `internal/app/setup_draw.go` | Drawing the setup: the steps' bar, each step's lines, the theme swatches beside the stage, the summary |
 | `internal/app/shortcut.go` | Direct shortcuts: modifier + noct mode key without the prefix, modifier + shift + arrows to move |
 | `internal/app/mouse.go` | Mouse: tab and pane clicks, dragging dividers, wheel scrolling (over the tab bar, changing tab), forwarding to views that take it |
 | `internal/app/editor.go` | Program settings (editor, file manager): choices found on the system or a custom command; opening a folder |

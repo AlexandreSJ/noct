@@ -96,7 +96,7 @@ No modo noct:
 | `d` | detach | Desconectar: o terminal volta ao shell e os programas continuam; `noct` reconecta à mesma sessão | — | 0b |
 | `o` | sessions | Popup das sessões, da mais recente à mais antiga: aberta (`●`) ou fechada (`○`), tabs e último uso. `Enter` troca de sessão, `n` cria (vazio dá um número), `r` renomeia, `x` fecha (para os programas e guarda o layout), `d` apaga, `f` filtra pelo nome (sem diferenciar maiúsculas; `Esc` limpa o filtro antes de fechar o popup); ver [Sessões](#sessões) | sessões | 5 |
 | `?` | program help | Ajuda do programa em primeiro plano no terminal com foco; só com o shell, avisa e mantém o popup | termina | 1 |
-| `Space` | search | Busca fuzzy sobre scripts, ações e tabs | busca | 1 |
+| `Space`, `'` | search | Busca fuzzy sobre scripts, ações, tabs e binds próprias | busca | 1 |
 | `o` | | Execuções | | 2 |
 | `y` | MCP | Popup do MCP: no topo as aprovações (o que uma IA pediu e espera a decisão; `y` aprova, `n` nega), depois os clientes de IA conectados agora, e o comando para adicionar o noct a cada cliente conhecido (Claude Code, Codex, Gemini CLI, VS Code, opencode, Cursor), com o caminho deste binário; `Enter` copia e fecha (ver [mcp.md](mcp.md#como-a-ia-se-conecta)) | MCP | 3 |
 | `u` | | Catálogo (instalar) | | 4 |
@@ -154,6 +154,10 @@ Todas as teclas dos modos, painéis e popups do noct podem ser trocadas em `pref
 - As dicas no rodapé de cada tela, o popup de comandos, a busca e os rótulos como `terminal (alt+p)` mostram as teclas atuais. Os atalhos diretos seguem as teclas do contexto `commands`: trocar `new panel` para `b` faz `prefixo` + `b` e `Alt+B`.
 - A última linha, `reset all keys to defaults`, pede `Enter` duas vezes em até 1000 ms, como o reset do config. O `reset all to defaults` do config também volta as teclas.
 - No arquivo: `[keys.scripts]` com `edit = ["x"]`; uma lista vazia deixa a ação sem teclas. Só as ações trocadas aparecem.
+
+**Binds próprias** (ADR-057, [instalador.md](instalador.md)): a seção **custom**, no fim da página, tem uma linha por bind (`tecla  nome  → o que roda`). `n` captura a tecla (o prefixo antes a põe depois do prefixo), `c`/`s`/`f` escolhem comando, script ou flow e depois se digita o que roda e o nome; `Enter` edita o que a bind roda, `Delete` a apaga, e uma bind que não se usa diz por quê. No arquivo, `[[custom_binds]]` com `key`, `name` e um de `command`, `script`, `flow`.
+
+**Instalador:** `noct setup`, e o primeiro `noct` sem config, abrem o instalador por cima da sessão: teclas, temas, animações, demo, clientes de IA e binds de exemplo ([instalador.md](instalador.md), ADR-056).
 
 ## Mouse
 

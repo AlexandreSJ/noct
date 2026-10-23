@@ -19,9 +19,25 @@ the shortcut is `Alt` by default. How to write an entry is in
 - **Appearance → mode** switches every theme noct comes with between its dark and its light
   colors, so `blood` or any other works in a light terminal too. Your own themes keep their
   colors in both modes.
+- **noct setup**, which also opens the first time noct runs: the prefix and shortcut, which
+  themes the config offers and which one is on (with its mode and background, shown on the
+  whole screen), the animations (`all`, `few` or `none`), a demo of flows, adding noct to the
+  AI clients you have, and binds for tools you have. `s` skips a step; nothing is saved until
+  the summary. `make install` runs it at the end.
+- Your own binds: a key that runs a command, a script or a flow, made in **Keys → binds of
+  every screen → custom** (`n` adds one) or as `[[custom_binds]]` in the config. A direct key
+  needs `ctrl` or `alt`; `prefix m` puts it after the prefix. A command's `{{.file}}` is asked
+  before it runs, with `Tab` completing the path, and its pane closes when it ends well. The
+  search lists the binds.
+- A script param with `path: true` completes with `Tab` in the form, as in a shell.
+- The demo: scripts `demo/*` and the flows `demo-deploy` and `demo-loops`, made up with
+  `printf` and `sleep`, to learn flows by running them. Start with `demo/start-here`.
+- `'` opens the search too: `prefix` + `'` and `shortcut` + `'`.
 
 ### Changed
 
+- Animations are on by default in most moments: hover fade, panels and tabs jitter, move fade,
+  fullscreen and popups `01`, activity fade. Times you set in the config stay as they are.
 - Scrolling a terminal's history moved to `prefix` + `g` (`shortcut` + `g`), and the floating
   panel to `prefix` + `u` (`shortcut` + `u`). Keys you changed in the binds stay as you set them.
 - While scrolling, vim's keys work as well as the arrows: `ctrl+u`/`ctrl+d` half a page,
