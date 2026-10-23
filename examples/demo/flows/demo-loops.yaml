@@ -1,0 +1,72 @@
+# demo-loops: each flow feature on its own, so you can read one at a time.
+# Everything only prints and sleeps. Run the whole thing (the last step, a
+# prompt, needs you at the terminal):
+#   noct flow run demo-loops
+# or test the steps before the prompt without a terminal:
+#   noct flow run demo-loops --steps 1..9
+description: "Each flow feature shown on its own: times, every, until, set, unset, capture, wait, prompt."
+
+steps:
+  # repeat times: run the inner steps a fixed number of passes.
+  - id: times
+    repeat:
+      times: 3
+    steps:
+      - run: echo "a fixed pass"
+
+  # repeat every: the same, with a pause between passes. Change 500ms here.
+  - id: every
+    repeat:
+      times: 3
+      every: 500ms
+    steps:
+      - run: echo "a timed pass"
+
+  # repeat until + max: keep going until a condition is true, at most max times.
+  # "dots" grows by one each pass; variables set inside a repeat survive between
+  # passes, so the loop stops once it reads "....". The set below starts it empty.
+  - id: start
+    set: {dots: ""}
+  - id: until
+    repeat:
+      until: '{{eq .dots "...."}}'
+      max: 5
+      every: 200ms
+    steps:
+      - set: {dots: '{{.dots}}.'}
+      - run: echo "dots is now {{.dots}}"
+
+  # set: give one or more variables a value. All values render first, then they
+  # are set together, so they read the variables as they were before this step.
+  - id: set
+    set:
+      greeting: hello
+      who: world
+  - run: echo "{{.greeting}} {{.who}}"
+
+  # capture: pull a value out of a step's output with a regex into a field.
+  - id: dice
+    run: echo "value=7"
+    capture:
+      rolled: 'value=([0-9]+)'
+  - run: echo "captured {{.steps.dice.rolled}}"
+
+  # unset: clear a variable and a step's result. After this they read as empty;
+  # noct check would warn if a later template read them, so nothing does.
+  - id: clear
+    unset: [greeting, steps.dice]
+  - run: echo "cleared the greeting variable and the dice result"
+
+  # wait: pause the flow. Durations look like 5s or 1m30s.
+  - id: pause
+    wait: 1s
+
+  # prompt (type number): ask whoever runs the flow for a number, keeping the
+  # answer in {{.picked}}. It asks again until the answer is a number. A prompt
+  # needs a terminal, so this is the last step and a headless run stops here.
+  - id: ask
+    prompt: Pick a number
+    var: picked
+    default: "7"
+    type: number
+  - run: echo "you picked {{.picked}}"

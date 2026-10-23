@@ -1,0 +1,5 @@
+description: Pretend to run the api test suite and print a pass/fail count.
+run: |
+  printf 'Running tests...\n'
+  sleep 1
+  echo "42 passed, 0 failed"

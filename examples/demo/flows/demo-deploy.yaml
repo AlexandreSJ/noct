@@ -1,0 +1,99 @@
+# demo-deploy: the overview flow. It deploys a fictitious service, "api", and
+# shows most of what a flow can do. Everything it calls only prints and sleeps.
+#
+# Run it from the inspect (prefix+i, then p to fill the params), or from a shell:
+#   noct flow run demo-deploy env=staging
+#   noct flow run demo-deploy env=staging fail_health=yes   # takes the rollback path
+#
+# Each block below is commented with the feature it shows and where to change it.
+description: Build, test and deploy a fictitious "api" service, with a health check and rollback.
+
+# params: the values the steps read as {{.name}}. Override any of them on the
+# command line (name=value) or in the params form. Change a default here.
+params:
+  env: staging           # staging or production; production asks to confirm first
+  version: "1.4.2"       # which version to pretend to ship
+  fail_health: "no"      # yes makes the health check fail, so the rollback runs
+
+steps:
+  # prompt (inside an if): only production asks for confirmation. A prompt needs
+  # someone at the terminal; a run with nobody watching fails here instead of
+  # waiting, so staging skips this whole branch.
+  - if: '{{eq .env "production"}}'
+    then:
+      - id: confirm
+        prompt: Deploy to PRODUCTION? Type yes to continue
+        var: confirmed     # the answer lands in {{.confirmed}}
+        default: "no"      # an empty answer keeps this
+      - if: '{{ne .confirmed "yes"}}'
+        then:
+          - run: echo "Aborted before touching production."; exit 1
+
+  # script step with expect: run the build, and treat it as a success only when
+  # its output contains "Build complete". build also hands back an artifact name.
+  - id: build
+    script: demo/build
+    with:
+      version: '{{.version}}'
+    expect:
+      output_matches: 'Build complete'
+
+  # script step with a regex capture: pull the passed-test count out of the
+  # output into {{.steps.test.passed}}, and fail if any test failed.
+  - id: test
+    script: demo/test
+    capture:
+      passed: '([0-9]+) passed'
+    expect:
+      output_matches: '0 failed'
+
+  # pane: new runs the deploy in its own pane with a real terminal. The flow
+  # waits for it and uses its exit code. A pane step cannot capture or expect.
+  - id: deploy
+    script: demo/deploy
+    with:
+      env: '{{.env}}'
+      version: '{{.version}}'
+    pane: new
+
+  # start the retry counter and the last-known health status before the loop, so
+  # the loop and the if after it can read them.
+  - set:
+      attempts: ""
+      health_status: unknown
+
+  # repeat ... until ... max: poll the health check until it reports ok, at most
+  # 3 times, pausing 1s between tries. The "or we have tried 3 times" half of the
+  # until lets the loop give up cleanly (its own success) instead of aborting the
+  # whole flow, so the rollback if below can decide what to do. "attempts" grows
+  # by one dot each pass; variables set inside a repeat survive between passes.
+  - id: health
+    repeat:
+      until: '{{or (eq .steps.check.status "ok") (eq .attempts "...")}}'
+      max: 3
+      every: 1s
+    steps:
+      - set: {attempts: '{{.attempts}}.'}   # "", ".", "..", "..." across passes
+      - id: check
+        script: demo/health
+        with:
+          fail: '{{.fail_health}}'
+        capture:
+          status: 'status: (\w+)'           # ok or degraded
+      - set: {health_status: '{{.steps.check.status}}'}   # kept for the if after the loop
+
+  # if + rollback + fail the flow: when health never came back, roll back and
+  # exit non-zero so the run is marked failed.
+  - if: '{{ne .health_status "ok"}}'
+    then:
+      - id: rollback
+        script: demo/rollback
+        with:
+          env: '{{.env}}'
+          version: '{{.version}}'
+      - run: echo "Deploy failed; rolled back."; exit 1
+
+  # set: build a one-line summary from earlier steps, then print it.
+  - set:
+      summary: 'Deployed api {{.version}} to {{.env}} ({{.steps.test.passed}} tests passed).'
+  - run: echo "{{.summary}}"

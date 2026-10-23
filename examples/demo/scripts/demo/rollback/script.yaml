@@ -1,0 +1,12 @@
+description: Pretend to roll the api back to the previous version.
+run: |
+  printf 'Health still degraded. Rolling api back in %s...\n' "{{.env}}"
+  sleep 1
+  echo "Rolled api back from {{.version}} to the previous version."
+params:
+  - name: env
+    prompt: Environment
+    default: staging
+  - name: version
+    prompt: Version that failed
+    default: "1.4.2"
