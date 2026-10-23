@@ -741,3 +741,38 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 **Alternativas.** Derivar as cores claras das escuras automaticamente (inverter a claridade) evitaria fazer 18 paletas, mas os destaques saíam lavados ou sem contraste; fica para os temas do usuário, se for preciso.
 
 **Consequências.** Os temas do usuário e as cores próprias de painel e tab (`prefixo` + `P`) não mudam com o modo; dar a eles um lado claro (tabelas `[light.*]` no arquivo e uma chave no editor) e seguir o fundo do terminal (`mode = auto`, com a consulta OSC 11 vinda do cliente) são passos seguintes.
+
+## ADR-056 — Instalador (`noct setup`)
+
+**Contexto.** Quem instala o noct cai na home com tudo no padrão, sem saber o que dá para mudar. O mantenedor pediu um instalador que apresente as escolhas uma vez ([instalador.md](instalador.md)).
+
+**Decisão.**
+- O instalador é um modo do `App` (`setupMode`), desenhado como popup, não um programa à parte: usa o tema, as teclas e o palco que o noct já tem. Abre no primeiro attach quando não há `config.toml` nem `sessions.json`, e por `noct setup` (`Hello.Setup`) a qualquer momento. `make install` chama `noct setup` no fim, só num terminal.
+- A primeira tela oferece manter tudo (não grava nada), começar com os padrões (grava `Default()`) ou escolher passo a passo: teclas, temas (quais ficam na escolha do config, em `appearance.themes`, o ativo, o modo e o fundo, com a tela inteira mostrando o selecionado), animações (`all`, `few`, `none`), demo, clientes de IA encontrados no PATH e binds de exemplo para programas instalados. `s` pula um passo deixando-o como estava; tudo é gravado só no resumo final.
+- Os comandos de MCP marcados rodam em painéis visíveis depois que o instalador fecha; nada roda sem marcar.
+
+**Consequências.** `appearance.themes` filtra só os temas embutidos; os do usuário e o tema em uso sempre aparecem. Um daemon de uma versão antiga ignora o `noct setup`: é preciso reiniciá-lo depois de atualizar.
+
+## ADR-057 — Binds próprias e `'` na busca
+
+**Contexto.** Abrir uma ferramenta como o `glow` era abrir um terminal, digitar o comando, completar o arquivo e fechar o terminal na mão.
+
+**Decisão.**
+- `[[custom_binds]]` no config: `key`, `name` e exatamente um de `command`, `script` ou `flow`. A tecla é direta (precisa de `ctrl` ou `alt`, e deixa `ctrl+c`, `ctrl+d`, `ctrl+z` e `ctrl+\` para o programa) ou `prefix x`, que não pode tomar a tecla de um comando do noct. Uma bind que não se usa é ignorada e o config diz por quê.
+- Um `command` roda como um script com log e nome (`bind glow`); cada `{{.nome}}` vira um parâmetro `path`, que `Tab` completa no formulário como um shell. O comando e o script abrem ao lado do painel com foco e o painel fecha quando o programa sai com 0. Um flow roda como pelo inspect.
+- Os parâmetros de script ganham `path: true`, com a mesma completação.
+- As binds se criam, editam e apagam na seção **custom** da página das teclas e entram na busca como `bind`.
+- `'` é a segunda tecla padrão da busca, porque `Alt+Space` costuma ser do sistema.
+
+**Consequências.** Uma bind direta é vista antes do atalho direto e do programa do painel.
+
+## ADR-058 — Demo e animações padrão
+
+**Contexto.** Os flows são a parte mais rica do noct e a mais difícil de descobrir; e as animações vinham desligadas em quase todos os momentos.
+
+**Decisão.**
+- Os scripts `demo/*` e os flows `demo-deploy` e `demo-loops` ficam em `examples/demo/`, embutidos no binário (`examples.InstallDemo`) e copiados pelo instalador sem sobrescrever o que já existe. Só usam `printf` e `sleep`.
+- Os efeitos e tempos que o mantenedor usa viram o padrão: hover fade 150, panels jitter 300, tabs jitter 300, focus none 100, move fade 200, fullscreen 01 200, popup 01 200, activity fade 600.
+
+**Consequências.** Quem nunca gravou as animações no config passa a ver as novas. Os testes de animação fixam os efeitos para que foram escritos, à parte dos padrões.
+

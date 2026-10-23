@@ -13,7 +13,7 @@ import (
 )
 
 // bindsHints are the keys of the binds page; its own keys (a, del) do not change.
-const bindsHints = "{up}{down} select  {enter} change  a add a key  del back to default  esc back"
+const bindsHints = "{up}{down} select  {enter} change  a add a key  del back to default  n new bind  esc back"
 
 // bindRowBase is the first row of the binds page: one row per action, in keyContexts' order.
 const bindRowBase configRow = 1000
@@ -53,6 +53,8 @@ type bindCapture struct {
 	pending  string
 	// problem says why the last key pressed cannot be used there.
 	problem string
+	// custom, when set, takes the key of a new custom bind instead of an action's.
+	custom *customBindDraft
 }
 
 // startBindEdit changes the selected action's key: right away when it has one or none, or after
@@ -126,6 +128,9 @@ func (a *App) openBinds() {
 // handleBindsKey runs the binds page's keys; esc goes back to the settings.
 func (a *App) handleBindsKey(key uv.KeyPressEvent) {
 	switch c := a.configPanel.bindCapture; {
+	case c.custom != nil:
+		a.handleCustomBindKey(key)
+		return
 	case c.active:
 		a.captureBind(key)
 		return
@@ -133,10 +138,13 @@ func (a *App) handleBindsKey(key uv.KeyPressEvent) {
 		a.chooseBindSlot(key)
 		return
 	}
-	if a.pressReset(key) {
+	if a.pressReset(key) || a.handleCustomBindRowKey(key.String()) {
 		return
 	}
 	switch key.String() {
+	case "n":
+		a.selectConfigRow(addCustomBindRow)
+		a.startCustomBind()
 	case "esc":
 		a.configPanel.page, a.configPanel.selected = settingsPage, bindsRow
 	case "up", "k":
@@ -287,6 +295,7 @@ func (a *App) bindLines() []configLine {
 			lines = append(lines, a.bindNotes(row)...)
 		}
 	}
+	lines = append(lines, a.customBindLines()...)
 	return append(lines,
 		configLine{label: "Defaults", heading: true},
 		configLine{label: "reset all keys to defaults", value: a.resetValue(), row: resetBindsRow},

@@ -33,8 +33,17 @@ func (a *App) shownTheme(name string) theme.Theme {
 	return a.themeNamed(name).In(a.config.Appearance.Mode == config.ModeLight)
 }
 
+// offeredThemes are the themes the config cycles through: the ones the setup installed, the
+// user's own, and the one in use.
+func (a *App) offeredThemes(current string) []theme.Theme {
+	installed := a.config.Appearance.Themes
+	return slices.DeleteFunc(slices.Clone(a.themeList()), func(t theme.Theme) bool {
+		return len(installed) > 0 && t.Builtin && t.Name != current && !slices.Contains(installed, t.Name)
+	})
+}
+
 func (a *App) nextThemeName(current string, step int) string {
-	list := a.themeList()
+	list := a.offeredThemes(current)
 	i := max(slices.IndexFunc(list, func(t theme.Theme) bool { return t.Name == current }), 0)
 	return list[(i+step+len(list))%len(list)].Name
 }

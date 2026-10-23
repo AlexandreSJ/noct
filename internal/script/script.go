@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"text/template"
 	"text/template/parse"
@@ -38,6 +39,8 @@ type Param struct {
 	Secret bool `yaml:"secret,omitempty"`
 	// From reads the value from the environment (env:NAME) instead of asking for it.
 	From string `yaml:"from,omitempty"`
+	// Path values are file paths, which tab completes in the form.
+	Path bool `yaml:"path,omitempty"`
 }
 
 // Label is what the form shows for the parameter.
@@ -77,6 +80,25 @@ func (s Script) ID() string {
 		return s.Name
 	}
 	return s.Folder + "/" + s.Name
+}
+
+// FromCommand is a script for a command line typed by hand, as a custom bind's: each {{.name}}
+// it reads is a parameter asked as a path, and it runs in dir.
+func FromCommand(name, command, dir string) (Script, error) {
+	s := Script{Name: name, Run: command, Workdir: dir}
+	if fields := strings.Fields(command); len(fields) > 0 {
+		s.Program = fields[0]
+	}
+	t, err := s.template()
+	if err != nil {
+		return Script{}, err
+	}
+	for _, field := range fieldsUsed(t.Root) {
+		if !slices.ContainsFunc(s.Params, func(p Param) bool { return p.Name == field }) {
+			s.Params = append(s.Params, Param{Name: field, Path: true})
+		}
+	}
+	return s, nil
 }
 
 // Load reads the script stored in dir.

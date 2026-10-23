@@ -33,6 +33,7 @@ const (
 	colorsMode                   // the focused pane's and its tab's own colors
 	templateSaveMode             // saving the tab as a template
 	templatesMode                // the templates, to open one as a new tab
+	setupMode                    // noct setup: keys, themes, animations, demo, AI clients, binds
 )
 
 // shortcut is one command as listed in the popups and on the home screen.
@@ -94,7 +95,7 @@ var arrowHeadings = map[string]layout.Heading{
 }
 
 // actionKeys are the noct mode commands that act, as opposed to moving around.
-var actionKeys = []string{"t", "T", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "P", "R", "u", "x", ",", "c", "d", "q"}
+var actionKeys = []string{"t", "T", "p", "s", "i", "v", "g", "space", "'", "y", "o", "?", "a", "n", "w", "f", "r", "e", "P", "R", "u", "x", ",", "c", "d", "q"}
 
 var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
 
@@ -150,6 +151,8 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 		a.handleTemplateSaveKey(key)
 	case templatesMode:
 		a.handleTemplatesKey(key)
+	case setupMode:
+		a.handleSetupKey(key)
 	default:
 		a.handleNormalKey(key)
 	}
@@ -158,6 +161,10 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 func (a *App) handleNormalKey(key uv.KeyPressEvent) {
 	if a.prefix.matches(key) {
 		a.mode = commandMode
+		return
+	}
+	if b, ok := a.customBindFor(key, false); ok {
+		a.runCustomBind(b)
 		return
 	}
 	if name, move, ok := a.shortcut.command(key, a.commandKey); ok && !a.lockedOut(name, move) {
@@ -192,6 +199,11 @@ func (a *App) handleCommandKey(key uv.KeyPressEvent) {
 	name := key.String()
 	if name == lockKey {
 		a.toggleLock()
+		return
+	}
+	if b, ok := a.customBindFor(key, true); ok {
+		a.mode = normalMode
+		a.runCustomBind(b)
 		return
 	}
 	if a.currentTab() != nil && a.navigate(name) {
@@ -256,7 +268,7 @@ func (a *App) runAction(name string) {
 		}
 		a.askToConfirmWith("quit noct?", again, func() { a.quitting = true })
 		return
-	case "space":
+	case "space", "'":
 		a.openFinder()
 		return
 	case "T":
