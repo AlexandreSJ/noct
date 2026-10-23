@@ -19,7 +19,7 @@ install:
   paru: hurl
 ```
 
-- Manifestos embutidos no binário formam a lista curada de **recomendados** para testes (ex.: jq, yq, hurl, httpie, k6, ripgrep, fd, fzf, bat, lazygit, glow).
+- Manifestos embutidos no binário formam a lista curada de **recomendados** para testes (ex.: jq, yq, hurl, httpie, k6, ripgrep, fd, fzf, bat, lazygit, less).
 - O usuário adiciona os próprios em `~/.local/share/noct/catalog/`; projetos em `.noct/catalog/`.
 
 ## Adaptadores

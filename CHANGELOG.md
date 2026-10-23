@@ -11,6 +11,15 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Changed
+
+- The color picker of **Appearance → edit theme** and `prefix` + `P` groups the 256 colors:
+  the terminal's 16, the color cube as a triangle with red, green and blue at its corners, and
+  the grays. `,` and `.` make the triangle darker or lighter, keeping the color's mix of red,
+  green and blue, and the selected color stays visible under its mark. In a terminal at
+  least 25 lines tall the whole picker fits in its panel, without scrolling. Thanks to
+  [Ryan](https://github.com/aishiteirai) for the triangle idea.
+
 ## v0.2.0 - 2026-10-21
 
 ### Added

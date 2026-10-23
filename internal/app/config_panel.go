@@ -721,7 +721,8 @@ func (a *App) configLayout() configLayout {
 	}
 	width, height := 72, panelHeight(len(l.rows)+2)
 	if a.configPanel.page == themePage {
-		width = themePanelWidth // the list of components and the stage side by side
+		width = themePanelWidth                           // the list of components and the stage side by side
+		height = max(height, panelHeight(pickerHeight+2)) // the picker and the hints under it
 	}
 	showsStage := a.configShowsStage()
 	if showsStage {
