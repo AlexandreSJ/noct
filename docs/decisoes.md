@@ -747,7 +747,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 **Contexto.** Quem instala o noct cai na home com tudo no padrão, sem saber o que dá para mudar. O mantenedor pediu um instalador que apresente as escolhas uma vez ([instalador.md](instalador.md)).
 
 **Decisão.**
-- O instalador é um modo do `App` (`setupMode`), desenhado como popup, não um programa à parte: usa o tema, as teclas e o palco que o noct já tem. Abre no primeiro attach quando não há `config.toml` nem `sessions.json`, e por `noct setup` (`Hello.Setup`) a qualquer momento. `make install` chama `noct setup` no fim, só num terminal.
+- O instalador é um modo do `App` (`setupMode`), desenhado como popup, não um programa à parte: usa o tema, as teclas e o palco que o noct já tem. Abre no primeiro attach quando não há `config.toml` nem `sessions.json`, e por `noct setup` (`Hello.Setup`) a qualquer momento. Quem já usava o noct não o vê abrir sozinho: recebe uma vez um aviso na barra de tabs, lembrado pelo arquivo `setup-offered` na pasta de estado, e não no config, que o noct só grava quando o usuário muda algo. `make install` chama `noct setup` no fim, só num terminal.
 - A primeira tela oferece manter tudo (não grava nada), começar com os padrões (grava `Default()`) ou escolher passo a passo: teclas, temas (quais ficam na escolha do config, em `appearance.themes`, o ativo, o modo e o fundo, com a tela inteira mostrando o selecionado), animações (`all`, `few`, `none`), demo, clientes de IA encontrados no PATH e binds de exemplo para programas instalados. `s` pula um passo deixando-o como estava; tudo é gravado só no resumo final.
 - Os comandos de MCP marcados rodam em painéis visíveis depois que o instalador fecha; nada roda sem marcar.
 
