@@ -393,11 +393,11 @@ func (a *App) attach(c connection) {
 		return
 	}
 	a.playIntro()
-	a.openSetupOnAttach(c.hello.Setup)
-	a.applyMouseMode()
 	if a.binary.rebuilt() {
 		a.notice = rebuiltMessage
 	}
+	a.openSetupOnAttach(c.hello.Setup)
+	a.applyMouseMode()
 }
 
 // detachClient hands the terminal back to its shell; the workspace keeps running.

@@ -13,6 +13,7 @@ Hoje, abrir uma ferramenta como o `less` é `prefixo` + `p`, digitar `less REA`,
 ### Quando aparece
 
 - No primeiro `noct`, quando `~/.config/noct/config.toml` não existe: o daemon abre o instalador no lugar da home.
+- Para quem já usava o noct antes do instalador (há config ou sessões), uma vez, na barra de tabs: `new: noct setup picks themes, animations, a demo of flows and binds`. O aviso some na primeira tecla e não volta: o arquivo `setup-offered` na pasta de estado (`~/.local/state/noct/`) lembra que ele foi dado ou que o instalador já abriu.
 - Por `noct setup`, a qualquer momento, inclusive com config já existente: anexa à sessão e abre o instalador por cima.
 - No fim de `make install`, que reinstala e chama `noct setup`. `go install` sozinho não roda nada; o primeiro `noct` cobre esse caso.
 

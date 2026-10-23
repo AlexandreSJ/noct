@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/AlexandreSJ/noct/examples"
 	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/flow"
+	"github.com/AlexandreSJ/noct/internal/logstore"
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
@@ -75,16 +77,34 @@ func isFirstRun(configPath, sessionsPath string) bool {
 	return errors.Is(configErr, fs.ErrNotExist) && errors.Is(sessionsErr, fs.ErrNotExist)
 }
 
+// setupOfferedFile, in the state folder, tells that noct opened the setup or said it is there.
+const setupOfferedFile = "setup-offered"
+
+const setupNotice = "new: noct setup picks themes, animations, a demo of flows and binds"
+
 // openSetupOnAttach opens the setup when the terminal asked for it (noct setup), or once on the
-// first run.
+// first run. Someone who had noct before it came is told about it once, in the tab bar.
 func (a *App) openSetupOnAttach(asked bool) {
+	path := filepath.Join(logstore.Dir(), setupOfferedFile)
 	if !asked && !a.firstRun {
+		if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) && a.notice == "" {
+			a.notice = setupNotice
+			markSetupOffered(path)
+		}
 		return
 	}
 	first := a.firstRun
 	a.firstRun = false
 	a.openSetup()
 	a.setup.firstRun = first
+	markSetupOffered(path)
+}
+
+// markSetupOffered writes the mark; without it the notice only shows again.
+func markSetupOffered(path string) {
+	if os.MkdirAll(filepath.Dir(path), 0o755) == nil {
+		_ = os.WriteFile(path, nil, 0o644)
+	}
 }
 
 func (a *App) openSetup() {

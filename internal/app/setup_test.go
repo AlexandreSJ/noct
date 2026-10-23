@@ -164,3 +164,25 @@ func TestSkippingAStepKeepsItAsItWas(t *testing.T) {
 		t.Errorf("step %v, shortcut %+v, want the themes with %+v", a.setup.step, a.setup.draft.Shortcut, before)
 	}
 }
+
+// Someone who had noct before the setup is told about it once, and not after opening it.
+func TestTheSetupIsToldOnceToWhoHadNoctBefore(t *testing.T) {
+	a := testApp(t)
+	a.openSetupOnAttach(false)
+	if a.mode == setupMode || a.notice != setupNotice {
+		t.Fatalf("mode %v, notice %q, want the notice only", a.mode, a.notice)
+	}
+	a.notice = ""
+	a.openSetupOnAttach(false)
+	if a.notice != "" {
+		t.Errorf("told again: %q", a.notice)
+	}
+
+	b := testApp(t)
+	b.openSetupOnAttach(true) // noct setup
+	b.mode, b.notice = normalMode, ""
+	b.openSetupOnAttach(false)
+	if b.notice != "" {
+		t.Errorf("told after noct setup: %q", b.notice)
+	}
+}
