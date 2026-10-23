@@ -35,7 +35,7 @@ type paramsForm struct {
 	dir string
 }
 
-func (a *App) openForm(s script.Script, values map[string]string) {
+func (a *App) openForm(s script.Script, values map[string]string, closeOnSuccess bool) {
 	var fields []script.Param
 	for _, p := range s.Params {
 		if p.Asked() {
@@ -45,7 +45,7 @@ func (a *App) openForm(s script.Script, values map[string]string) {
 	a.form = paramsForm{
 		title: "run " + s.Name, fields: fields, values: maps.Clone(values),
 		preview: func(values map[string]string) string { return commandPreview(s, values) },
-		submit:  func(values map[string]string) error { a.startRun(s, values); return nil },
+		submit:  func(values map[string]string) error { a.startRun(s, values, closeOnSuccess); return nil },
 		dir:     s.WorkingDir(a.workDir),
 	}
 	a.mode = formMode
