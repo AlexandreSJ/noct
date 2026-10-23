@@ -38,6 +38,8 @@ type Param struct {
 	Secret bool `yaml:"secret,omitempty"`
 	// From reads the value from the environment (env:NAME) instead of asking for it.
 	From string `yaml:"from,omitempty"`
+	// Path values are file paths, which tab completes in the form.
+	Path bool `yaml:"path,omitempty"`
 }
 
 // Label is what the form shows for the parameter.
