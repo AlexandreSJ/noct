@@ -1,0 +1,11 @@
+description: Pretend to build the api service and name the artifact it produces.
+run: |
+  printf 'Building api %s...\n' "{{.version}}"
+  sleep 1
+  echo "Build complete."
+  echo "artifact=api-{{.version}}.tar.gz"
+params:
+  - name: version
+    prompt: Version to build
+    default: "1.4.2"
+outputs: [artifact]
