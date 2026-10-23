@@ -57,6 +57,7 @@ func newSession(t *testing.T) *session {
 		quit.Env = s.env
 		_ = quit.Run() // stops the daemon; with none running there is nothing to do
 	})
+	writeConfig(t, s, "") // a config of its own, or the first run would open the setup
 	return s
 }
 
@@ -145,6 +146,26 @@ func typeText(p *pane.Pane, text string) {
 func TestStartsOnTheHomeScreen(t *testing.T) {
 	noct, _ := startNoct(t)
 	waitForScreen(t, noct, "the raven", showsHome)
+}
+
+func TestTheFirstRunOpensTheSetupAndNoctSetupAgain(t *testing.T) {
+	s := newSession(t)
+	for _, entry := range s.env {
+		if home, ok := strings.CutPrefix(entry, "HOME="); ok {
+			if err := os.Remove(filepath.Join(home, ".config", "noct", "config.toml")); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	showsSetup := func(screen string) bool { return strings.Contains(screen, "noct setup") }
+	noct, _ := s.attach(t)
+	waitForScreen(t, noct, "the setup on the first run", showsSetup)
+	noct.SendKey(uv.KeyPressEvent{Code: uv.KeyEnter}) // start with the defaults
+	waitForScreen(t, noct, "the home after the setup", showsHome)
+	noct.Close()
+
+	again, _ := s.attach(t, "setup")
+	waitForScreen(t, again, "the setup from noct setup", showsSetup)
 }
 
 func TestWorkspaceSplitsTypesAndQuits(t *testing.T) {

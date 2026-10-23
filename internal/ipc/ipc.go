@@ -107,6 +107,8 @@ type Hello struct {
 	Session string `json:"session,omitempty"`
 	// NewSession creates the session to attach to, named Session or numbered when that is empty.
 	NewSession bool `json:"new_session,omitempty"`
+	// Setup opens noct's setup once attached, as noct setup asks.
+	Setup bool `json:"setup,omitempty"`
 }
 
 type Exit struct {

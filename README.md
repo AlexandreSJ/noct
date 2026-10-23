@@ -66,7 +66,7 @@ go build -o noct ./cmd/noct
 
 ## Getting started
 
-Run `noct`. It opens on an empty home screen; press any key to see the prefix key that opens the commands.
+Run `noct`. The first time, **noct setup** asks for the keys, themes and animations, can install a demo of flows, add noct to the AI clients you have and bind keys to tools like `less` or `lazygit`; `noct setup` opens it again at any time (`make install` runs it too). Then noct opens on an empty home screen; press any key to see the prefix key that opens the commands.
 
 Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving around keeps the mode on, so you can hop across panes and tabs with a single prefix:
 
@@ -79,7 +79,7 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `s` | New scripts panel: your saved scripts, to run, edit and create |
 | `i` | Inspect: your flows as flowcharts, to build step by step, run and review |
 | `v` | Logs by day on a calendar colored by activity, with their size, lines and how each run ended |
-| `Space` | Search scripts, actions and tabs |
+| `Space` or `'` | Search scripts, actions, tabs and your binds |
 | `?` | Help for the program running in the terminal |
 | `o` | Sessions: open, create, rename, close and delete them, and `f` filters them by name |
 | `y` | MCP: approve what an AI asks to run, and add noct to an AI client |
@@ -94,7 +94,7 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `d` | Detach; programs keep running |
 | `x` | Close the pane; a tab closes with its last pane, unless the config keeps empty tabs |
 | `c` | Updates: what is new in each version and, when a newer one is out, installing it |
-| `,` | Config: prefix key, the keys of every screen, direct shortcuts, theme, dark or light mode, background, mouse, what a new tab opens and whether it closes when empty, editor, file manager, scripts folder, how long and how much of the logs to keep, how much step output flows keep |
+| `,` | Config: prefix key, the keys of every screen, direct shortcuts, theme, dark or light mode, background, mouse, your own binds, what a new tab opens and whether it closes when empty, editor, file manager, scripts folder, how long and how much of the logs to keep, how much step output flows keep |
 | `q` | Quit, after asking: `Enter` or `q` again |
 | `b` | Lock the shortcuts, so programs get them; moving around still works. Again to unlock |
 | `Esc` | Cancel |
@@ -162,6 +162,7 @@ claude mcp add noct -- noct mcp
 | `noct` | Attach to the session used last, starting noct if needed |
 | `noct attach [session]` (or `a`, `att`, `-a`) | Attach to a session by name; without one, list the sessions |
 | `noct new [session]` | Start a session, named or numbered, and attach to it |
+| `noct setup` | Choose the keys, themes and animations, install the demo, add noct to AI clients and bind keys to tools you have |
 | `noct sessions` | List the sessions: open or closed, tabs, last use |
 | `noct kill <session>` | Delete a session: its programs stop and its layout is forgotten |
 | `noct -s <script> [name=value ...]` | Run a script in this terminal |

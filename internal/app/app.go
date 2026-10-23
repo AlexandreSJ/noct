@@ -99,6 +99,9 @@ type App struct {
 	templateSave templateSave
 	// templates is the popup that opens a template as a new tab.
 	templates templatesPopup
+	setup     setupWizard
+	// firstRun opens the setup on the first attach: noct had neither a config nor sessions.
+	firstRun bool
 	// animations are the ones running, animTick their next frame (nil when none runs), lastShot
 	// what the last frame showed and lastFrame its cells, which a pane closing animates.
 	animations []*animation
@@ -210,6 +213,9 @@ func New(version string) *App {
 	a.updateCachePath = filepath.Join(logstore.Dir(), update.CacheFile)
 	a.loadUpdateCache()
 	a.versions = script.NewVersions(a.notifyScreenChanged)
+	if path, err := config.Path(); err == nil {
+		a.firstRun = isFirstRun(path, a.sessionsPath)
+	}
 	a.loadConfig()
 	a.loadMemory()
 	a.reloadScripts()
@@ -387,6 +393,7 @@ func (a *App) attach(c connection) {
 		return
 	}
 	a.playIntro()
+	a.openSetupOnAttach(c.hello.Setup)
 	a.applyMouseMode()
 	if a.binary.rebuilt() {
 		a.notice = rebuiltMessage

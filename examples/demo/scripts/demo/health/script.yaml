@@ -1,0 +1,11 @@
+description: Pretend to call the api /health endpoint and report its status.
+run: |
+  if [ "{{.fail}}" = "yes" ]; then
+    echo "status: degraded"
+  else
+    echo "status: ok"
+  fi
+params:
+  - name: fail
+    prompt: Make health report degraded (yes/no)
+    default: "no"

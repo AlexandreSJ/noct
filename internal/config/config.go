@@ -62,12 +62,52 @@ type Config struct {
 	ScriptFolders []string `toml:"script_folders"`
 	// Keys changes what keys do: by context ("scripts") and action ("edit"), the keys that do it
 	// instead of the defaults; no keys leaves the action without any. The app knows the names.
-	Keys  map[string]map[string][]string `toml:"keys,omitempty"`
-	Logs  Logs                           `toml:"logs"`
-	Flows Flows                          `toml:"flows"`
-	MCP   MCP                            `toml:"mcp"`
+	Keys map[string]map[string][]string `toml:"keys,omitempty"`
+	// CustomBinds are the user's own keys, each running a command, a script or a flow.
+	CustomBinds []CustomBind `toml:"custom_binds,omitempty"`
+	Logs        Logs         `toml:"logs"`
+	Flows       Flows        `toml:"flows"`
+	MCP         MCP          `toml:"mcp"`
 	// Update says whether noct looks for new releases on its own.
 	Update Update `toml:"update"`
+}
+
+// CustomBind is a key of the user's that runs one of: a command line, where each {{.name}} is
+// asked before it runs; a script, by its name; or a flow. Key is pressed as it is
+// ("ctrl+alt+shift+g") or after the prefix ("prefix m").
+type CustomBind struct {
+	Key     string `toml:"key"`
+	Name    string `toml:"name"`
+	Command string `toml:"command,omitempty"`
+	Script  string `toml:"script,omitempty"`
+	Flow    string `toml:"flow,omitempty"`
+}
+
+// What a custom bind runs.
+const (
+	CustomCommand = "command"
+	CustomScript  = "script"
+	CustomFlow    = "flow"
+)
+
+// AfterPrefix starts the key of a custom bind pressed after the prefix.
+const AfterPrefix = "prefix "
+
+// Target is what the bind runs, as its kind and the command or name, or why it runs nothing.
+func (b CustomBind) Target() (kind, what string, err error) {
+	if strings.TrimSpace(b.Key) == "" {
+		return "", "", errors.New("the bind has no key")
+	}
+	var targets [][2]string
+	for _, t := range [][2]string{{CustomCommand, b.Command}, {CustomScript, b.Script}, {CustomFlow, b.Flow}} {
+		if strings.TrimSpace(t[1]) != "" {
+			targets = append(targets, t)
+		}
+	}
+	if len(targets) != 1 {
+		return "", "", fmt.Errorf("the bind %s needs one of command, script or flow", b.Key)
+	}
+	return targets[0][0], targets[0][1], nil
 }
 
 // Update has noct look for new releases on GitHub when it starts and once a day while it runs.
@@ -164,6 +204,9 @@ type Prefix struct {
 
 type Appearance struct {
 	Theme string `toml:"theme"`
+	// Themes are the themes the config offers to choose from, by name; empty offers all of them.
+	// The user's own theme files are always offered.
+	Themes []string `toml:"themes,omitempty"`
 	// Mode is ModeDark or ModeLight.
 	Mode string `toml:"mode"`
 	// Background is BackgroundTerminal to keep the terminal's own background, or BackgroundTheme.
@@ -198,7 +241,7 @@ type Animations struct {
 }
 
 // defaultAnimations are the effects noct comes with.
-var defaultAnimations = Animations{Hover: "01", Panels: "fade", Tabs: "fade", Focus: "fade", Move: "fade", Fullscreen: "fade", Popup: "jitter", Activity: "fade"}
+var defaultAnimations = Animations{Hover: "fade", Panels: "jitter", Tabs: "jitter", Focus: "none", Move: "fade", Fullscreen: "01", Popup: "01", Activity: "fade"}
 
 func (a *Animations) field(moment string) *string {
 	switch moment {
@@ -264,7 +307,7 @@ type AnimationTimes struct {
 	Activity   int `toml:"activity"`
 }
 
-var defaultAnimationTimes = AnimationTimes{Hover: 400, Panels: 300, Tabs: 300, Focus: 150, Move: 200, Fullscreen: 250, Popup: 300, Activity: 600}
+var defaultAnimationTimes = AnimationTimes{Hover: 150, Panels: 300, Tabs: 300, Focus: 100, Move: 200, Fullscreen: 200, Popup: 200, Activity: 600}
 
 func (a *AnimationTimes) field(moment string) *int {
 	switch moment {

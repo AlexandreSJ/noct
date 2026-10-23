@@ -21,11 +21,19 @@ type resizeCounter struct {
 
 func (v *resizeCounter) Resize(size pty.Size) { v.resizes++; v.size = size }
 
+// knownAnimations and knownAnimationTimes are what the animation tests were written for, apart
+// from the defaults, so changing those does not change what the tests check.
+var (
+	knownAnimations     = config.Animations{Hover: "01", Panels: "fade", Tabs: "fade", Focus: "fade", Move: "fade", Fullscreen: "fade", Popup: "jitter", Activity: "fade"}
+	knownAnimationTimes = config.AnimationTimes{Hover: 400, Panels: 300, Tabs: 300, Focus: 150, Move: 200, Fullscreen: 250, Popup: 300, Activity: 600}
+)
+
 // animatedApp is an app with animations on and one tab with one pane, drawn once.
 func animatedApp(t *testing.T) (*App, *tab) {
 	t.Helper()
 	a := testApp(t, newTab(1, &cellView{}))
 	a.config.Appearance.Animations = config.AnimationsOn
+	a.config.Animations, a.config.AnimationTimes = knownAnimations, knownAnimationTimes
 	a.applyPalette()
 	a.launch = func(program, pty.Size) (view, error) { return &resizeCounter{}, nil }
 	frozen := time.Now()

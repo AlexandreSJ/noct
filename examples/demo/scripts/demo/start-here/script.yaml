@@ -1,0 +1,17 @@
+description: A short, fictitious tour of noct. Run this first.
+run: |
+  printf '%s\n' \
+    "Welcome to noct." \
+    "" \
+    "This is the demo. Nothing here touches anything real: every script only" \
+    "prints and sleeps. Explore in this order:" \
+    "" \
+    "  prefix+s   the scripts panel. These demo/* scripts live here." \
+    "  prefix+i   inspect a flow (demo-deploy, demo-loops) step by step." \
+    "  p          in the inspect, open the params form and run with values." \
+    "  t          test a single step, reusing the last run's values." \
+    "  prefix+v   the calendar: every run leaves a log you can reopen." \
+    "  prefix+,   the config: keys, themes, animations, and custom binds." \
+    "" \
+    "Read each script's notes (its notes.md) for what it teaches, and open" \
+    "demo-deploy to see build, test, deploy, health and rollback working."

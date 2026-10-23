@@ -18,6 +18,7 @@ func animationConfig(t *testing.T, m moment) *App {
 	t.Helper()
 	a := testApp(t, sideBySideTab(1, 2))
 	a.config.Appearance.Animations = config.AnimationsOn
+	a.config.Animations, a.config.AnimationTimes = knownAnimations, knownAnimationTimes
 	frozen := time.Now()
 	a.clock = func() time.Time { return frozen }
 	a.size.Y = 50

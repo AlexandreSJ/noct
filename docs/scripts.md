@@ -40,6 +40,8 @@ params:
   - name: password
     from: env:TEST_PASSWORD    # lido do ambiente, não perguntado
     secret: true               # mascarado no formulário, nunca lembrado
+  - name: file
+    path: true                 # um caminho: Tab completa no formulário, a partir da pasta do script
 
 outputs: [token, expires]      # opcional: o que o script devolve a um fluxo, em linhas nome=valor
 ```

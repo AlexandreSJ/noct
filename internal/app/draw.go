@@ -80,6 +80,8 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 		a.drawTemplateSave(screen)
 	case templatesMode:
 		a.drawTemplates(screen)
+	case setupMode:
+		a.drawSetup(screen)
 	}
 }
 

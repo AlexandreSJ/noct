@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -175,7 +176,7 @@ func TestConfigHasTheDefaultEffects(t *testing.T) {
 	if d.Appearance.Animations != AnimationsOn {
 		t.Errorf("animations %q, want on", d.Appearance.Animations)
 	}
-	for moment, want := range map[string]string{"hover": "01", "panels": "fade", "tabs": "fade", "focus": "fade", "move": "fade", "fullscreen": "fade", "popup": "jitter", "activity": "fade"} {
+	for moment, want := range map[string]string{"hover": "fade", "panels": "jitter", "tabs": "jitter", "focus": "none", "move": "fade", "fullscreen": "01", "popup": "01", "activity": "fade"} {
 		if got := d.Animations.Effect(moment); got != want {
 			t.Errorf("%s is %q, want %q", moment, got, want)
 		}
@@ -188,10 +189,10 @@ func TestConfigHasTheDefaultEffects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Appearance.Animations != AnimationsOn || c.Animations.Panels != "fade" || c.Animations.Focus != "01" {
+	if c.Appearance.Animations != AnimationsOn || c.Animations.Panels != "jitter" || c.Animations.Focus != "01" {
 		t.Errorf("read animations %q, panels %q, focus %q", c.Appearance.Animations, c.Animations.Panels, c.Animations.Focus)
 	}
-	if c.Animations.Move != "fade" || c.Animations.Popup != "jitter" {
+	if c.Animations.Move != "fade" || c.Animations.Popup != "01" {
 		t.Errorf("the effects noct no longer has came back as move %q and popup %q, want the defaults", c.Animations.Move, c.Animations.Popup)
 	}
 	c.Animations.SetEffect("popup", "none")
@@ -202,7 +203,7 @@ func TestConfigHasTheDefaultEffects(t *testing.T) {
 
 func TestEachMomentHasItsOwnTime(t *testing.T) {
 	d := Default()
-	for moment, want := range map[string]int{"hover": 400, "panels": 300, "tabs": 300, "focus": 150, "move": 200, "fullscreen": 250, "popup": 300, "activity": 600} {
+	for moment, want := range map[string]int{"hover": 150, "panels": 300, "tabs": 300, "focus": 100, "move": 200, "fullscreen": 200, "popup": 200, "activity": 600} {
 		if got := d.AnimationTimes.Duration(moment); got != want {
 			t.Errorf("%s lasts %d ms, want %d", moment, got, want)
 		}
@@ -221,5 +222,39 @@ func TestEachMomentHasItsOwnTime(t *testing.T) {
 	c.AnimationTimes.SetDuration("popup", 450)
 	if c.AnimationTimes.Popup != 450 {
 		t.Errorf("SetDuration left popup at %d", c.AnimationTimes.Popup)
+	}
+}
+
+func TestCustomBindTarget(t *testing.T) {
+	cases := []struct {
+		bind       CustomBind
+		kind, what string
+		fails      bool
+	}{
+		{CustomBind{Key: "ctrl+alt+g", Command: "less {{.file}}"}, CustomCommand, "less {{.file}}", false},
+		{CustomBind{Key: "prefix m", Script: "tools/less"}, CustomScript, "tools/less", false},
+		{CustomBind{Key: "prefix m", Flow: "demo-deploy"}, CustomFlow, "demo-deploy", false},
+		{CustomBind{Key: "prefix m", Script: "a", Flow: "b"}, "", "", true},
+		{CustomBind{Key: "prefix m"}, "", "", true},
+		{CustomBind{Command: "less"}, "", "", true},
+	}
+	for _, c := range cases {
+		kind, what, err := c.bind.Target()
+		if (err != nil) != c.fails || kind != c.kind || what != c.what {
+			t.Errorf("%+v: got %q %q %v", c.bind, kind, what, err)
+		}
+	}
+}
+
+func TestCustomBindsRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	cfg := Default()
+	cfg.CustomBinds = []CustomBind{{Key: "ctrl+alt+g", Name: "less", Command: "less {{.file}}"}, {Key: "prefix m", Name: "deploy", Flow: "demo-deploy"}}
+	if err := Save(path, cfg); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(path)
+	if err != nil || !slices.Equal(got.CustomBinds, cfg.CustomBinds) {
+		t.Errorf("loaded %+v, %v", got.CustomBinds, err)
 	}
 }

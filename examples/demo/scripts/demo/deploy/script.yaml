@@ -1,0 +1,12 @@
+description: Pretend to deploy the api to an environment.
+run: |
+  printf 'Deploying api %s to %s...\n' "{{.version}}" "{{.env}}"
+  sleep 1
+  echo "Deployed api {{.version}} to {{.env}}."
+params:
+  - name: env
+    prompt: Environment
+    default: staging
+  - name: version
+    prompt: Version
+    default: "1.4.2"

@@ -383,3 +383,16 @@ func TestRunsKeepTheLatestThousand(t *testing.T) {
 		t.Errorf("by edit: %v first", scripts[0].Name)
 	}
 }
+
+func TestFromCommandAsksEachValueAsAPath(t *testing.T) {
+	s, err := FromCommand("view", "less {{.file}} -s {{.style}} {{.file}}", "/tmp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Program != "less" || s.Workdir != "/tmp" || len(s.Params) != 2 || !s.Params[0].Path || s.Params[1].Name != "style" {
+		t.Errorf("got %+v", s)
+	}
+	if _, err := FromCommand("bad", "less {{.file", "/tmp"); err == nil {
+		t.Error("a broken template gave no error")
+	}
+}
