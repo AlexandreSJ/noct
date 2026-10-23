@@ -138,7 +138,7 @@ func (a *App) drawStagePreview(screen uv.Screen, area image.Rectangle) {
 	if area.Dx() < stageMinWidth || area.Dy() < stageMinHeight {
 		return
 	}
-	th := a.themeNamed(a.sessionTheme(a.session))
+	th := a.shownTheme(a.sessionTheme(a.session))
 	p := newPalette(th, true)
 	drawStage(screen, area, &p, theme.Background, false)
 	if a.config.Appearance.Animations == config.AnimationsOff {

@@ -565,7 +565,7 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 		from = a.palette.background
 	}
 	if from == nil {
-		from = a.themeNamed(a.sessionTheme(a.session)).Colors[theme.Background].Resolve()
+		from = a.shownTheme(a.sessionTheme(a.session)).Colors[theme.Background].Resolve()
 	}
 	frame := int64(at.Sub(an.start) / frameInterval) // characters change from frame to frame
 	for y := area.Min.Y; y < area.Max.Y; y++ {

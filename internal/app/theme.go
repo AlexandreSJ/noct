@@ -27,6 +27,12 @@ func (a *App) themeNamed(name string) theme.Theme {
 	return a.themeList()[0]
 }
 
+// shownTheme is the theme with that name in the colors of the config's mode, as the screen
+// shows it.
+func (a *App) shownTheme(name string) theme.Theme {
+	return a.themeNamed(name).In(a.config.Appearance.Mode == config.ModeLight)
+}
+
 func (a *App) nextThemeName(current string, step int) string {
 	list := a.themeList()
 	i := max(slices.IndexFunc(list, func(t theme.Theme) bool { return t.Name == current }), 0)
@@ -87,7 +93,7 @@ func (a *App) applyPalette() {
 // previewTheme draws with the theme named, saving nothing. The palette is replaced in place,
 // since some views keep a pointer to it.
 func (a *App) previewTheme(name string) {
-	a.palette = newPalette(a.themeNamed(name), a.config.Appearance.Background == config.BackgroundTheme)
+	a.palette = newPalette(a.shownTheme(name), a.config.Appearance.Background == config.BackgroundTheme)
 }
 
 // sessionTheme is the theme s draws with: its own while it exists, else the config's.
