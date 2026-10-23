@@ -520,3 +520,19 @@ func TestCtrlShortcutLeavesBackspaceAndNewline(t *testing.T) {
 		t.Errorf("ctrl+k: %q %v", name, ok)
 	}
 }
+
+// ' opens the search as space does, after the prefix and with the direct shortcut, since
+// alt+space is often taken by the system.
+func TestQuoteOpensTheSearch(t *testing.T) {
+	quote := uv.KeyPressEvent{Code: '\'', Text: "'"}
+	a := testApp(t, sideBySideTab(1, 2))
+	press(a, prefixPress, quote)
+	if a.mode != finderMode {
+		t.Errorf("mode %v after prefix and ', want the search", a.mode)
+	}
+	b := testApp(t, sideBySideTab(1, 2))
+	press(b, uv.KeyPressEvent{Code: '\'', Mod: uv.ModAlt})
+	if b.mode != finderMode {
+		t.Errorf("mode %v after alt+', want the search", b.mode)
+	}
+}

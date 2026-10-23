@@ -163,7 +163,7 @@ func TestConfigHasTheDefaultEffects(t *testing.T) {
 	if d.Appearance.Animations != AnimationsOn {
 		t.Errorf("animations %q, want on", d.Appearance.Animations)
 	}
-	for moment, want := range map[string]string{"hover": "01", "panels": "fade", "tabs": "fade", "focus": "fade", "move": "fade", "fullscreen": "fade", "popup": "jitter", "activity": "fade"} {
+	for moment, want := range map[string]string{"hover": "fade", "panels": "jitter", "tabs": "jitter", "focus": "none", "move": "fade", "fullscreen": "01", "popup": "01", "activity": "fade"} {
 		if got := d.Animations.Effect(moment); got != want {
 			t.Errorf("%s is %q, want %q", moment, got, want)
 		}
@@ -176,10 +176,10 @@ func TestConfigHasTheDefaultEffects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Appearance.Animations != AnimationsOn || c.Animations.Panels != "fade" || c.Animations.Focus != "01" {
+	if c.Appearance.Animations != AnimationsOn || c.Animations.Panels != "jitter" || c.Animations.Focus != "01" {
 		t.Errorf("read animations %q, panels %q, focus %q", c.Appearance.Animations, c.Animations.Panels, c.Animations.Focus)
 	}
-	if c.Animations.Move != "fade" || c.Animations.Popup != "jitter" {
+	if c.Animations.Move != "fade" || c.Animations.Popup != "01" {
 		t.Errorf("the effects noct no longer has came back as move %q and popup %q, want the defaults", c.Animations.Move, c.Animations.Popup)
 	}
 	c.Animations.SetEffect("popup", "none")
@@ -190,7 +190,7 @@ func TestConfigHasTheDefaultEffects(t *testing.T) {
 
 func TestEachMomentHasItsOwnTime(t *testing.T) {
 	d := Default()
-	for moment, want := range map[string]int{"hover": 400, "panels": 300, "tabs": 300, "focus": 150, "move": 200, "fullscreen": 250, "popup": 300, "activity": 600} {
+	for moment, want := range map[string]int{"hover": 150, "panels": 300, "tabs": 300, "focus": 100, "move": 200, "fullscreen": 200, "popup": 200, "activity": 600} {
 		if got := d.AnimationTimes.Duration(moment); got != want {
 			t.Errorf("%s lasts %d ms, want %d", moment, got, want)
 		}

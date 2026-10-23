@@ -94,7 +94,7 @@ var arrowHeadings = map[string]layout.Heading{
 }
 
 // actionKeys are the noct mode commands that act, as opposed to moving around.
-var actionKeys = []string{"t", "T", "p", "s", "i", "v", "g", "space", "y", "o", "?", "a", "n", "w", "f", "r", "e", "P", "R", "u", "x", ",", "c", "d", "q"}
+var actionKeys = []string{"t", "T", "p", "s", "i", "v", "g", "space", "'", "y", "o", "?", "a", "n", "w", "f", "r", "e", "P", "R", "u", "x", ",", "c", "d", "q"}
 
 var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
 
@@ -256,7 +256,7 @@ func (a *App) runAction(name string) {
 		}
 		a.askToConfirmWith("quit noct?", again, func() { a.quitting = true })
 		return
-	case "space":
+	case "space", "'":
 		a.openFinder()
 		return
 	case "T":
