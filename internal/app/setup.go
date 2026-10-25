@@ -63,11 +63,9 @@ type setupWizard struct {
 	installed map[string]bool
 	animation string
 	demo      bool
-	// mcp and binds are what the system has, each marked when it is to be added.
+	// mcp are the AI clients the system has, each marked when noct is to be added to it.
 	mcp       []mcpSetup
 	mcpMarked []bool
-	binds     []config.CustomBind
-	bindsOn   []bool
 }
 
 // isFirstRun tells a first run from an upgrade: neither the config nor any session exists.
@@ -118,24 +116,15 @@ func (a *App) openSetup() {
 			w.mcp, w.mcpMarked = append(w.mcp, s), append(w.mcpMarked, false)
 		}
 	}
-	for _, b := range exampleBinds() {
-		if program := strings.Fields(b.Command)[0]; isInstalled(program) && !slices.ContainsFunc(a.config.CustomBinds, func(c config.CustomBind) bool { return c.Key == b.Key }) {
-			w.binds, w.bindsOn = append(w.binds, b), append(w.bindsOn, true)
-		}
-	}
 	a.setup = w
 	a.mode = setupMode
 }
 
-// exampleBinds are the binds the setup offers, for the programs the system has.
-func exampleBinds() []config.CustomBind {
-	return []config.CustomBind{
-		{Key: "ctrl+alt+g", Name: "less", Command: "less {{.file}}"},
-		{Key: "ctrl+alt+l", Name: "lazygit", Command: "lazygit"},
-		{Key: "ctrl+alt+b", Name: "btop", Command: "btop"},
-		{Key: "ctrl+alt+b", Name: "htop", Command: "htop"},
-	}
-}
+// The binds step's rows: making a shortcut, or going on.
+const (
+	setupNewShortcut = iota
+	setupBindsNext
+)
 
 func (w *setupWizard) startChoices() []string {
 	if w.firstRun {
@@ -162,13 +151,17 @@ func (w *setupWizard) rows() int {
 	case setupMCP:
 		return len(w.mcp)
 	case setupBinds:
-		return len(w.binds)
+		return 2
 	}
 	return 1
 }
 
 func (a *App) handleSetupKey(key uv.KeyPressEvent) {
 	w := &a.setup
+	if a.configPanel.bindCapture.custom != nil {
+		a.handleCustomBindKey(key)
+		return
+	}
 	switch name := key.String(); name {
 	case "up", "k":
 		w.selected = (w.selected - 1 + max(w.rows(), 1)) % max(w.rows(), 1)
@@ -212,8 +205,6 @@ func (a *App) setupStepKey(name string) {
 		w.demo = !w.demo
 	case w.step == setupMCP && name == "space" && len(w.mcp) > 0:
 		w.mcpMarked[w.selected] = !w.mcpMarked[w.selected]
-	case w.step == setupBinds && name == "space" && len(w.binds) > 0:
-		w.bindsOn[w.selected] = !w.bindsOn[w.selected]
 	}
 }
 
@@ -270,6 +261,11 @@ func (a *App) setupEnter() {
 	case setupAnimations:
 		w.animation = animationSets[w.selected]
 		applyAnimationSet(&w.draft, w.animation)
+	case setupBinds:
+		if w.selected == setupNewShortcut {
+			a.startSetupShortcut()
+			return
+		}
 	case setupSummary:
 		a.finishSetup()
 		return
@@ -309,7 +305,7 @@ func (a *App) skipSetupStep() {
 	case setupMCP:
 		clear(w.mcpMarked)
 	case setupBinds:
-		clear(w.bindsOn)
+		w.draft.CustomBinds = a.config.CustomBinds
 	}
 	a.goToSetupStep(w.step + 1)
 }
@@ -331,6 +327,8 @@ func (a *App) goToSetupStep(step setupStep) {
 		a.previewSetupTheme()
 	case setupAnimations:
 		w.selected = slices.Index(animationSets, w.animation)
+	case setupBinds:
+		w.selected = setupBindsNext
 	}
 	if step != setupThemes {
 		a.applyPalette()
@@ -366,11 +364,6 @@ func (a *App) finishSetup() {
 			}
 		}
 	}
-	for i, b := range w.binds {
-		if w.bindsOn[i] {
-			w.draft.CustomBinds = append(w.draft.CustomBinds, b)
-		}
-	}
 	a.saveSetupConfig()
 	if w.demo {
 		if _, err := examples.InstallDemo(a.scriptsDir(), flow.Dir()); err != nil {
@@ -398,6 +391,17 @@ func (a *App) markedMCPCommands() []script.Script {
 func (a *App) saveSetupConfig() {
 	a.applyConfig(a.setup.draft)
 	a.keymap = newKeymap(a.config.Keys)
+}
+
+// startSetupShortcut takes a new shortcut's key as the binds page does, adding the bind to the
+// setup's draft.
+func (a *App) startSetupShortcut() {
+	w := &a.setup
+	back := func() { a.mode = setupMode }
+	save := func(b config.CustomBind) {
+		w.draft.CustomBinds = append(slices.Clone(w.draft.CustomBinds), b)
+	}
+	a.configPanel.bindCapture = bindCapture{active: true, custom: &customBindDraft{save: save, back: back}}
 }
 
 func (a *App) closeSetup() {

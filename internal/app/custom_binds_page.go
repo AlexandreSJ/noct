@@ -21,6 +21,10 @@ type customBindDraft struct {
 	key         string
 	// choosing is on once the key is taken, until c, s or f picks what the bind runs.
 	choosing bool
+	// save takes the finished bind and back returns to the screen it was made from; both are nil
+	// on the binds page, which saves it to the config.
+	save func(config.CustomBind)
+	back func()
 }
 
 func customBindAt(row configRow, binds []config.CustomBind) (int, bool) {
@@ -63,15 +67,22 @@ func (a *App) chooseCustomBindKind(pressed string) {
 	if !ok {
 		return
 	}
-	b := config.CustomBind{Key: a.configPanel.bindCapture.custom.key}
+	draft := a.configPanel.bindCapture.custom
+	b := config.CustomBind{Key: draft.key}
 	a.configPanel.bindCapture = bindCapture{}
-	a.askCustomBindTarget(b, kind, "", -1)
+	save, back := draft.save, draft.back
+	if save == nil {
+		save, back = func(b config.CustomBind) { a.saveCustomBind(b, -1) }, a.backToConfig
+	}
+	a.askCustomBindTarget(b, kind, "", save, back)
 }
 
-// askCustomBindTarget asks what the bind runs, then its name, and puts it at index, or after
-// the others with -1.
-func (a *App) askCustomBindTarget(b config.CustomBind, kind, initial string, index int) {
-	back := func() { a.mode = configMode }
+func (a *App) backToConfig() {
+	a.mode = configMode
+}
+
+// askCustomBindTarget asks what the bind runs, then its name, and hands the bind to save.
+func (a *App) askCustomBindTarget(b config.CustomBind, kind, initial string, save func(config.CustomBind), back func()) {
 	a.openPrompt(kind+" for "+prettyKey(b.Key), initial, customBindPromptHints(kind), func(what string) {
 		if what == "" {
 			back()
@@ -85,7 +96,7 @@ func (a *App) askCustomBindTarget(b config.CustomBind, kind, initial string, ind
 		}
 		a.openPrompt("name of "+prettyKey(b.Key), name, "{enter} save  esc cancel  the search shows it", func(name string) {
 			b.Name = name
-			a.saveCustomBind(b, index)
+			save(b)
 			back()
 		})
 		a.prompt.cancel = back
@@ -128,7 +139,7 @@ func (a *App) editCustomBind(index int) {
 	if err != nil {
 		kind, what = config.CustomCommand, ""
 	}
-	a.askCustomBindTarget(b, kind, what, index)
+	a.askCustomBindTarget(b, kind, what, func(b config.CustomBind) { a.saveCustomBind(b, index) }, a.backToConfig)
 }
 
 func (a *App) removeCustomBind(index int) {

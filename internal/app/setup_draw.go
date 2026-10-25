@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"image"
+	"slices"
 	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -174,14 +175,30 @@ func (a *App) setupMCPLines() []setupLine {
 
 func (a *App) setupBindLines() []setupLine {
 	w := &a.setup
-	if len(w.binds) == 0 {
-		return []setupLine{{text: "none of less, lazygit, btop or htop is installed.", muted: true}, {text: "binds of your own are on the config's binds page.", muted: true}}
-	}
 	var lines []setupLine
-	for i, b := range w.binds {
-		lines = append(lines, setupLine{text: fmt.Sprintf("%s %-12s %-8s %s", mark(w.bindsOn[i]), prettyKey(b.Key), b.Name, b.Command), selected: w.selected == i})
+	for _, b := range w.draft.CustomBinds {
+		kind, what, _ := b.Target()
+		lines = append(lines, setupLine{text: fmt.Sprintf("%-12s %-10s %s %s", prettyKey(b.Key), customBindName(b), kind, what)})
 	}
-	return append(lines, setupLine{}, setupLine{text: "the pane of a bind closes when its program ends well.", muted: true})
+	if len(lines) == 0 {
+		lines = append(lines, setupLine{text: "no shortcuts of your own yet.", muted: true})
+	}
+	create := "+ create new shortcut"
+	if draft := a.configPanel.bindCapture.custom; draft != nil {
+		create += "  [" + a.customBindDraftValue(draft) + "]"
+	}
+	lines = append(lines, setupLine{}, setupLine{text: create, selected: w.selected == setupNewShortcut})
+	if c := a.configPanel.bindCapture; c.custom != nil {
+		if c.problem != "" {
+			lines = append(lines, setupLine{text: "  " + c.problem, muted: true})
+		}
+		lines = append(lines, setupLine{text: "  " + customBindDraftNote(c.custom), muted: true})
+	}
+	return append(lines,
+		setupLine{text: "continue", selected: w.selected == setupBindsNext},
+		setupLine{},
+		setupLine{text: "a shortcut is a key that runs a command, a script or a flow; the pane of a", muted: true},
+		setupLine{text: "command or script closes when it ends well. more on the config's binds page.", muted: true})
 }
 
 func (a *App) setupSummaryLines() []setupLine {
@@ -201,9 +218,9 @@ func (a *App) setupSummaryLines() []setupLine {
 			lines = append(lines, setupLine{text: "add noct to " + s.client})
 		}
 	}
-	for i, b := range w.binds {
-		if w.bindsOn[i] {
-			lines = append(lines, setupLine{text: "bind " + prettyKey(b.Key) + " runs " + b.Name})
+	for _, b := range w.draft.CustomBinds {
+		if !slices.Contains(a.config.CustomBinds, b) {
+			lines = append(lines, setupLine{text: "shortcut " + prettyKey(b.Key) + " runs " + customBindName(b)})
 		}
 	}
 	return append(lines, setupLine{}, setupLine{text: "enter saves all of it.", muted: true})
@@ -236,8 +253,13 @@ func (a *App) setupHints() string {
 		return "↑↓ select  space offer  a all or none  enter use it  m mode  b background  s skip  esc back"
 	case setupDemo:
 		return "space on or off  enter next  s skip  esc back"
-	case setupMCP, setupBinds:
+	case setupMCP:
 		return "↑↓ select  space mark  enter next  s skip  esc back"
+	case setupBinds:
+		if a.configPanel.bindCapture.custom != nil {
+			return "esc cancel"
+		}
+		return "↑↓ select  enter choose  s skip  esc back"
 	case setupSummary:
 		return "enter save  esc back"
 	}

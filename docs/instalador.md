@@ -6,7 +6,7 @@ Três peças que se ajudam: o **instalador** (`noct setup`) prepara o noct na pr
 
 ## Por quê
 
-Hoje, abrir uma ferramenta como o `less` é `prefixo` + `p`, digitar `less REA`, `Tab`, `Enter` e fechar o terminal na mão, deixando um log a mais. E quem instala o noct cai na home com tudo no padrão, sem saber o que dá para mudar: temas, atalho, animações, MCP, flows. O instalador apresenta essas escolhas uma vez, com prévia, e a demo ensina os flows rodando.
+Hoje, abrir uma ferramenta de terminal num arquivo é `prefixo` + `p`, digitar o comando e o começo do arquivo, `Tab`, `Enter` e fechar o terminal na mão, deixando um log a mais. E quem instala o noct cai na home com tudo no padrão, sem saber o que dá para mudar: temas, atalho, animações, MCP, flows. O instalador apresenta essas escolhas uma vez, com prévia, e a demo ensina os flows rodando.
 
 ## Instalador
 
@@ -39,7 +39,7 @@ Hoje, abrir uma ferramenta como o `less` é `prefixo` + `p`, digitar `less REA`,
 3. **Animations.** `all` (o padrão novo, abaixo), `few` (só `hover`, `popup` e `activity`, curtas) ou `none` (**Appearance → animations** em `off`).
 4. **Demo.** Instala os scripts `demo/*` na pasta de scripts e os flows `demo-*` na pasta de flows. Arquivos que já existem não são sobrescritos.
 5. **MCP.** Os clientes de IA encontrados no PATH (`claude`, `codex`, `gemini`, `code`), cada um com o comando que adiciona o noct. Os marcados rodam num painel visível depois que o instalador fecha; nada roda sem marcar.
-6. **Binds.** Binds próprias de exemplo, só para ferramentas no PATH: `less {{.file}}`, `lazygit`, `btop` (ou `htop`).
+6. **Shortcuts.** As binds próprias já no config e `+ create new shortcut`, que cria uma como a página das teclas faz (a tecla, depois `c`/`s`/`f` para comando, script ou flow, o que roda e o nome); `continue` segue. O noct não sugere nenhuma: um atalho para uma ferramenta só existe se o usuário o criar.
 
 O último passo mostra o resumo do que muda; `Enter` grava, `Esc` volta.
 
@@ -66,8 +66,8 @@ Os efeitos e tempos que o mantenedor usa passam a ser o padrão:
 
 Uma tecla que roda uma de três coisas:
 
-- **command:** uma linha de shell escrita na caixa de texto, como `less {{.file}}`. Cada `{{.nome}}` vira um campo perguntado antes de rodar, no formulário dos params, como as variáveis de um flow. Os campos de um comando são caminhos: `Tab` completa o nome do arquivo (o prefixo comum; de novo, o próximo), `↑↓` trocam de campo.
-- **script:** um script da biblioteca, pelo nome (`tools/less`), com os params que ele já tem.
+- **command:** uma linha de shell escrita na caixa de texto, como `bat {{.file}}`. Cada `{{.nome}}` vira um campo perguntado antes de rodar, no formulário dos params, como as variáveis de um flow. Os campos de um comando são caminhos: `Tab` completa o nome do arquivo (o prefixo comum; de novo, o próximo), `↑↓` trocam de campo.
+- **script:** um script da biblioteca, pelo nome (`tools/view`), com os params que ele já tem.
 - **flow:** um flow, pelo nome, com os params e os `prompt` que ele já tem.
 
 O comando e o script rodam num painel próprio que **fecha sozinho quando o programa sai com 0**; com erro, o painel fica com a saída e o `✗`, como um script comum. O flow roda como pelo inspect.
@@ -82,8 +82,8 @@ O comando e o script rodam num painel próprio que **fecha sozinho quando o prog
 ```toml
 [[custom_binds]]
 key = "ctrl+alt+shift+g"
-name = "less"
-command = "less {{.file}}"
+name = "view"
+command = "bat {{.file}}"
 
 [[custom_binds]]
 key = "prefix m"
@@ -113,7 +113,7 @@ Os arquivos ficam em `examples/demo/` no repositório e embutidos no binário, d
 
 ## Mods: o que daria e quanto custa
 
-Pedido: instalar ferramentas de fora (o `less`, as da Charm) para rodar dentro do noct, os próprios painéis do noct (scripts, inspect, logs) como peças, e mods de usuários, tudo chamável por bind.
+Pedido: instalar ferramentas de fora (as da Charm, por exemplo) para rodar dentro do noct, os próprios painéis do noct (scripts, inspect, logs) como peças, e mods de usuários, tudo chamável por bind.
 
 | Camada | O que é | Dificuldade |
 |---|---|---|
@@ -130,9 +130,9 @@ Escolhas feitas na implementação, sem o mantenedor; cada uma pode mudar.
 
 - **Primeira vez** é: sem `config.toml` **e** sem `sessions.json`. Quem atualiza de uma versão antiga sem nunca ter salvo o config não vê o instalador sozinho (pode rodar `noct setup`), mas ganha as animações padrão novas.
 - **all / few / none** são predefinições: escrevem os efeitos e tempos de cada momento (e `animations = off` no `none`); não há um modo novo guardado.
-- **keep everything** não grava nada; **start with the defaults** grava só o `config.toml` padrão. Demo, MCP e binds de exemplo só pelo passo a passo.
+- **keep everything** não grava nada; **start with the defaults** grava só o `config.toml` padrão. Demo, MCP e atalhos só pelo passo a passo.
 - **Um cliente por vez** (ADR-017): o instalador é um modo do `App`, como o config, e grava no fim.
-- **Bind `command`** roda como um script: tem log com o nome da bind (`bind less`) e entra no calendário, em vez do log anônimo de um terminal.
+- **Bind `command`** roda como um script: tem log com o nome da bind (`bind view`) e entra no calendário, em vez do log anônimo de um terminal.
 - **Conflitos de tecla:** uma bind direta é vista antes do atalho direto e do programa do painel; o config avisa quando ela tira uma tecla de um comando do noct. Uma bind `prefix x` com uma tecla que já é de um comando é ignorada, com aviso.
 - **MCP:** os comandos são os do popup do MCP (`prefixo` + `y`), só dos clientes com linha de comando (Claude Code, Codex, Gemini CLI, VS Code), no escopo do usuário.
 
@@ -140,4 +140,4 @@ Escolhas feitas na implementação, sem o mantenedor; cada uma pode mudar.
 
 - Baixar temas ou mods da internet.
 - Desinstalar temas embutidos do binário: "instalar" é escolher quais aparecem.
-- Instalar as ferramentas das binds de exemplo (é a fase 4).
+- Sugerir atalhos para ferramentas ou instalá-las (é a fase 4).

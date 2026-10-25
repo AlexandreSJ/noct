@@ -157,7 +157,7 @@ Todas as teclas dos modos, painéis e popups do noct podem ser trocadas em `pref
 
 **Binds próprias** (ADR-057, [instalador.md](instalador.md)): a seção **custom**, no fim da página, tem uma linha por bind (`tecla  nome  → o que roda`). `n` captura a tecla (o prefixo antes a põe depois do prefixo), `c`/`s`/`f` escolhem comando, script ou flow e depois se digita o que roda e o nome; `Enter` edita o que a bind roda, `Delete` a apaga, e uma bind que não se usa diz por quê. No arquivo, `[[custom_binds]]` com `key`, `name` e um de `command`, `script`, `flow`.
 
-**Instalador:** `noct setup`, e o primeiro `noct` sem config, abrem o instalador por cima da sessão: teclas, temas, animações, demo, clientes de IA e binds de exemplo ([instalador.md](instalador.md), ADR-056).
+**Instalador:** `noct setup`, e o primeiro `noct` sem config, abrem o instalador por cima da sessão: teclas, temas, animações, demo, clientes de IA e atalhos próprios, com `create new shortcut` ([instalador.md](instalador.md), ADR-056).
 
 ## Mouse
 

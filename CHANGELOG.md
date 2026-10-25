@@ -22,7 +22,7 @@ the shortcut is `Alt` by default. How to write an entry is in
 - **noct setup**, which also opens the first time noct runs: the prefix and shortcut, which
   themes the config offers and which one is on (with its mode and background, shown on the
   whole screen), the animations (`all`, `few` or `none`), a demo of flows, adding noct to the
-  AI clients you have, and binds for tools you have. `s` skips a step; nothing is saved until
+  AI clients you have, and **create new shortcut** for keys of your own. `s` skips a step; nothing is saved until
   the summary. `make install` runs it at the end. If you used noct before, the tab bar tells
   you about it once.
 - Your own binds: a key that runs a command, a script or a flow, made in **Keys → binds of

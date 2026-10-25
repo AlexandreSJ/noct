@@ -66,7 +66,7 @@ go build -o noct ./cmd/noct
 
 ## Getting started
 
-Run `noct`. The first time, **noct setup** asks for the keys, themes and animations, can install a demo of flows, add noct to the AI clients you have and bind keys to tools like `less` or `lazygit`; `noct setup` opens it again at any time (`make install` runs it too). Then noct opens on an empty home screen; press any key to see the prefix key that opens the commands.
+Run `noct`. The first time, **noct setup** asks for the keys, themes and animations, can install a demo of flows, add noct to the AI clients you have and create shortcuts of your own; `noct setup` opens it again at any time (`make install` runs it too). Then noct opens on an empty home screen; press any key to see the prefix key that opens the commands.
 
 Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving around keeps the mode on, so you can hop across panes and tabs with a single prefix:
 
@@ -162,7 +162,7 @@ claude mcp add noct -- noct mcp
 | `noct` | Attach to the session used last, starting noct if needed |
 | `noct attach [session]` (or `a`, `att`, `-a`) | Attach to a session by name; without one, list the sessions |
 | `noct new [session]` | Start a session, named or numbered, and attach to it |
-| `noct setup` | Choose the keys, themes and animations, install the demo, add noct to AI clients and bind keys to tools you have |
+| `noct setup` | Choose the keys, themes and animations, install the demo, add noct to AI clients and create shortcuts of your own |
 | `noct sessions` | List the sessions: open or closed, tabs, last use |
 | `noct kill <session>` | Delete a session: its programs stop and its layout is forgotten |
 | `noct -s <script> [name=value ...]` | Run a script in this terminal |

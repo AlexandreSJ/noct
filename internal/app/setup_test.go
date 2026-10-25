@@ -79,10 +79,10 @@ func TestTheDefaultsOnTheFirstRun(t *testing.T) {
 	}
 }
 
-// Step by step: the keys, one theme, few animations, no demo (skipped), an AI client and an
-// example bind, saved together at the end.
+// Step by step: the keys, one theme, few animations, no demo (skipped), an AI client and a
+// shortcut made in the setup, saved together at the end.
 func TestTheSetupStepByStep(t *testing.T) {
-	fakePrograms(t, "claude", "less")
+	fakePrograms(t, "claude")
 	a := testApp(t)
 	l := recordLaunches(a)
 	a.openSetup()
@@ -99,7 +99,16 @@ func TestTheSetupStepByStep(t *testing.T) {
 	press(a, downPress, enterPress) // few
 	press(a, letter('s'))           // no demo
 	press(a, spacePress, enterPress)
-	press(a, enterPress) // less's bind, marked already
+	if a.setup.step != setupBinds || len(a.setup.draft.CustomBinds) != 0 {
+		t.Fatalf("step %v with binds %+v, want the shortcuts with none offered", a.setup.step, a.setup.draft.CustomBinds)
+	}
+	press(a, upPress, enterPress, ctrlAltG, letter('c')) // create new shortcut: the key, a command
+	typeText(a, "printf {{.file}}")
+	press(a, enterPress, enterPress) // the command, and its name as offered
+	if a.mode != setupMode || a.setup.step != setupBinds {
+		t.Fatalf("mode %v step %v, want back in the shortcuts", a.mode, a.setup.step)
+	}
+	press(a, downPress, enterPress) // continue
 	if a.setup.step != setupSummary || !strings.Contains(screenText(a), "blood") {
 		t.Fatalf("step %v, want the summary naming blood:\n%s", a.setup.step, screenText(a))
 	}
@@ -115,8 +124,9 @@ func TestTheSetupStepByStep(t *testing.T) {
 	if saved.Animations.Panels != "none" || saved.Animations.Hover != "fade" {
 		t.Errorf("few gave %+v", saved.Animations)
 	}
-	if len(saved.CustomBinds) != 1 || saved.CustomBinds[0].Command != "less {{.file}}" {
-		t.Errorf("binds %+v, want less's", saved.CustomBinds)
+	want := config.CustomBind{Key: "ctrl+alt+g", Name: "printf", Command: "printf {{.file}}"}
+	if !slices.Equal(saved.CustomBinds, []config.CustomBind{want}) {
+		t.Errorf("binds %+v, want %+v", saved.CustomBinds, want)
 	}
 	if _, err := os.Stat(filepath.Join(flow.Dir(), "demo-deploy.yaml")); err == nil {
 		t.Error("the demo was installed after skipping it")

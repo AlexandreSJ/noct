@@ -24,7 +24,7 @@ Usage:
                                     list the sessions
   noct new [session]                start a session, named or numbered, and attach to it
   noct setup                        choose the keys, themes and animations, install the demo,
-                                    add noct to AI clients and binds for tools you have
+                                    add noct to AI clients and create shortcuts of your own
   noct sessions                     list the sessions: open or closed, tabs, last use
   noct kill <session>               delete a session: its programs stop, its layout is
                                     forgotten

@@ -66,7 +66,7 @@ go build -o noct ./cmd/noct
 
 ## Primeiros passos
 
-Rode `noct`. Na primeira vez, o **noct setup** pergunta as teclas, os temas e as animações, pode instalar uma demo de fluxos, adicionar o noct aos clientes de IA que você tem e ligar teclas a ferramentas como `less` ou `lazygit`; `noct setup` o abre de novo quando quiser (o `make install` também). Depois o noct abre numa home vazia; aperte qualquer tecla para ver a tecla prefixo, que abre os comandos.
+Rode `noct`. Na primeira vez, o **noct setup** pergunta as teclas, os temas e as animações, pode instalar uma demo de fluxos, adicionar o noct aos clientes de IA que você tem e criar atalhos próprios; `noct setup` o abre de novo quando quiser (o `make install` também). Depois o noct abre numa home vazia; aperte qualquer tecla para ver a tecla prefixo, que abre os comandos.
 
 Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a navegação mantém o modo ligado, então você percorre painéis e tabs com um único prefixo:
 
@@ -162,7 +162,7 @@ claude mcp add noct -- noct mcp
 | `noct` | Conecta à última sessão usada, iniciando o noct se preciso |
 | `noct attach [sessão]` (ou `a`, `att`, `-a`) | Conecta a uma sessão pelo nome; sem nome, lista as sessões |
 | `noct new [sessão]` | Cria uma sessão, com nome ou número, e conecta a ela |
-| `noct setup` | Escolhe as teclas, os temas e as animações, instala a demo, adiciona o noct aos clientes de IA e liga teclas às ferramentas que você tem |
+| `noct setup` | Escolhe as teclas, os temas e as animações, instala a demo, adiciona o noct aos clientes de IA e cria atalhos próprios |
 | `noct sessions` | Lista as sessões: aberta ou fechada, tabs, último uso |
 | `noct kill <sessão>` | Apaga uma sessão: os programas param e o layout é esquecido |
 | `noct -s <script> [nome=valor ...]` | Roda um script neste terminal |

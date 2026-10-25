@@ -748,18 +748,18 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Decisão.**
 - O instalador é um modo do `App` (`setupMode`), desenhado como popup, não um programa à parte: usa o tema, as teclas e o palco que o noct já tem. Abre no primeiro attach quando não há `config.toml` nem `sessions.json`, e por `noct setup` (`Hello.Setup`) a qualquer momento. Quem já usava o noct não o vê abrir sozinho: recebe uma vez um aviso na barra de tabs, lembrado pelo arquivo `setup-offered` na pasta de estado, e não no config, que o noct só grava quando o usuário muda algo. `make install` chama `noct setup` no fim, só num terminal.
-- A primeira tela oferece manter tudo (não grava nada), começar com os padrões (grava `Default()`) ou escolher passo a passo: teclas, temas (quais ficam na escolha do config, em `appearance.themes`, o ativo, o modo e o fundo, com a tela inteira mostrando o selecionado), animações (`all`, `few`, `none`), demo, clientes de IA encontrados no PATH e binds de exemplo para programas instalados. `s` pula um passo deixando-o como estava; tudo é gravado só no resumo final.
+- A primeira tela oferece manter tudo (não grava nada), começar com os padrões (grava `Default()`) ou escolher passo a passo: teclas, temas (quais ficam na escolha do config, em `appearance.themes`, o ativo, o modo e o fundo, com a tela inteira mostrando o selecionado), animações (`all`, `few`, `none`), demo, clientes de IA encontrados no PATH e atalhos próprios, criados ali com `create new shortcut` (o noct não sugere nenhum). `s` pula um passo deixando-o como estava; tudo é gravado só no resumo final.
 - Os comandos de MCP marcados rodam em painéis visíveis depois que o instalador fecha; nada roda sem marcar.
 
 **Consequências.** `appearance.themes` filtra só os temas embutidos; os do usuário e o tema em uso sempre aparecem. Um daemon de uma versão antiga ignora o `noct setup`: é preciso reiniciá-lo depois de atualizar.
 
 ## ADR-057 — Binds próprias e `'` na busca
 
-**Contexto.** Abrir uma ferramenta como o `less` era abrir um terminal, digitar o comando, completar o arquivo e fechar o terminal na mão.
+**Contexto.** Abrir uma ferramenta de terminal num arquivo era abrir um terminal, digitar o comando, completar o arquivo e fechar o terminal na mão.
 
 **Decisão.**
 - `[[custom_binds]]` no config: `key`, `name` e exatamente um de `command`, `script` ou `flow`. A tecla é direta (precisa de `ctrl` ou `alt`, e deixa `ctrl+c`, `ctrl+d`, `ctrl+z` e `ctrl+\` para o programa) ou `prefix x`, que não pode tomar a tecla de um comando do noct. Uma bind que não se usa é ignorada e o config diz por quê.
-- Um `command` roda como um script com log e nome (`bind less`); cada `{{.nome}}` vira um parâmetro `path`, que `Tab` completa no formulário como um shell. O comando e o script abrem ao lado do painel com foco e o painel fecha quando o programa sai com 0. Um flow roda como pelo inspect.
+- Um `command` roda como um script com log e nome (`bind view`); cada `{{.nome}}` vira um parâmetro `path`, que `Tab` completa no formulário como um shell. O comando e o script abrem ao lado do painel com foco e o painel fecha quando o programa sai com 0. Um flow roda como pelo inspect.
 - Os parâmetros de script ganham `path: true`, com a mesma completação.
 - As binds se criam, editam e apagam na seção **custom** da página das teclas e entram na busca como `bind`.
 - `'` é a segunda tecla padrão da busca, porque `Alt+Space` costuma ser do sistema.
