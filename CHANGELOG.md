@@ -11,6 +11,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+## v0.2.1 - 2026-10-25
+
 ### Added
 
 - Eleven new themes in **Appearance → theme**: `tide`, `moss`, `pumpkin`, `neon`, `cobalt`,
@@ -22,9 +24,9 @@ the shortcut is `Alt` by default. How to write an entry is in
 - **noct setup**, which also opens the first time noct runs: the prefix and shortcut, which
   themes the config offers and which one is on (with its mode and background, shown on the
   whole screen), the animations (`all`, `few` or `none`), a demo of flows, adding noct to the
-  AI clients you have, and **create new shortcut** for keys of your own. `s` skips a step; nothing is saved until
-  the summary. `make install` runs it at the end. If you used noct before, the tab bar tells
-  you about it once.
+  AI clients you have, and **create new shortcut** for keys of your own. `s` skips a step;
+  nothing is saved until the summary. `make install` runs it at the end. If you used noct
+  before, the tab bar tells you about it once.
 - Your own binds: a key that runs a command, a script or a flow, made in **Keys → binds of
   every screen → custom** (`n` adds one) or as `[[custom_binds]]` in the config. A direct key
   needs `ctrl` or `alt`; `prefix m` puts it after the prefix. A command's `{{.file}}` is asked
@@ -46,7 +48,6 @@ the shortcut is `Alt` by default. How to write an entry is in
   does `shortcut` + `g` again.
 - `⛶ fullscreen` and the scroll position (`↑ 0/18`) sit at the right of the panel's border, and
   a long panel name is cut with `…` to make room for them. The logs' preview does the same.
-
 - The color picker of **Appearance → edit theme** and `prefix` + `P` groups the 256 colors:
   the terminal's 16, the color cube as a triangle with red, green and blue at its corners, and
   the grays. `,` and `.` make the triangle darker or lighter, keeping the color's mix of red,
