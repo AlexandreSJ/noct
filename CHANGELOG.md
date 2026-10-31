@@ -11,6 +11,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+## v0.2.2 - 2026-10-31
+
 ### Added
 
 - The logs list has titled columns: when each log was last written, when it started, how its
