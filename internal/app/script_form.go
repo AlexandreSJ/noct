@@ -39,6 +39,8 @@ var (
 	formUp    = map[int]int{nameField: paramsPart, programField: nameField, runPart: programField, descriptionPart: programField, paramsPart: runPart, notesPart: descriptionPart}
 	formRight = map[int]int{runPart: descriptionPart, paramsPart: notesPart}
 	formLeft  = map[int]int{descriptionPart: runPart, notesPart: paramsPart}
+
+	scriptFormMoves = map[string]map[int]int{"down": formDown, "up": formUp, "left": formLeft, "right": formRight}
 )
 
 // scriptForm edits a script, or creates one, part by part: enter opens the selected part alone in
@@ -94,8 +96,7 @@ func (a *App) handleScriptFormKey(key uv.KeyPressEvent) {
 	case "shift+tab":
 		f.selected = (f.selected + scriptFieldCount - 1) % scriptFieldCount
 	case "down", "up", "left", "right":
-		moves := map[string]map[int]int{"down": formDown, "up": formUp, "left": formLeft, "right": formRight}[name]
-		if next, ok := moves[f.selected]; ok {
+		if next, ok := scriptFormMoves[name][f.selected]; ok {
 			f.selected = next
 			return
 		}
@@ -199,21 +200,7 @@ func (f *scriptForm) values() (script.Fields, error) {
 // saveScriptForm creates or updates the script; problems stay on screen with the form open.
 func (a *App) saveScriptForm() {
 	f := &a.scriptForm
-	values, err := f.values()
-	var saved script.Script
-	switch {
-	case err != nil:
-	case f.original == nil:
-		root := a.scriptsDir()
-		if f.folder != nil {
-			root = f.folder.Dir
-		}
-		saved, err = script.Create(root, values, a.config.ScriptHints)
-	default:
-		if err = script.Backup(*f.original); err == nil {
-			saved, err = script.Update(*f.original, values)
-		}
-	}
+	saved, err := a.writeFormScript(f)
 	if err != nil {
 		a.statusMessage = err.Error()
 		return
@@ -227,17 +214,38 @@ func (a *App) saveScriptForm() {
 	a.reloadScripts()
 }
 
-func (a *App) drawScriptForm(screen uv.Screen) {
-	f := &a.scriptForm
-	title := "new script"
+// writeFormScript creates the form's script, or updates the one it edits after keeping a copy of it.
+func (a *App) writeFormScript(f *scriptForm) (script.Script, error) {
+	values, err := f.values()
+	if err != nil {
+		return script.Script{}, err
+	}
+	if f.original == nil {
+		root := a.scriptsDir()
+		if f.folder != nil {
+			root = f.folder.Dir
+		}
+		return script.Create(root, values, a.config.ScriptHints)
+	}
+	if err := script.Backup(*f.original); err != nil {
+		return script.Script{}, err
+	}
+	return script.Update(*f.original, values)
+}
+
+func (f *scriptForm) title() string {
 	switch {
 	case f.original != nil:
-		title = "edit " + f.original.ID()
+		return "edit " + f.original.ID()
 	case f.folder != nil:
-		title = "new script in " + f.folder.Name
+		return "new script in " + f.folder.Name
 	}
+	return "new script"
+}
+
+func (a *App) drawScriptForm(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	inner := a.drawPanel(screen, centeredRect(area, min(area.Dx()-4, 110), max(area.Dy()-4, 16)), title)
+	inner := a.drawPanel(screen, centeredRect(area, min(area.Dx()-4, 110), max(area.Dy()-4, 16)), a.scriptForm.title())
 	a.drawTypedField(screen, inner, inner.Min.Y, "name", nameField)
 	a.drawTypedField(screen, inner, inner.Min.Y+1, "program", programField)
 

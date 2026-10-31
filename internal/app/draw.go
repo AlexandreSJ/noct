@@ -43,7 +43,6 @@ func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 	a.recordFrame(screen)
 }
 
-// drawModeOverlay shows the panel of the current mode on top of everything else.
 func (a *App) drawModeOverlay(screen uv.Screen) {
 	switch a.mode {
 	case commandMode:
@@ -87,41 +86,48 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 
 func (a *App) drawPanes(screen uv.Screen, t *tab) {
 	for _, placed := range t.visible(a.workspaceArea()) {
-		id, frame := placed.id, placed.frame
-		pal := a.palette.forPane(t.paneColors[id])
-		viewScreen := screen
-		if pal.background != nil || pal.text != nil {
-			viewScreen = themedScreen{Screen: screen, background: pal.background, text: pal.text}
-		}
-		fillRect(screen, frame, uv.Style{Bg: pal.background}) // floating panes cover what is below
-		lineStyle, titleStyle := pal.unfocusedFrame, pal.unfocusedTitle
-		if id == t.focused {
-			lineStyle, titleStyle = pal.focusedFrame, pal.focusedTitle
-		}
-		title := a.viewTitle(t, id)
-		if !t.fullscreen && t.tree.Folded(id) {
-			drawFoldedPane(screen, frame, title, lineStyle, titleStyle)
-			continue
-		}
-		var status []string
-		if t.fullscreen {
-			status = append(status, "⛶ fullscreen")
-		}
-		scrolled, isScrollable := t.views[id].(scrollable)
-		if id == t.focused && a.mode == scrollMode && isScrollable {
-			status = append(status, a.scrollPosition())
-			drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
-			scrolled.DrawScrolled(viewScreen, contentRect(frame), a.scrollOffset)
-			a.highlightSelection(screen, t, id)
-			continue
-		}
-		drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
-		t.views[id].Draw(viewScreen, contentRect(frame))
-		if command := a.pendingRerun(id); command != "" {
-			a.drawRerun(screen, contentRect(frame), command)
-		}
-		a.highlightSelection(screen, t, id)
+		a.drawPlacedPane(screen, t, placed)
 	}
+}
+
+// drawPlacedPane draws one pane in its frame, in its own colors: folded to its title in a stack,
+// scrolled back in scroll mode, or its view as it is, with the box asking to run its command
+// again over it.
+func (a *App) drawPlacedPane(screen uv.Screen, t *tab, placed placedPane) {
+	id, frame := placed.id, placed.frame
+	pal := a.palette.forPane(t.paneColors[id])
+	viewScreen := screen
+	if pal.background != nil || pal.text != nil {
+		viewScreen = themedScreen{Screen: screen, background: pal.background, text: pal.text}
+	}
+	fillRect(screen, frame, uv.Style{Bg: pal.background}) // floating panes cover what is below
+	lineStyle, titleStyle := pal.unfocusedFrame, pal.unfocusedTitle
+	if id == t.focused {
+		lineStyle, titleStyle = pal.focusedFrame, pal.focusedTitle
+	}
+	title := a.viewTitle(t, id)
+	if !t.fullscreen && t.tree.Folded(id) {
+		drawFoldedPane(screen, frame, title, lineStyle, titleStyle)
+		return
+	}
+	var status []string
+	if t.fullscreen {
+		status = append(status, "⛶ fullscreen")
+	}
+	scrolled, isScrollable := t.views[id].(scrollable)
+	if id == t.focused && a.mode == scrollMode && isScrollable {
+		status = append(status, a.scrollPosition())
+		drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
+		scrolled.DrawScrolled(viewScreen, contentRect(frame), a.scrollOffset)
+		a.highlightSelection(screen, t, id)
+		return
+	}
+	drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
+	t.views[id].Draw(viewScreen, contentRect(frame))
+	if command := a.pendingRerun(id); command != "" {
+		a.drawRerun(screen, contentRect(frame), command)
+	}
+	a.highlightSelection(screen, t, id)
 }
 
 // themedScreen gives cells that use the terminal's default colors the theme's colors instead.
@@ -208,7 +214,6 @@ func (a *App) sessionTabBarLabel() string {
 	return " ◆ " + a.session.name + " "
 }
 
-// statusParts are the message the tab bar shows and its style.
 func (a *App) statusParts() (text string, style uv.Style) {
 	style = a.palette.status
 	switch {
@@ -251,7 +256,6 @@ func (a *App) viewTitle(t *tab, id layout.PaneID) string {
 	return filepath.Base(a.shellArgv[0])
 }
 
-// drawFoldedPane draws a pane folded in a stack as its title on a line.
 func drawFoldedPane(screen uv.Screen, frame image.Rectangle, title string, lineStyle, titleStyle uv.Style) {
 	if frame.Empty() {
 		return

@@ -2,14 +2,11 @@ package flow
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"maps"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,44 +15,11 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/AlexandreSJ/noct/internal/logstore"
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
 // maxCaptured bounds how much of a step's output is kept for captures and templates.
 const maxCaptured = 1 << 20
-
-// Status is how a step went in a run.
-type Status string
-
-const (
-	StatusOK     Status = "ok"
-	StatusFailed Status = "failed"
-)
-
-// StepResult is how a step went, the last time the run passed through it.
-type StepResult struct {
-	Status   Status            `json:"status"`
-	Exit     int               `json:"exit,omitempty"`
-	Duration time.Duration     `json:"duration"`
-	Captures map[string]string `json:"captures,omitempty"`
-	// Output is the step's output as templates read it, cut to the runner's KeepOutput.
-	Output string `json:"output,omitempty"`
-	// Tried marks a step run alone, as a test, after the flow's last run.
-	Tried bool `json:"tried,omitempty"`
-	// Message says why the step failed, or what an if or repeat decided.
-	Message string `json:"message,omitempty"`
-}
-
-// Result is how a run went, each step by its Path.
-type Result struct {
-	Flow  string                `json:"flow"`
-	Start time.Time             `json:"start"`
-	End   time.Time             `json:"end"`
-	OK    bool                  `json:"ok"`
-	Exit  int                   `json:"exit"`
-	Steps map[string]StepResult `json:"steps"`
-}
 
 // Path names a step by where it is: "2" is the third step of the flow, "2/then/0" the first
 // step of its then, "0/steps/1" the second step repeated by the first.
@@ -149,13 +113,17 @@ func (x *running) runStep(s Step, path string) bool {
 		x.runUnset(s, path)
 		return true
 	case WaitStep:
-		d, _ := time.ParseDuration(s.Wait) // checked by Validate
-		x.header("⏱", "wait "+s.Wait, "")
-		x.Sleep(d)
-		x.result.Steps[path] = StepResult{Status: StatusOK, Duration: d}
+		x.runWait(s, path)
 		return true
 	}
 	return x.stop(path, exactlyOne, 1)
+}
+
+func (x *running) runWait(s Step, path string) {
+	d, _ := time.ParseDuration(s.Wait) // checked by Validate
+	x.header("⏱", "wait "+s.Wait, "")
+	x.Sleep(d)
+	x.result.Steps[path] = StepResult{Status: StatusOK, Duration: d}
 }
 
 func (x *running) runIf(s Step, path string) bool {
@@ -176,10 +144,7 @@ func (x *running) runIf(s Step, path string) bool {
 // inside from the pass before, so a step that did not run this time reads as empty.
 func (x *running) runRepeat(s Step, path string) bool {
 	r := s.Repeat
-	passes := r.Times
-	if passes == 0 {
-		passes = r.Max
-	}
+	passes := r.passes()
 	every, _ := time.ParseDuration(r.Every) // checked by Validate; "" is no wait
 	start := time.Now()
 	for pass := 1; pass <= passes; pass++ {
@@ -210,6 +175,13 @@ func (x *running) runRepeat(s Step, path string) bool {
 	return true
 }
 
+func (r *Repeat) passes() int {
+	if r.Times == 0 {
+		return r.Max
+	}
+	return r.Times
+}
+
 func (x *running) forget(steps []Step) {
 	for _, s := range steps {
 		delete(x.steps, s.ID)
@@ -230,35 +202,53 @@ func (x *running) runCommand(s Step, path string) bool {
 	}
 	x.header("▶", s.Label(), detail)
 	start := time.Now()
-	output, exit := "", 0
-	if s.Pane != "" {
-		output, exit = x.runInPane(s, command, dir)
-	} else {
-		output, exit = x.execute(command, dir)
-	}
+	output, exit := x.launch(s, command, dir)
 	result := StepResult{Status: StatusOK, Exit: exit, Duration: time.Since(start), Captures: capture(x.capturePatterns(s), output), Output: truncate(output, x.KeepOutput)}
 	ok := succeeded(s.Expect, exit, output)
-	if s.ID != "" {
-		values := map[string]string{"output": output, "exit": strconv.Itoa(exit), "ok": strconv.FormatBool(ok)}
-		for name, value := range result.Captures {
-			values[name] = value
-		}
-		x.steps[s.ID] = values
-	}
+	x.keepStepValues(s.ID, result, output, ok)
 	if ok {
 		x.result.Steps[path] = result
 		return true
 	}
 	result.Status, result.Message = StatusFailed, failure(s.Expect, exit)
 	x.result.Steps[path] = result
-	switch x.onFail(s, result.Message) {
+	return x.afterFailure(s, path, result.Message, exit)
+}
+
+// launch runs a step's command line in a pane of its own when it asks for one, else here.
+func (x *running) launch(s Step, command, dir string) (string, int) {
+	if s.Pane != "" {
+		return x.runInPane(s, command, dir)
+	}
+	return x.execute(command, dir)
+}
+
+// keepStepValues makes a step's output, exit, ok and captures readable by the templates after
+// it.
+func (x *running) keepStepValues(id string, result StepResult, output string, ok bool) {
+	if id == "" {
+		return
+	}
+	x.steps[id] = stepValues(output, result.Exit, ok, result.Captures)
+}
+
+// stepValues are what templates read from a script or run step: {{.steps.<id>.<name>}}.
+func stepValues(output string, exit int, ok bool, captures map[string]string) map[string]string {
+	values := map[string]string{"output": output, "exit": strconv.Itoa(exit), "ok": strconv.FormatBool(ok)}
+	maps.Copy(values, captures)
+	return values
+}
+
+// afterFailure does what the failed step's on_fail says: go on, run it again or stop the flow.
+func (x *running) afterFailure(s Step, path, reason string, exit int) bool {
+	switch x.onFail(s, reason) {
 	case OnFailContinue:
-		fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; going on\x1b[0m\n", s.Label(), result.Message)
+		fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; going on\x1b[0m\n", s.Label(), reason)
 		return true
 	case onFailRetry:
 		return x.runCommand(s, path)
 	}
-	return x.stop(path, result.Message, max(exit, 1))
+	return x.stop(path, reason, max(exit, 1))
 }
 
 // onFail is what a failed step does: what its on_fail says or, for ask, what the answer says.
@@ -473,47 +463,4 @@ func (b *limitedBuffer) Write(p []byte) (int, error) {
 func (b *limitedBuffer) text() string {
 	text := strings.ReplaceAll(ansi.Strip(b.String()), "\r", "")
 	return strings.TrimRight(text, "\n")
-}
-
-// ResultsDir keeps the last result of each flow.
-func ResultsDir() string {
-	return filepath.Join(logstore.Dir(), "flows")
-}
-
-// SaveResult keeps a run's result as its flow's last.
-func SaveResult(dir string, r Result) error {
-	return SaveResultTo(filepath.Join(dir, r.Flow+".json"), r)
-}
-
-// SaveResultTo writes a run's result to a file of its own.
-func SaveResultTo(path string, r Result) error {
-	content, err := json.Marshal(r)
-	if err != nil {
-		return fmt.Errorf("saving the result: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("saving the result: %w", err)
-	}
-	if err := os.WriteFile(path+".tmp", content, 0o600); err != nil {
-		return fmt.Errorf("saving the result: %w", err)
-	}
-	return os.Rename(path+".tmp", path)
-}
-
-// ReadResult reads a result kept in a file.
-func ReadResult(path string) (Result, bool) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return Result{}, false
-	}
-	var r Result
-	if json.Unmarshal(content, &r) != nil {
-		return Result{}, false
-	}
-	return r, true
-}
-
-// LastResult is the result of the flow's last run; ok is false when it never ran.
-func LastResult(dir, name string) (Result, bool) {
-	return ReadResult(filepath.Join(dir, name+".json"))
 }

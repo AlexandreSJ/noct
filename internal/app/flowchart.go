@@ -187,10 +187,9 @@ func (s chartStyle) repeatTitle(step flow.Step) string {
 	if s.zoom == 0 {
 		return title
 	}
-	switch {
-	case r.Times > 0:
+	if r.Times > 0 {
 		title += fmt.Sprintf(" × %d", r.Times)
-	default:
+	} else {
 		title += fmt.Sprintf(" until %s (max %d)", shortTemplate(r.Until), r.Max)
 	}
 	if r.Every != "" && s.zoom == 2 {

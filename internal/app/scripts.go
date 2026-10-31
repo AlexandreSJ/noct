@@ -17,7 +17,6 @@ import (
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
-// scriptsDir is the folder of the user's own scripts, as configured.
 func (a *App) scriptsDir() string {
 	return script.ResolveDir(a.config.ScriptsDir)
 }
@@ -201,22 +200,27 @@ func (a *App) openTrackedRun(title string, record script.Run, p program) (layout
 				pane, firstLog = id, run.Log
 			}
 			a.recordRun(run)
-			p.logPath = run.Log
-			if run.Flow != "" {
-				// The flow runner leaves the record to noct, and keeps its result beside the log.
-				p.env = []string{flow.TrackedEnv + "=1", flow.ResultEnv + "=" + logstore.ResultPath(run.Log), paneEnvFor(id)}
-			}
-			p.onExit = func(code int) {
-				if err := script.FinishRun(runsPath(), run, code); err != nil {
-					a.statusMessage = err.Error()
-				}
-				onExit(code)
-			}
-			return a.launch(p, size)
+			return a.launch(a.trackedProgram(p, id, run, onExit), size)
 		}
 		return newRunView(title, &a.palette, start, func() { a.detachView(id) }, contentSize(frame), p.dir)
 	})
 	return pane, firstLog
+}
+
+// trackedProgram is p logging to the run's log and finishing the run's record when it exits.
+func (a *App) trackedProgram(p program, id layout.PaneID, run script.Run, onExit func(int)) program {
+	p.logPath = run.Log
+	if run.Flow != "" {
+		// The flow runner leaves the record to noct, and keeps its result beside the log.
+		p.env = []string{flow.TrackedEnv + "=1", flow.ResultEnv + "=" + logstore.ResultPath(run.Log), paneEnvFor(id)}
+	}
+	p.onExit = func(code int) {
+		if err := script.FinishRun(runsPath(), run, code); err != nil {
+			a.statusMessage = err.Error()
+		}
+		onExit(code)
+	}
+	return p
 }
 
 // logNameOf names a run's log after its script, or after its flow.

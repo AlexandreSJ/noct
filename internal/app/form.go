@@ -149,14 +149,20 @@ func commandPreview(s script.Script, values map[string]string) string {
 	return "$ " + strings.Join(strings.Fields(command), " ")
 }
 
+// labelWidth is the width of the longest label, so the values line up after it.
+func (f *paramsForm) labelWidth() int {
+	width := 0
+	for _, p := range f.fields {
+		width = max(width, ansi.StringWidth(p.Label()))
+	}
+	return width
+}
+
 func (a *App) drawForm(screen uv.Screen) {
 	f := &a.form
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	inner := a.drawPanel(screen, centeredRect(area, 64, panelHeight(len(f.fields)+4)), f.title)
-	labelWidth := 0
-	for _, p := range f.fields {
-		labelWidth = max(labelWidth, ansi.StringWidth(p.Label()))
-	}
+	valueX := inner.Min.X + f.labelWidth() + 3
 	for i, p := range f.fields {
 		y := inner.Min.Y + i
 		style := a.palette.panelText
@@ -165,7 +171,6 @@ func (a *App) drawForm(screen uv.Screen) {
 		}
 		fillRect(screen, image.Rect(inner.Min.X, y, inner.Max.X, y+1), style)
 		drawText(screen, inner.Min.X+1, y, inner.Max.X, p.Label(), style)
-		valueX := inner.Min.X + labelWidth + 3
 		drawText(screen, valueX, y, inner.Max.X-1, f.formValue(p, i == f.selected, inner.Max.X-1-valueX), style)
 	}
 	previewY := inner.Min.Y + len(f.fields) + 1

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -122,7 +123,6 @@ func (c *client) emitSize(size ipc.Size) {
 	}
 }
 
-// start prepares the client's terminal for the workspace.
 func (c *client) start() error {
 	if err := c.screen.EnterAltScreen(); err != nil {
 		return fmt.Errorf("entering alternate screen: %w", err)
@@ -220,8 +220,8 @@ func receiveHello(conn *ipc.Conn) (ipc.Hello, error) {
 
 func envValue(env []string, name string) string {
 	for _, entry := range env {
-		if len(entry) > len(name) && entry[:len(name)] == name && entry[len(name)] == '=' {
-			return entry[len(name)+1:]
+		if value, ok := strings.CutPrefix(entry, name+"="); ok {
+			return value
 		}
 	}
 	return ""

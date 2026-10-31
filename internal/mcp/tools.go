@@ -78,18 +78,22 @@ type Deps struct {
 func NewServer(version string, d Deps) *Server {
 	tools := append(append(libraryTools(d), runTools(d)...), workspaceTools(d)...)
 	for i := range tools {
-		t := tools[i]
-		tools[i].Call = func(args json.RawMessage) (any, error) {
-			policy, err := d.guard(t, args)
-			var result any
-			if err == nil {
-				result, err = t.Run(args)
-			}
-			d.audit(t.Name, policy, args, err)
-			return result, err
-		}
+		tools[i].Call = d.guarded(tools[i])
 	}
 	return &Server{Name: "noct", Version: version, Instructions: instructions, Tools: tools}
+}
+
+// guarded is the tool's Run behind the policy, with every call written to the audit log.
+func (d Deps) guarded(t Tool) func(json.RawMessage) (any, error) {
+	return func(args json.RawMessage) (any, error) {
+		policy, err := d.guard(t, args)
+		var result any
+		if err == nil {
+			result, err = t.Run(args)
+		}
+		d.audit(t.Name, policy, args, err)
+		return result, err
+	}
 }
 
 // guard applies the policy: deny refuses, ask waits for the user in noct's TUI.

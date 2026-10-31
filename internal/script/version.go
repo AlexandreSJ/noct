@@ -38,6 +38,7 @@ type versionEntry struct {
 	version string
 }
 
+// NewVersions starts an empty cache; onFound, when set, is told each time a version is detected.
 func NewVersions(onFound func()) *Versions {
 	return &Versions{known: map[string]versionEntry{}, pending: map[string]bool{}, onFound: onFound}
 }

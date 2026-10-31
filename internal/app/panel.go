@@ -20,7 +20,6 @@ func (a *App) drawPanel(screen uv.Screen, rect image.Rectangle, title string) im
 	return rect.Inset(2)
 }
 
-// panelHeight is the height of a panel holding the given number of content lines.
 func panelHeight(lines int) int {
 	return lines + 4
 }
@@ -78,7 +77,6 @@ func drawRow(screen uv.Screen, area image.Rectangle, y int, label, value string,
 	drawText(screen, valueX, y, area.Max.X, value, style)
 }
 
-// drawCentered writes text horizontally centered in area on row y.
 func drawCentered(screen uv.Screen, area image.Rectangle, y int, text string, style uv.Style) {
 	x := area.Min.X + max(area.Dx()-ansi.StringWidth(text), 0)/2
 	drawText(screen, x, y, area.Max.X, text, style)

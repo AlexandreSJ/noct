@@ -114,6 +114,10 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 		a.requestClipboard()
 		return
 	}
+	a.dispatchModeKey(key)
+}
+
+func (a *App) dispatchModeKey(key uv.KeyPressEvent) {
 	switch a.mode {
 	case commandMode:
 		a.handleCommandKey(key)
@@ -246,49 +250,53 @@ func (a *App) runAction(name string) {
 		a.mode = normalMode
 		return
 	}
+	if a.runModalAction(name) {
+		return
+	}
 	switch name {
 	case "t":
 		a.openNewTab()
 	case "u":
 		a.openFloating()
-	case ",":
-		a.openConfig()
-		return
-	case "c":
-		a.openUpdates()
-		return
 	case "d":
 		if a.client != nil {
 			a.detachClient("detached")
 		}
+	default:
+		a.runTabAction(name)
+		return
+	}
+	a.mode = normalMode
+}
+
+// runModalAction runs the commands that open something with a mode of its own, which they set.
+func (a *App) runModalAction(name string) bool {
+	switch name {
+	case ",":
+		a.openConfig()
+	case "c":
+		a.openUpdates()
 	case "q":
 		again := "q"
 		if keys := a.keymap.keysOf("commands", "q"); len(keys) > 0 {
 			again = keys[0] // the quit key as it is now, pressed twice, quits
 		}
 		a.askToConfirmWith("quit noct?", again, func() { a.quitting = true })
-		return
 	case "space", "'":
 		a.openFinder()
-		return
 	case "T":
 		a.openTemplates()
-		return
 	case "y":
 		a.openMCP()
-		return
 	case "o":
 		a.sessionFilter = ""
 		a.openSessions()
-		return
 	case "?":
 		a.showHelp()
-		return
 	default:
-		a.runTabAction(name)
-		return
+		return false
 	}
-	a.mode = normalMode
+	return true
 }
 
 // runTabAction runs the commands that act on the current tab. A tab without panes, opened empty,
@@ -314,17 +322,11 @@ func (a *App) runTabAction(name string) {
 	case "R":
 		a.openTemplateSave()
 	case "a":
-		if !a.currentTab().isEmpty() {
-			a.mode = moveMode
-		}
+		a.mode = moveMode
 	case "n":
-		if !a.currentTab().isEmpty() {
-			a.mode = resizeMode
-		}
+		a.mode = resizeMode
 	case "f":
-		if !a.currentTab().isEmpty() {
-			a.toggleFullscreen()
-		}
+		a.toggleFullscreen()
 		a.mode = normalMode
 	case "w":
 		a.toggleStacked()

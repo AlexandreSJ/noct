@@ -132,7 +132,6 @@ func (a *App) startFlow(f flow.Flow, values map[string]string) {
 	a.openTrackedRun("flow "+f.Name, script.Run{Flow: f.Name}, program{argv: argv, dir: a.workDir})
 }
 
-// paramArgs are values as noct flow run takes them, name=value, by name.
 func paramArgs(values map[string]string) []string {
 	var args []string
 	for _, name := range slices.Sorted(maps.Keys(values)) {
@@ -286,69 +285,87 @@ func (a *App) addStep(f flow.Flow, at chartBlock, added func(path string)) {
 		parent, branch, index = flow.SplitPath(at.path)
 		index++
 	}
-	insert := func(step flow.Step) {
-		var path string
-		err := a.changeFlow(f, func(f *flow.Flow) error {
-			if step.ID == "" && (step.Script != "" || step.Run != "") {
-				step.ID = f.UniqueID(orDefault(step.Script, "step"))
-			}
-			var err error
-			path, err = f.Insert(parent, branch, index, step)
-			return err
-		})
-		if err != nil {
-			a.statusMessage = err.Error()
-			return
-		}
-		added(path)
-	}
+	insert := func(step flow.Step) { a.insertFlowStep(f, parent, branch, index, step, added) }
 	// Templates typed here read what runs before the new step; ctrl+t searches it.
 	vars := f.Scope(parent, branch, index, a.scripts.Find)
 	templatePrompt := func(title, initial, hints string, submit func(text string)) {
 		a.openPrompt(title, initial, hints+"  ctrl+t variable", submit)
 		a.prompt.pick = func() { a.pickVariable(f, vars) }
 	}
-	a.openChoice("add step",
-		choiceOption{key: "s", label: "script", pick: func() { a.pickScript(insert) }},
-		choiceOption{key: "c", label: "command line", pick: func() {
+	options := a.flowStepChoices(insert, templatePrompt)
+	options = append(options, a.variableStepChoices(insert, templatePrompt)...)
+	a.openChoice("add step", options...)
+}
+
+// insertFlowStep adds step to f at the slot, naming a script or command step that has no id.
+func (a *App) insertFlowStep(f flow.Flow, parent, branch string, index int, step flow.Step, added func(path string)) {
+	var path string
+	err := a.changeFlow(f, func(f *flow.Flow) error {
+		if step.ID == "" && (step.Script != "" || step.Run != "") {
+			step.ID = f.UniqueID(orDefault(step.Script, "step"))
+		}
+		var err error
+		path, err = f.Insert(parent, branch, index, step)
+		return err
+	})
+	if err != nil {
+		a.statusMessage = err.Error()
+		return
+	}
+	added(path)
+}
+
+type stepTemplatePrompt func(title, initial, hints string, submit func(text string))
+
+// flowStepChoices are the add step options that run something or shape the flow.
+func (a *App) flowStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt) []choiceOption {
+	return []choiceOption{
+		{key: "s", label: "script", pick: func() { a.pickScript(insert) }},
+		{key: "c", label: "command line", pick: func() {
 			templatePrompt("command line", "", "{enter} add  esc cancel", func(text string) {
 				insert(flow.Step{Run: text})
 			})
 		}},
-		choiceOption{key: "i", label: "if / else", pick: func() {
+		{key: "i", label: "if / else", pick: func() {
 			templatePrompt("if", `{{eq .steps.<id>.<capture> "value"}}`, "{enter} add  esc cancel  true runs then", func(text string) {
 				insert(flow.Step{If: text})
 			})
 		}},
-		choiceOption{key: "l", label: "repeat", pick: func() {
+		{key: "l", label: "repeat", pick: func() {
 			templatePrompt("repeat", "3", "{enter} add  esc cancel  times, or until", func(text string) {
 				insert(repeatStep(text))
 			})
 		}},
-		choiceOption{key: "w", label: "wait", pick: func() {
+		{key: "w", label: "wait", pick: func() {
 			a.openPrompt("wait", "5s", "{enter} add  esc cancel  like 5s, 1m30s", func(text string) {
 				insert(flow.Step{Wait: text})
 			})
 		}},
-		choiceOption{key: "p", label: "prompt the user", pick: func() {
+	}
+}
+
+// variableStepChoices are the add step options that ask for, set or clear variables.
+func (a *App) variableStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt) []choiceOption {
+	return []choiceOption{
+		{key: "p", label: "prompt the user", pick: func() {
 			templatePrompt("prompt", "", "{enter} next  esc cancel  the question asked", func(question string) {
 				a.openPrompt("into variable", "", "{enter} add  esc cancel  new, or one to change", func(name string) {
 					insert(flow.Step{Prompt: question, Var: strings.TrimSpace(name)})
 				})
 			})
 		}},
-		choiceOption{key: "v", label: "set variable", pick: func() {
+		{key: "v", label: "set variable", pick: func() {
 			templatePrompt("set", "name = ", "{enter} add  esc cancel  name = value", func(text string) {
 				name, value, _ := strings.Cut(text, "=")
 				insert(flow.Step{Set: map[string]string{strings.TrimSpace(name): strings.TrimSpace(value)}})
 			})
 		}},
-		choiceOption{key: "u", label: "unset variables", pick: func() {
+		{key: "u", label: "unset variables", pick: func() {
 			a.openPrompt("unset", "", "{enter} add  esc cancel  names, steps.<id>", func(text string) {
 				insert(flow.Step{Unset: strings.FieldsFunc(text, func(r rune) bool { return r == ',' || r == ' ' })})
 			})
 		}},
-	)
+	}
 }
 
 func orDefault(value, fallback string) string {
@@ -432,6 +449,12 @@ func (a *App) aboutStep(f flow.Flow, path string, result *flow.Result) {
 }
 
 func (a *App) stepLines(step flow.Step) []styledLine {
+	lines := a.stepKindLines(step)
+	return append(lines, a.stepResultLines(step)...)
+}
+
+// stepKindLines tell what the step's kind makes it do.
+func (a *App) stepKindLines(step flow.Step) []styledLine {
 	pal := &a.palette
 	var lines []styledLine
 	add := func(text string, style uv.Style) { lines = append(lines, styledLine{text, style}) }
@@ -452,16 +475,7 @@ func (a *App) stepLines(step flow.Step) []styledLine {
 	case flow.WaitStep:
 		add("Waits "+step.Wait+" before the next step.", pal.panelHeading)
 	case flow.PromptStep:
-		add("Asks the user, and waits for the answer:", pal.panelHeading)
-		add(step.Prompt, pal.panelText)
-		add("the answer goes to {{."+step.Var+"}}", pal.panelText)
-		if step.Default != "" {
-			add("an empty answer keeps "+step.Default, pal.panelMuted)
-		}
-		if step.Type == flow.NumberParam {
-			add("asks again until the answer is a number", pal.panelMuted)
-		}
-		add("a run nobody watches (a trigger) fails here", pal.panelMuted)
+		lines = append(lines, a.promptStepLines(step)...)
 	case flow.SetStep:
 		add("Sets variables for the steps after it:", pal.panelHeading)
 		for _, text := range withText(step.Set) {
@@ -471,6 +485,30 @@ func (a *App) stepLines(step flow.Step) []styledLine {
 		add("Clears variables and steps' results; they read as empty after it:", pal.panelHeading)
 		add(strings.Join(step.Unset, ", "), pal.panelText)
 	}
+	return lines
+}
+
+func (a *App) promptStepLines(step flow.Step) []styledLine {
+	pal := &a.palette
+	lines := []styledLine{
+		{"Asks the user, and waits for the answer:", pal.panelHeading},
+		{step.Prompt, pal.panelText},
+		{"the answer goes to {{." + step.Var + "}}", pal.panelText},
+	}
+	if step.Default != "" {
+		lines = append(lines, styledLine{"an empty answer keeps " + step.Default, pal.panelMuted})
+	}
+	if step.Type == flow.NumberParam {
+		lines = append(lines, styledLine{"asks again until the answer is a number", pal.panelMuted})
+	}
+	return append(lines, styledLine{"a run nobody watches (a trigger) fails here", pal.panelMuted})
+}
+
+// stepResultLines tell what any step takes in and leaves for the steps after it.
+func (a *App) stepResultLines(step flow.Step) []styledLine {
+	pal := &a.palette
+	var lines []styledLine
+	add := func(text string, style uv.Style) { lines = append(lines, styledLine{text, style}) }
 	for _, text := range withText(step.With) {
 		add("with "+text, pal.panelText)
 	}

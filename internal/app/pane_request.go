@@ -14,10 +14,8 @@ import (
 // paneEnv names, for a flow's run, its pane: where the panes its steps ask for open.
 const paneEnv = "NOCT_PANE"
 
-// openRequestedPane opens the pane a flow's step asks for beside the run that asks, in its tab,
-// held open with its exit code like a script's run. A step that waits gets the focus and its
-// exit code when it ends; one in the background is answered at once and leaves the focus where
-// it was.
+// openRequestedPane opens a flow step's pane beside the run that asks. A step that waits gets the
+// focus and its exit code when it ends; one in the background is answered at once.
 func (a *App) openRequestedPane(c connection) {
 	req := c.hello.Pane
 	answer := func(exit ipc.Exit) {
@@ -33,22 +31,7 @@ func (a *App) openRequestedPane(c connection) {
 		a.openEmptyTab()
 		t, near = a.currentTab(), 0
 	}
-	argv := append(slices.Clone(a.shellArgv), "-c", req.Command)
-	title := orDefault(req.Title, "step")
-	dir := orDefault(req.Dir, a.workDir)
-	start := func(id layout.PaneID, frame image.Rectangle) (view, error) {
-		run := func(size pty.Size, onExit func(int)) (view, error) {
-			p := program{argv: argv, dir: dir, logName: "step-" + title}
-			p.onExit = func(code int) {
-				if req.Wait {
-					answer(ipc.Exit{Reason: ipc.PaneExited, Code: code})
-				}
-				onExit(code)
-			}
-			return a.launch(p, size)
-		}
-		return newRunView(title, &a.palette, run, func() { a.detachView(id) }, contentSize(frame), dir)
-	}
+	start := a.requestedPaneStarter(req, answer)
 	var err error
 	if t.isEmpty() {
 		a.openPanel(start)
@@ -63,6 +46,27 @@ func (a *App) openRequestedPane(c connection) {
 			a.focusPane(t, near)
 		}
 		answer(ipc.Exit{Reason: ipc.PaneOpened})
+	}
+}
+
+// requestedPaneStarter starts a step's command as a run view; a step that waits is answered with
+// its exit code when it ends.
+func (a *App) requestedPaneStarter(req *ipc.PaneRequest, answer func(ipc.Exit)) viewStarter {
+	argv := append(slices.Clone(a.shellArgv), "-c", req.Command)
+	title := orDefault(req.Title, "step")
+	dir := orDefault(req.Dir, a.workDir)
+	return func(id layout.PaneID, frame image.Rectangle) (view, error) {
+		run := func(size pty.Size, onExit func(int)) (view, error) {
+			p := program{argv: argv, dir: dir, logName: "step-" + title}
+			p.onExit = func(code int) {
+				if req.Wait {
+					answer(ipc.Exit{Reason: ipc.PaneExited, Code: code})
+				}
+				onExit(code)
+			}
+			return a.launch(p, size)
+		}
+		return newRunView(title, &a.palette, run, func() { a.detachView(id) }, contentSize(frame), dir)
 	}
 }
 
@@ -91,7 +95,6 @@ func (a *App) tabOfPane(id layout.PaneID) (*tab, layout.PaneID) {
 	return nil, 0
 }
 
-// paneOwner finds the session and the tab a pane is in.
 func (a *App) paneOwner(id layout.PaneID) (*session, *tab) {
 	for _, s := range a.sessions {
 		for _, t := range s.tabs {

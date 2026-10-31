@@ -5,6 +5,7 @@ package schedule
 import (
 	"fmt"
 	"hash/fnv"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -85,14 +86,18 @@ func (s *Scheduler) checkCron(now time.Time, flows []flow.Flow, enabled map[stri
 func (s *Scheduler) checkEnds(flows []flow.Flow, enabled map[string]bool) {
 	for _, f := range flows {
 		r, ended := s.newEnd(f.Name)
-		if !ended {
-			continue
+		if ended {
+			s.startWaitingFor(f.Name, r.OK, flows, enabled)
 		}
-		for _, waiting := range flows {
-			for _, t := range waiting.Triggers {
-				if t.After != nil && enabled[waiting.Name] && t.After.Waits(f.Name, r.OK) {
-					s.Start(waiting.Name, "after "+f.Name)
-				}
+	}
+}
+
+// startWaitingFor starts the enabled flows with an after trigger for the flow that just ended.
+func (s *Scheduler) startWaitingFor(ended string, ok bool, flows []flow.Flow, enabled map[string]bool) {
+	for _, waiting := range flows {
+		for _, t := range waiting.Triggers {
+			if t.After != nil && enabled[waiting.Name] && t.After.Waits(ended, ok) {
+				s.Start(waiting.Name, "after "+ended)
 			}
 		}
 	}
@@ -121,30 +126,33 @@ func (s *Scheduler) newEnd(name string) (flow.Result, bool) {
 	return r, r.End.After(since)
 }
 
-// checkWatches starts a flow once the files it watches changed and stayed unchanged for its
-// debounce.
 func (s *Scheduler) checkWatches(now time.Time, flows []flow.Flow, enabled map[string]bool) {
 	for _, f := range flows {
 		for i, t := range f.Triggers {
-			if t.Watch == nil || !enabled[f.Name] {
-				continue
-			}
-			key := fmt.Sprintf("%s#%d", f.Name, i)
-			signature := s.signature(t.Watch.Paths)
-			state, known := s.watches[key]
-			if !known {
-				s.watches[key] = &watchState{signature: signature}
-				continue
-			}
-			if signature != state.signature {
-				state.signature, state.due = signature, now.Add(t.Watch.DebounceTime())
-				continue
-			}
-			if !state.due.IsZero() && !now.Before(state.due) {
-				state.due = time.Time{}
-				s.Start(f.Name, t.Label())
+			if t.Watch != nil && enabled[f.Name] {
+				s.checkWatch(now, f.Name, i, t)
 			}
 		}
+	}
+}
+
+// checkWatch starts the flow once the files of its index-th trigger changed and then stayed
+// unchanged for the trigger's debounce.
+func (s *Scheduler) checkWatch(now time.Time, name string, index int, t flow.Trigger) {
+	key := fmt.Sprintf("%s#%d", name, index)
+	signature := s.signature(t.Watch.Paths)
+	state, known := s.watches[key]
+	if !known {
+		s.watches[key] = &watchState{signature: signature}
+		return
+	}
+	if signature != state.signature {
+		state.signature, state.due = signature, now.Add(t.Watch.DebounceTime())
+		return
+	}
+	if !state.due.IsZero() && !now.Before(state.due) {
+		state.due = time.Time{}
+		s.Start(name, t.Label())
 	}
 }
 
@@ -152,30 +160,38 @@ func (s *Scheduler) checkWatches(now time.Time, flows []flow.Flow, enabled map[s
 func (s *Scheduler) signature(patterns []string) uint64 {
 	h := fnv.New64a()
 	for _, pattern := range patterns {
-		pattern = s.absolute(pattern)
-		root := staticRoot(pattern)
-		files := 0
-		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-			if err != nil || files >= maxWatchedFiles {
-				return filepath.SkipDir // unreadable folders are skipped, as is anything past the bound
-			}
-			if d.IsDir() {
-				if d.Name() == ".git" {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !flow.MatchPath(filepath.ToSlash(pattern), filepath.ToSlash(path)) {
-				return nil
-			}
-			files++
-			if info, err := d.Info(); err == nil {
-				fmt.Fprintf(h, "%s\x00%d\x00%d\x00", path, info.Size(), info.ModTime().UnixNano())
-			}
-			return nil
-		})
+		hashMatchingFiles(h, s.absolute(pattern))
 	}
 	return h.Sum64()
+}
+
+// hashMatchingFiles writes into h the path, size and modification time of each file the
+// absolute pattern matches.
+func hashMatchingFiles(h io.Writer, pattern string) {
+	files := 0
+	_ = filepath.WalkDir(staticRoot(pattern), func(path string, d fs.DirEntry, err error) error {
+		if err != nil || files >= maxWatchedFiles {
+			return filepath.SkipDir // unreadable folders are skipped, as is anything past the bound
+		}
+		if d.IsDir() {
+			return skipGitDir(d)
+		}
+		if !flow.MatchPath(filepath.ToSlash(pattern), filepath.ToSlash(path)) {
+			return nil
+		}
+		files++
+		if info, err := d.Info(); err == nil {
+			fmt.Fprintf(h, "%s\x00%d\x00%d\x00", path, info.Size(), info.ModTime().UnixNano())
+		}
+		return nil
+	})
+}
+
+func skipGitDir(d fs.DirEntry) error {
+	if d.Name() == ".git" {
+		return filepath.SkipDir
+	}
+	return nil
 }
 
 // absolute makes a watch path absolute: ~ is the home folder, a relative path starts at Dir.

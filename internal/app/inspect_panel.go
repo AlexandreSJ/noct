@@ -32,7 +32,6 @@ type inspectPanel struct {
 
 	flowName   string
 	focusChart bool
-	// listHidden gives the chart the whole panel.
 	listHidden bool
 	// anchor is the step a range started at with shift, or "" for the selected step alone.
 	anchor    string
@@ -40,8 +39,7 @@ type inspectPanel struct {
 	// warnings are the flow's, found when it is drawn.
 	warnings []flow.Warning
 	// run is a run opened from the logs, shown instead of the flow's last one.
-	run *flow.Result
-	// selected is the key of the chart's selected block.
+	run      *flow.Result
 	selected string
 	zoom     int
 	// pan is the chart's point at the chart area's top left; while centered, it follows the
@@ -57,7 +55,6 @@ type inspectPanel struct {
 	clickedKey string
 }
 
-// chartDrag is the chart being moved with the mouse.
 type chartDrag struct {
 	from  image.Point
 	pan   image.Point
@@ -211,11 +208,7 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 	block, selected := p.selectedBlock()
 	switch name {
 	case "esc":
-		if p.anchor != "" {
-			p.anchor = ""
-			return
-		}
-		p.focusChart, p.listHidden = false, false
+		p.escapeChart()
 	case "shift+up", "shift+down":
 		if selected && !block.isInsertion() {
 			p.extendRange(f, block.path, map[string]int{"shift+up": -1, "shift+down": 1}[name])
@@ -224,6 +217,36 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 		p.testSelection(f, block, selected)
 	case "s":
 		p.showScope = !p.showScope
+	case "enter", "space":
+		if selected && !block.isInsertion() {
+			p.app.aboutStep(f, block.path, p.result(f))
+		}
+	case "a":
+		if selected {
+			p.app.addStep(f, block, func(path string) { p.selected = stepKey(path) })
+		}
+	default:
+		if p.chartViewKey(name) {
+			return
+		}
+		if selected && !block.isInsertion() {
+			p.stepKey(name, f, block.path)
+		}
+	}
+}
+
+// escapeChart drops the range anchor first, and leaves the chart when there is none.
+func (p *inspectPanel) escapeChart() {
+	if p.anchor != "" {
+		p.anchor = ""
+		return
+	}
+	p.focusChart, p.listHidden = false, false
+}
+
+// chartViewKey runs the keys that move the selection or the view, and tells whether name was one.
+func (p *inspectPanel) chartViewKey(name string) bool {
+	switch name {
 	case "up", "k":
 		p.moveSelection(-1)
 	case "down", "j":
@@ -240,19 +263,10 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 		p.setZoom(p.zoom - 1)
 	case "0":
 		p.centered = true
-	case "enter", "space":
-		if selected && !block.isInsertion() {
-			p.app.aboutStep(f, block.path, p.result(f))
-		}
-	case "a":
-		if selected {
-			p.app.addStep(f, block, func(path string) { p.selected = stepKey(path) })
-		}
 	default:
-		if selected && !block.isInsertion() {
-			p.stepKey(name, f, block.path)
-		}
+		return false
 	}
+	return true
 }
 
 // stepKey runs the keys that act on the selected step alone, ending a range.
@@ -323,7 +337,6 @@ func (p *inspectPanel) ranged() map[string]bool {
 	return keys
 }
 
-// testSelection tests the selected step, or the range.
 func (p *inspectPanel) testSelection(f flow.Flow, block chartBlock, selected bool) {
 	if !selected || block.isInsertion() {
 		p.app.statusMessage = "select a step to test"
@@ -484,7 +497,6 @@ func (p *inspectPanel) frameStyles(focused bool) (uv.Style, uv.Style) {
 // drawFlows lists the flows in a frame, each with how its last run went, and returns where the
 // rows are.
 func (p *inspectPanel) drawFlows(screen uv.Screen, area image.Rectangle) image.Rectangle {
-	pal := &p.app.palette
 	line, title := p.frameStyles(!p.focusChart)
 	drawFrame(screen, area, "flows", line, title)
 	inner := area.Inset(1)
@@ -495,28 +507,38 @@ func (p *inspectPanel) drawFlows(screen uv.Screen, area image.Rectangle) image.R
 		if y >= inner.Max.Y {
 			break
 		}
-		style := pal.panelText
-		if i == selected {
-			style = pal.selectedRow
-			if p.focusChart {
-				style = pal.focusedTitle
-			}
-		}
-		mark := "  "
-		if f.Problem != nil {
-			mark = "✗ "
-		} else if r, ran := flow.LastResult(flow.ResultsDir(), f.Name); ran {
-			mark = map[bool]string{true: "✓ ", false: "✗ "}[r.OK]
-		}
-		if f.Draft {
-			mark += "✎ "
-		}
-		if enabled[f.Name] && len(f.TriggerLabels()) > 0 {
-			mark += "⏰ "
-		}
-		drawRow(screen, inner, y, mark+f.Name, "", style)
+		drawRow(screen, inner, y, flowListMarks(f, enabled)+f.Name, "", p.flowRowStyle(i == selected))
 	}
 	return inner
+}
+
+func (p *inspectPanel) flowRowStyle(selected bool) uv.Style {
+	pal := &p.app.palette
+	if !selected {
+		return pal.panelText
+	}
+	if p.focusChart {
+		return pal.focusedTitle
+	}
+	return pal.selectedRow
+}
+
+// flowListMarks tell how a flow's last run went, whether it is a draft and whether a trigger
+// starts it.
+func flowListMarks(f flow.Flow, enabled map[string]bool) string {
+	mark := "  "
+	if f.Problem != nil {
+		mark = "✗ "
+	} else if r, ran := flow.LastResult(flow.ResultsDir(), f.Name); ran {
+		mark = map[bool]string{true: "✓ ", false: "✗ "}[r.OK]
+	}
+	if f.Draft {
+		mark += "✎ "
+	}
+	if enabled[f.Name] && len(f.TriggerLabels()) > 0 {
+		mark += "⏰ "
+	}
+	return mark
 }
 
 // drawFlowChart frames the flow's chart, under its description and last run.
@@ -539,17 +561,32 @@ func (p *inspectPanel) drawFlowChart(screen uv.Screen, area image.Rectangle, f f
 	line, title := p.frameStyles(p.focusChart)
 	drawFrame(screen, area, about, line, title)
 	area = area.Inset(1)
-	info := p.runText(last) + fmt.Sprintf("  zoom %d/%d", p.zoom+1, len(boxWidths))
-	if triggers := triggersText(f, flow.Enabled(flow.TriggersFile())[f.Name]); triggers != "" {
-		info += "  " + triggers
-	}
-	drawText(screen, area.Min.X+1, area.Min.Y, area.Max.X, info, pal.panelMuted)
+	drawText(screen, area.Min.X+1, area.Min.Y, area.Max.X, p.chartInfoText(f, last), pal.panelMuted)
 	canvasArea := image.Rect(area.Min.X, area.Min.Y+1, area.Max.X, area.Max.Y)
 	if f.Problem != nil {
 		drawText(screen, area.Min.X+1, canvasArea.Min.Y, area.Max.X, "✗ "+f.Problem.Error(), pal.status)
 		canvasArea.Min.Y += 2
 	}
-	style := chartStyle{pal: pal, zoom: p.zoom, selected: p.selected, describe: p.app.scriptDescription, result: last, ranged: p.ranged()}
+	p.layoutFlowChart(f, last)
+	p.chartArea = canvasArea
+	if p.centered {
+		p.centerPan()
+	}
+	p.chart.blit(screen, canvasArea, p.pan)
+}
+
+// chartInfoText is the line above the chart: the run shown, the zoom and the triggers.
+func (p *inspectPanel) chartInfoText(f flow.Flow, last *flow.Result) string {
+	info := p.runText(last) + fmt.Sprintf("  zoom %d/%d", p.zoom+1, len(boxWidths))
+	if triggers := triggersText(f, flow.Enabled(flow.TriggersFile())[f.Name]); triggers != "" {
+		info += "  " + triggers
+	}
+	return info
+}
+
+// layoutFlowChart builds the chart, moving a selection that no longer exists to the first step.
+func (p *inspectPanel) layoutFlowChart(f flow.Flow, last *flow.Result) {
+	style := chartStyle{pal: &p.app.palette, zoom: p.zoom, selected: p.selected, describe: p.app.scriptDescription, result: last, ranged: p.ranged()}
 	style.warned = map[string]bool{}
 	for _, w := range p.warnings {
 		style.warned[w.Path] = true
@@ -560,11 +597,6 @@ func (p *inspectPanel) drawFlowChart(screen uv.Screen, area image.Rectangle, f f
 		style.selected = p.selected
 		p.chart = buildChart(f, style)
 	}
-	p.chartArea = canvasArea
-	if p.centered {
-		p.centerPan()
-	}
-	p.chart.blit(screen, canvasArea, p.pan)
 }
 
 // runText tells which run the chart shows and how it went.

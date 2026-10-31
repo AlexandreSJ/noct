@@ -317,37 +317,47 @@ type keymap struct {
 func newKeymap(changed map[string]map[string][]string) keymap {
 	k := keymap{keys: map[string]map[string][]string{}, stands: map[string]map[string]string{}, blocked: map[string]map[string]bool{}}
 	for _, c := range keyContexts {
-		k.keys[c.id], k.stands[c.id], k.blocked[c.id] = map[string][]string{}, map[string]string{}, map[string]bool{}
-		for _, action := range c.actions {
-			k.keys[c.id][action.id] = action.defaults
-			if keys, ok := changed[c.id][action.id]; ok {
-				k.keys[c.id][action.id] = validKeys(keys)
-			}
+		k.addContext(c, changed[c.id])
+	}
+	return k
+}
+
+func (k keymap) addContext(c keyContext, changed map[string][]string) {
+	keys, stands, blocked := map[string][]string{}, map[string]string{}, map[string]bool{}
+	k.keys[c.id], k.stands[c.id], k.blocked[c.id] = keys, stands, blocked
+	for _, action := range c.actions {
+		keys[action.id] = action.defaults
+		if changedKeys, ok := changed[action.id]; ok {
+			keys[action.id] = validKeys(changedKeys)
 		}
-		// unchanged keys stand for themselves, as before any change; they go first, so a key
-		// the config gives to another action goes to that one
-		for _, action := range c.actions {
-			if _, ok := changed[c.id][action.id]; !ok {
-				for _, key := range action.defaults {
-					k.stands[c.id][key] = key
-				}
-			}
-		}
-		for _, action := range c.actions {
-			if _, ok := changed[c.id][action.id]; !ok {
-				continue
-			}
-			for _, key := range k.keys[c.id][action.id] {
-				k.stands[c.id][key] = action.defaults[0]
-			}
+	}
+	// unchanged keys stand for themselves, as before any change; they go first, so a key
+	// the config gives to another action goes to that one
+	for _, action := range c.actions {
+		if _, ok := changed[action.id]; !ok {
 			for _, key := range action.defaults {
-				if _, taken := k.stands[c.id][key]; !taken {
-					k.blocked[c.id][key] = true
-				}
+				stands[key] = key
 			}
 		}
 	}
-	return k
+	for _, action := range c.actions {
+		if _, ok := changed[action.id]; ok {
+			addChangedAction(action, keys[action.id], stands, blocked)
+		}
+	}
+}
+
+// addChangedAction makes an action's new keys stand for its first default, and blocks its
+// defaults that no other action took.
+func addChangedAction(action keyAction, newKeys []string, stands map[string]string, blocked map[string]bool) {
+	for _, key := range newKeys {
+		stands[key] = action.defaults[0]
+	}
+	for _, key := range action.defaults {
+		if _, taken := stands[key]; !taken {
+			blocked[key] = true
+		}
+	}
 }
 
 // validKeys keeps the keys noct can read back.
@@ -421,18 +431,9 @@ func keyEvent(name string) (uv.KeyPressEvent, bool) {
 	} else {
 		parts = parts[:len(parts)-1]
 	}
-	var mod uv.KeyMod
-	for _, part := range parts {
-		switch part {
-		case "ctrl":
-			mod |= uv.ModCtrl
-		case "alt":
-			mod |= uv.ModAlt
-		case "shift":
-			mod |= uv.ModShift
-		default:
-			return uv.KeyPressEvent{}, false
-		}
+	mod, ok := parseKeyMods(parts)
+	if !ok {
+		return uv.KeyPressEvent{}, false
 	}
 	if code, ok := namedKeys[last]; ok {
 		return uv.KeyPressEvent{Code: code, Mod: mod}, true
@@ -452,6 +453,23 @@ func keyEvent(name string) (uv.KeyPressEvent, bool) {
 		}
 	}
 	return key, true
+}
+
+func parseKeyMods(parts []string) (uv.KeyMod, bool) {
+	var mod uv.KeyMod
+	for _, part := range parts {
+		switch part {
+		case "ctrl":
+			mod |= uv.ModCtrl
+		case "alt":
+			mod |= uv.ModAlt
+		case "shift":
+			mod |= uv.ModShift
+		default:
+			return 0, false
+		}
+	}
+	return mod, true
 }
 
 // modeKeyContexts are the contexts of noct's modes; normal mode's is the focused panel's.
@@ -571,7 +589,6 @@ func joinKeys(keys []string) string {
 	return shared + strings.Join(bare, "")
 }
 
-// prettyKey writes a key as hints show it.
 func prettyKey(key string) string {
 	for name, arrow := range map[string]string{"up": "↑", "down": "↓", "left": "←", "right": "→", "delete": "del"} {
 		if key == name || strings.HasSuffix(key, "+"+name) {

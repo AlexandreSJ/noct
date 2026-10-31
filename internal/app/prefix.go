@@ -147,13 +147,17 @@ func (a *App) prefixConflicts(p prefixKey) []string {
 	key, _ := prefixKeyName(p.code)
 	key, taken := a.commandKey(key)
 	if a.shortcut.mods != 0 && p.mods&^uv.ModShift == a.shortcut.mods && taken && isCommandKey(key) {
-		label := "a command"
-		for _, s := range commandShortcuts {
-			if s.keys == key {
-				label = s.label
-			}
-		}
-		conflicts = append(conflicts, name+" is the direct shortcut to "+label)
+		conflicts = append(conflicts, name+" is the direct shortcut to "+commandShortcutLabel(key))
 	}
 	return conflicts
+}
+
+func commandShortcutLabel(key string) string {
+	label := "a command"
+	for _, s := range commandShortcuts {
+		if s.keys == key {
+			label = s.label
+		}
+	}
+	return label
 }

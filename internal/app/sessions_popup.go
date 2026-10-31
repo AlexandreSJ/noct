@@ -117,21 +117,18 @@ func (a *App) promptSessionRename(s *session) {
 	a.prompt.cancel = a.openSessions
 }
 
-// askToCloseSession asks before closing a session whose programs would stop.
 func (a *App) askToCloseSession(s *session) {
-	closeIt := func() {
+	if s.closed != nil {
+		return
+	}
+	a.askToConfirm("close session "+s.name+"? its programs stop; its layout opens again later", func() {
 		if err := a.closeSession(s); err != nil {
 			a.statusMessage = err.Error()
 		}
 		a.openSessions()
-	}
-	if s.closed != nil {
-		return
-	}
-	a.askToConfirm("close session "+s.name+"? its programs stop; its layout opens again later", closeIt)
+	})
 }
 
-// drawSessions draws the sessions popup, one session per row.
 func (a *App) drawSessions(screen uv.Screen) {
 	pal := &a.palette
 	area := image.Rect(0, 0, a.size.X, a.size.Y)

@@ -126,7 +126,6 @@ func Start(opts Options) (*Pane, error) {
 	return p, nil
 }
 
-// pumpOutputToScreen feeds program output into the emulator until the program exits.
 func (p *Pane) pumpOutputToScreen(onScreenChange func(), onExit func(exitCode int)) {
 	buf := make([]byte, 32*1024)
 	for {
@@ -341,18 +340,23 @@ func (p *Pane) DrawScrolled(target uv.Screen, area uv.Rectangle, offset int) {
 	width := min(area.Dx(), p.screen.Width())
 	height := min(area.Dy(), p.screen.Height())
 	for y := range height {
-		for x := 0; x < width; {
-			cell := p.lineCell(x, first+y, history)
-			if cell == nil {
-				x++
-				continue
-			}
-			if x+cell.Width > width {
-				break // a wide character cut by the edge would spill into the frame
-			}
-			target.SetCell(area.Min.X+x, area.Min.Y+y, cell)
-			x += max(cell.Width, 1)
+		p.drawLine(target, area.Min.Add(image.Pt(0, y)), first+y, history, width)
+	}
+}
+
+// drawLine copies the first width cells of a history-and-screen line to target at origin.
+func (p *Pane) drawLine(target uv.Screen, origin image.Point, line, history, width int) {
+	for x := 0; x < width; {
+		cell := p.lineCell(x, line, history)
+		if cell == nil {
+			x++
+			continue
 		}
+		if x+cell.Width > width {
+			return // a wide character cut by the edge would spill into the frame
+		}
+		target.SetCell(origin.X+x, origin.Y, cell)
+		x += max(cell.Width, 1)
 	}
 }
 
@@ -373,62 +377,6 @@ func (p *Pane) Cursor() (uv.Position, bool) {
 	p.screenLock.RLock()
 	defer p.screenLock.RUnlock()
 	return p.screen.CursorPosition(), p.cursorVisible.Load()
-}
-
-// mouseModeBits are the mouse reporting modes a program can ask for, from clicks only to every
-// motion.
-var mouseModeBits = map[ansi.Mode]uint32{
-	ansi.ModeMouseX10:         1 << 0,
-	ansi.ModeMouseNormal:      1 << 1,
-	ansi.ModeMouseButtonEvent: 1 << 2,
-	ansi.ModeMouseAnyEvent:    1 << 3,
-}
-
-// Modes that also report releases and dragging.
-const (
-	reportsRelease = 1<<1 | 1<<2 | 1<<3
-	reportsMotion  = 1<<2 | 1<<3
-)
-
-func (p *Pane) setMouseMode(mode ansi.Mode, on bool) {
-	bit, ok := mouseModeBits[mode]
-	if !ok {
-		return
-	}
-	if on {
-		p.mouseModes.Or(bit)
-	} else {
-		p.mouseModes.And(^bit)
-	}
-}
-
-// WantsMouse tells whether the program asked for mouse events, as vim and htop do.
-func (p *Pane) WantsMouse() bool {
-	return p.mouseModes.Load() != 0
-}
-
-// WantsMouseAt is WantsMouse: a program takes the mouse over its whole screen.
-func (p *Pane) WantsMouseAt(image.Point) bool {
-	return p.WantsMouse()
-}
-
-// SendMouse passes a mouse event, positioned relative to the pane, to the program, if the modes
-// it turned on report that kind of event.
-func (p *Pane) SendMouse(event uv.MouseEvent) {
-	modes := p.mouseModes.Load()
-	switch event.(type) {
-	case uv.MouseReleaseEvent:
-		if modes&reportsRelease == 0 {
-			return
-		}
-	case uv.MouseMotionEvent:
-		if modes&reportsMotion == 0 {
-			return
-		}
-	}
-	if modes != 0 {
-		p.withOpenScreen(func(screen *vt.Emulator) { screen.SendMouse(event) })
-	}
 }
 
 // ForegroundProgram is the program the user is running in the pane's shell, if any.

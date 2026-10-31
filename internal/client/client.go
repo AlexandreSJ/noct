@@ -35,8 +35,7 @@ type Target struct {
 	Setup bool
 }
 
-// Attach connects this terminal to a session of the daemon until it detaches or quits, and
-// returns why.
+// Attach connects this terminal to a session of the daemon until it detaches or quits, and returns why.
 func Attach(socketPath string, target Target) (reason string, err error) {
 	conn, err := ipc.Dial(socketPath)
 	if err != nil {
@@ -45,18 +44,7 @@ func Attach(socketPath string, target Target) (reason string, err error) {
 	defer conn.Close()
 
 	stdin, stdout := os.Stdin, os.Stdout
-	dir, _ := os.Getwd() // without it, the daemon keeps its own directory
-	hello := ipc.Hello{
-		Version:      ipc.Version,
-		Purpose:      ipc.Attach,
-		Env:          os.Environ(),
-		Dir:          dir,
-		Size:         terminalSize(stdout),
-		ColorProfile: byte(colorprofile.Detect(stdout, os.Environ())),
-		Session:      target.Session,
-		NewSession:   target.New,
-		Setup:        target.Setup,
-	}
+	hello := attachHello(stdout, target)
 	state, err := term.MakeRaw(stdin.Fd())
 	if err != nil {
 		return "", fmt.Errorf("switching the terminal to raw mode: %w", err)
@@ -87,6 +75,22 @@ func Attach(socketPath string, target Target) (reason string, err error) {
 		_, _ = io.WriteString(stdout, emergencyReset)
 	}
 	return reason, err
+}
+
+// attachHello describes this terminal to the daemon, read before it switches to raw mode.
+func attachHello(stdout *os.File, target Target) ipc.Hello {
+	dir, _ := os.Getwd() // without it, the daemon keeps its own directory
+	return ipc.Hello{
+		Version:      ipc.Version,
+		Purpose:      ipc.Attach,
+		Env:          os.Environ(),
+		Dir:          dir,
+		Size:         terminalSize(stdout),
+		ColorProfile: byte(colorprofile.Detect(stdout, os.Environ())),
+		Session:      target.Session,
+		NewSession:   target.New,
+		Setup:        target.Setup,
+	}
 }
 
 // Quit asks a running daemon to close everything and stop. Without a daemon, there is nothing to do.

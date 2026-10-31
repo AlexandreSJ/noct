@@ -120,11 +120,11 @@ func artLeft(area image.Rectangle, lines []string) int {
 // handleHomeKey shows the prefix key that opens the commands. Ctrl+D twice in a row quits,
 // the way ctrl+d leaves a shell; the second press must come while the hint is still showing.
 func (a *App) handleHomeKey(key uv.KeyPressEvent) {
-	if t := a.currentTab(); t != nil && key.MatchString("ctrl+d") {
+	quitting := key.MatchString("ctrl+d")
+	if t := a.currentTab(); t != nil && quitting {
 		a.session.removeTabIfEmpty(t) // a tab opened empty closes, as its last pane would
 		return
 	}
-	quitting := key.MatchString("ctrl+d")
 	if quitting && a.homeQuitArmed {
 		a.quitting = true
 		return
@@ -184,7 +184,6 @@ func (in *intro) frame(lines []string, elapsed time.Duration) []string {
 // animate intro set to always.
 const introPause = 1000 * time.Millisecond
 
-// startIntro plays the intro on the home screen.
 func (a *App) startIntro() {
 	a.intro = newIntro(artWidth(titleLines), time.Now())
 	a.homeTick = time.After(introFrame)
@@ -250,6 +249,21 @@ func (a *App) hoverHome(point image.Point) {
 // off the art do nothing.
 func (a *App) flickerCellAt(point image.Point) {
 	arts, _ := homeLayout(homeArea(a.size))
+	cell, ok := artCellAt(arts, point)
+	if !ok {
+		return
+	}
+	if a.flickers == nil {
+		a.flickers = map[artCell]time.Time{}
+	}
+	a.flickers[cell] = time.Now()
+	if a.homeTick == nil {
+		a.homeTick = time.After(introFrame)
+	}
+}
+
+// artCellAt is the character of arts drawn at point; blank cells and cells off the art are none.
+func artCellAt(arts []homeArt, point image.Point) (artCell, bool) {
 	for i, art := range arts {
 		line, column := point.Y-art.at.Y, point.X-art.at.X
 		if line < 0 || line >= len(art.lines) || column < 0 {
@@ -259,15 +273,9 @@ func (a *App) flickerCellAt(point image.Point) {
 		if column >= len(runes) || runes[column] == ' ' {
 			continue
 		}
-		if a.flickers == nil {
-			a.flickers = map[artCell]time.Time{}
-		}
-		a.flickers[artCell{i, line, column}] = time.Now()
-		if a.homeTick == nil {
-			a.homeTick = time.After(introFrame)
-		}
-		return
+		return artCell{i, line, column}, true
 	}
+	return artCell{}, false
 }
 
 // flickerFrame is lines of the art at index art with each of its cells still flickering at now

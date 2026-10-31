@@ -106,21 +106,25 @@ func updateRuns(path string, change func([]Run) []Run) error {
 	}
 	runs = change(runs)
 	runs = runs[max(len(runs)-runsKept, 0):]
-	content, err := json.Marshal(runs)
-	if err != nil {
-		return fmt.Errorf("saving the runs: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("saving the runs: %w", err)
-	}
-	temp := path + ".tmp"
-	if err := os.WriteFile(temp, content, 0o600); err != nil {
-		return fmt.Errorf("saving the runs: %w", err)
-	}
-	if err := os.Rename(temp, path); err != nil {
+	if err := writeRuns(path, runs); err != nil {
 		return fmt.Errorf("saving the runs: %w", err)
 	}
 	return nil
+}
+
+func writeRuns(path string, runs []Run) error {
+	content, err := json.Marshal(runs)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	temp := path + ".tmp"
+	if err := os.WriteFile(temp, content, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(temp, path)
 }
 
 // LastRuns is when each script last ran; flows are left out.

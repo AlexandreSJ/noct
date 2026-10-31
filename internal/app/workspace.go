@@ -53,7 +53,6 @@ type program struct {
 	pane layout.PaneID
 }
 
-// startProgram runs p in a terminal of the given size, logging its output.
 func (a *App) startProgram(p program, size pty.Size) (view, error) {
 	opts := pane.Options{
 		Argv:           p.argv,

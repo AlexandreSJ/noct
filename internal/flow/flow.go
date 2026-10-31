@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strings"
 	"text/template"
-	"time"
 
 	"go.yaml.in/yaml/v3"
 
@@ -183,7 +182,6 @@ func Dir() string {
 	return filepath.Join(filepath.Dir(script.PersonalDir()), "flows")
 }
 
-// Load reads a flow's file.
 func Load(file string) (Flow, error) {
 	f := Flow{Name: strings.TrimSuffix(filepath.Base(file), Ext), File: file}
 	content, err := os.ReadFile(file)
@@ -224,7 +222,6 @@ func LoadAll(dir string, lookup func(id string) (script.Script, bool)) ([]Flow, 
 	return flows, nil
 }
 
-// Find is the flow called name.
 func Find(flows []Flow, name string) (Flow, bool) {
 	i := slices.IndexFunc(flows, func(f Flow) bool { return f.Name == name })
 	if i < 0 {
@@ -237,7 +234,6 @@ var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 var identifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
-// exactlyOne is the problem of a step that sets no kind, or more than one.
 const exactlyOne = "a step sets exactly one of script, run, if, repeat, wait, prompt, set and unset"
 
 // Create writes a new, empty flow called name in dir.
@@ -279,182 +275,9 @@ func (f Flow) DraftError() error {
 	return fmt.Errorf("flow %s is a draft: review it in the inspect (prefix+i) and promote it (P), or run noct promote %s", f.Name, f.Name)
 }
 
-// Delete removes the flow's file.
 func (f Flow) Delete() error {
 	if err := os.Remove(f.File); err != nil {
 		return fmt.Errorf("deleting flow %s: %w", f.Name, err)
-	}
-	return nil
-}
-
-// Validate reports the first problem that would make the flow fail before running its steps.
-// lookup, when not nil, checks that each script exists and loads.
-func (f Flow) Validate(lookup func(id string) (script.Script, bool)) error {
-	for name, p := range f.Params {
-		if !isVariable(name) {
-			return fmt.Errorf("parameter name %q must be letters, digits and _ only, and not steps", name)
-		}
-		if err := checkType(p.Type); err != nil {
-			return fmt.Errorf("parameter %s: %w", name, err)
-		}
-	}
-	for i, t := range f.Triggers {
-		if err := t.validate(f.Name); err != nil {
-			return fmt.Errorf("trigger %d: %w", i+1, err)
-		}
-	}
-	ids := map[string]bool{}
-	return validateSteps(f.Steps, "", ids, lookup)
-}
-
-func validateSteps(steps []Step, where string, ids map[string]bool, lookup func(id string) (script.Script, bool)) error {
-	for i, s := range steps {
-		at := fmt.Sprintf("%sstep %d", where, i+1)
-		if s.ID != "" {
-			at += " (" + s.ID + ")"
-		}
-		if err := s.validate(ids, lookup); err != nil {
-			return fmt.Errorf("%s: %w", at, err)
-		}
-		for _, inner := range [][]Step{s.Then, s.Else, s.Steps} {
-			if err := validateSteps(inner, at+" > ", ids, lookup); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (s Step) validate(ids map[string]bool, lookup func(id string) (script.Script, bool)) error {
-	if err := s.validateID(ids); err != nil {
-		return err
-	}
-	kind := s.Kind()
-	if kind == "" {
-		return errors.New(exactlyOne)
-	}
-	if (s.Var != "" || s.Default != "" || s.Type != "") && kind != PromptStep {
-		return errors.New("var, default and type belong to a prompt")
-	}
-	if (len(s.Then) > 0 || len(s.Else) > 0) && kind != IfStep {
-		return errors.New("then and else belong to an if")
-	}
-	if len(s.Steps) > 0 && kind != RepeatStep {
-		return errors.New("steps belong to a repeat")
-	}
-	if (len(s.Capture) > 0 || s.Expect != nil || s.OnFail != "") && kind != ScriptStep && kind != CommandStep {
-		return errors.New("capture, expect and on_fail belong to a script or run step")
-	}
-	if len(s.With) > 0 && kind != ScriptStep {
-		return errors.New("with belongs to a script step")
-	}
-	if s.OnFail != "" && s.OnFail != OnFailStop && s.OnFail != OnFailContinue && s.OnFail != OnFailAsk {
-		return fmt.Errorf("on_fail is %s, %s or %s", OnFailStop, OnFailContinue, OnFailAsk)
-	}
-	if err := s.validatePane(kind); err != nil {
-		return err
-	}
-	if err := s.validateTemplates(); err != nil {
-		return err
-	}
-	return s.validateKind(kind, lookup)
-}
-
-func (s Step) validateID(ids map[string]bool) error {
-	if s.ID == "" {
-		return nil
-	}
-	if !identifier.MatchString(s.ID) {
-		return fmt.Errorf("id %q must be letters, digits and _ only", s.ID)
-	}
-	if ids[s.ID] {
-		return fmt.Errorf("id %q is used twice", s.ID)
-	}
-	ids[s.ID] = true
-	return nil
-}
-
-func (s Step) validateKind(kind Kind, lookup func(id string) (script.Script, bool)) error {
-	switch kind {
-	case ScriptStep:
-		return validateScript(s.Script, lookup)
-	case RepeatStep:
-		return s.Repeat.validate()
-	case WaitStep:
-		if _, err := time.ParseDuration(s.Wait); err != nil {
-			return fmt.Errorf("wait %q is not a duration like 5s or 1m30s", s.Wait)
-		}
-	case PromptStep, SetStep, UnsetStep:
-		return s.validateVariables(kind)
-	}
-	for name, pattern := range s.Capture {
-		if !identifier.MatchString(name) {
-			return fmt.Errorf("capture name %q must be letters, digits and _ only", name)
-		}
-		if _, err := regexp.Compile(pattern); err != nil {
-			return fmt.Errorf("capture %s: %w", name, err)
-		}
-	}
-	if s.Expect != nil && s.Expect.OutputMatches != "" {
-		if _, err := regexp.Compile(s.Expect.OutputMatches); err != nil {
-			return fmt.Errorf("expect output_matches: %w", err)
-		}
-	}
-	return nil
-}
-
-func validateScript(id string, lookup func(id string) (script.Script, bool)) error {
-	if lookup == nil {
-		return nil
-	}
-	s, ok := lookup(id)
-	if !ok {
-		return fmt.Errorf("script %s not found", id)
-	}
-	if s.Problem != nil {
-		return fmt.Errorf("script %s is broken: %w", id, s.Problem)
-	}
-	return nil
-}
-
-func (r *Repeat) validate() error {
-	if r.Times < 0 || r.Max < 0 {
-		return errors.New("repeat times and max cannot be negative")
-	}
-	if r.Times == 0 && r.Until == "" {
-		return errors.New("repeat needs times or until")
-	}
-	if r.Times == 0 && r.Max == 0 {
-		return errors.New("repeat until needs max, so it cannot run forever")
-	}
-	if r.Every != "" {
-		if _, err := time.ParseDuration(r.Every); err != nil {
-			return fmt.Errorf("repeat every %q is not a duration like 10s", r.Every)
-		}
-	}
-	return nil
-}
-
-// templates are the texts of the step that are rendered before it runs.
-func (s Step) templates() []string {
-	texts := []string{s.Run, s.If, s.Prompt, s.Default}
-	if s.Repeat != nil {
-		texts = append(texts, s.Repeat.Until)
-	}
-	for _, value := range s.With {
-		texts = append(texts, value)
-	}
-	for _, value := range s.Set {
-		texts = append(texts, value)
-	}
-	return texts
-}
-
-func (s Step) validateTemplates() error {
-	for _, text := range s.templates() {
-		if _, err := parseTemplate(text); err != nil {
-			return err
-		}
 	}
 	return nil
 }

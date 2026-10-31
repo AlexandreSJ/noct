@@ -34,7 +34,6 @@ func loadConfig() config.Config {
 	return cfg
 }
 
-// scriptsDir is the folder of the user's own scripts, from the config.
 func scriptsDir() string {
 	return script.ResolveDir(loadConfig().ScriptsDir)
 }
@@ -115,31 +114,16 @@ func runScript(args []string) error {
 	if len(args) == 0 {
 		return errors.New("usage: noct -s <script> [name=value ...]")
 	}
-	s, ok := library().Find(args[0])
-	if !ok {
-		return notFound(args[0])
-	}
-	if s.Problem != nil {
-		return fmt.Errorf("script %s is broken: %w", s.Name, s.Problem)
-	}
-	if s.Draft {
-		return fmt.Errorf("script %s is a draft: review it and run noct promote %s", s.ID(), s.ID())
+	s, err := findRunnableScript(args[0])
+	if err != nil {
+		return err
 	}
 	memory, err := script.LoadMemory(filepath.Join(logstore.Dir(), script.MemoryFile))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "noct:", err) // run with defaults instead of remembered values
 	}
-	values := s.StartingValues(memory.Values(s), os.Getenv)
-	given, err := parseValues(s, args[1:], values)
+	values, err := scriptValues(s, memory, args[1:])
 	if err != nil {
-		return err
-	}
-	if term.IsTerminal(os.Stdin.Fd()) {
-		if err := askValues(s, values, given); err != nil {
-			return err
-		}
-	}
-	if err := s.CheckValues(values); err != nil {
 		return err
 	}
 	command, err := s.Command(values)
@@ -153,6 +137,40 @@ func runScript(args []string) error {
 		fmt.Fprintln(os.Stderr, "noct:", err)
 	}
 	return runCommand(command, s.WorkingDir(mustGetwd()))
+}
+
+// findRunnableScript finds the script by name and refuses one that is broken or still a draft.
+func findRunnableScript(name string) (script.Script, error) {
+	s, ok := library().Find(name)
+	if !ok {
+		return script.Script{}, notFound(name)
+	}
+	if s.Problem != nil {
+		return script.Script{}, fmt.Errorf("script %s is broken: %w", s.Name, s.Problem)
+	}
+	if s.Draft {
+		return script.Script{}, fmt.Errorf("script %s is a draft: review it and run noct promote %s", s.ID(), s.ID())
+	}
+	return s, nil
+}
+
+// scriptValues starts from the remembered values, applies the name=value arguments, asks for
+// the rest on a terminal, and checks the result.
+func scriptValues(s script.Script, memory *script.Memory, args []string) (map[string]string, error) {
+	values := s.StartingValues(memory.Values(s), os.Getenv)
+	given, err := parseValues(s, args, values)
+	if err != nil {
+		return nil, err
+	}
+	if term.IsTerminal(os.Stdin.Fd()) {
+		if err := askValues(s, values, given); err != nil {
+			return nil, err
+		}
+	}
+	if err := s.CheckValues(values); err != nil {
+		return nil, err
+	}
+	return values, nil
 }
 
 func parseValues(s script.Script, args []string, values map[string]string) (map[string]bool, error) {

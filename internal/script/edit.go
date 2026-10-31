@@ -59,16 +59,20 @@ func Create(root string, f Fields, withHints bool) (Script, error) {
 	if strings.TrimSpace(notes) == "" {
 		notes = fmt.Sprintf(notesSkeleton, f.Name)
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return Script{}, fmt.Errorf("creating script %s: %w", f.Name, err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, FileName), body, 0o644); err != nil {
-		return Script{}, fmt.Errorf("creating script %s: %w", f.Name, err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, NotesName), []byte(notes), 0o644); err != nil {
+	if err := writeScriptFiles(dir, body, notes); err != nil {
 		return Script{}, fmt.Errorf("creating script %s: %w", f.Name, err)
 	}
 	return Load(dir)
+}
+
+func writeScriptFiles(dir string, body []byte, notes string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dir, FileName), body, 0o644); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, NotesName), []byte(notes), 0o644)
 }
 
 // Update saves the fields into the script. Only what changed is rewritten: the rest of
@@ -178,10 +182,15 @@ func rewrite(path string, values map[string]any) error {
 			return err
 		}
 	}
+	return writeYAML(path, &document)
+}
+
+// writeYAML replaces the file through a temporary one, so a failed write keeps the old content.
+func writeYAML(path string, document *yaml.Node) error {
 	var out bytes.Buffer
 	encoder := yaml.NewEncoder(&out)
 	encoder.SetIndent(2)
-	if err := encoder.Encode(&document); err != nil {
+	if err := encoder.Encode(document); err != nil {
 		return err
 	}
 	temp := path + ".tmp"

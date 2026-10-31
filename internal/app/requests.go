@@ -33,7 +33,23 @@ type PaneInfo struct {
 // where the user sees it. Approvals answer later, once the user decides; a client's connection is
 // never answered, it stays open while the AI client runs.
 func (a *App) answerRequest(c connection) {
-	reply := func(data any, err error) {
+	reply := requestReplier(c)
+	req := c.hello.Request
+	switch {
+	case req == nil:
+		reply(nil, errors.New("nothing was asked"))
+	case req.Action == "approve":
+		a.answerApprovalRequest(req, reply)
+	case req.Action == "client":
+		a.answerClientRequest(c, req, reply)
+	default:
+		reply(a.answerPlainRequest(req))
+	}
+}
+
+// requestReplier sends a request's answer, or its error, and ends the request's connection.
+func requestReplier(c connection) func(data any, err error) {
+	return func(data any, err error) {
 		exit := ipc.Exit{Reason: ipc.RequestDone}
 		if err == nil {
 			exit.Data, err = json.Marshal(data)
@@ -44,11 +60,28 @@ func (a *App) answerRequest(c connection) {
 		_ = c.conn.SendJSON(ipc.KindExit, exit) // a server that stopped listening learns nothing
 		_ = c.conn.Close()
 	}
-	req := c.hello.Request
-	if req == nil {
-		reply(nil, errors.New("nothing was asked"))
+}
+
+func (a *App) answerApprovalRequest(req *ipc.Request, reply func(any, error)) {
+	var args approvalArgs
+	if err := decodeArgs(req, &args); err != nil {
+		reply(nil, err)
 		return
 	}
+	a.queueApproval(args, func(approved bool) { reply(map[string]bool{"approved": approved}, nil) })
+}
+
+func (a *App) answerClientRequest(c connection, req *ipc.Request, reply func(any, error)) {
+	var client aiClient
+	if err := decodeArgs(req, &client); err != nil {
+		reply(nil, err)
+		return
+	}
+	a.connectAIClient(c, &client)
+}
+
+// answerPlainRequest does a request that is answered at once.
+func (a *App) answerPlainRequest(req *ipc.Request) (any, error) {
 	var pane paneArgs
 	var input inputArgs
 	var command commandArgs
@@ -56,40 +89,25 @@ func (a *App) answerRequest(c connection) {
 	var name sessionArgs
 	switch req.Action {
 	case "list_panes":
-		reply(a.paneInfos(), nil)
+		return a.paneInfos(), nil
 	case "read_pane":
-		reply(decoded(req, &pane, func() (any, error) { return a.readPane(pane) }))
+		return decoded(req, &pane, func() (any, error) { return a.readPane(pane) })
 	case "send_input":
-		reply(decoded(req, &input, func() (any, error) { return a.sendInput(input) }))
+		return decoded(req, &input, func() (any, error) { return a.sendInput(input) })
 	case "open_command":
 		a.openSession(a.session) // what an AI opens shows in the session on screen
-		reply(decoded(req, &command, func() (any, error) { return a.openCommand(command) }))
+		return decoded(req, &command, func() (any, error) { return a.openCommand(command) })
 	case "run":
 		a.openSession(a.session)
-		reply(decoded(req, &run, func() (any, error) { return a.runAsked(run) }))
+		return decoded(req, &run, func() (any, error) { return a.runAsked(run) })
 	case "sessions":
-		reply(a.sessionInfos(), nil)
+		return a.sessionInfos(), nil
 	case "delete_session":
-		reply(decoded(req, &name, func() (any, error) { return nil, a.deleteSessionNamed(name.Name) }))
+		return decoded(req, &name, func() (any, error) { return nil, a.deleteSessionNamed(name.Name) })
 	case "attention":
-		reply(decoded(req, &pane, func() (any, error) { return nil, a.showPane(pane) }))
-	case "approve":
-		var args approvalArgs
-		if err := decodeArgs(req, &args); err != nil {
-			reply(nil, err)
-			return
-		}
-		a.queueApproval(args, func(approved bool) { reply(map[string]bool{"approved": approved}, nil) })
-	case "client":
-		var client aiClient
-		if err := decodeArgs(req, &client); err != nil {
-			reply(nil, err)
-			return
-		}
-		a.connectAIClient(c, &client)
-	default:
-		reply(nil, fmt.Errorf("the workspace does not know %q", req.Action))
+		return decoded(req, &pane, func() (any, error) { return nil, a.showPane(pane) })
 	}
+	return nil, fmt.Errorf("the workspace does not know %q", req.Action)
 }
 
 // decoded reads a request's arguments into args, then does what it asks.

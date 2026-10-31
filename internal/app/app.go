@@ -292,9 +292,7 @@ func (a *App) loop() error {
 		case c := <-a.connections:
 			a.handleConnection(c)
 		case commands := <-a.terminalGraphics:
-			if a.screen != nil {
-				_, _ = a.screen.WriteString(string(commands)) // only queues; the next frame's flush reports failures
-			}
+			a.writeTerminalGraphics(commands)
 		case <-a.screenChanged:
 		case task := <-a.loopTasks:
 			task()
@@ -328,17 +326,28 @@ func (a *App) loop() error {
 		if a.quitting || nextFrame != nil || a.client == nil {
 			continue
 		}
-		if wait := frameInterval - time.Since(lastFrame); wait > 0 {
-			nextFrame = time.After(wait)
-			continue
-		}
-		if err := a.render(); err != nil {
-			a.dropClient() // a client that cannot be drawn on is gone
-			continue
-		}
-		lastFrame = time.Now()
+		nextFrame, lastFrame = a.drawWhenDue(lastFrame)
 	}
 	return nil
+}
+
+func (a *App) writeTerminalGraphics(commands []byte) {
+	if a.screen != nil {
+		_, _ = a.screen.WriteString(string(commands)) // only queues; the next frame's flush reports failures
+	}
+}
+
+// drawWhenDue draws a frame if one is due since lastFrame, or gives the timer for when it will be.
+// It also returns when the latest frame was drawn.
+func (a *App) drawWhenDue(lastFrame time.Time) (<-chan time.Time, time.Time) {
+	if wait := frameInterval - time.Since(lastFrame); wait > 0 {
+		return time.After(wait), lastFrame
+	}
+	if err := a.render(); err != nil {
+		a.dropClient() // a client that cannot be drawn on is gone
+		return nil, lastFrame
+	}
+	return nil, time.Now()
 }
 
 // clientEvents is nil while detached, which makes the loop ignore it.
@@ -408,7 +417,6 @@ func (a *App) detachClient(reason string) {
 	a.mode = normalMode
 }
 
-// dropClient forgets a client that disconnected on its own.
 func (a *App) dropClient() {
 	a.leaveSession()
 	a.client.close()

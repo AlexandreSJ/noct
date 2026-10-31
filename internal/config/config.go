@@ -163,7 +163,6 @@ func (l Logs) MaxSizeBytes() int64 {
 	return int64(l.MaxSizeKB) << 10
 }
 
-// Default log limits.
 const (
 	DefaultKeepDays  = 90
 	DefaultMaxSizeKB = 200 << 10
@@ -219,7 +218,6 @@ const (
 )
 
 const (
-	// DefaultEditor is used when no editor is set.
 	DefaultEditor = "vim"
 	// FileManagerTerminal opens a terminal pane in the folder instead of a file manager.
 	FileManagerTerminal = "terminal"
@@ -239,7 +237,6 @@ type Shortcut struct {
 	Alt  bool `toml:"alt"`
 }
 
-// Enabled tells whether direct shortcuts are on.
 func (s Shortcut) Enabled() bool {
 	return s.Ctrl || s.Alt
 }
@@ -472,15 +469,20 @@ func (c Config) normalized() Config {
 	}
 	c.Logs.PreviewPercent = min(max(c.Logs.PreviewPercent, MinPreviewPercent), MaxPreviewPercent)
 	c.Flows.OutputKB = max(c.Flows.OutputKB, 0)
-	if c.MCP.ApprovalSeconds <= 0 {
-		c.MCP.ApprovalSeconds = DefaultApprovalSeconds
+	c.MCP = c.MCP.normalized()
+	return c
+}
+
+func (m MCP) normalized() MCP {
+	if m.ApprovalSeconds <= 0 {
+		m.ApprovalSeconds = DefaultApprovalSeconds
 	}
-	for tool, policy := range c.MCP.Policy {
+	for tool, policy := range m.Policy {
 		if policy != PolicyAllow && policy != PolicyAsk && policy != PolicyDeny {
-			c.MCP.Policy[tool] = PolicyAsk // an unknown word must not allow more than asking
+			m.Policy[tool] = PolicyAsk // an unknown word must not allow more than asking
 		}
 	}
-	return c
+	return m
 }
 
 // Validate rejects prefixes that would also be typed as ordinary text.
