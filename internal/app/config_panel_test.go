@@ -275,7 +275,7 @@ func TestConfigFollowsTheMouse(t *testing.T) {
 
 // A note too wide for the panel scrolls, after a pause, only while the row above it is selected.
 func TestWideNoteScrollsWhileItsRowIsSelected(t *testing.T) {
-	const note = "older and, past the size, oldest logs are deleted"
+	const note = "logs not written to for longer and, past the size, the least recent are deleted"
 	now := time.Unix(0, 0)
 	a := testApp(t, sideBySideTab(1, 2))
 	a.clock = func() time.Time { return now }
@@ -304,5 +304,29 @@ func TestTheConfigsShortcutClosesItToo(t *testing.T) {
 	press(a, uv.KeyPressEvent{Code: ',', Mod: uv.ModAlt})
 	if a.mode != normalMode {
 		t.Errorf("shortcut + , left mode %v, want the config closed", a.mode)
+	}
+}
+
+// The logs list's columns are typed in order; a word that is no column shows as left out, and
+// enter saves the columns known. The log's side and size change with the arrows.
+func TestConfigSetsTheLogsView(t *testing.T) {
+	a := openConfigAt(t, logsColumnsRow)
+	press(a, enterPress, clearLine)
+	for _, r := range "name weight size" {
+		press(a, letter(r))
+	}
+	if text := screenText(a); !strings.Contains(text, "not a column, left out: weight") {
+		t.Errorf("the unknown word is not pointed out:\n%s", text)
+	}
+	press(a, enterPress)
+	if got := a.config.Logs.Columns; strings.Join(got, " ") != "name size" || a.configPanel.logColumns.String() != "name size" {
+		t.Errorf("columns %v, typed %q; want name size", got, a.configPanel.logColumns.String())
+	}
+	a.selectConfigRow(logsPreviewRow)
+	press(a, rightPress)
+	a.selectConfigRow(logsPreviewPercentRow)
+	press(a, leftPress)
+	if a.config.Logs.Preview != "right" || a.config.Logs.PreviewPercent != 40 {
+		t.Errorf("logs %+v, want the log on the right at 40%%", a.config.Logs)
 	}
 }

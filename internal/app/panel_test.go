@@ -122,13 +122,26 @@ func TestLogsPageTheListOrChangeTheMonth(t *testing.T) {
 	if p.day.Month() == month {
 		t.Fatal("pgdown on the calendar kept the month")
 	}
-	pressDrawn(a, pgUpPress, enterPress, pgDownPress)
+	pressDrawn(a, pgUpPress, letter('t'), enterPress, pgDownPress) // t: a month and back from the 31st is the 30th
 	if p.day.Month() != month || p.selected != p.list.Dy()-1 {
 		t.Errorf("pgdown in the list: month %v, selected %d, want a page down at %d", p.day.Month(), p.selected, p.list.Dy()-1)
 	}
 	pressDrawn(a, endPress)
 	if p.selected != 39 {
 		t.Errorf("end selected %d, want the last of 40", p.selected)
+	}
+}
+
+// A month on from the 31st is the next month's last day, not the first of the month after.
+func TestLogsMonthFromTheLastDay(t *testing.T) {
+	p := &logsPanel{day: time.Date(2026, 10, 31, 0, 0, 0, 0, time.Local)}
+	p.moveDay(0, 1)
+	if want := time.Date(2026, 11, 30, 0, 0, 0, 0, time.Local); !p.day.Equal(want) {
+		t.Errorf("a month on from Oct 31 is %v, want %v", p.day, want)
+	}
+	p.moveDay(0, -9)
+	if want := time.Date(2026, 2, 28, 0, 0, 0, 0, time.Local); !p.day.Equal(want) {
+		t.Errorf("nine months back from Nov 30 is %v, want %v", p.day, want)
 	}
 }
 

@@ -279,6 +279,32 @@ func (a *App) savedTab(t *tab) (saved.Tab, bool) {
 	return st, len(st.Panes) > 0
 }
 
+// terminalLogSessions names the session of each terminal's log: the open sessions' terminals and
+// the closed sessions' saved ones.
+func (a *App) terminalLogSessions() map[string]string {
+	sessions := map[string]string{}
+	for _, s := range a.sessions {
+		if s.closed != nil {
+			for _, t := range s.closed.Tabs {
+				for _, p := range t.Panes {
+					if p.Log != "" {
+						sessions[p.Log] = s.name
+					}
+				}
+			}
+			continue
+		}
+		for _, t := range s.tabs {
+			for id := range t.views {
+				if sh := a.shells[id]; sh != nil && sh.log != "" {
+					sessions[sh.log] = s.name
+				}
+			}
+		}
+	}
+	return sessions
+}
+
 // directoryTeller is a view that knows the directory its program is in: a terminal.
 type directoryTeller interface {
 	Dir() string

@@ -140,13 +140,20 @@ type Flows struct {
 	OutputKB int `toml:"output_kb"`
 }
 
-// Logs bounds what noct keeps of what programs print: logs older than KeepDays go, and then the
-// oldest go while all of them together take more than MaxSizeKB. Terminals logs what terminal
-// panes print too; scripts, flows and the AI's commands are always logged.
+// Logs bounds what noct keeps of what programs print: logs not written to for KeepDays go, and
+// then the least recently written go while all of them together take more than MaxSizeKB.
+// Terminals logs what terminal panes print too; scripts, flows and the AI's commands are always
+// logged. The rest is how the logs view shows them.
 type Logs struct {
 	KeepDays  int  `toml:"keep_days"`
 	MaxSizeKB int  `toml:"max_size_kb"`
 	Terminals bool `toml:"terminals"`
+	// Columns are the logs list's columns, in order, out of LogColumns.
+	Columns []string `toml:"columns"`
+	// Preview is where the selected log shows, out of LogPreviewSides, and PreviewPercent how
+	// much of the view it takes.
+	Preview        string `toml:"preview"`
+	PreviewPercent int    `toml:"preview_percent"`
 	// MaxSizeMB is the limit as older files wrote it; loading moves it to MaxSizeKB.
 	MaxSizeMB int `toml:"max_size_mb,omitzero"`
 }
@@ -161,6 +168,49 @@ const (
 	DefaultKeepDays  = 90
 	DefaultMaxSizeKB = 200 << 10
 )
+
+// Columns of the logs list: when the log was last written to and when it started, how its run
+// ended, its name, the session it belongs to, its weight bar, size and lines.
+const (
+	LogColumnEdited  = "edited"
+	LogColumnStarted = "started"
+	LogColumnStatus  = "status"
+	LogColumnName    = "name"
+	LogColumnSession = "session"
+	LogColumnBar     = "bar"
+	LogColumnSize    = "size"
+	LogColumnLines   = "lines"
+)
+
+var (
+	LogColumns        = []string{LogColumnEdited, LogColumnStarted, LogColumnStatus, LogColumnName, LogColumnSession, LogColumnBar, LogColumnSize, LogColumnLines}
+	DefaultLogColumns = []string{LogColumnEdited, LogColumnStarted, LogColumnStatus, LogColumnName, LogColumnSession, LogColumnBar, LogColumnSize, LogColumnLines}
+)
+
+// Where the logs view shows the selected log, the first by default, and how much room it takes.
+var LogPreviewSides = []string{"below", "right", "above", "left"}
+
+const (
+	DefaultPreviewPercent = 50
+	MinPreviewPercent     = 20
+	MaxPreviewPercent     = 80
+)
+
+// LogColumnsFrom reads columns as the user wrote them: names noct does not know and repeats are
+// left out, and with none left it is the defaults.
+func LogColumnsFrom(names []string) []string {
+	var columns []string
+	for _, name := range names {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if slices.Contains(LogColumns, name) && !slices.Contains(columns, name) {
+			columns = append(columns, name)
+		}
+	}
+	if len(columns) == 0 {
+		return slices.Clone(DefaultLogColumns)
+	}
+	return columns
+}
 
 // What a new tab opens with: nothing, or a terminal, the default. The app knows the other panels.
 const (
@@ -369,7 +419,7 @@ func Default() Config {
 		FileManager:    FileManagerTerminal,
 		ScriptHints:    true,
 		ScriptsSort:    SortByName,
-		Logs:           Logs{KeepDays: DefaultKeepDays, MaxSizeKB: DefaultMaxSizeKB},
+		Logs:           Logs{KeepDays: DefaultKeepDays, MaxSizeKB: DefaultMaxSizeKB, Columns: slices.Clone(DefaultLogColumns), Preview: LogPreviewSides[0], PreviewPercent: DefaultPreviewPercent},
 		MCP:            MCP{ApprovalSeconds: DefaultApprovalSeconds},
 		Update:         Update{Check: true},
 	}
@@ -413,6 +463,14 @@ func (c Config) normalized() Config {
 	if c.Logs.MaxSizeKB <= 0 {
 		c.Logs.MaxSizeKB = DefaultMaxSizeKB
 	}
+	c.Logs.Columns = LogColumnsFrom(c.Logs.Columns)
+	if !slices.Contains(LogPreviewSides, c.Logs.Preview) {
+		c.Logs.Preview = LogPreviewSides[0]
+	}
+	if c.Logs.PreviewPercent == 0 {
+		c.Logs.PreviewPercent = DefaultPreviewPercent
+	}
+	c.Logs.PreviewPercent = min(max(c.Logs.PreviewPercent, MinPreviewPercent), MaxPreviewPercent)
 	c.Flows.OutputKB = max(c.Flows.OutputKB, 0)
 	if c.MCP.ApprovalSeconds <= 0 {
 		c.MCP.ApprovalSeconds = DefaultApprovalSeconds

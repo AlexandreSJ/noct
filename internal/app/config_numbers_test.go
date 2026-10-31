@@ -95,12 +95,12 @@ func TestEscGivesUpATypedLogLimitAndAProblemKeepsItOpen(t *testing.T) {
 
 func TestTerminalLogsAreOffUntilTurnedOn(t *testing.T) {
 	a := openConfigAt(t, logsTerminalsRow)
-	if a.terminalLogName(3) != "" {
+	if a.terminalLogName() != "" {
 		t.Fatal("a terminal is logged by default")
 	}
 	press(a, rightPress)
-	if !a.config.Logs.Terminals || a.terminalLogName(3) != "pane3" {
-		t.Errorf("terminals %v, log name %q", a.config.Logs.Terminals, a.terminalLogName(3))
+	if !a.config.Logs.Terminals || a.terminalLogName() != "pane1" {
+		t.Errorf("terminals %v, log name %q", a.config.Logs.Terminals, a.terminalLogName())
 	}
 }
 

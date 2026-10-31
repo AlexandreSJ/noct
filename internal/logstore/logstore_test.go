@@ -37,13 +37,25 @@ func TestDirFollowsXDGStateHome(t *testing.T) {
 	}
 }
 
-func writeLog(t *testing.T, dir, day, file string, size int) string {
+// writeLog writes a log last written at noon of its day, unless edited says otherwise.
+func writeLog(t *testing.T, dir, day, file string, size int, edited ...time.Time) string {
 	t.Helper()
 	path := filepath.Join(dir, day, file)
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(path, bytes.Repeat([]byte("x\n"), size/2), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	at, err := time.ParseInLocation(DayLayout, day, time.Local)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at = at.Add(12 * time.Hour)
+	if len(edited) > 0 {
+		at = edited[0]
+	}
+	if err := os.Chtimes(path, at, at); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -60,7 +72,7 @@ func TestListReadsLogsWithTheirRotatedParts(t *testing.T) {
 		t.Fatalf("List = %+v, %v", entries, err)
 	}
 	last := entries[1]
-	if last.Name != "greet" || last.Size != 120 || last.Day() != "2026-09-27" || last.At.Hour() != 8 {
+	if last.Name != "greet" || last.Size != 120 || last.Day() != "2026-09-27" || last.At.Hour() != 8 || last.Edited.Hour() != 12 {
 		t.Errorf("entry = %+v", last)
 	}
 	if lines := CountLines(last); lines != 60 {
@@ -87,6 +99,22 @@ func TestPruneRemovesOldLogsThenTheOldestOverTheSize(t *testing.T) {
 	left, _ := List(dir)
 	if len(left) != 1 || left[0].Name != "b" {
 		t.Errorf("left %+v", left)
+	}
+}
+
+// A log is as old as its last write: a terminal started months ago and still writing stays,
+// and the least recently written go first when over the size.
+func TestPruneGoesByTheLastWrite(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Date(2026, 9, 27, 12, 0, 0, 0, time.Local)
+	writeLog(t, dir, "2026-05-01", "080000-open.log", 60, now.Add(-time.Hour))
+	writeLog(t, dir, "2026-09-26", "080000-done.log", 60)
+	removed, err := Prune(dir, 90, 100, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(removed) != 1 || removed[0].Name != "done" {
+		t.Fatalf("removed %+v, want only done, written before open", removed)
 	}
 }
 
@@ -175,5 +203,24 @@ func TestTailStartsAtALine(t *testing.T) {
 	}
 	if Tail(filepath.Join(t.TempDir(), "missing.log"), 10) != nil {
 		t.Error("a missing log has a tail")
+	}
+}
+
+// Pane logs are numbered within their day: after pane3 comes pane4, and the next day starts at
+// pane1 again, whatever other logs there are.
+func TestNumberedNameStartsOverEachDay(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	dir := LogsDir()
+	writeLog(t, dir, "2026-10-30", "080000-pane1.log", 2)
+	writeLog(t, dir, "2026-10-30", "090000-pane3.log", 2)
+	writeLog(t, dir, "2026-10-30", "090000-pane3.log.1", 2)
+	writeLog(t, dir, "2026-10-30", "100000-pane-edit.log", 2)
+	writeLog(t, dir, "2026-10-30", "110000-greet.log", 2)
+	day := time.Date(2026, 10, 30, 12, 0, 0, 0, time.Local)
+	if got := NumberedName("pane", day); got != "pane4" {
+		t.Errorf("on a day with pane1 and pane3: %q, want pane4", got)
+	}
+	if got := NumberedName("pane", day.AddDate(0, 0, 1)); got != "pane1" {
+		t.Errorf("the next day: %q, want pane1", got)
 	}
 }

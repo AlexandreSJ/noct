@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -27,6 +28,21 @@ func Path(name string, at time.Time) string {
 	return filepath.Join(LogsDir(), at.Format(DayLayout), at.Format("150405")+"-"+name+".log")
 }
 
+// NumberedName is prefix and the next number free among the logs of at's day: pane1 for the
+// day's first, so the numbers start over each day instead of growing for as long as noct is used.
+func NumberedName(prefix string, at time.Time) string {
+	files, _ := os.ReadDir(filepath.Join(LogsDir(), at.Format(DayLayout))) // a day without logs yet has none
+	highest := 0
+	for _, file := range files {
+		entry, ok := parseEntry(file.Name(), at)
+		number, isNumber := strings.CutPrefix(entry.Name, prefix)
+		if n, err := strconv.Atoi(number); ok && isNumber && err == nil {
+			highest = max(highest, n)
+		}
+	}
+	return prefix + strconv.Itoa(highest+1)
+}
+
 // resultSuffix names the result a flow run keeps beside its log.
 const resultSuffix = ".result.json"
 
@@ -41,8 +57,10 @@ type Entry struct {
 	Path string
 	// Name is what the log was started for: a script, pane3, edit-notes.md.
 	Name string
-	At   time.Time
-	Size int64
+	// At is when the log was started; Edited, when it was last written to.
+	At     time.Time
+	Edited time.Time
+	Size   int64
 }
 
 // Day is the date the log was started on.
@@ -112,7 +130,7 @@ func dayEntries(dir string, date time.Time) []Entry {
 		if !ok {
 			continue
 		}
-		entry.Path, entry.Size = filepath.Join(dir, name), info.Size()
+		entry.Path, entry.Size, entry.Edited = filepath.Join(dir, name), info.Size(), info.ModTime()
 		entries = append(entries, entry)
 	}
 	for i := range entries {
@@ -150,8 +168,8 @@ func Remove(entries ...Entry) error {
 	return errors.Join(problems...)
 }
 
-// Prune removes the logs started more than keepDays before now, then the oldest while all of
-// them take more than maxBytes. It returns what it removed.
+// Prune removes the logs last written more than keepDays before now, then the least recently
+// written while all of them take more than maxBytes. It returns what it removed.
 func Prune(dir string, keepDays int, maxBytes int64, now time.Time) ([]Entry, error) {
 	expired, err := Expired(dir, keepDays, maxBytes, now)
 	if err != nil {
@@ -160,20 +178,22 @@ func Prune(dir string, keepDays int, maxBytes int64, now time.Time) ([]Entry, er
 	return expired, Remove(expired...)
 }
 
-// Expired lists, oldest first, the logs Prune would remove with these limits, removing none.
+// Expired lists, least recently written first, the logs Prune would remove with these limits,
+// removing none. A terminal left open for weeks keeps its log while it still writes to it.
 func Expired(dir string, keepDays int, maxBytes int64, now time.Time) ([]Entry, error) {
 	entries, err := List(dir)
 	if err != nil {
 		return nil, err
 	}
+	slices.SortStableFunc(entries, func(a, b Entry) int { return a.Edited.Compare(b.Edited) })
 	cutoff := now.AddDate(0, 0, -keepDays)
 	var total int64
 	for _, e := range entries {
 		total += e.Size
 	}
 	var expired []Entry
-	for _, e := range entries { // oldest first
-		if !e.At.Before(cutoff) && total <= maxBytes {
+	for _, e := range entries {
+		if !e.Edited.Before(cutoff) && total <= maxBytes {
 			break
 		}
 		expired = append(expired, e)
@@ -186,14 +206,19 @@ func Expired(dir string, keepDays int, maxBytes int64, now time.Time) ([]Entry, 
 func CountLines(e Entry) int {
 	lines := 0
 	for _, file := range e.LogFiles() {
-		f, err := os.Open(file)
-		if err != nil {
-			continue
-		}
-		lines += countLines(bufio.NewReaderSize(f, 64<<10))
-		f.Close()
+		lines += CountFileLines(file)
 	}
 	return lines
+}
+
+// CountFileLines counts the lines of one file; one that cannot be read has none.
+func CountFileLines(path string) int {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+	return countLines(bufio.NewReaderSize(f, 64<<10))
 }
 
 func countLines(r io.Reader) int {

@@ -12,6 +12,7 @@ import (
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/layout"
 	"github.com/AlexandreSJ/noct/internal/logstore"
@@ -19,7 +20,12 @@ import (
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
-const logsHints = "{tab} calendar/list  {left}{right}{up}{down} day  {[} {]} month  {f} filter  {s} sort  {a} all days  {enter} {u} scroll the log  {i} flow run  {delete} clear  {ctrl+d} close"
+// The hints of each part of the logs panel: only how to move through it and where to go next;
+// ? lists every key.
+const (
+	logsCalendarHints = "{left}{right}{up}{down} day  {[}{]} month  {enter} the day's logs  {f} filter  {?} keys  {ctrl+d} close"
+	logsListHints     = "{up}{down} log  {enter} the log  {left} calendar  {f} filter  {s} sort  {z} the log alone  {?} keys"
+)
 
 // logsFilterHints explain the filter line: words and comparisons, all of them at once.
 const logsFilterHints = "{enter} filter  esc cancel  name, date, time, ok/failed, >1MB, <100 lines"
@@ -44,6 +50,18 @@ const (
 
 var logsOrders = []string{logsByDate, logsByName, logsBySize}
 
+// What the logs panel shows: the calendar and the list with the log beside them, or one of them.
+type logsShown int
+
+const (
+	logsBoth logsShown = iota
+	logsLogOnly
+	logsListOnly
+)
+
+// previewPercentStep is how much + and - change the room the log takes.
+const previewPercentStep = 10
+
 // logsPanel shows the logs by day: a calendar of the month, each day marked by what ran on it,
 // and the selected day's logs with their size, lines and how their run ended.
 type logsPanel struct {
@@ -57,14 +75,17 @@ type logsPanel struct {
 	filter   string
 	order    string
 	selected int
+	shown    logsShown
 
-	// preview is the selected log, under the calendar and the list.
+	// preview is the selected log, beside the calendar and the list.
 	preview logPreview
 
 	entries  []logstore.Entry
 	runs     []script.Run
 	runOfLog map[string]script.Run
-	loaded   time.Time
+	// terminalSessions names the session of each terminal's log.
+	terminalSessions map[string]string
+	loaded           time.Time
 	// lines caches the line count of each log, for the size it had when counted.
 	lines map[string]countedLines
 
@@ -132,7 +153,23 @@ func (p *logsPanel) reload() {
 			p.runOfLog[run.Log] = run
 		}
 	}
+	p.terminalSessions = p.app.terminalLogSessions()
 	p.loaded = time.Now()
+}
+
+// onDay tells whether a log shows on a day: the day it started or the day it was last written
+// to, so a terminal left open since yesterday shows today too.
+func onDay(e logstore.Entry, day time.Time) bool {
+	return dateOf(e.At).Equal(day) || dateOf(lastWrite(e)).Equal(day)
+}
+
+// logDays are the days a log shows on, once each.
+func logDays(e logstore.Entry) []time.Time {
+	started, written := dateOf(e.At), dateOf(lastWrite(e))
+	if started.Equal(written) {
+		return []time.Time{started}
+	}
+	return []time.Time{started, written}
 }
 
 // rows are the logs listed: the selected day's, or every day's, or those of any day that match
@@ -141,7 +178,7 @@ func (p *logsPanel) rows() []logRow {
 	filter := parseLogFilter(p.filter)
 	var rows []logRow
 	for _, e := range p.entries {
-		if !p.allDays && filter.empty() && !dateOf(e.At).Equal(p.day) {
+		if !p.allDays && filter.empty() && !onDay(e, p.day) {
 			continue
 		}
 		row := logRow{entry: e}
@@ -159,7 +196,7 @@ func (p *logsPanel) rows() []logRow {
 		case logsBySize:
 			return cmp.Compare(b.entry.Size, a.entry.Size)
 		}
-		return b.entry.At.Compare(a.entry.At)
+		return lastWrite(b.entry).Compare(lastWrite(a.entry))
 	})
 	return rows
 }
@@ -185,11 +222,12 @@ type dayStats struct {
 func (p *logsPanel) statsByDay() map[time.Time]dayStats {
 	stats := map[time.Time]dayStats{}
 	for _, e := range p.entries {
-		day := dateOf(e.At)
-		s := stats[day]
-		s.logs++
-		s.size += e.Size
-		stats[day] = s
+		for _, day := range logDays(e) {
+			s := stats[day]
+			s.logs++
+			s.size += e.Size
+			stats[day] = s
+		}
 	}
 	for _, run := range p.runs {
 		day := dateOf(run.At)
@@ -218,6 +256,13 @@ func (p *logsPanel) SendKey(key uv.KeyPressEvent) {
 	case "ctrl+d":
 		p.close()
 		p.Close()
+		return
+	}
+	if name == "?" {
+		p.showKeys()
+		return
+	}
+	if p.layoutKey(name) {
 		return
 	}
 	if p.preview.focused {
@@ -277,13 +322,21 @@ func (p *logsPanel) calendarKey(name string) {
 		p.moveDay(7, 0)
 	case "t", "home":
 		p.day, p.selected = dateOf(time.Now()), 0
-	case "enter":
+	case "enter", "space":
 		p.focusList = true
 	}
 }
 
+// moveDay moves the selected day; a month on from the 31st lands on the next month's last day,
+// where AddDate would skip to the month after.
 func (p *logsPanel) moveDay(days, months int) {
-	p.day, p.selected = p.day.AddDate(0, months, days), 0
+	day := p.day.AddDate(0, 0, days)
+	if months != 0 {
+		first := time.Date(day.Year(), day.Month()+time.Month(months), 1, 0, 0, 0, 0, time.Local)
+		last := first.AddDate(0, 1, -1).Day()
+		day = first.AddDate(0, 0, min(day.Day(), last)-1)
+	}
+	p.day, p.selected = day, 0
 }
 
 func (p *logsPanel) listKey(name string) {
@@ -301,7 +354,7 @@ func (p *logsPanel) listKey(name string) {
 		p.selected, _ = listJump(name, p.selected, len(rows), p.list.Dy())
 	case "esc", "left", "h":
 		p.focusList = false
-	case "enter":
+	case "enter", "space":
 		p.focusPreview(false)
 	case "i":
 		if row, ok := p.current(rows); ok {
@@ -309,6 +362,76 @@ func (p *logsPanel) listKey(name string) {
 		}
 	}
 	p.current(rows)
+}
+
+// layoutKey shows the log alone or hides it, moves it to another side of the view and changes
+// its size; the side and the size are kept in the config. It tells whether it used the key.
+func (p *logsPanel) layoutKey(name string) bool {
+	switch name {
+	case "z":
+		if p.shown == logsLogOnly {
+			p.leavePreview()
+		} else {
+			p.shown = logsLogOnly
+			p.focusPreview(false)
+		}
+	case "v":
+		if p.shown == logsListOnly {
+			p.shown = logsBoth
+		} else {
+			p.shown, p.preview.focused = logsListOnly, false
+		}
+	case "p":
+		next := p.app.config
+		next.Logs.Preview = cycle(config.LogPreviewSides, next.Logs.Preview, 1)
+		p.app.applyConfig(next)
+		p.showBoth()
+	case "+", "=", "-":
+		step := previewPercentStep
+		if name == "-" {
+			step = -step
+		}
+		next := p.app.config
+		next.Logs.PreviewPercent = min(max(next.Logs.PreviewPercent+step, config.MinPreviewPercent), config.MaxPreviewPercent)
+		p.app.applyConfig(next)
+		p.showBoth()
+	default:
+		return false
+	}
+	return true
+}
+
+// showBoth brings back what was hidden, so a change to the log's place or size shows.
+func (p *logsPanel) showBoth() {
+	if p.shown == logsLogOnly {
+		p.leavePreview()
+	}
+	p.shown = logsBoth
+}
+
+// showKeys lists every key of the panel, as the binds have them, in a popup.
+func (p *logsPanel) showKeys() {
+	c, _ := keyContextNamed("logs")
+	pal := &p.app.palette
+	type keyLine struct{ keys, label string }
+	var keyLines []keyLine
+	width := 0
+	for _, action := range c.actions {
+		var keys []string
+		for _, key := range p.app.pressedKeys(c.id, action) {
+			keys = append(keys, prettyKey(key))
+		}
+		if len(keys) > 0 { // an action the binds left without keys has nothing to press
+			keyLines = append(keyLines, keyLine{strings.Join(keys, " "), action.label})
+			width = max(width, ansi.StringWidth(keyLines[len(keyLines)-1].keys))
+		}
+	}
+	var lines []styledLine
+	for _, l := range keyLines {
+		lines = append(lines, styledLine{l.keys + strings.Repeat(" ", width-ansi.StringWidth(l.keys)+2) + l.label, pal.panelText})
+	}
+	lines = append(lines, styledLine{"", pal.panelText}, styledLine{"change them in the config: binds of every screen, logs", pal.panelMuted})
+	p.app.openInfo("logs keys", lines)
 }
 
 // inspectRun opens a flow's run in the inspect, with how each of its blocks went.
@@ -330,7 +453,7 @@ func (p *logsPanel) current(rows []logRow) (logRow, bool) {
 	p.selected = min(max(p.selected, 0), len(rows)-1)
 	row := rows[p.selected]
 	if (p.allDays || p.filter != "") && p.focusList {
-		p.day = dateOf(row.entry.At)
+		p.day = dateOf(lastWrite(row.entry))
 	}
 	return row, true
 }
@@ -346,7 +469,7 @@ func (p *logsPanel) askToClear() {
 	day := p.day
 	var ofDay []logstore.Entry
 	for _, e := range p.entries {
-		if dateOf(e.At).Equal(day) {
+		if onDay(e, day) {
 			ofDay = append(ofDay, e)
 		}
 	}
@@ -403,38 +526,86 @@ func (p *logsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 		p.reload()
 	}
 	pal := &p.app.palette
-	hints := logsHints
-	if p.preview.focused {
+	hints := logsCalendarHints
+	switch {
+	case p.preview.focused:
 		hints = logsPreviewHints
+	case p.focusList:
+		hints = logsListHints
 	}
-	drawText(screen, area.Min.X+1, area.Max.Y-1, area.Max.X, p.app.hint("logs", hints), pal.panelMuted)
-	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-2)
-	// the log takes the lower half; drawn last, it shows the selection the list settled on
-	preview := image.Rect(body.Min.X+1, body.Max.Y-body.Dy()/2, body.Max.X-1, body.Max.Y)
+	hintLines := wrapHints(p.app.hint("logs", hints), area.Dx()-2, 2)
+	for i, line := range hintLines {
+		drawText(screen, area.Min.X+1, area.Max.Y-len(hintLines)+i, area.Max.X, line, pal.panelMuted)
+	}
+	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, max(area.Max.Y-len(hintLines)-1, area.Min.Y))
+	lists, preview := p.splitView(body)
+	// drawn last, the log shows the selection the list settled on
 	defer func() {
+		if preview.Empty() {
+			p.preview.close()
+			p.preview.path, p.preview.area = "", image.Rectangle{}
+			return
+		}
 		row, ok := p.current(p.rows())
 		p.drawPreview(screen, preview, row, ok)
 		p.preview.area = p.preview.area.Sub(area.Min)
 	}()
-	body.Max.Y = preview.Min.Y - 1
+	p.monthRow, p.grid, p.list = image.Rectangle{}, image.Point{}, image.Rectangle{}
+	if lists.Empty() {
+		return
+	}
 	stats := p.statsByDay()
 	var calendar, list image.Rectangle
-	if body.Dx() >= calendarWidth+34 {
-		calendar = image.Rect(body.Min.X+1, body.Min.Y, body.Min.X+1+calendarWidth, body.Max.Y)
-		list = image.Rect(calendar.Max.X+3, body.Min.Y, body.Max.X-1, body.Max.Y)
+	if lists.Dx() >= calendarWidth+34 {
+		calendar = image.Rect(lists.Min.X+1, lists.Min.Y, lists.Min.X+1+calendarWidth, lists.Max.Y)
+		list = image.Rect(calendar.Max.X+3, lists.Min.Y, lists.Max.X-1, lists.Max.Y)
 	} else {
 		height := 9 // the month's title, the weekdays, six weeks and the colors' legend
-		if body.Dy() >= 30 {
+		if lists.Dy() >= 30 {
 			height = 18 // with the totals
 		}
-		calendar = image.Rect(body.Min.X+1, body.Min.Y, body.Max.X-1, min(body.Min.Y+height, body.Max.Y))
-		list = image.Rect(body.Min.X+1, calendar.Max.Y+1, body.Max.X-1, body.Max.Y)
+		calendar = image.Rect(lists.Min.X+1, lists.Min.Y, lists.Max.X-1, min(lists.Min.Y+height, lists.Max.Y))
+		list = image.Rect(lists.Min.X+1, min(calendar.Max.Y+1, lists.Max.Y), lists.Max.X-1, lists.Max.Y)
 	}
 	p.drawCalendar(screen, calendar, stats)
 	p.drawDay(screen, list, stats[p.day])
 	p.monthRow = p.monthRow.Sub(area.Min)
 	p.grid = p.grid.Sub(area.Min)
 	p.list = p.list.Sub(area.Min)
+}
+
+// splitView divides the view between the calendar with the list and the log, on the side and
+// with the share of the config, or gives it all to the one shown alone. Either may be empty.
+func (p *logsPanel) splitView(body image.Rectangle) (lists, preview image.Rectangle) {
+	inset := image.Rect(body.Min.X+1, body.Min.Y, body.Max.X-1, body.Max.Y)
+	switch p.shown {
+	case logsLogOnly:
+		return image.Rectangle{}, inset
+	case logsListOnly:
+		return body, image.Rectangle{}
+	}
+	percent := p.app.config.Logs.PreviewPercent
+	height, width := body.Dy()*percent/100, body.Dx()*percent/100
+	side := p.app.config.Logs.Preview
+	if (side == "right" || side == "left") && body.Dx()-width-1 < calendarWidth+2 {
+		side = "below" // beside the log, the calendar would not fit
+	}
+	lists, preview = body, inset
+	switch side {
+	case "above":
+		preview.Max.Y = body.Min.Y + height
+		lists.Min.Y = min(preview.Max.Y+1, body.Max.Y)
+	case "right":
+		preview.Min.X = body.Max.X - 1 - width
+		lists.Max.X = max(preview.Min.X-1, body.Min.X)
+	case "left":
+		preview.Max.X = body.Min.X + 1 + width
+		lists.Min.X = min(preview.Max.X+1, body.Max.X)
+	default:
+		preview.Min.Y = body.Max.Y - height
+		lists.Max.Y = max(preview.Min.Y-1, body.Min.Y)
+	}
+	return lists, preview
 }
 
 // drawCalendar draws the month of the selected day, the legend of its colors, then the totals of
@@ -476,7 +647,7 @@ func (p *logsPanel) drawCalendar(screen uv.Screen, area image.Rectangle, stats m
 		p.drawHeatLegend(screen, area.Min.X, y, area.Max.X)
 	}
 	if y := p.grid.Y + 8; y < area.Max.Y { // image.Rect would swap the ends of a calendar too short
-		p.drawTotals(screen, image.Rect(area.Min.X, y, area.Max.X, area.Max.Y), stats)
+		p.drawTotals(screen, image.Rect(area.Min.X, y, area.Max.X, area.Max.Y))
 	}
 }
 
@@ -496,15 +667,12 @@ func (p *logsPanel) dayStyle(day time.Time, s dayStats, busiest int) uv.Style {
 }
 
 // drawTotals shows the month's logs and runs, and how much of the configured limit all logs take.
-func (p *logsPanel) drawTotals(screen uv.Screen, area image.Rectangle, stats map[time.Time]dayStats) {
+func (p *logsPanel) drawTotals(screen uv.Screen, area image.Rectangle) {
 	pal := &p.app.palette
-	var month dayStats
-	var all int64
-	for day, s := range stats {
-		if day.Year() == p.day.Year() && day.Month() == p.day.Month() {
-			month.logs, month.size, month.runs, month.failed = month.logs+s.logs, month.size+s.size, month.runs+s.runs, month.failed+s.failed
-		}
-		all += s.size
+	month := p.monthStats()
+	all := int64(0)
+	for _, e := range p.entries {
+		all += e.Size
 	}
 	limits := p.app.config.Logs
 	limit := limits.MaxSizeBytes()
@@ -525,6 +693,27 @@ func (p *logsPanel) drawTotals(screen uv.Screen, area image.Rectangle, stats map
 	if y+1 < area.Max.Y {
 		drawText(screen, area.Min.X, y+1, area.Max.X, fmt.Sprintf("kept %d days (config)", limits.KeepDays), pal.panelMuted)
 	}
+}
+
+// monthStats sums up the selected day's month, each log once even when it shows on two of its days.
+func (p *logsPanel) monthStats() dayStats {
+	inMonth := func(day time.Time) bool { return day.Year() == p.day.Year() && day.Month() == p.day.Month() }
+	var month dayStats
+	for _, e := range p.entries {
+		if slices.ContainsFunc(logDays(e), inMonth) {
+			month.logs++
+			month.size += e.Size
+		}
+	}
+	for _, run := range p.runs {
+		if inMonth(dateOf(run.At)) {
+			month.runs++
+			if run.Failed() {
+				month.failed++
+			}
+		}
+	}
+	return month
 }
 
 // drawBar draws a bar width cells wide, filled for the fraction given, and returns the column
@@ -560,7 +749,7 @@ func (p *logsPanel) drawDay(screen uv.Screen, area image.Rectangle, s dayStats) 
 	drawText(screen, area.Min.X, area.Min.Y, area.Max.X, title, titleStyle)
 	drawText(screen, area.Min.X, area.Min.Y+1, area.Max.X, summary, pal.panelText)
 	drawText(screen, area.Min.X, area.Min.Y+2, area.Max.X, "sorted by "+p.order+"; the bar goes from the lightest log to the heaviest", pal.panelMuted)
-	list := image.Rect(area.Min.X, area.Min.Y+4, area.Max.X, area.Max.Y)
+	list := image.Rect(area.Min.X, min(area.Min.Y+4, area.Max.Y), area.Max.X, area.Max.Y) // image.Rect would swap the ends of an area too short
 	first := p.first
 	p.list, p.first = list, 0
 	if len(rows) == 0 {
@@ -568,17 +757,21 @@ func (p *logsPanel) drawDay(screen uv.Screen, area image.Rectangle, s dayStats) 
 		return
 	}
 	p.current(rows)
+	columns := p.logColumns(list, rows)
+	if list.Min.Y == area.Min.Y+4 {
+		p.drawLogColumnHeaders(screen, list.Min.Y-1, columns)
+	}
 	lightest, heaviest := sizeRange(rows)
 	p.first = listFirst(first, p.selected, len(rows), list.Dy())
 	for i := p.first; i < len(rows) && i-p.first < list.Dy(); i++ {
-		p.drawLogRow(screen, list, list.Min.Y+i-p.first, rows[i], i == p.selected, fraction(rows[i].entry.Size, lightest, heaviest))
+		p.drawLogRow(screen, list, list.Min.Y+i-p.first, columns, rows[i], i == p.selected, fraction(rows[i].entry.Size, lightest, heaviest))
 	}
 }
 
 func (p *logsPanel) dayLines() string {
 	total := 0
 	for _, e := range p.entries {
-		if dateOf(e.At).Equal(p.day) {
+		if onDay(e, p.day) {
 			total += p.linesOf(e)
 		}
 	}
@@ -600,32 +793,6 @@ func fraction(size, lightest, heaviest int64) float64 {
 		return 1
 	}
 	return float64(size-lightest) / float64(heaviest-lightest)
-}
-
-// drawLogRow draws one log: when, how its run ended, its name, its weight bar, size and lines.
-func (p *logsPanel) drawLogRow(screen uv.Screen, area image.Rectangle, y int, row logRow, selected bool, weight float64) {
-	pal := &p.app.palette
-	style := pal.panelText
-	if selected {
-		style = pal.selectedRow
-		if !p.focusList {
-			style = pal.focusedTitle
-		}
-	}
-	when := row.entry.At.Format("15:04:05")
-	if p.allDays {
-		when = row.entry.At.Format("01-02 15:04")
-	}
-	right := fmt.Sprintf(" %9s", logstore.PrettySize(row.entry.Size))
-	if area.Dx() >= 56 { // narrower, the name needs the room more than the lines
-		right += fmt.Sprintf(" %9s", groupDigits(p.linesOf(row.entry))+" ln")
-	}
-	nameEnd := area.Max.X - ansi.StringWidth(right) - barWidth - 1
-	fillRect(screen, image.Rect(area.Min.X, y, area.Max.X, y+1), style)
-	x := drawText(screen, area.Min.X, y, nameEnd, when+" "+runMark(row.run)+" ", style)
-	drawText(screen, x, y, nameEnd, row.name(), style)
-	drawBar(screen, nameEnd+1, y, barWidth, weight, pal)
-	drawText(screen, nameEnd+1+barWidth, y, area.Max.X, right, style)
 }
 
 // runMark tells how the run that wrote a log ended: ✓, ✗, ● while running or cut short, or
@@ -675,7 +842,7 @@ func (p *logsPanel) SendMouse(event uv.MouseEvent) {
 		p.previewMouse(event)
 		return
 	}
-	p.preview.focused, p.preview.offset = false, 0
+	p.leavePreview()
 	switch event.(type) {
 	case uv.MouseClickEvent:
 		if m.Button != uv.MouseLeft {
