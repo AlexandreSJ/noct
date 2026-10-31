@@ -107,8 +107,13 @@ func (a *App) clickBind(row bindRow, x int) {
 
 // shownKeys are an action's keys, one per key pressed: shift+g is left out after G.
 func (a *App) shownKeys(row bindRow) []string {
+	return a.pressedKeys(row.context.id, row.action)
+}
+
+// pressedKeys are the keys of an action in a context, one per key pressed.
+func (a *App) pressedKeys(context string, action keyAction) []string {
 	var keys, pressed []string
-	for _, key := range a.keymap.actionKeys(row.context.id, row.action) {
+	for _, key := range a.keymap.actionKeys(context, action) {
 		event, _ := keyEvent(key)
 		if !slices.Contains(pressed, event.String()) {
 			pressed = append(pressed, event.String())

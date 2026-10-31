@@ -11,6 +11,45 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+## v0.2.2 - 2026-10-31
+
+### Added
+
+- The logs list has titled columns: when each log was last written, when it started, how its
+  run ended, its name, the session it belongs to, its weight, size and lines. **Logs → list
+  columns** in the config chooses which show and in what order; on a narrow list the less
+  important ones step aside so the name keeps room.
+- The selected log can sit below, right, above or left of the calendar and the list, taking 20%
+  to 80% of the logs view: `p` moves it and `+`/`-` resize it, and both are kept in the config
+  as **Logs → log** and **Logs → log size**. `z` shows the log alone, and `v` hides it.
+- `?` in the logs view lists all its keys and what each does, as your binds have them. Like
+  every other key there, it can be changed in **Keys → binds of every screen → logs**.
+
+### Changed
+
+- A log shows on the day it was last written as well as the day it started, so a terminal left
+  open since yesterday is in today's list, and the list is sorted by the last write.
+  **Logs → keep** counts from the last write too, so a log still being written is never
+  deleted for its age.
+- Terminal logs are numbered within each day: the first terminal of the day is `pane1`, instead
+  of a number that kept growing for as long as noct ran.
+- The hints under the logs view show only the keys to move through the calendar, the list or
+  the log, whichever has the focus, and how to reach the next one; `?` has the rest.
+- `Space` works as `Enter` in the logs view: from the calendar to the list, to the log, and
+  back to the list.
+
+### Fixed
+
+- Every line of a long log can be reached in the logs view. It shows 5,000 lines at a time,
+  scrolling past either end goes on into the lines before or after, and its title says which
+  lines are in view. Before, only the lines the terminal had kept could be scrolled to.
+- A log with hundreds of thousands of lines no longer pushes its weight bar out of line with
+  the others; counts read `300k` or `1.2M`.
+- The scroll position of the log says `rows`, since it counts rows on screen, which long lines
+  and full-screen programs make differ from the log's lines.
+- On the 31st, `]` in the logs calendar no longer skips the next month.
+- The logs list no longer draws over the day's summary when the view is short.
+
 ## v0.2.1 - 2026-10-25
 
 ### Added

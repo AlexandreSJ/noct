@@ -195,7 +195,7 @@ func (a *App) openTrackedRun(title string, record script.Run, p program) (layout
 	a.openPanel(func(id layout.PaneID, frame image.Rectangle) (view, error) {
 		start := func(size pty.Size, onExit func(int)) (view, error) {
 			run := record
-			run.At = time.Now()
+			run.At, run.Session = time.Now(), a.session.name
 			run.Log = logstore.Path(logNameOf(record), run.At)
 			if firstLog == "" {
 				pane, firstLog = id, run.Log

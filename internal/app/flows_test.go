@@ -204,7 +204,11 @@ func writeTestLog(t *testing.T, at time.Time, name string, size int) logstore.En
 	if err := os.WriteFile(path, []byte(strings.Repeat("x\n", size/2)), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	return logstore.Entry{Path: path, Name: name, At: at.Truncate(time.Second), Size: int64(size)}
+	at = at.Truncate(time.Second)
+	if err := os.Chtimes(path, at, at); err != nil { // last written when it started
+		t.Fatal(err)
+	}
+	return logstore.Entry{Path: path, Name: name, At: at, Edited: at, Size: int64(size)}
 }
 
 func TestLogsPanelShowsTheDayAndClearsIt(t *testing.T) {

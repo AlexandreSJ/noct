@@ -36,7 +36,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 		ScriptsSort:   SortByRun,
 		ScriptFolders: []string{"~/work/scripts", "/srv/shared"},
 		Keys:          map[string]map[string][]string{"scripts": {"edit": {"x", "ctrl+e"}, "delete": {}}},
-		Logs:          Logs{KeepDays: 30, MaxSizeKB: 20000, Terminals: true},
+		Logs:          Logs{KeepDays: 30, MaxSizeKB: 20000, Terminals: true, Columns: []string{"name", "edited", "size"}, Preview: "right", PreviewPercent: 30},
 		Flows:         Flows{OutputKB: 64},
 		MCP:           MCP{Policy: map[string]string{"run_command": PolicyDeny}, ApprovalSeconds: 60},
 	}
@@ -147,6 +147,21 @@ func TestLoadMovesTheOldLogSizeInMBToKB(t *testing.T) {
 	}
 	if cfg.Logs.MaxSizeKB != 300<<10 || cfg.Logs.MaxSizeMB != 0 || cfg.Logs.Terminals {
 		t.Errorf("got %+v", cfg.Logs)
+	}
+}
+
+// Hand-written log view settings never break the view: unknown columns and repeats go, no
+// columns are the defaults, an unknown side is below and the size stays in its range.
+func TestLoadNormalizesTheLogsView(t *testing.T) {
+	cfg, err := Load(writeConfig(t, "[logs]\ncolumns = [\"Name\", \"weight\", \"name\", \"session\"]\npreview = \"middle\"\npreview_percent = 95\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(cfg.Logs.Columns, []string{"name", "session"}) || cfg.Logs.Preview != "below" || cfg.Logs.PreviewPercent != MaxPreviewPercent {
+		t.Errorf("got %+v", cfg.Logs)
+	}
+	if got := LogColumnsFrom([]string{"nope"}); !slices.Equal(got, DefaultLogColumns) {
+		t.Errorf("LogColumnsFrom(nope) = %v, want the defaults", got)
 	}
 }
 

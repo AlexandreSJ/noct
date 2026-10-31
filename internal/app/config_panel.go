@@ -44,6 +44,9 @@ const (
 	logsKeepRow
 	logsSizeRow
 	logsTerminalsRow
+	logsColumnsRow
+	logsPreviewRow
+	logsPreviewPercentRow
 	flowsOutputRow
 	updateCheckRow
 	resetRow
@@ -87,6 +90,8 @@ type configPanel struct {
 	editor      programSetting
 	fileManager programSetting
 	scriptsDir  textField
+	// logColumns is the logs list's columns as typed, names a space apart.
+	logColumns textField
 	// typing is on while the selected typed row takes text, from enter until enter, esc or leaving
 	// the row; typedBefore is its text when typing started, put back by esc.
 	typing      bool
@@ -124,6 +129,7 @@ func (a *App) openConfig() {
 		editor:      newProgramSetting(editorChoices(isInstalled), a.config.Editor),
 		fileManager: newProgramSetting(fileManagerChoices(isInstalled), a.config.FileManager),
 		scriptsDir:  newTextField(a.scriptsDir()),
+		logColumns:  newTextField(strings.Join(a.config.Logs.Columns, " ")),
 		selectedAt:  a.now(),
 	}
 	a.refreshLogUsage()
@@ -246,7 +252,7 @@ func (a *App) selectableConfigRows() []configRow {
 }
 
 func (a *App) isTypedRow(row configRow) bool {
-	return row == editorCommandRow || row == fileManagerCommandRow || row == scriptsDirRow
+	return row == editorCommandRow || row == fileManagerCommandRow || row == scriptsDirRow || row == logsColumnsRow
 }
 
 // typedText is the text a typed row edits.
@@ -256,6 +262,8 @@ func (a *App) typedText(row configRow) *textField {
 		return &a.configPanel.editor.draft
 	case fileManagerCommandRow:
 		return &a.configPanel.fileManager.draft
+	case logsColumnsRow:
+		return &a.configPanel.logColumns
 	}
 	if isNumberRow(row) {
 		return a.configPanel.number
@@ -317,6 +325,13 @@ func (a *App) configTypedField() (*textField, func()) {
 func (a *App) commitTyped() {
 	next := a.config
 	switch a.configPanel.selected {
+	case logsColumnsRow:
+		next.Logs.Columns = config.LogColumnsFrom(strings.Fields(a.configPanel.logColumns.String()))
+		a.configPanel.logColumns = newTextField(strings.Join(next.Logs.Columns, " "))
+		if !slices.Equal(next.Logs.Columns, a.config.Logs.Columns) {
+			a.applyConfig(next)
+		}
+		return
 	case editorCommandRow:
 		next.Editor = a.configPanel.editor.command(next.Editor)
 	case fileManagerCommandRow:
@@ -412,6 +427,10 @@ func (a *App) changeSetting(step int) {
 		return
 	case logsTerminalsRow:
 		next.Logs.Terminals = !next.Logs.Terminals
+	case logsPreviewRow:
+		next.Logs.Preview = cycle(config.LogPreviewSides, next.Logs.Preview, step)
+	case logsPreviewPercentRow:
+		next.Logs.PreviewPercent = min(max(next.Logs.PreviewPercent+step*previewPercentStep, config.MinPreviewPercent), config.MaxPreviewPercent)
 	case flowsOutputRow:
 		i := max(slices.Index(flowOutputChoices, next.Flows.OutputKB), 0)
 		next.Flows.OutputKB = flowOutputChoices[min(max(i+step, 0), len(flowOutputChoices)-1)]
@@ -585,10 +604,16 @@ func (a *App) configLines() []configLine {
 	lines = append(lines, a.numberLines("keep", logsKeepRow, fmt.Sprintf("%d days", a.config.Logs.KeepDays))...)
 	lines = append(lines, a.numberLines("max size", logsSizeRow, sizeText(a.config.Logs.MaxSizeKB))...)
 	lines = append(lines, a.logUsageLine()...)
-	return append(lines,
-		configLine{label: "older and, past the size, oldest logs are deleted", note: true},
+	lines = append(lines,
+		configLine{label: "logs not written to for longer and, past the size, the least recent are deleted", note: true},
 		configLine{label: "terminals", value: onOff(a.config.Logs.Terminals), row: logsTerminalsRow},
 		configLine{label: "log what terminal panes print; runs are always logged", note: true},
+	)
+	lines = append(lines, a.logColumnsLines()...)
+	return append(lines,
+		configLine{label: "log", value: "◂ " + a.config.Logs.Preview + " ▸", row: logsPreviewRow},
+		configLine{label: "log size", value: fmt.Sprintf("◂ %d%% ▸", a.config.Logs.PreviewPercent), row: logsPreviewPercentRow},
+		configLine{label: "where the logs view shows the selected log; there, p moves it and + - size it", note: true},
 		configLine{label: "Flows", heading: true},
 		configLine{label: "step output kept", value: "◂ " + flowOutputLabel(a.config.Flows.OutputKB) + " ▸", row: flowsOutputRow},
 		configLine{label: "in each flow's last result; tests keep 4 KB", note: true},
@@ -598,6 +623,30 @@ func (a *App) configLines() []configLine {
 		configLine{label: "Defaults", heading: true},
 		configLine{label: "reset all to defaults", value: a.resetValue(), row: resetRow},
 	)
+}
+
+// logColumnsLines are the logs list's columns, typed in order, with the names there are and the
+// words typed that are none of them.
+func (a *App) logColumnsLines() []configLine {
+	p := &a.configPanel
+	note := "enter edit"
+	if p.typing && p.selected == logsColumnsRow {
+		note = "enter saves · esc cancels"
+	}
+	lines := []configLine{
+		{label: "list columns", value: p.logColumns.String(), row: logsColumnsRow, typed: true},
+		{label: note + " · in order, out of " + strings.Join(config.LogColumns, " "), note: true},
+	}
+	var unknown []string
+	for _, word := range strings.Fields(strings.ToLower(p.logColumns.String())) {
+		if !slices.Contains(config.LogColumns, word) {
+			unknown = append(unknown, word)
+		}
+	}
+	if len(unknown) > 0 {
+		lines = append(lines, configLine{label: "not a column, left out: " + strings.Join(unknown, " "), note: true, warning: true})
+	}
+	return lines
 }
 
 // prefixLines are the prefix's row and, while a new combination is being taken, what to press

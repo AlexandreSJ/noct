@@ -334,3 +334,21 @@ func drawText(screen uv.Screen, x, y, maxX int, text string, style uv.Style) int
 	}
 	return x
 }
+
+// wrapHints breaks a line of hints into at most maxLines lines width wide, between hints (two
+// spaces apart) so no key is parted from what it does. The last line takes what is left.
+func wrapHints(hints string, width, maxLines int) []string {
+	var lines []string
+	line := ""
+	for _, hint := range strings.Split(hints, "  ") {
+		switch {
+		case line == "":
+			line = hint
+		case len(lines) < maxLines-1 && ansi.StringWidth(line+"  "+hint) > width:
+			lines, line = append(lines, line), hint
+		default:
+			line += "  " + hint
+		}
+	}
+	return append(lines, line)
+}

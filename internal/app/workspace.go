@@ -143,7 +143,7 @@ func (a *App) startShell(id layout.PaneID, frame image.Rectangle, dir string) (v
 // terminals: the shell shows the log's end and writes after it. Without logPath it starts a log.
 func (a *App) startShellLogged(id layout.PaneID, frame image.Rectangle, dir, logPath string) (view, error) {
 	p := program{argv: a.shellArgv, dir: dir, onExit: func(int) { a.detachView(id) }, pane: id}
-	if name := a.terminalLogName(id); name != "" {
+	if name := a.terminalLogName(); name != "" {
 		p.logPath, p.continueLog = logPath, logPath != ""
 		if logPath == "" {
 			p.logPath = logstore.Path(name, time.Now())
@@ -156,12 +156,13 @@ func (a *App) startShellLogged(id layout.PaneID, frame image.Rectangle, dir, log
 	return v, err
 }
 
-// terminalLogName names a terminal pane's log, or is empty, for no log, unless the config logs terminals.
-func (a *App) terminalLogName(id layout.PaneID) string {
+// terminalLogName names a terminal pane's log, numbered within the day, or is empty, for no log,
+// unless the config logs terminals.
+func (a *App) terminalLogName() string {
 	if !a.config.Logs.Terminals {
 		return ""
 	}
-	return fmt.Sprintf("pane%d", id)
+	return logstore.NumberedName("pane", time.Now())
 }
 
 // startInPane runs argv in dir in the pane id, which leaves its tab when the program exits.

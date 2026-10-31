@@ -29,7 +29,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/update/install.go` | Installing a release: download, checksum, replace the binary atomically; whether its folder is writable; the command that installs it by hand |
 | `internal/update/update_test.go` | Tests of versions, listing releases and installing them against a local server |
 | `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs; appending to one and reading its end |
-| `internal/logstore/entries.go` | Logs by day, each with a flow run's result beside it: listing, line counts, removing, pruning by age and total size, readable sizes |
+| `internal/logstore/entries.go` | Logs by day, each with when it started and was last written and a flow run's result beside it: listing, line counts, removing, pruning by last write and total size, terminal logs numbered within the day, readable sizes |
 | `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, exit code, foreground program and its command line, current directory |
 | `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing and its history (the main screen under a full-screen program, for the logs preview), mouse modes and forwarding |
 | `internal/pane/history.go` | An earlier program's output drawn on a screen of its own and replayed as text and colors above a new one |
@@ -43,7 +43,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/layout/shape.go` | A tree as plain data (`Shape`) and building it again under new pane IDs |
 | `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks of a pane and those below it (one pane shown, the others folded to a row), move by columns, remove, rects, directional focus, draggable dividers |
 | `internal/app/app.go` | App state, event loop, frame pacing, attach (to the session asked for)/detach, config loading, shutdown |
-| `internal/app/sessions.go` | Sessions: create, switch, close (keeping the layout), delete, rename; saving them and opening a closed one again; the command line's list and delete |
+| `internal/app/sessions.go` | Sessions: create, switch, close (keeping the layout), delete, rename; saving them and opening a closed one again; the session of each terminal's log; the command line's list and delete |
 | `internal/app/rerun.go` | The box over a reopened terminal offering to run again what it ran (enter types it, esc forgets it); typing text into a view |
 | `internal/app/sessions_popup.go` | Sessions popup (prefix+o): the sessions by last use, keys to open, create, rename, close and delete |
 | `internal/app/updates.go` | Updates: the cache of the last check, checking once it is a day old or on demand (with the ETag and a cooldown), installing the newest in the background, the command to install by hand, restarting into it |
@@ -65,8 +65,9 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/lock.go` | The lock (prefix+b): which commands it holds back and the hint on how to unlock |
 | `internal/app/prompt.go` | Text prompt (tab and panel rename, new folder), yes/no confirmation (quit, delete), a choice of a few options (new directory or script) and an info popup (what a flow's step does) |
 | `internal/app/textfield.go` | The one-line text field every prompt, form, search and config row types into: cursor, shell editing keys, paste (bracketed or OSC 52), cursor view |
-| `internal/app/logs_panel.go` | Logs panel (prefix+v): month calendar marked by runs, the day's logs with weight bars, sorting, clearing; log pruning |
-| `internal/app/logs_preview.go` | The selected log under the logs panel: a terminal that prints it and follows its end, restarted as the selection moves, and scrolling its history |
+| `internal/app/logs_panel.go` | Logs panel (prefix+v): month calendar marked by runs, the logs of a day (started or last written on it), sorting, clearing, where the log goes and whether it or the lists show, the hints of the part with the focus and the popup of every key; log pruning |
+| `internal/app/logs_columns.go` | The logs list's columns from the config: their widths over the whole list, dropping them on a narrow list, each cell (times, session, size, compact line counts), the titles |
+| `internal/app/logs_preview.go` | The selected log beside the logs panel's lists: a terminal that prints a part of 5000 lines of it, the last following its end, restarted as the selection or the part changes, and scrolling its history on into the parts before and after |
 | `internal/app/library_watch.go` | Reading scripts and flows again while a panel shows them and their files changed on disk |
 | `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks |
 | `internal/app/flowchart.go` | Laying out and drawing a flow as a flowchart on its own canvas, and which block is where: steps, empty lists and the gaps where steps are added; ranges and warnings marked |
@@ -130,7 +131,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/script/library.go` | The library: personal scripts, folders of scripts (in the scripts folder, linked, project), IDs, lookups |
 | `internal/script/edit.go` | Creating a script (with optional hints) and updating it from the form's fields, keeping the rest of the YAML; params as YAML text |
 | `internal/script/values.go` | Starting values of parameters, checking them, remembered values file |
-| `internal/script/history.go` | The list of recent runs of scripts and flows (the last 1000), with exit code and log, and sorting scripts by name, edit or last run |
+| `internal/script/history.go` | The list of recent runs of scripts and flows (the last 1000), with exit code, log and session, and sorting scripts by name, edit or last run |
 | `internal/flow/flow.go` | A flow: steps (script, run, if, repeat, wait, prompt, set, unset), loading, saving, creating, validation, template functions |
 | `internal/flow/run.go` | Running a flow step by step in a terminal: commands, if, repeat, wait, captures (and scripts' outputs), expect; its last result with each step's output |
 | `internal/flow/try.go` | Testing a range of sibling steps over the last result (its steps' fields and variables), and merging what they did into it |

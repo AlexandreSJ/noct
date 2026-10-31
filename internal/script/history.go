@@ -31,6 +31,8 @@ type Run struct {
 	// Trigger is what started a flow's run by itself, such as "cron 0 9 * * *"; "" when started
 	// by hand.
 	Trigger string `json:"trigger,omitempty"`
+	// Session is the noct session whose pane the run showed in; "" for runs outside one.
+	Session string `json:"session,omitempty"`
 }
 
 // Name is the script's or the flow's name, as its ID.

@@ -776,3 +776,18 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Quem nunca gravou as animações no config passa a ver as novas. Os testes de animação fixam os efeitos para que foram escritos, à parte dos padrões.
 
+
+## ADR-059 — Logs pela última escrita, em partes, com colunas e lugar configuráveis
+
+**Contexto.** Um terminal aberto num dia e usado no seguinte continuava só no dia em que começou, e a limpeza por idade contava desse dia, então podia apagar o log de um terminal ainda em uso. Logs de TUIs passam de 10 MB e centenas de milhares de linhas: a contagem empurrava a barra de peso da sua linha, e o log embaixo só rolava o histórico do terminal que o desenhava (10 000 linhas), menos do que a lista dizia. Faltava saber de que sessão vinha cada log, e o log ocupava sempre a metade de baixo.
+
+**Decisão.**
+- Cada log tem o início (o nome do arquivo) e a última escrita (o mtime do arquivo atual). Ele aparece no dia em que começou e no da última escrita, conta uma vez no mês, e a lista ordena pela última escrita. Os dias entre os dois não se sabem sem ler o log e ficam de fora. `keep_days` e o limite de tamanho passam a contar da última escrita.
+- A lista tem colunas: `edited`, `started`, `status`, `name`, `session`, `bar`, `size`, `lines`, nessa ordem por padrão, escolhidas e ordenadas em `[logs] columns` (no config, uma linha de texto). As larguras saem da lista inteira e não das linhas na tela, então nada anda ao rolar; as linhas vão até seis caracteres (`12,345`, `300k`, `1.2M`). Numa lista estreita saem `session`, `started`, `lines`, `bar`, `edited`, `size`, `status`, nessa ordem, até o nome ter 16 colunas. Cada coluna leva um título.
+- A sessão de um terminal vem das sessões abertas e fechadas; a de uma execução, do campo `session` que `runs.json` passa a gravar. Execuções de triggers não têm.
+- O log embaixo mostra 5 000 linhas por vez: a última parte segue o fim do arquivo, e rolar além de uma ponta abre a parte de antes ou de depois (`g` a primeira, `G` a última), com `lines 7,346–12,345 of 12,345` no título. Cada parte é um `sed`/`tail` sobre o arquivo rotacionado e o atual, no mesmo terminal de antes.
+- O log fica abaixo, à direita, acima ou à esquerda (`[logs] preview`, `p` na view) com 20 a 80% da view (`preview_percent`, `+`/`-`), guardados no config. Ao lado, sem espaço para o calendário, vai para baixo. `z` mostra só o log, `v` o esconde (fechando o terminal dele), e `Enter`/`Space` alternam entre o calendário, a lista e o log.
+- As legendas mostram só as teclas de andar pela parte com foco e de ir à próxima; `?` (uma ação das binds como as outras) abre um popup com todas as teclas da view, como estão nas binds.
+- Os logs de terminais se numeram dentro do dia (`pane1` é o primeiro do dia), em vez do número do painel, que só crescia enquanto o noct rodava e chegaria a milhares em meses de uso.
+
+**Consequências.** Logs anteriores a esta versão não têm sessão para execuções; os de terminais ganham pela sessão onde estão. Uma TUI cortada no meio de uma parte se desenha a partir dali, sem o estado de antes do corte.
