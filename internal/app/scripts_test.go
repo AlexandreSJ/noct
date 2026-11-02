@@ -402,3 +402,12 @@ func TestTabCompletesAPathParameter(t *testing.T) {
 		t.Errorf("ran %q", run.argv)
 	}
 }
+
+func TestSharedStartKeepsWholeCharacters(t *testing.T) {
+	if got := sharedStart("é1", "è2"); got != "" {
+		t.Errorf("sharedStart = %q, want no half character", got)
+	}
+	if got := sharedStart("café", "cafés"); got != "café" {
+		t.Errorf("sharedStart = %q", got)
+	}
+}

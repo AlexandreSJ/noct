@@ -41,6 +41,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 - `noct check` now finds invalid `capture` and `output_matches` patterns on script steps.
 - Logs of flow steps that run a script in a folder now show in the logs view.
 - The MCP audit log keeps the calls of earlier AI sessions instead of starting over each time.
+- Tab completion of a path no longer inserts half a character when names share only part of an
+  accented letter.
 - A script killed by a signal makes `noct -s` exit with 128 plus the signal, as shells do.
 
 ### Security

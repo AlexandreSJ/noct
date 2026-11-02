@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 )
 
 // completePath completes the last part of a typed path, as a shell's tab does: to the longest
@@ -61,6 +62,9 @@ func sharedStart(a, b string) string {
 	n := 0
 	for n < len(a) && n < len(b) && a[n] == b[n] {
 		n++
+	}
+	for n > 0 && n < len(a) && !utf8.RuneStart(a[n]) {
+		n-- // never cut a character in half
 	}
 	return a[:n]
 }
