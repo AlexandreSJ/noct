@@ -180,8 +180,10 @@ func (a *App) startRun(s script.Script, values map[string]string, closeOnSuccess
 	}
 	run := program{argv: []string{a.shellArgv[0], "-c", command}, dir: s.WorkingDir(a.workDir)}
 	pane, _ := a.openTrackedRun(s.Name, script.Run{Script: s.ID()}, run)
-	if v, ok := a.currentTab().views[pane].(*runView); ok && closeOnSuccess {
-		v.closeOnSuccess = true
+	if t := a.currentTab(); t != nil && closeOnSuccess {
+		if v, ok := t.views[pane].(*runView); ok {
+			v.closeOnSuccess = true
+		}
 	}
 }
 

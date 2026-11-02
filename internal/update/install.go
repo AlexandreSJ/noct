@@ -109,7 +109,10 @@ func binaryIn(archive []byte) ([]byte, error) {
 			return nil, err
 		}
 		if header.Typeflag == tar.TypeReg && filepath.Base(header.Name) == binaryName {
-			return io.ReadAll(io.LimitReader(files, maxDownload))
+			if header.Size > maxDownload {
+				return nil, errors.New("its noct binary is larger than noct accepts")
+			}
+			return io.ReadAll(files)
 		}
 	}
 }
@@ -134,9 +137,9 @@ func replaceFile(target string, content []byte, mode os.FileMode) error {
 }
 
 // ManualCommand installs the release by hand, for a binary in a folder this user cannot write:
-// it downloads the archive and copies the binary over target with sudo.
+// it downloads the archive into a new private folder and copies the binary over target with sudo.
 func (s Source) ManualCommand(version, target string) string {
-	return fmt.Sprintf("curl -fsSL %s | tar -xzf - -C /tmp %s && sudo install -m 755 /tmp/%s %s",
+	return fmt.Sprintf(`dir=$(mktemp -d) && curl -fsSL %s | tar -xzf - -C "$dir" %s && sudo install -m 755 "$dir/%s" %s`,
 		s.ArchiveURL(version), binaryName, binaryName, shellQuote(target))
 }
 

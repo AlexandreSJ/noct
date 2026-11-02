@@ -230,8 +230,8 @@ func TestCanReplace(t *testing.T) {
 func TestManualCommand(t *testing.T) {
 	source := Source{Downloads: "https://example.com/releases/download"}
 	got := source.ManualCommand("v0.2.0", "/opt/my tools/noct")
-	want := "curl -fsSL https://example.com/releases/download/v0.2.0/" + ArchiveName("v0.2.0", runtime.GOOS, runtime.GOARCH) +
-		" | tar -xzf - -C /tmp noct && sudo install -m 755 /tmp/noct '/opt/my tools/noct'"
+	want := "dir=$(mktemp -d) && curl -fsSL https://example.com/releases/download/v0.2.0/" + ArchiveName("v0.2.0", runtime.GOOS, runtime.GOARCH) +
+		` | tar -xzf - -C "$dir" noct && sudo install -m 755 "$dir/noct" '/opt/my tools/noct'`
 	if got != want {
 		t.Errorf("ManualCommand =\n%s\nwant\n%s", got, want)
 	}

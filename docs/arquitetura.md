@@ -103,6 +103,7 @@ Como no tmux, **o daemon desenha para o terminal do cliente** (ADR-017):
 | `~/.local/state/noct/runs.json` | As últimas 1000 execuções de scripts e fluxos: quando, código de saída e log (ADR-029) |
 | `~/.local/state/noct/flows/<fluxo>.json` | Resultado da última execução de cada fluxo, passo a passo (ADR-028) |
 | `$XDG_RUNTIME_DIR/noct/noct.sock` | Socket do daemon (permissão 0600; sem `XDG_RUNTIME_DIR`, fica em `/tmp/noct-<uid>/`) |
+| `$XDG_RUNTIME_DIR/noct/noct.lock` | Trava (`flock`) que o daemon segura enquanto escuta, para dois daemons iniciados juntos não apagarem o socket um do outro. A pasta precisa ser do usuário e sem acesso de outros (`0700`), ou o daemon não inicia |
 
 Itens de projeto e pessoais aparecem juntos nas listas, com o escopo indicado. Em conflito de nome, a do projeto vence.
 

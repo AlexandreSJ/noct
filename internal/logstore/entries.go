@@ -24,7 +24,9 @@ func LogsDir() string {
 }
 
 // Path is where a log started at a moment goes: logs/2026-09-27/143005-name.log.
+// Separators in name become dashes, so a name like a folder/script keeps the log in its day.
 func Path(name string, at time.Time) string {
+	name = strings.NewReplacer("/", "-", `\`, "-").Replace(name)
 	return filepath.Join(LogsDir(), at.Format(DayLayout), at.Format("150405")+"-"+name+".log")
 }
 

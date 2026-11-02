@@ -16,6 +16,48 @@ the shortcut is `Alt` by default. How to write an entry is in
 - In fullscreen, the middle of each side of the border is dashed (`─ ─ ─`) where another panel
   lies that way, so you can tell where `prefix` + an arrow or `shortcut` + an arrow will take you.
 
+### Changed
+
+- Scripts in a project's `.noct/scripts` show no program version in the scripts panel and in
+  `noct ls`: finding it ran a command from the project, so opening noct inside a cloned
+  repository could run that repository's code.
+- The config panel no longer saves over a `config.toml` that has an error: it says where the
+  error is, so a typo cannot cost every other setting in the file.
+
+### Fixed
+
+- noct no longer crashes when you turn the mouse wheel while selecting text in a panel that
+  closed or is in another tab, or when a selection is copied from a panel too small to show a
+  line.
+- Running a script from the home screen no longer crashes noct when the script cannot start.
+- A program that keeps asking the terminal questions without reading the answers no longer
+  freezes noct.
+- A terminal that stops reading, such as one suspended, no longer freezes noct for every
+  other terminal attached to it.
+- A flow step whose panel cannot open now fails with the reason instead of waiting forever.
+- A program printing a crafted image command can no longer crash noct or make it use unbounded
+  memory.
+- `5/15` in a flow's cron now runs at :05, :20, :35 and :50, as in cron, not only at :05.
+- `noct check` now finds invalid `capture` and `output_matches` patterns on script steps.
+- Logs of flow steps that run a script in a folder now show in the logs view.
+- The MCP audit log keeps the calls of earlier AI sessions instead of starting over each time.
+- Tab completion of a path no longer inserts half a character when names share only part of an
+  accented letter.
+- A script killed by a signal makes `noct -s` exit with 128 plus the signal, as shells do.
+
+### Security
+
+- noct's AI tools can read only noct's own logs: a log name with `..` could reach any file you
+  can read.
+- An AI's request waiting for approval shows a command with several lines on one line, so lines
+  below what the popup fits cannot hide.
+- Without `XDG_RUNTIME_DIR`, noct refuses a socket folder in `/tmp` that another user created,
+  where they could listen in noct's place and read what you type.
+- Two noct daemons starting at the same moment no longer both run, which left one with panels
+  nobody could reach and triggers firing twice.
+- The command shown to update a binary in a folder you cannot write extracts into a new private
+  folder instead of `/tmp/noct`, which another user could create first.
+
 ## v0.2.2 - 2026-10-31
 
 ### Added

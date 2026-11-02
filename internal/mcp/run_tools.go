@@ -301,7 +301,8 @@ func tail(text string, limit int) string {
 
 // logLines reads a log's lines, its rotated older part first, without colors.
 func logLines(path string) ([]string, error) {
-	if !strings.HasPrefix(path, logstore.LogsDir()) {
+	rel, err := filepath.Rel(logstore.LogsDir(), filepath.Clean(path))
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return nil, fmt.Errorf("%s is not one of noct's logs", path)
 	}
 	var lines []string
@@ -328,6 +329,9 @@ func appendFileLines(lines []string, file string) ([]string, error) {
 	scanner.Buffer(make([]byte, 64<<10), 4<<20)
 	for scanner.Scan() {
 		lines = append(lines, strings.TrimRight(ansi.Strip(scanner.Text()), "\r"))
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("reading %s: %w", file, err)
 	}
 	return lines, nil
 }

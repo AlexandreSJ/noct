@@ -273,3 +273,17 @@ func TestCustomBindsRoundTrip(t *testing.T) {
 		t.Errorf("loaded %+v, %v", got.CustomBinds, err)
 	}
 }
+
+func TestSaveKeepsAFileThatDoesNotRead(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	broken := "mouse = \"yes\n[mcp.policy]\nrun = \"deny\"\n"
+	if err := os.WriteFile(path, []byte(broken), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Save(path, Default()); err == nil {
+		t.Error("saved over a config file with an error")
+	}
+	if content, _ := os.ReadFile(path); string(content) != broken {
+		t.Errorf("the broken file became %q", content)
+	}
+}

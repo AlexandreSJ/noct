@@ -16,6 +16,9 @@ func SplitPath(path string) (parent, branch string, index int) {
 	index, _ = strconv.Atoi(path[cut+1:])
 	rest := path[:cut]
 	cut = strings.LastIndex(rest, "/")
+	if cut < 0 {
+		return "", "", -1 // a parent with a branch but no step: no step is there
+	}
 	return rest[:cut], rest[cut+1:], index
 }
 

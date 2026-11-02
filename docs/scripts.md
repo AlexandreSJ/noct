@@ -92,6 +92,7 @@ A biblioteca é relida ao abrir um scripts panel, quando o editor fecha e depois
 2. Se achar, roda `version_cmd` (com `sh -c`), ou tenta `--version` e `-v`, nessa ordem, com timeout de 2 s, lendo stdout e stderr. Um argumento `version` solto não é tentado: para muitos programas ele é um nome de arquivo.
 3. Mostra a primeira sequência parecida com versão (`\d+(\.\d+)+`); se não houver, a primeira linha de uma execução que deu certo, ou `?`.
 4. A detecção roda em segundo plano (a lista mostra `…` enquanto isso) e o resultado fica em cache até o binário mudar (caminho + data de modificação).
+5. Scripts da pasta `project` não têm versão detectada (a coluna fica vazia, e `noct ls` mostra `-`): o `.noct/scripts` vem com o repositório clonado, e rodar o `version_cmd` ou o `program` dele só por abrir a lista executaria código de terceiros sem o usuário pedir.
 
 ## Ajuda (`prefixo` + `?`)
 

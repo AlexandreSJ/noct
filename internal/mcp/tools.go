@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/script"
@@ -156,10 +158,20 @@ func argText(args json.RawMessage, fields ...string) string {
 	var parts []string
 	for _, field := range fields {
 		if v, ok := values[field]; ok {
-			parts = append(parts, fmt.Sprintf("%s: %v", field, v))
+			parts = append(parts, field+": "+summaryValue(v))
 		}
 	}
 	return strings.Join(parts, "\n")
+}
+
+// summaryValue shows a value on one line, quoted when it holds control or format characters, so
+// a command cannot hide lines below what the approval shows or reorder its text.
+func summaryValue(v any) string {
+	text := fmt.Sprint(v)
+	if strings.ContainsFunc(text, func(r rune) bool { return unicode.IsControl(r) || unicode.Is(unicode.Cf, r) }) {
+		return strconv.Quote(text)
+	}
+	return text
 }
 
 // instructions tell the AI how noct's tools fit together.

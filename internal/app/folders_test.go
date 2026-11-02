@@ -131,3 +131,14 @@ func TestTheBrowsedFolderAndItsBarAreInTheAccent(t *testing.T) {
 		}
 	}
 }
+
+func TestProjectScriptsDoNotRunTheirVersionCommand(t *testing.T) {
+	p := &scriptsPanel{app: testApp(t)}
+	row := panelRow{
+		folder: &script.Folder{Name: "project", Kind: script.ProjectFolder},
+		script: &script.Script{Name: "build", Program: "sh", VersionCmd: "echo 1.2.3"},
+	}
+	if _, version := p.rowText(row); version != "" {
+		t.Errorf("a project script's version was asked: %q", version)
+	}
+}

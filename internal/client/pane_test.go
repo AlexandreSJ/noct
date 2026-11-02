@@ -10,7 +10,7 @@ import (
 
 // OpenPane sends the request in its hello and gives back the exit code the workspace answers.
 func TestOpenPaneReturnsTheExitCode(t *testing.T) {
-	socket := filepath.Join(t.TempDir(), "noct.sock")
+	socket := filepath.Join(t.TempDir(), "noct", "noct.sock")
 	listener, err := ipc.Listen(socket)
 	if err != nil {
 		t.Fatal(err)

@@ -165,6 +165,7 @@ func TestValidateRejects(t *testing.T) {
 		"bad wait":       `steps: [ { wait: soon } ]`,
 		"bad capture":    `steps: [ { run: ls, capture: { x: '(' } } ]`,
 		"unknown script": `steps: [ { script: missing } ]`,
+		"script capture": `steps: [ { script: known, capture: { x: '(' } } ]`,
 		"twice the id":   `steps: [ { id: a, run: ls }, { id: a, run: ls } ]`,
 		"bad template":   `steps: [ { run: '{{.x' } ]`,
 		"capture on if":  `steps: [ { if: 'true', capture: { x: y } } ]`,
@@ -202,6 +203,9 @@ steps:
 	parent, branch, index := SplitPath("3/steps/2")
 	if parent != "3" || branch != "steps" || index != 2 {
 		t.Errorf("SplitPath = %q %q %d", parent, branch, index)
+	}
+	if _, ok := f.Step("0/then"); ok {
+		t.Error("a branch without a step index named a step")
 	}
 }
 

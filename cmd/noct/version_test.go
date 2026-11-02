@@ -97,7 +97,7 @@ func TestUpdatePrintsTheCommandForAFolderItCannotWrite(t *testing.T) {
 	if err := updateNoct(releasesServer(t), "v0.1.0", target, strings.NewReader("y\n"), &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "sudo install -m 755 /tmp/noct "+target) {
+	if !strings.Contains(out.String(), `sudo install -m 755 "$dir/noct" `+target) {
 		t.Errorf("output lacks the command:\n%s", out.String())
 	}
 }

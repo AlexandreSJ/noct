@@ -107,7 +107,9 @@ func (s Step) validateID(ids map[string]bool) error {
 func (s Step) validateKind(kind Kind, lookup func(id string) (script.Script, bool)) error {
 	switch kind {
 	case ScriptStep:
-		return validateScript(s.Script, lookup)
+		if err := validateScript(s.Script, lookup); err != nil {
+			return err
+		}
 	case RepeatStep:
 		return s.Repeat.validate()
 	case WaitStep:

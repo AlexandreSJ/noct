@@ -18,7 +18,7 @@ const maxAuditLog = 5 << 20
 // serveMCP runs noct's MCP server on this process's input and output, for an AI client such as
 // Claude Code. Every call goes to the audit log, mcp.log in noct's logs.
 func serveMCP() error {
-	audit, err := logstore.Create(filepath.Join(logstore.LogsDir(), "mcp.log"), maxAuditLog)
+	audit, err := logstore.Append(filepath.Join(logstore.LogsDir(), "mcp.log"), maxAuditLog)
 	if err != nil {
 		return err
 	}

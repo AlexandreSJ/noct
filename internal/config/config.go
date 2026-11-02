@@ -522,8 +522,12 @@ func Load(path string) (Config, error) {
 	return cfg, nil
 }
 
-// Save writes the settings atomically, so a crash never leaves a half-written file.
+// Save writes the settings atomically, so a crash never leaves a half-written file. It refuses
+// to replace a file that does not read, which would lose every setting in it.
 func Save(path string, cfg Config) error {
+	if _, err := toml.DecodeFile(path, new(Config)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("%s has an error to fix before settings can be saved: %w", path, err)
+	}
 	var content bytes.Buffer
 	if err := toml.NewEncoder(&content).Encode(cfg); err != nil {
 		return fmt.Errorf("encoding settings: %w", err)

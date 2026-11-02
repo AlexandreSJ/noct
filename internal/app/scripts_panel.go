@@ -308,6 +308,9 @@ func (p *scriptsPanel) rowText(row panelRow) (label, value string) {
 	if s.Draft {
 		return "✎ " + s.Name, "draft"
 	}
+	if row.folder != nil && row.folder.Kind == script.ProjectFolder {
+		return s.Name, "" // asking its program for a version would run a cloned project's code
+	}
 	return s.Name, p.version(*s)
 }
 

@@ -202,7 +202,7 @@ func (a *App) startDrag(t *tab, id layout.PaneID, point image.Point, button uv.M
 }
 
 func (a *App) dragDivider(m uv.Mouse) {
-	if !a.drag.tab.tree.MoveDivider(a.drag.divider, a.workspaceArea(), image.Pt(m.X, m.Y), minPaneRect) {
+	if a.drag.tab.isEmpty() || !a.drag.tab.tree.MoveDivider(a.drag.divider, a.workspaceArea(), image.Pt(m.X, m.Y), minPaneRect) {
 		a.drag = nil // the split went away while dragging
 		return
 	}
@@ -231,6 +231,10 @@ func (a *App) handleWheel(event uv.MouseEvent) {
 	}
 	id, ok := t.paneAt(image.Pt(m.X, m.Y), a.workspaceArea())
 	if selecting {
+		if a.selection.tab != t || t.views[a.selection.pane] == nil {
+			a.selection = nil // the selected pane closed or is in another tab
+			return
+		}
 		id, ok = a.selection.pane, true // while selecting, the wheel scrolls the selected pane
 	}
 	if !ok {

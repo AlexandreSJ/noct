@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -71,7 +72,7 @@ func (a *App) startTriggered(name, reason string) {
 	}
 	cmd := exec.Command(orDefault(a.binary.path, "noct"), "flow", "run", name)
 	cmd.Dir, cmd.Stdout, cmd.Stderr = a.workDir, log, log
-	cmd.Env = append(os.Environ(), flow.TrackedEnv+"=1", flow.ResultEnv+"="+logstore.ResultPath(run.Log))
+	cmd.Env = append(slices.Clone(a.shellEnv), flow.TrackedEnv+"=1", flow.ResultEnv+"="+logstore.ResultPath(run.Log))
 	fmt.Fprintf(log, "\x1b[2m▶ flow %s started by %s\x1b[0m\n", name, reason)
 	if err := cmd.Start(); err != nil {
 		log.Close()

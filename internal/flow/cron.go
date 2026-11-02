@@ -65,6 +65,9 @@ func (f cronField) parse(text string) (uint64, error) {
 		if err != nil {
 			return 0, err
 		}
+		if stepped && !strings.Contains(span, "-") {
+			to = f.max // 5/15 steps from 5 to the field's end, as cron reads it
+		}
 		for v := from; v <= to; v += step {
 			bits |= 1 << v
 		}

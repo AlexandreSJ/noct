@@ -311,3 +311,21 @@ func TestHistoryUnderFullScreen(t *testing.T) {
 		}
 	}
 }
+
+// A program that asks for the cursor position again and again without reading the answers must
+// not freeze drawing.
+func TestUnreadRepliesDoNotFreezeTheScreen(t *testing.T) {
+	p, _ := startTestPane(t, `stty raw -echo; i=0; while [ $i -lt 50000 ]; do printf '\033[6n'; i=$((i+1)); done; printf done; sleep 30`)
+	drawn := make(chan struct{})
+	go func() {
+		deadline := time.Now().Add(testTimeout)
+		for time.Now().Before(deadline) && !strings.Contains(screenText(p), "done") {
+			time.Sleep(10 * time.Millisecond)
+		}
+		close(drawn)
+	}()
+	waitFor(t, drawn)
+	if !strings.Contains(screenText(p), "done") {
+		t.Error("the program's output stopped showing")
+	}
+}

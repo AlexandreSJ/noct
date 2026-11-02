@@ -224,3 +224,10 @@ func TestNumberedNameStartsOverEachDay(t *testing.T) {
 		t.Errorf("the next day: %q, want pane1", got)
 	}
 }
+
+func TestPathKeepsFolderNamesInTheDay(t *testing.T) {
+	at := time.Date(2026, 9, 27, 14, 30, 5, 0, time.Local)
+	if got := filepath.Dir(Path("step-tools/build", at)); got != filepath.Join(LogsDir(), "2026-09-27") {
+		t.Errorf("the log went to %s", got)
+	}
+}
