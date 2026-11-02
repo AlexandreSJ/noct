@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"maps"
@@ -234,8 +235,8 @@ func (a *App) editFlowStep(f flow.Flow, path string) {
 		a.statusMessage = err.Error()
 		return
 	}
-	file := filepath.Join(os.TempDir(), fmt.Sprintf("noct-%s-step-%s.yaml", f.Name, strings.ReplaceAll(path, "/", "-")))
-	if err := os.WriteFile(file, append([]byte(stepHints), content...), 0o600); err != nil {
+	file, err := writeTempFile(fmt.Sprintf("noct-%s-step-%s-*.yaml", f.Name, strings.ReplaceAll(path, "/", "-")), append([]byte(stepHints), content...))
+	if err != nil {
 		a.statusMessage = err.Error()
 		return
 	}
@@ -254,6 +255,21 @@ func (a *App) editFlowStep(f flow.Flow, path string) {
 		}
 		_ = os.Remove(file) // saved; a leftover in the temp folder harms nothing
 	})
+}
+
+// writeTempFile writes content to a new file of its own in the temp folder, named after pattern,
+// so another user cannot take the name first.
+func writeTempFile(pattern string, content []byte) (string, error) {
+	file, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return "", err
+	}
+	_, err = file.Write(content)
+	if err = errors.Join(err, file.Close()); err != nil {
+		os.Remove(file.Name())
+		return "", err
+	}
+	return file.Name(), nil
 }
 
 // changeFlow changes the flow as it is on disk and saves it, unless the change brings a problem
