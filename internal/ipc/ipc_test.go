@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func pipePair() (*Conn, *Conn) {
@@ -73,4 +75,52 @@ func TestListenRefusesASecondDaemonAndReplacesStaleSockets(t *testing.T) {
 		t.Fatalf("a stale socket blocked a new daemon: %v", err)
 	}
 	again.Close()
+}
+
+func TestListenRefusesASocketDirectoryOthersCanWrite(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "noct")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if listener, err := Listen(filepath.Join(dir, "noct.sock")); err == nil {
+		listener.Close()
+		t.Error("a world-writable socket directory was accepted")
+	}
+}
+
+func TestListenRefusesWhileAnotherDaemonHoldsTheLock(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "noct")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	lock, err := lockDaemon(filepath.Join(dir, "noct.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	if listener, err := Listen(filepath.Join(dir, "noct.sock")); err == nil {
+		listener.Close()
+		t.Error("a daemon could start while another was starting")
+	}
+}
+
+func TestSendGivesUpOnAPeerThatStopsReading(t *testing.T) {
+	a, b := net.Pipe()
+	defer a.Close()
+	defer b.Close()
+	conn := NewConn(a)
+	conn.LimitSends(50 * time.Millisecond)
+	done := make(chan error, 1)
+	go func() { done <- conn.Send(KindOutput, []byte("frame")) }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Error("a message nobody read was sent")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Send blocked past its timeout")
+	}
 }

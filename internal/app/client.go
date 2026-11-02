@@ -164,6 +164,10 @@ func (c *client) close() {
 	_ = c.conn.Close()
 }
 
+// clientSendTimeout is how long the workspace waits for a terminal or run that stopped reading
+// before it lets go of it, since every send happens on the main loop.
+const clientSendTimeout = 10 * time.Second
+
 // acceptClients hands every connection that introduces itself to the main loop.
 func (a *App) acceptClients(listener net.Listener) {
 	for {
@@ -171,7 +175,9 @@ func (a *App) acceptClients(listener net.Listener) {
 		if err != nil {
 			return // the listener closed: the daemon is stopping
 		}
-		go a.greet(ipc.NewConn(conn))
+		c := ipc.NewConn(conn)
+		c.LimitSends(clientSendTimeout)
+		go a.greet(c)
 	}
 }
 

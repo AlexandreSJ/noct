@@ -13,11 +13,16 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"syscall"
+	"time"
 )
 
 // Version changes whenever messages change; a client and daemon of different versions refuse
 // to talk rather than misread each other.
 const Version = 3
+
+// sendPiece is how much of a message is written under one deadline, for connections with a send limit.
+const sendPiece = 64 << 10
 
 // maxPayload bounds one message, so a corrupted length cannot make a reader allocate gigabytes.
 const maxPayload = 16 << 20
@@ -129,25 +134,51 @@ type Message struct {
 
 // Conn sends and receives messages. Sends may come from several goroutines.
 type Conn struct {
-	conn      net.Conn
-	writeLock sync.Mutex
+	conn        net.Conn
+	writeLock   sync.Mutex
+	sendTimeout time.Duration
 }
 
 func NewConn(conn net.Conn) *Conn {
 	return &Conn{conn: conn}
 }
 
+// LimitSends makes a send fail, and close the connection, when the other side reads nothing for
+// timeout, so a peer that stops reading, such as a suspended terminal, cannot block the sender.
+func (c *Conn) LimitSends(timeout time.Duration) {
+	c.writeLock.Lock()
+	defer c.writeLock.Unlock()
+	c.sendTimeout = timeout
+}
+
 func (c *Conn) Send(kind Kind, payload []byte) error {
-	var header [5]byte
+	header := make([]byte, 5, 5+len(payload))
 	header[0] = byte(kind)
 	binary.BigEndian.PutUint32(header[1:], uint32(len(payload)))
 	c.writeLock.Lock()
 	defer c.writeLock.Unlock()
-	if _, err := c.conn.Write(header[:]); err != nil {
+	if err := c.write(append(header, payload...)); err != nil {
 		return fmt.Errorf("sending message: %w", err)
 	}
-	if _, err := c.conn.Write(payload); err != nil {
-		return fmt.Errorf("sending message: %w", err)
+	return nil
+}
+
+// write sends message whole. With a send limit it goes in pieces, each with its own deadline, so
+// a slow link that keeps reading is not cut; a message cut short would break every later one, so
+// the connection closes.
+func (c *Conn) write(message []byte) error {
+	if c.sendTimeout == 0 {
+		_, err := c.conn.Write(message)
+		return err
+	}
+	for len(message) > 0 {
+		piece := message[:min(len(message), sendPiece)]
+		_ = c.conn.SetWriteDeadline(time.Now().Add(c.sendTimeout)) // fails only on a closed conn, which Write reports
+		if _, err := c.conn.Write(piece); err != nil {
+			c.conn.Close()
+			return err
+		}
+		message = message[len(piece):]
 	}
 	return nil
 }
@@ -208,11 +239,56 @@ func SocketPath() string {
 }
 
 // Listen creates the socket, readable only by its owner, replacing a stale one left by a
-// daemon that died. It fails if another daemon is already listening.
+// daemon that died. It fails if another daemon is already listening or starting.
 func Listen(path string) (net.Listener, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("creating the socket directory: %w", err)
 	}
+	if err := checkPrivateDir(dir); err != nil {
+		return nil, err
+	}
+	// The lock spans the check for a live daemon and the stale socket's removal, so two
+	// daemons starting at once cannot both pass the check and delete each other's socket.
+	lock, err := lockDaemon(filepath.Join(dir, "noct.lock"))
+	if err != nil {
+		return nil, err
+	}
+	listener, err := listenReplacingStale(path)
+	if err != nil {
+		lock.Close()
+		return nil, err
+	}
+	return lockedListener{Listener: listener, lock: lock}, nil
+}
+
+// checkPrivateDir refuses a socket directory another user could replace the socket in, such
+// as a /tmp/noct-<uid> someone else created before this user's first daemon.
+func checkPrivateDir(dir string) error {
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return fmt.Errorf("checking the socket directory: %w", err)
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !info.IsDir() || !ok || int(stat.Uid) != os.Getuid() || info.Mode().Perm()&0o077 != 0 {
+		return fmt.Errorf("the socket directory %s must be a folder only this user can access", dir)
+	}
+	return nil
+}
+
+func lockDaemon(path string) (*os.File, error) {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("opening the daemon lock: %w", err)
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		file.Close()
+		return nil, errors.New("a noct daemon is already running")
+	}
+	return file, nil
+}
+
+func listenReplacingStale(path string) (net.Listener, error) {
 	if conn, err := net.Dial("unix", path); err == nil {
 		conn.Close()
 		return nil, errors.New("a noct daemon is already running")
@@ -229,6 +305,16 @@ func Listen(path string) (net.Listener, error) {
 		return nil, fmt.Errorf("restricting the socket: %w", err)
 	}
 	return listener, nil
+}
+
+// lockedListener holds the daemon lock for as long as it listens.
+type lockedListener struct {
+	net.Listener
+	lock *os.File
+}
+
+func (l lockedListener) Close() error {
+	return errors.Join(l.Listener.Close(), l.lock.Close())
 }
 
 func Dial(path string) (*Conn, error) {

@@ -16,6 +16,18 @@ the shortcut is `Alt` by default. How to write an entry is in
 - In fullscreen, the middle of each side of the border is dashed (`─ ─ ─`) where another panel
   lies that way, so you can tell where `prefix` + an arrow or `shortcut` + an arrow will take you.
 
+### Fixed
+
+- A terminal that stops reading, such as one suspended, no longer freezes noct for every
+  other terminal attached to it.
+
+### Security
+
+- Without `XDG_RUNTIME_DIR`, noct refuses a socket folder in `/tmp` that another user created,
+  where they could listen in noct's place and read what you type.
+- Two noct daemons starting at the same moment no longer both run, which left one with panels
+  nobody could reach and triggers firing twice.
+
 ## v0.2.2 - 2026-10-31
 
 ### Added
