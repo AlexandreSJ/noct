@@ -11,6 +11,11 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Added
+
+- In fullscreen, the middle of each side of the border is dashed (`─ ─ ─`) where another panel
+  lies that way, so you can tell where `prefix` + an arrow or `shortcut` + an arrow will take you.
+
 ## v0.2.2 - 2026-10-31
 
 ### Added
