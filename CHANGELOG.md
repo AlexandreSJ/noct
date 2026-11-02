@@ -21,6 +21,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 - Scripts in a project's `.noct/scripts` show no program version in the scripts panel and in
   `noct ls`: finding it ran a command from the project, so opening noct inside a cloned
   repository could run that repository's code.
+- The config panel no longer saves over a `config.toml` that has an error: it says where the
+  error is, so a typo cannot cost every other setting in the file.
 
 ### Fixed
 
