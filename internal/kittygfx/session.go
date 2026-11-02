@@ -8,7 +8,14 @@ import (
 	_ "image/png" // f=100 means PNG, the only compressed format in the protocol
 	"io"
 	"os"
+	"syscall"
 )
+
+// maxImageSide bounds the pixel sizes a program states, so sizing math cannot overflow.
+const maxImageSide = 1 << 16
+
+// maxUploadBytes bounds a chunked upload, so a program streaming chunks cannot exhaust memory.
+const maxUploadBytes = 64 << 20
 
 // fallbackCellSize assumes the usual 1:2 cell when the terminal does not report pixel sizes.
 var fallbackCellSize = image.Pt(10, 20)
@@ -39,6 +46,7 @@ type Session struct {
 	outerIDs   map[int]uint32
 	sizes      map[uint32]image.Point
 	upload     []Command
+	uploadSize int
 }
 
 // NewSession needs a source of outer-terminal image ids and the outer terminal's cell size in pixels.
@@ -62,7 +70,7 @@ func (s *Session) Handle(cmd Command) Result {
 		return Result{ToProgram: reply(cmd, "OK")}
 	case "t", "T":
 		if cmd.Get("m") == "1" {
-			s.upload = []Command{cmd}
+			s.upload, s.uploadSize = []Command{cmd}, len(cmd.Payload)
 			return Result{}
 		}
 		return s.transmit([]Command{cmd})
@@ -76,6 +84,12 @@ func (s *Session) Handle(cmd Command) Result {
 
 func (s *Session) continueUpload(chunk Command) Result {
 	s.upload = append(s.upload, chunk)
+	s.uploadSize += len(chunk.Payload)
+	if s.uploadSize > maxUploadBytes {
+		first := s.upload[0]
+		s.upload = nil
+		return Result{ToProgram: reply(first, "EFBIG:upload too large")}
+	}
 	if chunk.Get("m") == "1" {
 		return Result{}
 	}
@@ -160,9 +174,9 @@ func (s *Session) delete(cmd Command) Result {
 // placementCells sizes a placement the way kitty does: c and r as given, the missing one from
 // the image's aspect ratio, or the image's natural size in cells.
 func (s *Session) placementCells(cmd Command, outerID uint32) (cols, rows int, ok bool) {
-	cols, rows = cmd.Int("c"), cmd.Int("r")
+	cols, rows = min(cmd.Int("c"), MaxPlacementCells), min(cmd.Int("r"), MaxPlacementCells)
 	if cols > 0 && rows > 0 {
-		return min(cols, MaxPlacementCells), min(rows, MaxPlacementCells), true
+		return cols, rows, true
 	}
 	pixels, known := s.sizes[outerID]
 	if !known || pixels.X <= 0 || pixels.Y <= 0 {
@@ -192,7 +206,7 @@ func (s *Session) knownCellSize() image.Point {
 // it names. Shared memory is not readable from here.
 func imageSize(cmd Command, payload []byte) (image.Point, bool) {
 	if width, height := cmd.Int("s"), cmd.Int("v"); width > 0 && height > 0 {
-		return image.Pt(width, height), true
+		return image.Pt(min(width, maxImageSide), min(height, maxImageSide)), true
 	}
 	if cmd.Get("f") != "100" {
 		return image.Point{}, false
@@ -205,14 +219,23 @@ func imageSize(cmd Command, payload []byte) (image.Point, bool) {
 	case "", "d":
 		return decodeSize(bytes.NewReader(data))
 	case "f", "t":
-		file, err := os.Open(string(data))
-		if err != nil {
-			return image.Point{}, false
-		}
-		defer file.Close()
-		return decodeSize(file)
+		return fileImageSize(string(data))
 	}
 	return image.Point{}, false
+}
+
+// fileImageSize reads the size of an image file a program names; it opens without blocking and
+// reads only regular files, so a named FIFO or device cannot stall the pane.
+func fileImageSize(path string) (image.Point, bool) {
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return image.Point{}, false
+	}
+	defer file.Close()
+	if info, err := file.Stat(); err != nil || !info.Mode().IsRegular() {
+		return image.Point{}, false
+	}
+	return decodeSize(file)
 }
 
 func decodeSize(r io.Reader) (image.Point, bool) {

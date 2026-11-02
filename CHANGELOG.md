@@ -26,6 +26,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - A terminal that stops reading, such as one suspended, no longer freezes noct for every
   other terminal attached to it.
+- A program printing a crafted image command can no longer crash noct or make it use unbounded
+  memory.
 - The MCP audit log keeps the calls of earlier AI sessions instead of starting over each time.
 - A script killed by a signal makes `noct -s` exit with 128 plus the signal, as shells do.
 

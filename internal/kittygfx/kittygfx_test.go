@@ -143,3 +143,23 @@ func TestPlaceholderEncodesRowColumnAndID(t *testing.T) {
 		t.Errorf("high byte diacritic missing: %U", got)
 	}
 }
+
+func TestHugeStatedSizesDoNotOverflow(t *testing.T) {
+	result := newTestSession().Handle(command("a=T,f=24,s=4611686018427387904,v=1,c=1;AAAA"))
+	if result.Place == nil || result.Place.Rows <= 0 {
+		t.Fatalf("placement %+v", result.Place)
+	}
+}
+
+func TestOversizedChunkedUploadIsDropped(t *testing.T) {
+	session := newTestSession()
+	chunk := strings.Repeat("A", 1<<20)
+	session.Handle(command("a=t,f=24,s=1,v=1,i=3,m=1;" + chunk))
+	var last Result
+	for range maxUploadBytes >> 20 {
+		last = session.Handle(command("m=1;" + chunk))
+	}
+	if session.upload != nil || !strings.Contains(string(last.ToProgram), "EFBIG") {
+		t.Errorf("an upload past the limit was kept, reply %q", last.ToProgram)
+	}
+}
