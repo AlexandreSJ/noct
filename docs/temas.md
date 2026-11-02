@@ -86,7 +86,7 @@ O tema é da sessão, não do noct inteiro: com várias sessões, a cor diz em q
 
 ## Cores por painel e por tab
 
-`P` (ver [teclas novas](polimento.md#teclas-novas)) abre um popup com as cores do painel com foco e da tab dele, que sobrescrevem as do tema da sessão:
+`P` (ver [atalhos](tui.md#atalhos-modo-noct)) abre um popup com as cores do painel com foco e da tab dele, que sobrescrevem as do tema da sessão:
 
 | Alvo | Componentes |
 |---|---|
