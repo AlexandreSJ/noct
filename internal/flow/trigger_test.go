@@ -84,6 +84,8 @@ func TestCronMatches(t *testing.T) {
 		{"0 12 15 * mon", "2026-09-28 12:00", true},
 		{"0 12 15 * mon", "2026-09-16 12:00", false},
 		{"5-10/5 * * * *", "2026-09-28 10:10", true},
+		{"5/15 * * * *", "2026-09-28 10:50", true},
+		{"5/15 * * * *", "2026-09-28 10:15", false},
 	}
 	for _, c := range cases {
 		cron, err := ParseCron(c.cron)

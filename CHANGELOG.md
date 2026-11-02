@@ -35,6 +35,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 - A flow step whose panel cannot open now fails with the reason instead of waiting forever.
 - A program printing a crafted image command can no longer crash noct or make it use unbounded
   memory.
+- `5/15` in a flow's cron now runs at :05, :20, :35 and :50, as in cron, not only at :05.
+- `noct check` now finds invalid `capture` and `output_matches` patterns on script steps.
 - The MCP audit log keeps the calls of earlier AI sessions instead of starting over each time.
 - A script killed by a signal makes `noct -s` exit with 128 plus the signal, as shells do.
 
