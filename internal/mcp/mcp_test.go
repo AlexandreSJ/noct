@@ -3,6 +3,7 @@ package mcp
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -22,14 +23,20 @@ import (
 type fakeWorkspace struct {
 	asked    []string
 	approves bool
-	answer   any
+	// waits holds approvals until their call ends, as a user who never answers.
+	waits  bool
+	answer any
 }
 
-func (w *fakeWorkspace) Do(action string, args any, into any) error {
+func (w *fakeWorkspace) Do(ctx context.Context, action string, args any, into any) error {
 	raw, _ := json.Marshal(args)
 	w.asked = append(w.asked, action+" "+string(raw))
 	answer := w.answer
 	if action == "approve" {
+		if w.waits {
+			<-ctx.Done()
+			return ctx.Err()
+		}
 		answer = map[string]bool{"approved": w.approves}
 	}
 	raw, _ = json.Marshal(answer)
@@ -269,6 +276,51 @@ func TestPolicyAndAudit(t *testing.T) {
 	lines := strings.Split(strings.TrimSpace(s.audit.String()), "\n")
 	if len(lines) != 3 || !strings.Contains(lines[0], `"tool":"run_command"`) || !strings.Contains(lines[0], `"ok":false`) {
 		t.Errorf("audit:\n%s", s.audit)
+	}
+}
+
+func TestRunWithParamsAsks(t *testing.T) {
+	s := newTestServer(t)
+	s.workspace.answer = map[string]any{"run_id": "r"}
+	s.call("run", map[string]any{"script": "grep"}, false)
+	if _, text := s.call("run", map[string]any{"script": "grep", "params": map[string]string{"pattern": "x; rm -rf ~"}}, true); !strings.Contains(text, "did not approve") {
+		t.Errorf("run with params: %s", text)
+	}
+	s.workspace.approves = true
+	s.call("run", map[string]any{"script": "grep", "params": map[string]string{"pattern": "x"}}, false)
+	s.workspace.approves = false
+	s.cfg.MCP.Policy = map[string]string{"run": config.PolicyAllow}
+	s.call("run", map[string]any{"script": "grep", "params": map[string]string{"pattern": "x"}}, false)
+	var approvals int
+	for _, asked := range s.workspace.asked {
+		if strings.HasPrefix(asked, "approve ") {
+			approvals++
+		}
+	}
+	if approvals != 2 {
+		t.Errorf("asked for %d approvals, want 2 (the calls with params under the default policy): %q", approvals, s.workspace.asked)
+	}
+}
+
+func TestApprovalsAreWithdrawnWhenTheClientGoes(t *testing.T) {
+	workspace := &fakeWorkspace{waits: true}
+	audit := &bytes.Buffer{}
+	server := NewServer("test", Deps{
+		Config:    config.Default,
+		Workspace: workspace,
+		Audit:     audit,
+		Now:       time.Now,
+	})
+	in := strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"run_command","arguments":{"command":"make"}}}` + "\n")
+	served := make(chan error, 1)
+	go func() { served <- server.Serve(in, io.Discard) }()
+	select {
+	case <-served:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the server kept waiting for an approval after its client went")
+	}
+	if len(workspace.asked) != 1 || !strings.Contains(audit.String(), `"ok":false`) {
+		t.Errorf("asked %q, audit:\n%s", workspace.asked, audit)
 	}
 }
 

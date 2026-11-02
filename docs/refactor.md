@@ -86,6 +86,7 @@ Não corrigidos porque mudam uma decisão de design ou pedem mais que uma corre�
    (b) params como variáveis de ambiente ou argumentos posicionais (`"$1"`) em vez de texto no
    template; (c) uma função `quote` nos templates, que só ajuda scripts novos.
    **Recomendação**: (a) já, com ADR em `docs/mcp.md`, e (b) como formato a longo prazo.
+   **Feito (a)** no ADR-060: `run` com `params` pede aprovação. (b) continua pendente.
 2. **Saídas de passos em `run:`** (`{{.steps.x.output}}`) também entram cruas no shell; o
    heredoc documentado é a única defesa. Vale a mesma função `quote` do item 1.
 3. **Escritas concorrentes de `runs.json`, `results`, `triggers` e `values`**: ler, mudar e gravar
@@ -100,6 +101,8 @@ Não corrigidos porque mudam uma decisão de design ou pedem mais que uma corre�
    Documentar ou guardar o último minuto rodado.
 7. **Chamadas MCP sem cancelamento**: o cliente de IA sai, mas `get_run` (até 600 s) e as
    aprovações continuam; uma aprovação dada depois ainda roda `run_command`.
+   **Feito para as aprovações** no ADR-060: o pedido some quando o cliente sai. `get_run` ainda
+   espera até 600 s, sem rodar nada.
 8. **`with:` não confere os nomes de params do script**: um erro de digitação roda o script com o
    valor padrão sem aviso.
 9. **`config.toml` e temas**: `Rename` por cima troca um symlink (stow/dotfiles) por arquivo comum.

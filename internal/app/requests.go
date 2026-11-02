@@ -39,7 +39,7 @@ func (a *App) answerRequest(c connection) {
 	case req == nil:
 		reply(nil, errors.New("nothing was asked"))
 	case req.Action == "approve":
-		a.answerApprovalRequest(req, reply)
+		a.answerApprovalRequest(c, req, reply)
 	case req.Action == "client":
 		a.answerClientRequest(c, req, reply)
 	default:
@@ -62,13 +62,24 @@ func requestReplier(c connection) func(data any, err error) {
 	}
 }
 
-func (a *App) answerApprovalRequest(req *ipc.Request, reply func(any, error)) {
+// answerApprovalRequest waits for the user to decide. The request's connection closing first
+// means the AI client went, so its approval is withdrawn: approving it later would run an action
+// nobody waits for.
+func (a *App) answerApprovalRequest(c connection, req *ipc.Request, reply func(any, error)) {
 	var args approvalArgs
 	if err := decodeArgs(req, &args); err != nil {
 		reply(nil, err)
 		return
 	}
-	a.queueApproval(args, func(approved bool) { reply(map[string]bool{"approved": approved}, nil) })
+	ap := a.queueApproval(args, func(approved bool) { reply(map[string]bool{"approved": approved}, nil) })
+	go func() {
+		for {
+			if _, err := c.conn.Receive(); err != nil {
+				break
+			}
+		}
+		a.onLoop(func() { a.decideApproval(ap, false) })
+	}()
 }
 
 func (a *App) answerClientRequest(c connection, req *ipc.Request, reply func(any, error)) {

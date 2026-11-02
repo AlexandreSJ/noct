@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,11 +25,15 @@ type Tool struct {
 	// Policy is the tool's default: config.PolicyAllow, PolicyAsk or PolicyDeny; the user's
 	// [mcp.policy] overrides it.
 	Policy string
+	// AskWhen, when set, turns the default allow into ask for a call it reports, unless the
+	// user's [mcp.policy] names the tool.
+	AskWhen func(args json.RawMessage) bool
 	// Summary tells the user, when asked to approve, exactly what the call would do.
 	Summary func(args json.RawMessage) string
 	Run     func(args json.RawMessage) (any, error)
-	// Call is Run behind the policy and the audit log; NewServer sets it.
-	Call func(args json.RawMessage) (any, error)
+	// Call is Run behind the policy and the audit log; NewServer sets it. Ending ctx withdraws
+	// an approval the call waits for.
+	Call func(ctx context.Context, args json.RawMessage) (any, error)
 }
 
 // Param is one argument of a tool.
@@ -61,7 +66,7 @@ func (t Tool) schema() map[string]any {
 
 // Workspace does what needs the running noct: panes, runs the user sees, and approvals.
 type Workspace interface {
-	Do(action string, args any, into any) error
+	Do(ctx context.Context, action string, args any, into any) error
 }
 
 // Deps are what the tools read and change.
@@ -86,9 +91,9 @@ func NewServer(version string, d Deps) *Server {
 }
 
 // guarded is the tool's Run behind the policy, with every call written to the audit log.
-func (d Deps) guarded(t Tool) func(json.RawMessage) (any, error) {
-	return func(args json.RawMessage) (any, error) {
-		policy, err := d.guard(t, args)
+func (d Deps) guarded(t Tool) func(context.Context, json.RawMessage) (any, error) {
+	return func(ctx context.Context, args json.RawMessage) (any, error) {
+		policy, err := d.guard(ctx, t, args)
 		var result any
 		if err == nil {
 			result, err = t.Run(args)
@@ -99,10 +104,14 @@ func (d Deps) guarded(t Tool) func(json.RawMessage) (any, error) {
 }
 
 // guard applies the policy: deny refuses, ask waits for the user in noct's TUI.
-func (d Deps) guard(t Tool, args json.RawMessage) (string, error) {
-	policy := t.Policy
-	if p, ok := d.Config().MCP.Policy[t.Name]; ok {
-		policy = p
+func (d Deps) guard(ctx context.Context, t Tool, args json.RawMessage) (string, error) {
+	policy, configured := d.Config().MCP.Policy[t.Name]
+	switch {
+	case configured:
+	case t.Policy == config.PolicyAllow && t.AskWhen != nil && t.AskWhen(args):
+		policy = config.PolicyAsk
+	default:
+		policy = t.Policy
 	}
 	switch policy {
 	case config.PolicyDeny:
@@ -113,7 +122,7 @@ func (d Deps) guard(t Tool, args json.RawMessage) (string, error) {
 			summary = t.Summary(args)
 		}
 		var answer struct{ Approved bool }
-		if err := d.Workspace.Do("approve", map[string]string{"tool": t.Name, "summary": summary}, &answer); err != nil {
+		if err := d.Workspace.Do(ctx, "approve", map[string]string{"tool": t.Name, "summary": summary}, &answer); err != nil {
 			return policy, fmt.Errorf("asking the user to approve %s: %w", t.Name, err)
 		}
 		if !answer.Approved {
@@ -186,7 +195,8 @@ it. check and flow_scope tell problems and which {{.steps.<id>.<field>}} values 
 run starts a script or flow where the user sees it, as a pane of the noct workspace, and gives a
 run_id; get_run (with wait_seconds) gives the structured result: each step's status, exit code,
 captures and output. search_logs and read_log read what runs printed. list_panes and read_pane
-show the terminals; run_command and send_input act in them and usually need the user's approval,
-which they give in noct (prefix+y); a denied call says so, do not retry it unasked.
+show the terminals; run_command and send_input act in them and, like run with params, usually need
+the user's approval, which they give in noct (prefix+y); a denied call says so, do not retry it
+unasked.
 
 Templates are Go text/template and every value is a string: compare with {{eq .steps.x.exit "0"}}.`

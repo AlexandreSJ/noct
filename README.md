@@ -153,7 +153,7 @@ Triggers start a flow on their own while the workspace runs: on a cron schedule,
 claude mcp add noct -- noct mcp
 ```
 
-`Ctrl+Space` `y` shows the command for other clients (Codex, Gemini CLI, VS Code, opencode, Cursor) and the clients connected now. What an AI writes is a **draft** that doesn't run until you review it and promote it (`P` in the inspect or scripts panel, or `noct promote <name>`), and commands it asks to run wait for your approval in the same popup. See [docs/mcp.md](docs/mcp.md) (Portuguese).
+`Ctrl+Space` `y` shows the command for other clients (Codex, Gemini CLI, VS Code, opencode, Cursor) and the clients connected now. What an AI writes is a **draft** that doesn't run until you review it and promote it (`P` in the inspect or scripts panel, or `noct promote <name>`), and commands it asks to run, or scripts it runs with values of its own, wait for your approval in the same popup. See [docs/mcp.md](docs/mcp.md) (Portuguese).
 
 ## Command line
 

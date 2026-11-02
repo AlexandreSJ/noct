@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/AlexandreSJ/noct/internal/config"
@@ -22,13 +23,14 @@ func workspaceTools(d Deps) []Tool {
 		},
 		{
 			Name: "run", Title: "Run a script or flow", Policy: config.PolicyAllow,
-			Description: "Runs a script or a flow (not a draft) in a new pane of noct's workspace, where the user sees it, and answers its run_id right away; get_run with wait_seconds follows it. steps tests only some steps of a flow (2, or 0/steps/1..0/steps/3), reading the values of its last run.",
+			Description: "Runs a script or a flow (not a draft) in a new pane of noct's workspace, where the user sees it, and answers its run_id right away; get_run with wait_seconds follows it. steps tests only some steps of a flow (2, or 0/steps/1..0/steps/3), reading the values of its last run. With params it usually needs the user's approval.",
 			Params: []Param{
 				{Name: "script", Type: "string", Description: "A script's id."},
 				{Name: "flow", Type: "string", Description: "A flow's name."},
-				{Name: "params", Type: "object", Description: "Parameter values by name, over the defaults. Secret parameters come from the environment; do not pass them."},
+				{Name: "params", Type: "object", Description: "Parameter values by name, over the defaults; they go into the command, so a call with params usually needs the user's approval. Secret parameters come from the environment; do not pass them."},
 				{Name: "steps", Type: "string", Description: "For a flow, the steps to test alone: first..last in one list, or one path."},
 			},
+			AskWhen: hasParams,
 			Summary: func(args json.RawMessage) string { return argText(args, "script", "flow", "params", "steps") },
 			Run:     d.forward("run", nil),
 		},
@@ -61,7 +63,7 @@ func workspaceTools(d Deps) []Tool {
 func (d Deps) forward(action string, wrap func(any) any) func(json.RawMessage) (any, error) {
 	return func(args json.RawMessage) (any, error) {
 		var answer any
-		if err := d.Workspace.Do(action, args, &answer); err != nil {
+		if err := d.Workspace.Do(context.Background(), action, args, &answer); err != nil {
 			return nil, err
 		}
 		if wrap != nil {
@@ -69,4 +71,13 @@ func (d Deps) forward(action string, wrap func(any) any) func(json.RawMessage) (
 		}
 		return answer, nil
 	}
+}
+
+// hasParams tells a run that gives parameter values: they are rendered into the script's command
+// for the shell, so they could add commands of their own. Arguments that do not read ask too.
+func hasParams(args json.RawMessage) bool {
+	var call struct {
+		Params map[string]any `json:"params"`
+	}
+	return json.Unmarshal(args, &call) != nil || len(call.Params) > 0
 }

@@ -43,7 +43,7 @@ type aiClient struct {
 }
 
 // queueApproval waits for the user to approve an action, telling them how to see it.
-func (a *App) queueApproval(args approvalArgs, decide func(approved bool)) {
+func (a *App) queueApproval(args approvalArgs, decide func(approved bool)) *approval {
 	ap := &approval{tool: args.Tool, summary: args.Summary, decide: decide}
 	timeout := time.Duration(a.config.MCP.ApprovalSeconds) * time.Second
 	ap.timer = time.AfterFunc(timeout, func() {
@@ -52,6 +52,7 @@ func (a *App) queueApproval(args approvalArgs, decide func(approved bool)) {
 	a.approvals = append(a.approvals, ap)
 	a.notice = fmt.Sprintf("AI asks to %s: prefix+y to review", args.Tool)
 	a.notifyScreenChanged()
+	return ap
 }
 
 // decideApproval answers an approval once; a timeout after the user decided does nothing.

@@ -153,7 +153,7 @@ Triggers disparam um fluxo sozinhos enquanto o workspace roda: num horário cron
 claude mcp add noct -- noct mcp
 ```
 
-`Ctrl+Space` `y` mostra o comando para outros clientes (Codex, Gemini CLI, VS Code, opencode, Cursor) e os clientes conectados agora. O que uma IA escreve é um **rascunho**, que não roda até você revisar e promover (`P` no inspect ou no scripts panel, ou `noct promote <nome>`), e os comandos que ela pede para rodar esperam a sua aprovação no mesmo popup. Ver [docs/mcp.md](docs/mcp.md).
+`Ctrl+Space` `y` mostra o comando para outros clientes (Codex, Gemini CLI, VS Code, opencode, Cursor) e os clientes conectados agora. O que uma IA escreve é um **rascunho**, que não roda até você revisar e promover (`P` no inspect ou no scripts panel, ou `noct promote <nome>`), e os comandos que ela pede para rodar, ou os scripts que roda com valores próprios, esperam a sua aprovação no mesmo popup. Ver [docs/mcp.md](docs/mcp.md).
 
 ## Linha de comando
 

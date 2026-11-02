@@ -35,7 +35,7 @@ O protocolo é implementado à mão, sem SDK: `initialize` (versões `2025-06-18
 | `search_logs` | Regex nos logs, por execução, nome ou dias, com linhas de contexto | allow |
 | `read_log` | Um log paginado, sem cores | allow |
 | `list_panes` / `read_pane` | Painéis abertos, em todas as sessões abertas, e o texto que um painel mostra agora | allow |
-| `run` | Roda um script ou fluxo (não rascunho) num painel do workspace e devolve o `run_id`; `steps` testa só uma faixa de passos | allow |
+| `run` | Roda um script ou fluxo (não rascunho) num painel do workspace e devolve o `run_id`; `steps` testa só uma faixa de passos | allow; **ask** com `params` |
 | `run_command` | Roda uma linha de shell qualquer num painel novo | **ask** |
 | `send_input` | Digita texto (e `Enter`) num painel existente | **ask** |
 
@@ -77,7 +77,9 @@ run_command = "deny"
 
 Uma palavra desconhecida vale `ask`, nunca `allow`.
 
-- **`ask`** põe o pedido nas **aprovações** do noct, com o que exatamente seria feito (a linha de comando, o texto a digitar). A barra de tabs mostra `⚑ N waiting for approval`; `prefixo` + `y` abre o popup do MCP com as aprovações no topo, `y` aprova, `n` nega. A chamada MCP espera a decisão; sem decisão em `approval_seconds`, nega. Uma chamada negada diz isso à IA.
+O `run` sem `params` roda o que o usuário escreveu. Com `params`, os valores da IA entram no comando renderizado para o shell e poderiam acrescentar comandos, então ele pede aprovação, mostrando os valores. Pôr `run` em `[mcp.policy]` vale para as duas: `run = "allow"` libera também com params (ADR-060).
+
+- **`ask`** põe o pedido nas **aprovações** do noct, com o que exatamente seria feito (a linha de comando, o texto a digitar). A barra de tabs mostra `⚑ N waiting for approval`; `prefixo` + `y` abre o popup do MCP com as aprovações no topo, `y` aprova, `n` nega. A chamada MCP espera a decisão; sem decisão em `approval_seconds`, nega. Se o cliente de IA sai antes (fecha, cai, o `noct mcp` termina), o pedido some da fila e não pode mais ser aprovado. Uma chamada negada diz isso à IA.
 - **Rascunhos** (`draft: true`) não rodam, nem à mão, nem por trigger, nem como passo de outro fluxo, até o usuário revisar e promover: `P` no inspect ou no scripts panel (com confirmação), ou `noct promote <nome>`. É assim que a IA cria planos sem executar nada por conta própria.
 - Parâmetros `secret` nunca vão à IA: `list_scripts` não mostra os valores, e eles vêm do ambiente (`from: env:`). O que os programas imprimem nos logs vai como está.
 - Toda chamada vai ao log de auditoria `~/.local/state/noct/logs/mcp.log`: hora, ferramenta, política, argumentos (até 2000 caracteres) e se deu certo.
