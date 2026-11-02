@@ -20,9 +20,14 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - A terminal that stops reading, such as one suspended, no longer freezes noct for every
   other terminal attached to it.
+- The MCP audit log keeps the calls of earlier AI sessions instead of starting over each time.
 
 ### Security
 
+- noct's AI tools can read only noct's own logs: a log name with `..` could reach any file you
+  can read.
+- An AI's request waiting for approval shows a command with several lines on one line, so lines
+  below what the popup fits cannot hide.
 - Without `XDG_RUNTIME_DIR`, noct refuses a socket folder in `/tmp` that another user created,
   where they could listen in noct's place and read what you type.
 - Two noct daemons starting at the same moment no longer both run, which left one with panels
