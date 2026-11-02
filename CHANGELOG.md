@@ -45,6 +45,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 - Two panels with the same log name started in the same second, such as two flow steps with
   `pane: new`, keep a log each instead of writing over one.
 - The MCP audit log keeps the calls of earlier AI sessions instead of starting over each time.
+- Saving the config or a theme that is a link, such as one kept in a dotfiles repository, writes
+  to the file it points to instead of replacing the link with a plain file.
 - Tab completion of a path no longer inserts half a character when names share only part of an
   accented letter.
 - A script killed by a signal makes `noct -s` exit with 128 plus the signal, as shells do.

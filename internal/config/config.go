@@ -535,6 +535,9 @@ func Save(path string, cfg Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("creating the config directory: %w", err)
 	}
+	if target, err := filepath.EvalSymlinks(path); err == nil {
+		path = target // a config linked from dotfiles stays a link, with the change in its target
+	}
 	temporary := path + ".tmp"
 	if err := os.WriteFile(temporary, content.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("writing settings: %w", err)
