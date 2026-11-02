@@ -144,3 +144,26 @@ func TestBareNumbersAreTerminalColors(t *testing.T) {
 		t.Errorf("loaded %v with errors %v; want num with 60", themes, errs)
 	}
 }
+
+func TestSaveKeepsALinkedThemeALink(t *testing.T) {
+	dir, dotfiles := t.TempDir(), t.TempDir()
+	target := filepath.Join(dotfiles, "mine.toml")
+	if err := os.WriteFile(target, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(dir, "mine.toml")); err != nil {
+		t.Fatal(err)
+	}
+	noct := Builtins()[0]
+	mine := noct
+	mine.Name, mine.Base, mine.Builtin = "mine", "noct", false
+	if err := Save(dir, mine, noct); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Lstat(filepath.Join(dir, "mine.toml")); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("the link became a plain file")
+	}
+	if content, _ := os.ReadFile(target); !strings.Contains(string(content), `base = "noct"`) {
+		t.Errorf("the link's target has %q", content)
+	}
+}

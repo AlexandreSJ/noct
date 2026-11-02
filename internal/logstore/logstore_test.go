@@ -231,3 +231,17 @@ func TestPathKeepsFolderNamesInTheDay(t *testing.T) {
 		t.Errorf("the log went to %s", got)
 	}
 }
+
+func TestPathKeepsLogsStartedInTheSameSecondApart(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	at := time.Date(2026, 9, 27, 14, 30, 5, 0, time.Local)
+	first := Path("build", at)
+	log, err := Create(first, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Close()
+	if second := Path("build", at); second == first || filepath.Base(second) != "143005-build-2.log" {
+		t.Errorf("the second log of the second is %s, the first %s", second, first)
+	}
+}

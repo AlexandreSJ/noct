@@ -163,6 +163,9 @@ func Save(dir string, t Theme, base Theme) error {
 		return err
 	}
 	path := filepath.Join(dir, t.Name+".toml")
+	if target, err := filepath.EvalSymlinks(path); err == nil {
+		path = target // a theme linked from dotfiles stays a link, with the change in its target
+	}
 	if err := os.WriteFile(path+".tmp", []byte(out.String()), 0o644); err != nil {
 		return err
 	}

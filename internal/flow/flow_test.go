@@ -157,8 +157,11 @@ steps:
 }
 
 func TestValidateRejects(t *testing.T) {
-	lookup := func(id string) (script.Script, bool) { return script.Script{}, id == "known" }
+	lookup := func(id string) (script.Script, bool) {
+		return script.Script{Params: []script.Param{{Name: "environment"}}}, id == "known"
+	}
 	cases := map[string]string{
+		"misspelt with":  `steps: [ { script: known, with: { enviroment: prod } } ]`,
 		"two kinds":      `steps: [ { run: ls, wait: 1s } ]`,
 		"no kind":        `steps: [ { id: a } ]`,
 		"endless repeat": `steps: [ { repeat: { until: 'false' }, steps: [ { run: ls } ] } ]`,
@@ -175,7 +178,7 @@ func TestValidateRejects(t *testing.T) {
 			t.Errorf("%s: no error", name)
 		}
 	}
-	if err := parse(t, `steps: [ { script: known }, { wait: 2s } ]`).Validate(lookup); err != nil {
+	if err := parse(t, `steps: [ { script: known, with: { environment: prod } }, { wait: 2s } ]`).Validate(lookup); err != nil {
 		t.Errorf("valid flow: %v", err)
 	}
 }

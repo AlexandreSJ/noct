@@ -1,9 +1,13 @@
 package flow
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/AlexandreSJ/noct/internal/script"
@@ -107,7 +111,7 @@ func (s Step) validateID(ids map[string]bool) error {
 func (s Step) validateKind(kind Kind, lookup func(id string) (script.Script, bool)) error {
 	switch kind {
 	case ScriptStep:
-		if err := validateScript(s.Script, lookup); err != nil {
+		if err := validateScript(s.Script, s.With, lookup); err != nil {
 			return err
 		}
 	case RepeatStep:
@@ -139,7 +143,9 @@ func (s Step) validatePatterns() error {
 	return nil
 }
 
-func validateScript(id string, lookup func(id string) (script.Script, bool)) error {
+// validateScript checks that the script loads and takes every value with gives it, so a misspelt
+// name does not leave the script running with its default.
+func validateScript(id string, with map[string]string, lookup func(id string) (script.Script, bool)) error {
 	if lookup == nil {
 		return nil
 	}
@@ -149,6 +155,15 @@ func validateScript(id string, lookup func(id string) (script.Script, bool)) err
 	}
 	if s.Problem != nil {
 		return fmt.Errorf("script %s is broken: %w", id, s.Problem)
+	}
+	var names []string
+	for _, p := range s.Params {
+		names = append(names, p.Name)
+	}
+	for _, name := range slices.Sorted(maps.Keys(with)) {
+		if !slices.Contains(names, name) {
+			return fmt.Errorf("with %s is not a parameter of script %s (%s)", name, id, cmp.Or(strings.Join(names, ", "), "it has none"))
+		}
 	}
 	return nil
 }

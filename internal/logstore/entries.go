@@ -24,10 +24,21 @@ func LogsDir() string {
 }
 
 // Path is where a log started at a moment goes: logs/2026-09-27/143005-name.log.
-// Separators in name become dashes, so a name like a folder/script keeps the log in its day.
+// Separators in name become dashes, so a name like a folder/script keeps the log in its day. A
+// log of the same name started in the same second gets -2, -3, so neither truncates the other.
 func Path(name string, at time.Time) string {
 	name = strings.NewReplacer("/", "-", `\`, "-").Replace(name)
-	return filepath.Join(LogsDir(), at.Format(DayLayout), at.Format("150405")+"-"+name+".log")
+	base := filepath.Join(LogsDir(), at.Format(DayLayout), at.Format("150405")+"-"+name)
+	path := base + ".log"
+	for n := 2; exists(path); n++ {
+		path = fmt.Sprintf("%s-%d.log", base, n)
+	}
+	return path
+}
+
+func exists(path string) bool {
+	_, err := os.Lstat(path)
+	return err == nil
 }
 
 // NumberedName is prefix and the next number free among the logs of at's day: pane1 for the

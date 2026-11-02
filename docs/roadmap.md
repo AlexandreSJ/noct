@@ -103,18 +103,16 @@ O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decis�
 2. **Saídas de passos em `run:`** (`{{.steps.x.output}}`) também entram cruas no shell; o heredoc documentado é a única defesa. Uma função `quote` nos templates ajudaria aqui e nos scripts novos.
 3. **Escritas concorrentes** de `runs.json`, resultados, triggers e `values`: ler, mudar e gravar sem trava e com `.tmp` fixo. TUI e CLI gravando juntos podem perder ou corromper o histórico. Um helper único (`CreateTemp` + `flock` + rename) substituiria as cópias da escrita atômica.
 4. **Passos sem timeout:** um passo travado num fluxo de cron para o agendamento dele até o daemon reiniciar (`a.triggered`).
-5. **`with:` não confere os nomes de params do script:** um erro de digitação roda o script com o valor padrão sem aviso.
-6. **Logs no mesmo segundo:** dois passos `pane: new` com o mesmo nome no mesmo segundo truncam e dividem um arquivo (`O_TRUNC`). Abrir com `O_EXCL` e sufixo `-2`.
-7. **Cron e horário de verão:** na volta do horário um minuto roda duas vezes, na ida é pulado. Guardar o último minuto rodado e documentar o pulo, como no cron.
-8. **`config.toml` e temas:** o `Rename` por cima troca um symlink (stow, dotfiles) por arquivo comum. Seguir o link antes de gravar.
-9. **`Makefile`:** comentários e mensagens em português (o AGENTS.md pede inglês), e `$(VERSION)` sem validação nas receitas.
+5. **Cron e horário de verão:** na volta do horário um minuto roda duas vezes, na ida é pulado. Guardar o último minuto rodado e documentar o pulo, como no cron.
 
 **Desempenho**
 
-10. **Watch triggers** percorrem a subárvore inteira a cada 2 s, mesmo para um caminho literal (`~/notes.md` varre o `$HOME`). Usar `os.Stat` no caminho literal e `SkipDir` fora do alcance do padrão.
-11. **`kittygfx`:** `outerIDs` e `sizes` crescem por toda a vida do painel; `stream.go` copia e varre `pending` de novo a cada leitura (quadrático até 32 MiB).
-12. **`get_run` com `wait_seconds`** segura o `noct mcp` até 600 s depois que o cliente de IA sai, sem rodar nada.
-13. **`golang.org/x/sys`** v0.41.0 → v0.44.0 (GO-2026-5024, só Windows, não alcançável).
+6. **`kittygfx`:** `outerIDs` e `sizes` crescem por toda a vida do painel; `stream.go` copia e varre `pending` de novo a cada leitura (quadrático até 32 MiB).
+7. **`get_run` com `wait_seconds`** segura o `noct mcp` até 600 s depois que o cliente de IA sai, sem rodar nada.
+
+**Dependências**
+
+8. **`golang.org/x/sys`** fica na v0.41.0, com o GO-2026-5024, que só afeta o Windows (o noct não compila para ele) e não é alcançável. A v0.44.0, a primeira corrigida, exige Go 1.25, e subir o `go 1.24.2` do `go.mod` só por ela tiraria quem instala com `go install` num Go 1.24. Sobe junto com a próxima mudança de versão do Go.
 
 **Duplicação e complexidade**
 

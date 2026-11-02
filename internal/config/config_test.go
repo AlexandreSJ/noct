@@ -287,3 +287,23 @@ func TestSaveKeepsAFileThatDoesNotRead(t *testing.T) {
 		t.Errorf("the broken file became %q", content)
 	}
 }
+
+func TestSaveKeepsALinkedConfigALink(t *testing.T) {
+	dir := t.TempDir()
+	target, path := filepath.Join(dir, "dotfiles.toml"), filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(target, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, path); err != nil {
+		t.Fatal(err)
+	}
+	if err := Save(path, Default()); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Lstat(path); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("the link became a plain file")
+	}
+	if content, _ := os.ReadFile(target); len(content) == 0 {
+		t.Error("the change did not reach the link's target")
+	}
+}

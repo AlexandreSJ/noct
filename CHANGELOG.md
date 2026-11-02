@@ -38,9 +38,18 @@ the shortcut is `Alt` by default. How to write an entry is in
 - A program printing a crafted image command can no longer crash noct or make it use unbounded
   memory.
 - `5/15` in a flow's cron now runs at :05, :20, :35 and :50, as in cron, not only at :05.
+- A watch trigger on one file reads only that file every 2 seconds, and a pattern only the
+  folders it can reach, instead of walking everything below them, such as the whole home folder
+  for `~/notes.md`.
 - `noct check` now finds invalid `capture` and `output_matches` patterns on script steps.
+- A flow whose script step gives `with:` a name the script has no parameter for is refused,
+  naming the script's parameters, instead of running the script with its default.
 - Logs of flow steps that run a script in a folder now show in the logs view.
+- Two panels with the same log name started in the same second, such as two flow steps with
+  `pane: new`, keep a log each instead of writing over one.
 - The MCP audit log keeps the calls of earlier AI sessions instead of starting over each time.
+- Saving the config or a theme that is a link, such as one kept in a dotfiles repository, writes
+  to the file it points to instead of replacing the link with a plain file.
 - Tab completion of a path no longer inserts half a character when names share only part of an
   accented letter.
 - A script killed by a signal makes `noct -s` exit with 128 plus the signal, as shells do.

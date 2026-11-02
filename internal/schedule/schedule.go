@@ -168,12 +168,21 @@ func (s *Scheduler) signature(patterns []string) uint64 {
 // hashMatchingFiles writes into h the path, size and modification time of each file the
 // absolute pattern matches.
 func hashMatchingFiles(h io.Writer, pattern string) {
+	if !strings.ContainsAny(pattern, "*?[") {
+		if info, err := os.Stat(pattern); err == nil && !info.IsDir() {
+			fmt.Fprintf(h, "%s\x00%d\x00%d\x00", pattern, info.Size(), info.ModTime().UnixNano())
+		}
+		return // one file needs no walk through its folder
+	}
 	files := 0
 	_ = filepath.WalkDir(staticRoot(pattern), func(path string, d fs.DirEntry, err error) error {
 		if err != nil || files >= maxWatchedFiles {
 			return filepath.SkipDir // unreadable folders are skipped, as is anything past the bound
 		}
 		if d.IsDir() {
+			if !flow.MayMatchBelow(filepath.ToSlash(pattern), filepath.ToSlash(path)) {
+				return filepath.SkipDir
+			}
 			return skipGitDir(d)
 		}
 		if !flow.MatchPath(filepath.ToSlash(pattern), filepath.ToSlash(path)) {
