@@ -28,6 +28,8 @@ the shortcut is `Alt` by default. How to write an entry is in
   closed or is in another tab, or when a selection is copied from a panel too small to show a
   line.
 - Running a script from the home screen no longer crashes noct when the script cannot start.
+- A program that keeps asking the terminal questions without reading the answers no longer
+  freezes noct.
 - A terminal that stops reading, such as one suspended, no longer freezes noct for every
   other terminal attached to it.
 - A program printing a crafted image command can no longer crash noct or make it use unbounded

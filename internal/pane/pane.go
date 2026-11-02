@@ -17,8 +17,9 @@ import (
 	"github.com/AlexandreSJ/noct/internal/pty"
 )
 
-// inputQueueSize bounds how many input chunks wait for the program to read them.
-const inputQueueSize = 256
+// inputQueueSize bounds how many input chunks wait for the program to read them: past it input
+// is dropped, so it holds a long paste (up to 4 KiB per chunk) or a lot of typing ahead.
+const inputQueueSize = 4096
 
 // syncTimeout is how long a synchronized frame may keep the screen waiting, as in Alacritty.
 const syncTimeout = 150 * time.Millisecond
@@ -238,7 +239,12 @@ func (p *Pane) queueScreenInput(inputQueue chan<- []byte) {
 	for {
 		n, err := p.screen.Read(buf)
 		if n > 0 {
-			inputQueue <- append([]byte(nil), buf[:n]...)
+			select {
+			case inputQueue <- append([]byte(nil), buf[:n]...):
+			default:
+				// The program stopped reading its input. Dropping it keeps the emulator, which
+				// writes replies while the screen is locked, from freezing every pane's drawing.
+			}
 		}
 		// The only empty write after closing is the wake-up sent by Close.
 		if err != nil || (n == 0 && p.closed.Load()) {
