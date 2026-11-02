@@ -117,6 +117,26 @@ func TestMatchPath(t *testing.T) {
 	}
 }
 
+func TestMayMatchBelow(t *testing.T) {
+	cases := []struct {
+		pattern, dir string
+		want         bool
+	}{
+		{"src/**/*.go", "src", true},
+		{"src/**/*.go", "src/a/b", true},
+		{"src/**/*.go", "node_modules", false},
+		{"docs/*.md", "docs", true},
+		{"docs/*.md", "docs/old", false},
+		{"*/build/*.log", "web/build", true},
+		{"*/build/*.log", "web/src", false},
+	}
+	for _, c := range cases {
+		if got := MayMatchBelow(c.pattern, c.dir); got != c.want {
+			t.Errorf("%s below %s: %v", c.pattern, c.dir, got)
+		}
+	}
+}
+
 // Flows that start each other after they end would run forever: each gets a problem.
 func TestAfterTriggersInALoopAreProblems(t *testing.T) {
 	dir := t.TempDir()

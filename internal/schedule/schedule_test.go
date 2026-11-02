@@ -96,6 +96,24 @@ func TestWatchStartsOnceFilesSettle(t *testing.T) {
 	}
 }
 
+// A watch on one file reads that file alone, and starts when it changes.
+func TestWatchOnOneFileStartsWhenItChanges(t *testing.T) {
+	s, started := newTestScheduler(t)
+	notes := filepath.Join(s.Dir, "notes.md")
+	writeFile(t, notes, "x")
+	flows := []flow.Flow{{Name: "publish", Triggers: []flow.Trigger{{Watch: &flow.Watch{Paths: []string{"notes.md"}, Debounce: "1s"}}}}}
+	enabled := map[string]bool{"publish": true}
+	s.Tick(at("09:00:00"), flows, enabled)
+	writeFile(t, filepath.Join(s.Dir, "other.md"), "y")
+	s.Tick(at("09:00:01"), flows, enabled)
+	writeFile(t, notes, "changed")
+	s.Tick(at("09:00:02"), flows, enabled)
+	s.Tick(at("09:00:04"), flows, enabled)
+	if !slices.Equal(*started, []string{"publish: watch notes.md"}) {
+		t.Errorf("started %q", *started)
+	}
+}
+
 func saveResult(t *testing.T, dir string, r flow.Result) {
 	t.Helper()
 	if err := flow.SaveResult(dir, r); err != nil {

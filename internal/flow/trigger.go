@@ -173,6 +173,25 @@ func MatchPath(pattern, name string) bool {
 	return matchParts(strings.Split(pattern, "/"), strings.Split(name, "/"))
 }
 
+// MayMatchBelow tells whether a path the pattern matches can lie inside the folder dir, so a walk
+// can skip folders the pattern never reaches.
+func MayMatchBelow(pattern, dir string) bool {
+	patternParts, dirParts := strings.Split(pattern, "/"), strings.Split(dir, "/")
+	for len(dirParts) > 0 {
+		if len(patternParts) == 0 {
+			return false
+		}
+		if patternParts[0] == "**" {
+			return true
+		}
+		if ok, _ := path.Match(patternParts[0], dirParts[0]); !ok {
+			return false
+		}
+		patternParts, dirParts = patternParts[1:], dirParts[1:]
+	}
+	return len(patternParts) > 0
+}
+
 func matchParts(pattern, name []string) bool {
 	for len(pattern) > 0 {
 		if pattern[0] == "**" {
