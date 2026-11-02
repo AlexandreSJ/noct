@@ -33,6 +33,7 @@ outputs: [number]      # the first line number=... becomes .steps.<id>.number
 
 - `run` is a shell text; `{{.param}}` is replaced before it runs.
 - Give every param a `default`, or have every flow step that calls the script set it in `with`.
+  A name in `with` that is not one of the script's params fails validation.
   A step runs without asking, so a param with `choices` and no value fails.
 - To pass a multi-line value (a list of files, another step's output), read it through a quoted
   heredoc so quotes and `$` in it are not interpreted:
