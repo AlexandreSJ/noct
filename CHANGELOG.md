@@ -41,6 +41,8 @@ the shortcut is `Alt` by default. How to write an entry is in
   where they could listen in noct's place and read what you type.
 - Two noct daemons starting at the same moment no longer both run, which left one with panels
   nobody could reach and triggers firing twice.
+- The command shown to update a binary in a folder you cannot write extracts into a new private
+  folder instead of `/tmp/noct`, which another user could create first.
 
 ## v0.2.2 - 2026-10-31
 
