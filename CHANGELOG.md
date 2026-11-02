@@ -37,6 +37,7 @@ the shortcut is `Alt` by default. How to write an entry is in
   memory.
 - `5/15` in a flow's cron now runs at :05, :20, :35 and :50, as in cron, not only at :05.
 - `noct check` now finds invalid `capture` and `output_matches` patterns on script steps.
+- Logs of flow steps that run a script in a folder now show in the logs view.
 - The MCP audit log keeps the calls of earlier AI sessions instead of starting over each time.
 - A script killed by a signal makes `noct -s` exit with 128 plus the signal, as shells do.
 
