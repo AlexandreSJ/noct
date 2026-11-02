@@ -31,7 +31,7 @@ As cores do painel e da tab vão junto, sem perguntar. Painéis que as sessões 
 - `Enter` abre uma tab nova com o template;
 - `e` abre o arquivo no editor do config, `r` renomeia, `d` apaga (com confirmação).
 
-Os terminais abrem no diretório que um terminal novo teria naquele momento ([polimento.md](polimento.md#1-terminal-novo-no-diretório-do-painel-com-foco)), então o mesmo template serve para qualquer projeto. `run` é digitado no shell, como o `Enter` da caixa `run?`: o comando fica no histórico, e quando termina o shell continua lá.
+Os terminais abrem no diretório que um terminal novo teria naquele momento ([tui.md](tui.md#tabs-e-painéis), ADR-048), então o mesmo template serve para qualquer projeto. `run` é digitado no shell, como o `Enter` da caixa `run?`: o comando fica no histórico, e quando termina o shell continua lá.
 
 ## Arquivo
 
@@ -52,7 +52,7 @@ panes:
 
 O layout no arquivo é legível (`columns`/`rows` aninhados), não o `layout.Shape` interno. Um grupo com `stacked: true` é uma pilha, e `shown` diz qual painel dela aparece inteiro (a posição, a partir de 0). Um campo desconhecido é erro, para um erro de digitação não sumir em silêncio; um template que não se lê fica na lista, com o erro, para `e` consertá-lo ou `d` apagá-lo.
 
-Só os templates do usuário, por enquanto. Templates num repositório (`.noct/templates/`) trariam por `git pull` comandos com `start: run` de outra pessoa; ver [polimento.md](polimento.md#depois).
+Só os templates do usuário, por enquanto. Templates num repositório (`.noct/templates/`) trariam por `git pull` comandos com `start: run` de outra pessoa; ver [roadmap.md](roadmap.md#ideias-para-depois).
 
 ## Ao implementar
 

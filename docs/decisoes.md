@@ -627,7 +627,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 ## ADR-048 — Terminal novo no diretório do painel com foco
 
-**Contexto.** Um terminal novo abria no diretório do terminal de fora que fez o último attach. Como o daemon sobrevive aos attaches, esse lugar mudava conforme de onde se reconectou, e um `cd` num painel não valia para o terminal seguinte. Kitty, WezTerm, Ghostty e tmux (`-c "#{pane_current_path}"`) abrem no diretório do painel atual. É polimento da fase 5, antecipado pelo mantenedor (ver [polimento.md](polimento.md)).
+**Contexto.** Um terminal novo abria no diretório do terminal de fora que fez o último attach. Como o daemon sobrevive aos attaches, esse lugar mudava conforme de onde se reconectou, e um `cd` num painel não valia para o terminal seguinte. Kitty, WezTerm, Ghostty e tmux (`-c "#{pane_current_path}"`) abrem no diretório do painel atual. É polimento da fase 5, antecipado pelo mantenedor (ver [roadmap.md](roadmap.md#fase-5--polimento)).
 
 **Decisão.**
 - `p`, `g` e o terminal de uma tab nova (`t`) abrem o shell no diretório do painel com foco (`terminalDir`); a tab nova herda do painel com foco da tab que se deixa, lido antes de ela existir, o primeiro que der resposta: o diretório atual do shell, lido de `/proc/<pid>/cwd`; numa execução de script ou passo de fluxo, o diretório em que ela começou (o `runView` o guarda); ao lado de painéis sem diretório (scripts, inspect, logs, ajuda, editor) e na home, `~`; num shell cujo diretório não se lê, o diretório do attach, como antes.
@@ -794,7 +794,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 ## ADR-060 — `run` com params pede aprovação, e o pedido some quando a IA sai
 
-**Contexto.** A revisão de novembro (ver [refactor.md](refactor.md)) achou dois jeitos de uma IA rodar um comando sem a aprovação do usuário. O `run` é `allow` por rodar um script do próprio usuário, mas os `params` que a IA passa entram no template do comando, renderizado para `sh -c`: num script com `{{.pattern}}`, o valor `x"; curl … | sh; echo "` vira comando, o que contorna o `ask` do `run_command`. E um pedido de aprovação continuava na fila depois que o cliente de IA saía: o `noct mcp` esperava as chamadas pendentes antes de terminar, e aprovar depois rodava uma ação que ninguém esperava mais.
+**Contexto.** A revisão de novembro de 2026 (o que ficou dela está em [roadmap.md](roadmap.md#dívida-técnica)) achou dois jeitos de uma IA rodar um comando sem a aprovação do usuário. O `run` é `allow` por rodar um script do próprio usuário, mas os `params` que a IA passa entram no template do comando, renderizado para `sh -c`: num script com `{{.pattern}}`, o valor `x"; curl … | sh; echo "` vira comando, o que contorna o `ask` do `run_command`. E um pedido de aprovação continuava na fila depois que o cliente de IA saía: o `noct mcp` esperava as chamadas pendentes antes de terminar, e aprovar depois rodava uma ação que ninguém esperava mais.
 
 **Decisão.**
 - **`run` com `params` vale `ask`.** Uma ferramenta pode dizer quando uma chamada que o padrão libera pede aprovação (`AskWhen`); o `run` diz isso quando há `params`, ou quando os argumentos não se leem. Sem params roda o que o usuário escreveu, e continua `allow`. Quem põe `run` em `[mcp.policy]` decide por si: `run = "allow"` libera também com params.

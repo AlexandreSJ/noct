@@ -14,15 +14,16 @@ noct é uma TUI em Go que junta, num lugar só, um multiplexador de terminais, u
 | [writing-flows.md](writing-flows.md) | Guia prático (em inglês) para agentes escreverem fluxos e scripts em YAML |
 | [catalogo.md](catalogo.md) | Catálogo de ferramentas e adaptadores de gerenciadores de pacote |
 | [mcp.md](mcp.md) | Ferramentas expostas à IA e política de segurança |
-| [roadmap.md](roadmap.md) | Fases, critérios de pronto e riscos |
-| [polimento.md](polimento.md) | Roteiro do polimento (fase 5): o que foi feito, as teclas novas e ideias para depois |
+| [roadmap.md](roadmap.md) | Fases, critérios de pronto, ideias para depois, dívida técnica e riscos |
 | [temas.md](temas.md) | Editor de temas, seletor de cores, tema por sessão, cores por painel e tab, o palco |
 | [templates.md](templates.md) | Templates de tab: salvar com `R`, abrir com `T`, comandos com `run`/`ask`/`none` |
 | [animacoes.md](animacoes.md) | Animações por momento e efeito, regras, prévia e catálogo de efeitos |
+| [instalador.md](instalador.md) | `noct setup`, binds próprias e a demo |
+| [codemap.md](codemap.md) | Onde fica o código de cada arquivo (em inglês) |
 | [decisoes.md](decisoes.md) | Registro de decisões de arquitetura (ADRs) |
 
 ## Estado
 
-Fases 0 e 1 concluídas; fases 2 (fluxos, triggers e calendário) e 3 (MCP) implementadas, aguardando a confirmação pelo critério de pronto (ver [roadmap.md](roadmap.md)). Pendente: decisão sobre a vazão de saída (ADR-011 em [decisoes.md](decisoes.md)).
+Fases 0 a 3 implementadas e publicadas em releases (a mais recente no [CHANGELOG.md](../CHANGELOG.md)), com itens da fase 5 antecipados; a fase 4 (catálogo) é a próxima. O que falta corrigir está em [roadmap.md](roadmap.md#dívida-técnica). Pendente: decisão sobre a vazão de saída (ADR-011 em [decisoes.md](decisoes.md)).
 
 Regras de código e de escopo: [CONTRIBUTING.md](../CONTRIBUTING.md). Estes documentos de design estão em português.

@@ -75,9 +75,59 @@ Pacote `catalog`, adaptadores de gerenciadores e view Catálogo (ver [catalogo.m
 
 ## Fase 5 — Polimento
 
-Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase. A ordem dos próximos (diretório herdado, temas, cores por painel, templates, animações) está em [polimento.md](polimento.md).
+Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase. Já antecipados: terminal novo no diretório do painel com foco (ADR-048), temas editáveis e por sessão ([temas.md](temas.md), ADR-049, ADR-050), cores por painel e por tab (ADR-051), templates de tab ([templates.md](templates.md), ADR-052), animações ([animacoes.md](animacoes.md), ADR-053) e o instalador ([instalador.md](instalador.md), ADR-056 a ADR-058).
 
 **Releases e atualização (antecipado, a pedido do mantenedor; ADR-047).** Cada tag `vX.Y.Z` publica uma release no GitHub com os binários de Linux e macOS e o changelog do `CHANGELOG.md`; o noct mostra a versão na barra de tabs, avisa de uma nova, mostra o changelog (`prefixo` + `c`) e se atualiza quando o usuário pede, também por `noct update`. A primeira é a v0.1.0, o primeiro beta.
+
+### Ideias para depois
+
+Sem compromisso nem ordem:
+
+- **Paleta ANSI nos painéis:** um tema com as 16 cores ANSI, usadas nas cores indexadas dos programas com `background = theme`, para o workspace inteiro seguir o tema.
+- **Importar temas** do kitty, Ghostty ou base16.
+- **Templates de projeto** (`.noct/templates/` no repositório), com os comandos sempre em `ask`, por segurança.
+- **Sessão a partir de templates** (`noct new <nome> --template …`).
+- **Diretório e comando por terminal no template** (hoje os terminais abrem no diretório herdado).
+- **OSC 7** como segunda fonte do diretório, para o macOS e para saber quando ele é de outra máquina.
+- **Painéis sem foco esmaecidos**, estilo de borda no tema (fina, arredondada, grossa, nenhuma), ícone por tipo de painel no título.
+- **Diretório no título** do terminal sem título próprio (`zsh · ~/proj`).
+- **Duplicar painel:** terminal novo no mesmo diretório e com o mesmo comando, na caixa `run?`.
+
+## Dívida técnica
+
+O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decisão de design ou mais que uma correção pontual. As correções feitas estão no `CHANGELOG.md` e no ADR-060.
+
+**Segurança e correção**
+
+1. **Params do `run` como texto no template.** Desde o ADR-060 o `run` com `params` pede aprovação, mas os valores ainda entram no comando renderizado para `sh -c`. Passá-los como variáveis de ambiente (`"$pattern"`) ou argumentos posicionais fecha a injeção sem depender da aprovação; muda o formato dos scripts e pede ADR próprio.
+2. **Saídas de passos em `run:`** (`{{.steps.x.output}}`) também entram cruas no shell; o heredoc documentado é a única defesa. Uma função `quote` nos templates ajudaria aqui e nos scripts novos.
+3. **Escritas concorrentes** de `runs.json`, resultados, triggers e `values`: ler, mudar e gravar sem trava e com `.tmp` fixo. TUI e CLI gravando juntos podem perder ou corromper o histórico. Um helper único (`CreateTemp` + `flock` + rename) substituiria as cópias da escrita atômica.
+4. **Passos sem timeout:** um passo travado num fluxo de cron para o agendamento dele até o daemon reiniciar (`a.triggered`).
+5. **`with:` não confere os nomes de params do script:** um erro de digitação roda o script com o valor padrão sem aviso.
+6. **Logs no mesmo segundo:** dois passos `pane: new` com o mesmo nome no mesmo segundo truncam e dividem um arquivo (`O_TRUNC`). Abrir com `O_EXCL` e sufixo `-2`.
+7. **Cron e horário de verão:** na volta do horário um minuto roda duas vezes, na ida é pulado. Guardar o último minuto rodado e documentar o pulo, como no cron.
+8. **`config.toml` e temas:** o `Rename` por cima troca um symlink (stow, dotfiles) por arquivo comum. Seguir o link antes de gravar.
+9. **`Makefile`:** comentários e mensagens em português (o AGENTS.md pede inglês), e `$(VERSION)` sem validação nas receitas.
+
+**Desempenho**
+
+10. **Watch triggers** percorrem a subárvore inteira a cada 2 s, mesmo para um caminho literal (`~/notes.md` varre o `$HOME`). Usar `os.Stat` no caminho literal e `SkipDir` fora do alcance do padrão.
+11. **`kittygfx`:** `outerIDs` e `sizes` crescem por toda a vida do painel; `stream.go` copia e varre `pending` de novo a cada leitura (quadrático até 32 MiB).
+12. **`get_run` com `wait_seconds`** segura o `noct mcp` até 600 s depois que o cliente de IA sai, sem rodar nada.
+13. **`golang.org/x/sys`** v0.41.0 → v0.44.0 (GO-2026-5024, só Windows, não alcançável).
+
+**Duplicação e complexidade**
+
+- A escrita atômica `tmp` + rename aparece à mão 7 vezes (`flow.Save`, `SaveResultTo`, `SetEnabled`, `Memory.save`, `writeRuns`, `config.Save`, `theme`), além de `update.replaceFile`.
+- A regex `validName` está copiada 4 vezes (`script`, `flow`, `templates`, `mcp`) e `identifier` 2 vezes.
+- `flow/warnings.go` `walkFields` duplica `script.fieldsUsed`; `Step.templates()` e `orderedTemplates()` listam os mesmos textos.
+- `app/tab.go` `newTab` e `app/setup.go` `themeNames` só têm chamadores em teste.
+- A goroutine de "receber até fechar" aparece três vezes (`app/mcp_panel.go` duas, `app/requests.go` uma).
+- `app/config_panel.go`: `changeSetting` (~90 linhas, ~30 casos) e `configLines` (~83) passam do limite de complexidade do CONTRIBUTING.
+- `logs_panel.go` e `scripts_panel.go` tratam `end` e as setas à mão ao lado de `listJump`.
+- `config.LogColumns` e `DefaultLogColumns` são a mesma lista literal.
+- `cmd/noct/main.go`: `usage` e `help` repetem a lista de comandos, e nenhum cita o alias `run`.
+- `cmd/noct/main_test.go`: uma checagem negativa depois de um `time.Sleep(500ms)` fixo.
 
 ## Riscos
 
@@ -92,5 +142,4 @@ Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, lay
 
 ## Questões em aberto
 
-- Tecla prefixo padrão: `Ctrl+Space` conflita com alguns métodos de entrada; validar na fase 0a.
 - Compartilhamento de scripts e fluxos entre times além do git.
