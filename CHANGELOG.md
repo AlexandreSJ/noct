@@ -42,6 +42,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 - A flow whose script step gives `with:` a name the script has no parameter for is refused,
   naming the script's parameters, instead of running the script with its default.
 - Logs of flow steps that run a script in a folder now show in the logs view.
+- Two panels with the same log name started in the same second, such as two flow steps with
+  `pane: new`, keep a log each instead of writing over one.
 - The MCP audit log keeps the calls of earlier AI sessions instead of starting over each time.
 - Tab completion of a path no longer inserts half a character when names share only part of an
   accented letter.
