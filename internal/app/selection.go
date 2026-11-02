@@ -205,6 +205,9 @@ func (a *App) selectedText() string {
 // lines reads the cells of lines first to last, each cell's text in its column.
 func (p paneText) lines(first, last int) [][]string {
 	width, rows := p.content.Dx(), p.content.Dy()
+	if width <= 0 || rows <= 0 {
+		return nil // the pane is too small to show a line
+	}
 	buffer := uv.NewScreenBuffer(width, rows)
 	scrolled, isScrollable := p.source.(scrollable)
 	var lines [][]string

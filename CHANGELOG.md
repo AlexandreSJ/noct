@@ -24,6 +24,10 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Fixed
 
+- noct no longer crashes when you turn the mouse wheel while selecting text in a panel that
+  closed or is in another tab, or when a selection is copied from a panel too small to show a
+  line.
+- Running a script from the home screen no longer crashes noct when the script cannot start.
 - A terminal that stops reading, such as one suspended, no longer freezes noct for every
   other terminal attached to it.
 - A program printing a crafted image command can no longer crash noct or make it use unbounded

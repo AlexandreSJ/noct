@@ -336,3 +336,17 @@ func TestPrefixLeavesScrollingToChangePane(t *testing.T) {
 		t.Errorf("focus %d mode %v after prefix+right while scrolling", focusedPaneID(a), a.mode)
 	}
 }
+
+func TestWheelAfterTheSelectedTabChangesDropsTheSelection(t *testing.T) {
+	a := testApp(t, newTab(1, &historyView{lines: numberedLines(100)}), newTab(2, &historyView{lines: numberedLines(100)}))
+	a.selectTab(0)
+	click(a, 1, 5)
+	a.selectTab(1)
+	a.handleEvent(uv.MouseWheelEvent{X: 1, Y: 5, Button: uv.MouseWheelUp})
+	if t2 := a.currentTab(); t2.views[t2.focused] == nil {
+		t.Fatalf("focus moved to pane %d, which is not in the tab", t2.focused)
+	}
+	if a.selection != nil {
+		t.Error("the selection of another tab survived the wheel")
+	}
+}
