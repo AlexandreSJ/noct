@@ -16,11 +16,18 @@ the shortcut is `Alt` by default. How to write an entry is in
 - In fullscreen, the middle of each side of the border is dashed (`─ ─ ─`) where another panel
   lies that way, so you can tell where `prefix` + an arrow or `shortcut` + an arrow will take you.
 
+### Changed
+
+- Scripts in a project's `.noct/scripts` show no program version in the scripts panel and in
+  `noct ls`: finding it ran a command from the project, so opening noct inside a cloned
+  repository could run that repository's code.
+
 ### Fixed
 
 - A terminal that stops reading, such as one suspended, no longer freezes noct for every
   other terminal attached to it.
 - The MCP audit log keeps the calls of earlier AI sessions instead of starting over each time.
+- A script killed by a signal makes `noct -s` exit with 128 plus the signal, as shells do.
 
 ### Security
 

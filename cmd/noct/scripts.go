@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
@@ -62,13 +63,23 @@ func notFound(name string) error {
 // what it does.
 func listScripts(out io.Writer) error {
 	lib := library()
+	inProject := map[string]bool{}
+	for _, f := range lib.Folders {
+		for _, s := range f.Scripts {
+			inProject[s.File()] = f.Kind == script.ProjectFolder
+		}
+	}
 	table := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 	for _, s := range lib.All() {
 		if s.Problem != nil {
 			fmt.Fprintf(table, "✗ %s\tbroken\t%s\n", s.ID(), s.Problem)
 			continue
 		}
-		fmt.Fprintf(table, "%s\t%s\t%s\n", s.ID(), programVersion(s), s.Description)
+		version := "-" // asking a project script's program would run a cloned project's code
+		if !inProject[s.File()] {
+			version = programVersion(s)
+		}
+		fmt.Fprintf(table, "%s\t%s\t%s\n", s.ID(), version, s.Description)
 	}
 	if err := table.Flush(); err != nil {
 		return err
@@ -239,6 +250,9 @@ func runCommand(command, dir string) error {
 	err := cmd.Run()
 	var exit *exec.ExitError
 	if errors.As(err, &exit) {
+		if status, ok := exit.Sys().(syscall.WaitStatus); ok && status.Signaled() {
+			return exitCode(128 + int(status.Signal())) // as shells report a killed command
+		}
 		return exitCode(exit.ExitCode())
 	}
 	return err
