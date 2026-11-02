@@ -118,11 +118,13 @@ func (a *App) drawPlacedPane(screen uv.Screen, t *tab, placed placedPane) {
 	if id == t.focused && a.mode == scrollMode && isScrollable {
 		status = append(status, a.scrollPosition())
 		drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
+		a.drawExits(screen, t, frame, lineStyle)
 		scrolled.DrawScrolled(viewScreen, contentRect(frame), a.scrollOffset)
 		a.highlightSelection(screen, t, id)
 		return
 	}
 	drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
+	a.drawExits(screen, t, frame, lineStyle)
 	t.views[id].Draw(viewScreen, contentRect(frame))
 	if command := a.pendingRerun(id); command != "" {
 		a.drawRerun(screen, contentRect(frame), command)
@@ -289,6 +291,59 @@ func drawFrameStatus(screen uv.Screen, frame image.Rectangle, title, status stri
 	setRune(screen, right, frame.Min.Y, "┐", lineStyle)
 	setRune(screen, frame.Min.X, bottom, "└", lineStyle)
 	setRune(screen, right, bottom, "┘", lineStyle)
+}
+
+// drawExits dashes, in fullscreen, the middle of each side of the frame that has a pane beyond
+// it, a cell of line and a cell of gap in turn, so the focus keys show where they lead. Only cells
+// still holding the plain line change: the title and the status stay over it.
+func (a *App) drawExits(screen uv.Screen, t *tab, frame image.Rectangle, lineStyle uv.Style) {
+	if !t.fullscreen || frame.Dx() < 3 || frame.Dy() < 3 {
+		return
+	}
+	right, bottom := frame.Max.X-1, frame.Max.Y-1
+	sides := []struct {
+		heading layout.Heading
+		fixed   int
+		across  bool // the side runs across the frame, from left to right
+	}{
+		{layout.Left, frame.Min.X, false}, {layout.Right, right, false},
+		{layout.Up, frame.Min.Y, true}, {layout.Down, bottom, true},
+	}
+	for _, side := range sides {
+		if _, ok := a.neighbor(t, side.heading); !ok {
+			continue
+		}
+		if side.across {
+			from, to := exitSpan(frame.Min.X+1, right)
+			for x := from + 1; x < to; x += 2 {
+				gapCell(screen, x, side.fixed, "─", lineStyle)
+			}
+			continue
+		}
+		from, to := exitSpan(frame.Min.Y+1, bottom)
+		for y := from + 1; y < to; y += 2 {
+			gapCell(screen, side.fixed, y, "│", lineStyle)
+		}
+	}
+}
+
+// exitSpan is the middle third of the cells from start up to end, at least 3 cells long. Its
+// length is odd, so the dashes begin and end with line.
+func exitSpan(start, end int) (from, to int) {
+	cells := end - start
+	length := min(max(cells/3, 3), cells)
+	if length%2 == 0 {
+		length--
+	}
+	from = start + (cells-length)/2
+	return from, from + length
+}
+
+// gapCell blanks the cell when it holds the plain line.
+func gapCell(screen uv.Screen, x, y int, plain string, style uv.Style) {
+	if cell := screen.CellAt(x, y); cell != nil && cell.Content == plain {
+		setRune(screen, x, y, " ", style)
+	}
 }
 
 // drawTitleLine draws a frame's line from x up to maxX, with the title near its start and the

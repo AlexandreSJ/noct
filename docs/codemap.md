@@ -108,7 +108,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/tab.go` | A tab: its views, pane names, focus history, floating panes, fullscreen, visible frames, size rules |
 | `internal/app/floating.go` | Floating panes: opening, keyboard moves and resizes, mouse drags, focus navigation over both layers |
 | `internal/app/resize.go` | Resize mode (prefix+n): arrows grow or shrink the focused tile or floating pane |
-| `internal/app/draw.go` | Frame drawing: panes (folded ones as a title row) with their status (fullscreen, scroll position) at the right of the border, the tab bar's status, mode overlays, cursor placement |
+| `internal/app/draw.go` | Frame drawing: panes (folded ones as a title row) with their status (fullscreen, scroll position) at the right of the border and, in fullscreen, the dashed sides that have a pane beyond them, the tab bar's status, mode overlays, cursor placement |
 | `internal/app/tabbar.go` | Tab bar: names cut to fit, scrolling that keeps the active tab in view, marks for hidden tabs, which tab a click or the wheel selects |
 | `internal/app/images.go` | Image support detection, outer image ids, cell size, forwarding to the terminal |
 | `internal/app/environment.go` | Shell and environment given to pane programs |
