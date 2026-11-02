@@ -115,6 +115,24 @@ func TestRequestsRunAFlowInThePanel(t *testing.T) {
 	}
 }
 
+// An approval whose AI client went is withdrawn, so approving later cannot run it.
+func TestApprovalIsWithdrawnWhenItsClientGoes(t *testing.T) {
+	a := testApp(t, newTab(1, &fakeView{}))
+	a.loopTasks, a.stopped = make(chan func()), make(chan struct{})
+	server, client := net.Pipe()
+	t.Cleanup(func() { server.Close() })
+	hello := ipc.Hello{Version: ipc.Version, Purpose: ipc.Ask, Request: &ipc.Request{Action: "approve", Args: json.RawMessage(`{"tool":"run_command","summary":"make"}`)}}
+	a.handleConnection(connection{conn: ipc.NewConn(server), hello: hello})
+	if len(a.approvals) != 1 {
+		t.Fatalf("%d approvals waiting, want 1", len(a.approvals))
+	}
+	client.Close()
+	runLoopTask(t, a)
+	if len(a.approvals) != 0 {
+		t.Errorf("%d approvals still waiting after the client went", len(a.approvals))
+	}
+}
+
 // An action the policy asks about waits for the user: prefix+y shows it in the MCP popup, above
 // the setups, and y approves, n denies.
 func TestApprovalsWaitForTheUser(t *testing.T) {

@@ -5,6 +5,7 @@ package mcp
 import (
 	"bufio"
 	"cmp"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -60,12 +61,15 @@ type Server struct {
 }
 
 // Serve reads messages until in ends. Tool calls run at once, each on its own, so a call that
-// waits (for the user's approval, or for a run to end) does not hold the others.
+// waits (for the user's approval, or for a run to end) does not hold the others. When in ends the
+// client has gone, so the approvals its calls wait for are withdrawn.
 func (s *Server) Serve(in io.Reader, out io.Writer) error {
 	s.out = out
 	s.gone = make(chan struct{})
 	defer close(s.gone)
 	defer s.calls.Wait()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	scanner := bufio.NewScanner(in)
 	scanner.Buffer(make([]byte, 64<<10), maxMessage)
 	for scanner.Scan() {
@@ -78,12 +82,12 @@ func (s *Server) Serve(in io.Reader, out io.Writer) error {
 			s.send(message{ID: json.RawMessage("null"), Error: &rpcError{parseError, err.Error()}})
 			continue
 		}
-		s.handle(m)
+		s.handle(ctx, m)
 	}
 	return scanner.Err()
 }
 
-func (s *Server) handle(m message) {
+func (s *Server) handle(ctx context.Context, m message) {
 	if len(m.ID) == 0 {
 		return // a notification, such as notifications/initialized: nothing to answer
 	}
@@ -98,7 +102,7 @@ func (s *Server) handle(m message) {
 		s.calls.Add(1)
 		go func() {
 			defer s.calls.Done()
-			result, err := s.callTool(m.Params)
+			result, err := s.callTool(ctx, m.Params)
 			s.reply(m, result, err)
 		}()
 	default:
@@ -156,7 +160,7 @@ func (t Tool) listing() map[string]any {
 
 // callTool runs a tool. A tool's own failure is a result the AI reads (isError), not a protocol
 // error, so it can correct itself; only an unknown tool or unreadable arguments are errors.
-func (s *Server) callTool(params json.RawMessage) (any, *rpcError) {
+func (s *Server) callTool(ctx context.Context, params json.RawMessage) (any, *rpcError) {
 	var call struct {
 		Name      string          `json:"name"`
 		Arguments json.RawMessage `json:"arguments"`
@@ -171,7 +175,7 @@ func (s *Server) callTool(params json.RawMessage) (any, *rpcError) {
 	if len(call.Arguments) == 0 {
 		call.Arguments = json.RawMessage("{}")
 	}
-	result, err := s.Tools[i].Call(call.Arguments)
+	result, err := s.Tools[i].Call(ctx, call.Arguments)
 	return toolResult(result, err), nil
 }
 

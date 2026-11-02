@@ -57,6 +57,11 @@ the shortcut is `Alt` by default. How to write an entry is in
   nobody could reach and triggers firing twice.
 - The command shown to update a binary in a folder you cannot write extracts into a new private
   folder instead of `/tmp/noct`, which another user could create first.
+- An AI running a script or flow with values of its own (`params`) now waits for your approval:
+  the values go into the command, so they could add commands of their own. `run = "allow"` in
+  `[mcp.policy]` brings back running without asking.
+- An AI's request waiting for approval is withdrawn when the AI client exits, so approving it
+  later no longer runs what nobody waits for.
 
 ## v0.2.2 - 2026-10-31
 

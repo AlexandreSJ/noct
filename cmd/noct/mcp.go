@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"time"
@@ -41,11 +42,11 @@ type daemonWorkspace struct {
 	socket string
 }
 
-func (w daemonWorkspace) Do(action string, args any, into any) error {
+func (w daemonWorkspace) Do(ctx context.Context, action string, args any, into any) error {
 	if err := daemon.EnsureRunning(w.socket); err != nil {
 		return err
 	}
-	return client.Request(w.socket, action, args, into)
+	return client.RequestContext(ctx, w.socket, action, args, into)
 }
 
 // reconnectEvery is how long a client waits to show itself again to a daemon it cannot reach.
