@@ -32,6 +32,7 @@ the shortcut is `Alt` by default. How to write an entry is in
   freezes noct.
 - A terminal that stops reading, such as one suspended, no longer freezes noct for every
   other terminal attached to it.
+- A flow step whose panel cannot open now fails with the reason instead of waiting forever.
 - A program printing a crafted image command can no longer crash noct or make it use unbounded
   memory.
 - The MCP audit log keeps the calls of earlier AI sessions instead of starting over each time.

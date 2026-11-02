@@ -2,12 +2,15 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"net"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/AlexandreSJ/noct/internal/ipc"
+	"github.com/AlexandreSJ/noct/internal/pty"
 )
 
 // requestPane sends a pane request to the workspace as noct flow run does, and returns where the
@@ -79,5 +82,23 @@ func TestAttentionShowsTheRunThatAsks(t *testing.T) {
 	}
 	if exit := <-ask(t, a, "attention", paneArgs{Pane: 9}); exit.Reason == ipc.RequestDone {
 		t.Error("a pane that is gone got attention")
+	}
+}
+
+// A pane that cannot start on the home screen answers the run with why, instead of leaving it waiting.
+func TestPaneRequestThatCannotStartAnswersWithTheError(t *testing.T) {
+	a := testApp(t)
+	a.launch = func(program, pty.Size) (view, error) { return nil, errors.New("no such folder") }
+	answers := requestPane(t, a, ipc.PaneRequest{Command: "make", Dir: "/missing", Wait: true})
+	select {
+	case exit := <-answers:
+		if !strings.Contains(exit.Reason, "no such folder") {
+			t.Errorf("answer = %+v", exit)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the run was left waiting")
+	}
+	if len(a.session.tabs) != 0 {
+		t.Errorf("%d tabs left after the failed start", len(a.session.tabs))
 	}
 }

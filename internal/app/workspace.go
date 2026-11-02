@@ -192,6 +192,16 @@ func (a *App) selectTab(index int) {
 	a.session.activeTab = (index%len(a.session.tabs) + len(a.session.tabs)) % len(a.session.tabs)
 }
 
+func (a *App) openFirstPane(t *tab, start viewStarter) error {
+	id := a.newPaneID()
+	v, err := start(id, a.workspaceArea())
+	if err != nil {
+		return err
+	}
+	t.placeFirst(id, v)
+	return nil
+}
+
 // openPanel adds a pane to the current tab, splitting the focused pane. On the home screen it
 // opens a tab first. The view starts at its final size, so a program is not resized at birth.
 func (a *App) openPanel(start viewStarter) {
@@ -200,14 +210,10 @@ func (a *App) openPanel(start viewStarter) {
 	}
 	t := a.currentTab()
 	if t.isEmpty() {
-		id := a.newPaneID()
-		v, err := start(id, a.workspaceArea())
-		if err != nil {
+		if err := a.openFirstPane(t, start); err != nil {
 			a.statusMessage = err.Error()
 			a.session.removeTabIfEmpty(t)
-			return
 		}
-		t.placeFirst(id, v)
 		return
 	}
 	if err := a.openPanelBeside(t, t.tiledFocus(), start); err != nil {

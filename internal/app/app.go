@@ -512,10 +512,8 @@ func (a *App) shutdown() error {
 		a.leaveSession()
 	}
 	close(a.stopped)
-	for _, t := range a.session.tabs {
-		for _, v := range t.views {
-			v.Close()
-		}
+	for _, s := range a.sessions {
+		a.closeViews(s)
 	}
 	return nil
 }

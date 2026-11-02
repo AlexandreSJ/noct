@@ -34,7 +34,9 @@ func (a *App) openRequestedPane(c connection) {
 	start := a.requestedPaneStarter(req, answer)
 	var err error
 	if t.isEmpty() {
-		a.openPanel(start)
+		if err = a.openFirstPane(t, start); err != nil {
+			a.session.removeTabIfEmpty(t)
+		}
 	} else {
 		err = a.openPanelBeside(t, orTile(t, near), start)
 	}
