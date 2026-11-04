@@ -11,6 +11,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+## v0.2.3 - 2026-11-04
+
 ### Added
 
 - In fullscreen, the middle of each side of the border is dashed (`─ ─ ─`) where another panel
