@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
 )
 
 const (
@@ -182,8 +184,9 @@ const (
 )
 
 var (
-	LogColumns        = []string{LogColumnEdited, LogColumnStarted, LogColumnStatus, LogColumnName, LogColumnSession, LogColumnBar, LogColumnSize, LogColumnLines}
-	DefaultLogColumns = []string{LogColumnEdited, LogColumnStarted, LogColumnStatus, LogColumnName, LogColumnSession, LogColumnBar, LogColumnSize, LogColumnLines}
+	LogColumns = []string{LogColumnEdited, LogColumnStarted, LogColumnStatus, LogColumnName, LogColumnSession, LogColumnBar, LogColumnSize, LogColumnLines}
+	// DefaultLogColumns shows every column, in LogColumns' order; callers clone it before changing.
+	DefaultLogColumns = LogColumns
 )
 
 // Where the logs view shows the selected log, the first by default, and how much room it takes.
@@ -538,11 +541,7 @@ func Save(path string, cfg Config) error {
 	if target, err := filepath.EvalSymlinks(path); err == nil {
 		path = target // a config linked from dotfiles stays a link, with the change in its target
 	}
-	temporary := path + ".tmp"
-	if err := os.WriteFile(temporary, content.Bytes(), 0o644); err != nil {
-		return fmt.Errorf("writing settings: %w", err)
-	}
-	if err := os.Rename(temporary, path); err != nil {
+	if err := atomicfile.Write(path, content.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("saving settings: %w", err)
 	}
 	return nil

@@ -5,7 +5,9 @@ import (
 	"image"
 	"slices"
 	"strconv"
+	"time"
 
+	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/ipc"
 	"github.com/AlexandreSJ/noct/internal/layout"
 	"github.com/AlexandreSJ/noct/internal/pty"
@@ -51,8 +53,13 @@ func (a *App) openRequestedPane(c connection) {
 	}
 }
 
+// stoppable is a program that can be stopped: SIGTERM, then SIGKILL after grace.
+type stoppable interface {
+	Stop(grace time.Duration)
+}
+
 // requestedPaneStarter starts a step's command as a run view; a step that waits is answered with
-// its exit code when it ends.
+// its exit code when it ends, and stopped when it runs past its timeout.
 func (a *App) requestedPaneStarter(req *ipc.PaneRequest, answer func(ipc.Exit)) viewStarter {
 	argv := append(slices.Clone(a.shellArgv), "-c", req.Command)
 	title := orDefault(req.Title, "step")
@@ -60,13 +67,21 @@ func (a *App) requestedPaneStarter(req *ipc.PaneRequest, answer func(ipc.Exit)) 
 	return func(id layout.PaneID, frame image.Rectangle) (view, error) {
 		run := func(size pty.Size, onExit func(int)) (view, error) {
 			p := program{argv: argv, dir: dir, logName: "step-" + title}
+			var timeout *time.Timer
 			p.onExit = func(code int) {
+				if timeout != nil {
+					timeout.Stop()
+				}
 				if req.Wait {
 					answer(ipc.Exit{Reason: ipc.PaneExited, Code: code})
 				}
 				onExit(code)
 			}
-			return a.launch(p, size)
+			v, err := a.launch(p, size)
+			if target, ok := v.(stoppable); ok && err == nil && req.Wait && req.Timeout > 0 {
+				timeout = time.AfterFunc(req.Timeout, func() { target.Stop(flow.StopGrace) })
+			}
+			return v, err
 		}
 		return newRunView(title, &a.palette, run, func() { a.detachView(id) }, contentSize(frame), dir)
 	}

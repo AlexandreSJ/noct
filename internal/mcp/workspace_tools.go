@@ -60,10 +60,10 @@ func workspaceTools(d Deps) []Tool {
 
 // forward asks the workspace to do a tool's action with the tool's arguments; wrap, when set,
 // shapes the answer into an object.
-func (d Deps) forward(action string, wrap func(any) any) func(json.RawMessage) (any, error) {
-	return func(args json.RawMessage) (any, error) {
+func (d Deps) forward(action string, wrap func(any) any) func(context.Context, json.RawMessage) (any, error) {
+	return func(ctx context.Context, args json.RawMessage) (any, error) {
 		var answer any
-		if err := d.Workspace.Do(context.Background(), action, args, &answer); err != nil {
+		if err := d.Workspace.Do(ctx, action, args, &answer); err != nil {
 			return nil, err
 		}
 		if wrap != nil {

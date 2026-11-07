@@ -10,14 +10,15 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"sort"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
 	"github.com/AlexandreSJ/noct/internal/layout"
+	"github.com/AlexandreSJ/noct/internal/naming"
 )
 
 // Start is how a terminal's command starts when the template opens.
@@ -434,10 +435,7 @@ func Save(dir string, t Template) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(path(dir, t.Name)+".tmp", content, 0o644); err != nil {
-		return err
-	}
-	return os.Rename(path(dir, t.Name)+".tmp", path(dir, t.Name))
+	return atomicfile.Write(path(dir, t.Name), content, 0o644)
 }
 
 func Delete(dir, name string) error { return os.Remove(path(dir, name)) }
@@ -453,11 +451,8 @@ func Rename(dir, from, to string) error {
 	return os.Rename(path(dir, from), path(dir, to))
 }
 
-// validName is the rule scripts and flows use: safe as a file name and easy to type.
-var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
-
 func CheckName(name string) error {
-	if !validName.MatchString(name) {
+	if !naming.IsValid(name) {
 		return errors.New("a template name has letters, digits, '.', '_' or '-', starting with a letter or digit")
 	}
 	return nil

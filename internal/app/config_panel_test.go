@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"image"
 	"strings"
 	"testing"
@@ -329,4 +330,114 @@ func TestConfigSetsTheLogsView(t *testing.T) {
 	if a.config.Logs.Preview != "right" || a.config.Logs.PreviewPercent != 40 {
 		t.Errorf("logs %+v, want the log on the right at 40%%", a.config.Logs)
 	}
+}
+
+// TestConfigLinesStayInPlace pins every line of the settings page, in order, as the panel shows it.
+func TestConfigLinesStayInPlace(t *testing.T) {
+	a := testApp(t, sideBySideTab(1, 2))
+	a.config.Editor = "noct-missing-editor -w" // custom: the command row and its note show
+	a.openConfig()
+	a.configPanel.scriptsDir = newTextField("/nonexistent/noct-scripts")
+	a.configPanel.logUsage = &logUsage{count: 2, size: 1 << 20}
+	a.configPanel.logColumns = newTextField("name size bogus")
+	want := []string{
+		"heading Keys = ",
+		"row prefix = ctrl+space @0",
+		"row binds of every screen = defaults ▸ @1",
+		"heading Shortcut = alt+key",
+		"row ctrl = off @2",
+		"row alt = on @3",
+		"heading Appearance = ",
+		"row theme = ◂ noct ▸ @4",
+		"row new theme = enter @5",
+		"row edit theme = copy @6",
+		"row mode = dark @7",
+		"row background = terminal @8",
+		"row animate intro = ◂ empty ▸ @9",
+		"row mouse = on @11",
+		"heading Animations = ",
+		"row animations = off @10",
+		"row hover = ◂ fade ▸ @3000",
+		"row   time = ◂ 150 ms ▸ @3100",
+		"row open and close panels = ◂ jitter ▸ @3001",
+		"row   time = ◂ 300 ms ▸ @3101",
+		"row open and close tabs = ◂ jitter ▸ @3002",
+		"row   time = ◂ 300 ms ▸ @3102",
+		"row focus = ◂ none ▸ @3003",
+		"row   time = ◂ 100 ms ▸ @3103",
+		"row move a panel = ◂ fade ▸ @3004",
+		"row   time = ◂ 200 ms ▸ @3104",
+		"row fullscreen = ◂ 01 ▸ @3005",
+		"row   time = ◂ 200 ms ▸ @3105",
+		"row popups = ◂ 01 ▸ @3006",
+		"row   time = ◂ 200 ms ▸ @3106",
+		"row activity = ◂ fade ▸ @3007",
+		"row   time = ◂ 600 ms ▸ @3107",
+		"heading Tabs = ",
+		"row new tab opens = ◂ terminal (alt+p) ▸ @12",
+		"row close when empty = on @13",
+		"heading Programs = ",
+		"row editor = ◂ custom ▸ @14",
+		"typed command = noct-missing-editor -w @15",
+		"note command not found = ",
+		"row file manager = ◂ terminal ▸ @16",
+		"heading Scripts = ",
+		"typed location = /nonexistent/noct-scripts @18",
+		"note enter edit · ctrl+c copy = ",
+		"note folder not found; it is created with the first script = ",
+		"row hints in new scripts = on @19",
+		"row sort = ◂ alphabetical ▸ @20",
+		"heading Logs = ",
+		"row keep = ◂ 90 days ▸ @21",
+		"row max size = ◂ 200 MB ▸ @22",
+		"bar 0% · 1 MB of 200 MB · 2 logs =  0.0050",
+		"note logs not written to for longer and, past the size, the least recent are deleted = ",
+		"row terminals = off @23",
+		"note log what terminal panes print; runs are always logged = ",
+		"typed list columns = name size bogus @24",
+		"note enter edit · in order, out of edited started status name session bar size lines = ",
+		"warning not a column, left out: bogus = ",
+		"row log = ◂ below ▸ @25",
+		"row log size = ◂ 50% ▸ @26",
+		"note where the logs view shows the selected log; there, p moves it and + - size it = ",
+		"heading Flows = ",
+		"row step output kept = ◂ all (up to 1 MB) ▸ @27",
+		"note in each flow's last result; tests keep 4 KB = ",
+		"heading Updates = ",
+		"row check for new versions = on @28",
+		"note only checks; install with ctrl+space+c = ",
+		"heading Defaults = ",
+		"row reset all to defaults =  @29",
+	}
+	var got []string
+	for _, line := range a.configLines() {
+		got = append(got, describeConfigLine(line))
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("config lines\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func describeConfigLine(line configLine) string {
+	kind := "row"
+	switch {
+	case line.heading:
+		kind = "heading"
+	case line.bar:
+		kind = "bar"
+	case line.warning:
+		kind = "warning"
+	case line.note:
+		kind = "note"
+	case line.typed:
+		kind = "typed"
+	}
+	text := kind + " " + line.label + " = " + line.value
+	if line.bar {
+		text += fmt.Sprintf(" %.4f", line.fraction)
+	}
+	if line.selectable() {
+		text += fmt.Sprintf(" @%d", line.row)
+	}
+	return text
 }

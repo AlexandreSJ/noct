@@ -341,17 +341,10 @@ func (p *logsPanel) moveDay(days, months int) {
 
 func (p *logsPanel) listKey(name string) {
 	rows := p.rows()
+	if to, ok := listMove(name, p.selected, len(rows), p.list.Dy()); ok {
+		p.selected = to
+	}
 	switch name {
-	case "up", "k":
-		p.selected--
-	case "down", "j":
-		p.selected++
-	case "home", "g":
-		p.selected = 0
-	case "end", "G", "shift+g":
-		p.selected = len(rows) - 1
-	case "pgup", "pgdown":
-		p.selected, _ = listJump(name, p.selected, len(rows), p.list.Dy())
 	case "esc", "left", "h":
 		p.focusList = false
 	case "enter", "space":

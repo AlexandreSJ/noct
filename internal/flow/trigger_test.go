@@ -1,9 +1,11 @@
 package flow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -171,6 +173,25 @@ func TestEnablingTriggersIsKeptApartFromTheFlow(t *testing.T) {
 	}
 	if on := Enabled(path); on["x"] || !on["y"] {
 		t.Errorf("enabled = %v", on)
+	}
+}
+
+func TestConcurrentlyEnabledTriggersAreAllKept(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "triggers.json")
+	const writers = 20
+	var wg sync.WaitGroup
+	for i := range writers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := SetEnabled(path, fmt.Sprint("f", i), true); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	if on := Enabled(path); len(on) != writers {
+		t.Errorf("kept %d enabled flows of %d", len(on), writers)
 	}
 }
 

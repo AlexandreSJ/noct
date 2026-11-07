@@ -575,9 +575,13 @@ func (p *inspectPanel) drawFlowChart(screen uv.Screen, area image.Rectangle, f f
 	p.chart.blit(screen, canvasArea, p.pan)
 }
 
-// chartInfoText is the line above the chart: the run shown, the zoom and the triggers.
+// chartInfoText is the line above the chart: the run shown, the zoom, the timeout and the
+// triggers.
 func (p *inspectPanel) chartInfoText(f flow.Flow, last *flow.Result) string {
 	info := p.runText(last) + fmt.Sprintf("  zoom %d/%d", p.zoom+1, len(boxWidths))
+	if f.Timeout != "" {
+		info += "  timeout " + f.Timeout
+	}
 	if triggers := triggersText(f, flow.Enabled(flow.TriggersFile())[f.Name]); triggers != "" {
 		info += "  " + triggers
 	}

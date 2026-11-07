@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
 )
 
 // Asked tells whether the user fills the parameter in, rather than the environment.
@@ -114,40 +116,46 @@ func (m *Memory) Remember(s Script, values map[string]string) error {
 
 // keep saves values under key, keeping values saved meanwhile by another noct.
 func (m *Memory) keep(key string, values map[string]string) error {
-	if latest, err := LoadMemory(m.path); err == nil {
-		m.values = latest.values
-	}
-	m.values[key] = values
-	return m.save()
+	return m.update(func(latest map[string]map[string]string) bool {
+		latest[key] = values
+		return true
+	})
 }
 
 // Rename moves a script's remembered values to its new ID.
 func (m *Memory) Rename(oldName, newName string) error {
-	if latest, err := LoadMemory(m.path); err == nil {
-		m.values = latest.values
-	}
-	values, ok := m.values[oldName]
-	if !ok {
-		return nil
-	}
-	delete(m.values, oldName)
-	m.values[newName] = values
-	return m.save()
+	return m.update(func(latest map[string]map[string]string) bool {
+		values, ok := latest[oldName]
+		if ok {
+			delete(latest, oldName)
+			latest[newName] = values
+		}
+		return ok
+	})
 }
 
-func (m *Memory) save() error {
-	content, err := json.MarshalIndent(m.values, "", "  ")
-	if err != nil {
-		return fmt.Errorf("saving remembered values: %w", err)
-	}
+// update changes the values as the file holds them now, under a lock, so values another noct
+// saves meanwhile are kept; change tells whether it changed anything. A file that does not read
+// is replaced by the values this noct holds.
+func (m *Memory) update(change func(latest map[string]map[string]string) bool) error {
 	if err := os.MkdirAll(filepath.Dir(m.path), 0o700); err != nil {
 		return fmt.Errorf("saving remembered values: %w", err)
 	}
-	temp := m.path + ".tmp"
-	if err := os.WriteFile(temp, content, 0o600); err != nil {
-		return fmt.Errorf("saving remembered values: %w", err)
-	}
-	if err := os.Rename(temp, m.path); err != nil {
+	err := atomicfile.Update(m.path, 0o600, func(content []byte) ([]byte, error) {
+		var latest map[string]map[string]string
+		if content != nil && json.Unmarshal(content, &latest) != nil {
+			latest = m.values
+		}
+		if latest == nil {
+			latest = map[string]map[string]string{} // no file yet, or one holding null
+		}
+		m.values = latest
+		if !change(latest) {
+			return content, nil
+		}
+		return json.MarshalIndent(latest, "", "  ")
+	})
+	if err != nil {
 		return fmt.Errorf("saving remembered values: %w", err)
 	}
 	return nil

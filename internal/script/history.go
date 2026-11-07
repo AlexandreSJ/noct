@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"slices"
 	"time"
+
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
 )
 
 // RunsFile is the name of the list of recent runs in noct's state directory.
@@ -100,31 +102,21 @@ func ForgetLogs(path string, logs map[string]bool) error {
 }
 
 func updateRuns(path string, change func([]Run) []Run) error {
-	runs, err := Runs(path)
-	if err != nil {
-		runs = nil // a damaged list starts over rather than blocking runs
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("saving the runs: %w", err)
 	}
-	runs = change(runs)
-	runs = runs[max(len(runs)-runsKept, 0):]
-	if err := writeRuns(path, runs); err != nil {
+	err := atomicfile.Update(path, 0o600, func(content []byte) ([]byte, error) {
+		var runs []Run
+		if json.Unmarshal(content, &runs) != nil {
+			runs = nil // a missing or damaged list starts over rather than blocking runs
+		}
+		runs = change(runs)
+		return json.Marshal(runs[max(len(runs)-runsKept, 0):])
+	})
+	if err != nil {
 		return fmt.Errorf("saving the runs: %w", err)
 	}
 	return nil
-}
-
-func writeRuns(path string, runs []Run) error {
-	content, err := json.Marshal(runs)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	temp := path + ".tmp"
-	if err := os.WriteFile(temp, content, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(temp, path)
 }
 
 // LastRuns is when each script last ran; flows are left out.

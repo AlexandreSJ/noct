@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 )
 
 // PaneNew is the one value of a step's pane: a new pane beside the flow's run.
@@ -17,6 +18,8 @@ type PaneRequest struct {
 	Dir     string
 	Title   string
 	Wait    bool
+	// Timeout is how long the step may run before the workspace stops it; 0 is no limit.
+	Timeout time.Duration
 }
 
 // validatePane checks pane and background: only script and run steps have them, and a step in
@@ -37,15 +40,20 @@ func (s Step) validatePane(kind Kind) error {
 
 // runInPane runs a step's command line in a pane of its own and gives its exit code; a step in
 // the background gives 0 once started. Outside noct's workspace there is no pane to open: the
-// step runs in the flow's terminal, and in the background the flow does not wait for it.
-func (x *running) runInPane(s Step, command, dir string) (string, int) {
-	if x.OpenPane == nil {
-		if !s.Background {
-			return x.execute(command, dir)
-		}
+// step runs in the flow's terminal, and in the background the flow does not wait for it. A step
+// the flow waits for is stopped at the deadline, by the workspace for a pane.
+func (x *running) runInPane(s Step, command, dir string, deadline time.Time) (string, int) {
+	switch {
+	case s.Background && x.OpenPane == nil:
 		return "", x.startDetached(command, dir)
+	case x.OpenPane == nil:
+		return x.execute(command, dir, deadline)
 	}
-	exit, err := x.OpenPane(PaneRequest{Command: command, Dir: dir, Title: s.Label(), Wait: !s.Background})
+	req := PaneRequest{Command: command, Dir: dir, Title: s.Label(), Wait: !s.Background}
+	if req.Wait && !deadline.IsZero() {
+		req.Timeout = max(time.Until(deadline), time.Millisecond)
+	}
+	exit, err := x.OpenPane(req)
 	if err != nil {
 		fmt.Fprintln(x.Out, "opening a pane:", err)
 		return "", 1

@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
 )
 
 // maxBaseDepth bounds a chain of themes built on each other, which also catches a cycle.
@@ -166,8 +168,5 @@ func Save(dir string, t Theme, base Theme) error {
 	if target, err := filepath.EvalSymlinks(path); err == nil {
 		path = target // a theme linked from dotfiles stays a link, with the change in its target
 	}
-	if err := os.WriteFile(path+".tmp", []byte(out.String()), 0o644); err != nil {
-		return err
-	}
-	return os.Rename(path+".tmp", path)
+	return atomicfile.Write(path, []byte(out.String()), 0o644)
 }

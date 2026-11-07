@@ -95,36 +95,21 @@ Sem compromisso nem ordem:
 
 ## Dívida técnica
 
-O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decisão de design ou mais que uma correção pontual. As correções feitas estão no `CHANGELOG.md` e no ADR-060.
+O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decisão de design ou mais que uma correção pontual. As correções feitas estão no `CHANGELOG.md`, no ADR-060 e no ADR-061.
 
 **Segurança e correção**
 
 1. **Params do `run` como texto no template.** Desde o ADR-060 o `run` com `params` pede aprovação, mas os valores ainda entram no comando renderizado para `sh -c`. Passá-los como variáveis de ambiente (`"$pattern"`) ou argumentos posicionais fecha a injeção sem depender da aprovação; muda o formato dos scripts e pede ADR próprio.
 2. **Saídas de passos em `run:`** (`{{.steps.x.output}}`) também entram cruas no shell; o heredoc documentado é a única defesa. Uma função `quote` nos templates ajudaria aqui e nos scripts novos.
-3. **Escritas concorrentes** de `runs.json`, resultados, triggers e `values`: ler, mudar e gravar sem trava e com `.tmp` fixo. TUI e CLI gravando juntos podem perder ou corromper o histórico. Um helper único (`CreateTemp` + `flock` + rename) substituiria as cópias da escrita atômica.
-4. **Passos sem timeout:** um passo travado num fluxo de cron para o agendamento dele até o daemon reiniciar (`a.triggered`).
-5. **Cron e horário de verão:** na volta do horário um minuto roda duas vezes, na ida é pulado. Guardar o último minuto rodado e documentar o pulo, como no cron.
-
-**Desempenho**
-
-6. **`kittygfx`:** `outerIDs` e `sizes` crescem por toda a vida do painel; `stream.go` copia e varre `pending` de novo a cada leitura (quadrático até 32 MiB).
-7. **`get_run` com `wait_seconds`** segura o `noct mcp` até 600 s depois que o cliente de IA sai, sem rodar nada.
 
 **Dependências**
 
-8. **`golang.org/x/sys`** fica na v0.41.0, com o GO-2026-5024, que só afeta o Windows (o noct não compila para ele) e não é alcançável. A v0.44.0, a primeira corrigida, exige Go 1.25, e subir o `go 1.24.2` do `go.mod` só por ela tiraria quem instala com `go install` num Go 1.24. Sobe junto com a próxima mudança de versão do Go.
+3. **`golang.org/x/sys`** fica na v0.41.0, com o GO-2026-5024, que só afeta o Windows (o noct não compila para ele) e não é alcançável. A v0.44.0, a primeira corrigida, exige Go 1.25, e subir o `go 1.24.2` do `go.mod` só por ela tiraria quem instala com `go install` num Go 1.24. Sobe junto com a próxima mudança de versão do Go.
 
 **Duplicação e complexidade**
 
-- A escrita atômica `tmp` + rename aparece à mão 7 vezes (`flow.Save`, `SaveResultTo`, `SetEnabled`, `Memory.save`, `writeRuns`, `config.Save`, `theme`), além de `update.replaceFile`.
-- A regex `validName` está copiada 4 vezes (`script`, `flow`, `templates`, `mcp`) e `identifier` 2 vezes.
-- `flow/warnings.go` `walkFields` duplica `script.fieldsUsed`; `Step.templates()` e `orderedTemplates()` listam os mesmos textos.
-- `app/tab.go` `newTab` e `app/setup.go` `themeNames` só têm chamadores em teste.
-- A goroutine de "receber até fechar" aparece três vezes (`app/mcp_panel.go` duas, `app/requests.go` uma).
-- `app/config_panel.go`: `changeSetting` (~90 linhas, ~30 casos) e `configLines` (~83) passam do limite de complexidade do CONTRIBUTING.
-- `logs_panel.go` e `scripts_panel.go` tratam `end` e as setas à mão ao lado de `listJump`.
-- `config.LogColumns` e `DefaultLogColumns` são a mesma lista literal.
-- `cmd/noct/main.go`: `usage` e `help` repetem a lista de comandos, e nenhum cita o alias `run`.
+- `"◂ v ▸"` ainda é montado à mão em `config_numbers.go`, `stage_preview.go`, `form.go` e `template_save.go`, ao lado de `choiceValue`.
+- Escritas sem `atomicfile`: criar um script e salvar `notes.md` (`script/edit.go`) e `mcp/library_tools.go` `writeScriptFiles`, que repete `script.writeScriptFiles`. Arquivos da biblioteca (scripts e fluxos promovidos) são gravados sem trava, para não deixar `.lock` em pastas que podem estar no git.
 - `cmd/noct/main_test.go`: uma checagem negativa depois de um `time.Sleep(500ms)` fixo.
 
 ## Riscos

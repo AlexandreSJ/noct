@@ -30,7 +30,9 @@ type Tool struct {
 	AskWhen func(args json.RawMessage) bool
 	// Summary tells the user, when asked to approve, exactly what the call would do.
 	Summary func(args json.RawMessage) string
-	Run     func(args json.RawMessage) (any, error)
+	// Run does the call; ctx ends when the AI client leaves, so a wait or a request to the
+	// workspace stops with it.
+	Run func(ctx context.Context, args json.RawMessage) (any, error)
 	// Call is Run behind the policy and the audit log; NewServer sets it. Ending ctx withdraws
 	// an approval the call waits for.
 	Call func(ctx context.Context, args json.RawMessage) (any, error)
@@ -96,11 +98,16 @@ func (d Deps) guarded(t Tool) func(context.Context, json.RawMessage) (any, error
 		policy, err := d.guard(ctx, t, args)
 		var result any
 		if err == nil {
-			result, err = t.Run(args)
+			result, err = t.Run(ctx, args)
 		}
 		d.audit(t.Name, policy, args, err)
 		return result, err
 	}
+}
+
+// noWait is a tool's Run for a call that answers at once and so has no use for ctx.
+func noWait(run func(args json.RawMessage) (any, error)) func(context.Context, json.RawMessage) (any, error) {
+	return func(_ context.Context, args json.RawMessage) (any, error) { return run(args) }
 }
 
 // guard applies the policy: deny refuses, ask waits for the user in noct's TUI.

@@ -11,6 +11,33 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Added
+
+- Flows and their `script` and `run` steps take an optional `timeout` (`30s`, `10m`, `1h30m`). A
+  step that runs longer is stopped and fails, then follows its `on_fail`; a flow that runs longer
+  stops as failed. A hung step no longer keeps a scheduled flow from starting again until noct
+  restarts.
+- `noct check` and the AI's `check` warn about a flow started by a schedule, file changes or
+  another flow that has no timeout.
+
+### Changed
+
+- `noct run <script>` is listed in `noct -h` and the README as the way to run a script; `-s` and
+  `--script` still work.
+
+### Fixed
+
+- Runs, remembered parameter values and enabled triggers are no longer lost or damaged when the
+  workspace and the `noct` command save them at the same time.
+- `noct mcp` exits as soon as the AI client closes, even while `get_run` waits for a run to end,
+  instead of staying open for up to 10 minutes.
+- `get_run` with `wait_seconds` follows a flow started with `noct flow run` in a shell to its end,
+  instead of answering at once that the flow has no run.
+- Panes whose programs show many images no longer keep growing in memory, and large images sent
+  in many small pieces no longer slow the pane down.
+- A scheduled flow no longer runs twice when clocks go back an hour for daylight saving time.
+  Times skipped when clocks go forward do not run that day, as in cron.
+
 ## v0.2.3 - 2026-11-04
 
 ### Added

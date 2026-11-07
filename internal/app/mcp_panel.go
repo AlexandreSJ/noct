@@ -73,43 +73,32 @@ func (a *App) decideApproval(ap *approval, approved bool) {
 // it keeps open for as long as it runs. Multiple connections from the same client (name+version)
 // are counted but shown as a single entry.
 func (a *App) connectAIClient(c connection, client *aiClient) {
+	listed := a.listAIClient(client)
+	go func() {
+		receiveUntilEnd(c.conn)
+		_ = c.conn.Close()
+		a.onLoop(func() {
+			listed.count--
+			if listed.count <= 0 {
+				a.aiClients = slices.DeleteFunc(a.aiClients, func(other *aiClient) bool { return other == listed })
+			}
+		})
+	}()
+}
+
+// listAIClient counts one more connection of a client already listed, or lists it, and returns
+// its entry.
+func (a *App) listAIClient(client *aiClient) *aiClient {
 	for _, existing := range a.aiClients {
 		if existing.Name == client.Name && existing.Version == client.Version {
 			existing.count++
-			go func() {
-				for {
-					if _, err := c.conn.Receive(); err != nil {
-						break
-					}
-				}
-				_ = c.conn.Close()
-				a.onLoop(func() {
-					existing.count--
-					if existing.count <= 0 {
-						a.aiClients = slices.DeleteFunc(a.aiClients, func(other *aiClient) bool { return other == existing })
-					}
-				})
-			}()
-			return
+			return existing
 		}
 	}
 	client.count = 1
 	a.aiClients = append(a.aiClients, client)
 	a.notice = client.Name + " connected to noct"
-	go func() {
-		for {
-			if _, err := c.conn.Receive(); err != nil {
-				break
-			}
-		}
-		_ = c.conn.Close()
-		a.onLoop(func() {
-			client.count--
-			if client.count <= 0 {
-				a.aiClients = slices.DeleteFunc(a.aiClients, func(other *aiClient) bool { return other == client })
-			}
-		})
-	}()
+	return client
 }
 
 // openMCP shows the MCP popup, on the oldest approval when one waits.

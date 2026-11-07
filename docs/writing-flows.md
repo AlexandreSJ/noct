@@ -92,8 +92,8 @@ A step sets exactly one of these:
 
 | Key | Does | Extra keys it may have |
 |---|---|---|
-| `script: <id>` | Runs a registered script | `with`, `capture`, `expect`, `on_fail`, `pane`, `background` |
-| `run: <shell>` | Runs a shell line (a template) | `capture`, `expect`, `on_fail`, `pane`, `background` |
+| `script: <id>` | Runs a registered script | `with`, `capture`, `expect`, `on_fail`, `timeout`, `pane`, `background` |
+| `run: <shell>` | Runs a shell line (a template) | `capture`, `expect`, `on_fail`, `timeout`, `pane`, `background` |
 | `if: <template>` | Runs `then` or `else` | `then`, `else` |
 | `repeat: {...}` | Runs `steps` in passes | `steps` |
 | `wait: <duration>` | Sleeps (`5s`, `1m30s`) | — |
@@ -171,6 +171,26 @@ ran before it, or accept the warning on purpose.
 continue or stop. A run with no terminal to ask (started by a trigger) stops, so do not rely on
 `ask` in flows that run by themselves.
 
+### Timeouts
+
+```yaml
+timeout: 1h               # the whole run; absent is no limit
+steps:
+  - run: ./backup.sh
+    timeout: 10m          # this step only; script and run steps
+    on_fail: continue
+```
+
+- A Go duration: `30s`, `10m`, `1h30m`. Zero, negative or unparsable values fail validation.
+- A step past its timeout is stopped (SIGTERM, then SIGKILL 2 s later) and fails with
+  `timed out after 10m` and exit `124`; then its `on_fail` applies as for any failure.
+- The flow's timeout covers everything, `wait` and `repeat` pauses included: the running step is
+  stopped and the run fails with `flow timed out after 1h`, whatever `on_fail` says. A `prompt`
+  or `ask` waiting on the terminal is not interrupted.
+- `pane: new` steps are stopped by the workspace; `background: true` steps cannot have one.
+- Give every flow with a `cron`, `watch` or `after` trigger a timeout: while a triggered run is
+  still going, its triggers do not start it again. `noct check` warns when there is none.
+
 ### Steps in their own pane
 
 ```yaml
@@ -201,6 +221,8 @@ steps: [...]
 - The running workspace starts them, even with the TUI detached; nothing runs after `noct quit`.
 - `watch` paths are relative to where the workspace started; prefer absolute or `~/` paths.
 - A run started by a trigger has no terminal: no `ask`, and its output goes to a log.
+- `cron` follows the local clock. When it goes back an hour, a flow does not run again on a minute
+  the clock already showed; when it jumps forward, the minutes skipped do not run that day.
 - A flow cannot follow itself, and flows following each other in a loop are an error.
 
 ## Drafts
@@ -213,7 +235,7 @@ you drafted and ask them to promote it; do not edit the file to drop the mark.
 ## Check and run
 
 ```sh
-noct check                                  # schema, templates, scripts, max, scope warnings
+noct check                                  # schema, templates, scripts, max, scope and timeout warnings
 noct flow ls                                # the flows, whether they load, their triggers on/off
 noct flow run <flow> [name=value ...]       # runs it in this terminal
 noct flow run <flow> --steps 2..3           # tests a range, reading the last run's values

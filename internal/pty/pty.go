@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"syscall"
+	"time"
 	"unicode"
 
 	creackpty "github.com/creack/pty"
@@ -173,6 +174,21 @@ func (p *Process) Close() error {
 		hangupErr = nil
 	}
 	return errors.Join(hangupErr, p.terminal.Close())
+}
+
+// Stop ends the program and what it started: SIGTERM to its process group, then SIGKILL after
+// grace to what is left. The terminal stays open, so the program's last output can still be read.
+func (p *Process) Stop(grace time.Duration) {
+	if p.exited.Load() {
+		return // after Wait the pid may belong to someone else
+	}
+	group := p.cmd.Process.Pid
+	_ = syscall.Kill(-group, syscall.SIGTERM) // ESRCH: it ended meanwhile
+	time.AfterFunc(grace, func() {
+		if !p.exited.Load() {
+			_ = syscall.Kill(-group, syscall.SIGKILL)
+		}
+	})
 }
 
 func winsize(size Size) *creackpty.Winsize {

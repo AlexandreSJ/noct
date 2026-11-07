@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -104,6 +105,97 @@ func TestDeleteForwardsOuterIDs(t *testing.T) {
 	result := session.Handle(command("a=d,d=i,i=4"))
 	if got := string(result.ToTerminal); !strings.Contains(got, "i=1") || !strings.Contains(got, "d=I") {
 		t.Errorf("delete %q", got)
+	}
+}
+
+// A session must not remember images its program deleted or replaced, nor ones it cannot name.
+func TestDeletedAndReplacedImagesAreForgotten(t *testing.T) {
+	session := newTestSession()
+	for range 3 {
+		session.Handle(command("a=T,f=24,s=10,v=10,i=1,c=1,r=1;AAAA"))
+		session.Handle(command("a=t,f=24,s=10,v=10,i=1;AAAA")) // replaces image 1
+		session.Handle(command("a=t,f=24,s=10,v=10,i=2;AAAA"))
+		session.Handle(command("a=t,f=24,s=10,v=10,i=3;AAAA"))
+		session.Handle(command("a=t,f=24,s=10,v=10,i=4;AAAA"))
+		session.Handle(command("a=T,f=24,s=10,v=10,c=1,r=1;AAAA")) // no id: nothing can name it later
+		session.Handle(command("a=d,d=i,i=1"))
+		session.Handle(command("a=d,d=I,i=2"))
+		if got := len(session.images); got != 2 {
+			t.Fatalf("after deleting two of four images, %d are kept, want 2", got)
+		}
+		session.Handle(command("a=d,d=A"))
+	}
+	session.Handle(command("a=t,f=24,s=10,v=10,i=5;AAAA"))
+	session.Handle(command("a=d"))
+	if got := len(session.images); got != 0 {
+		t.Errorf("after deleting every image, %d are kept", got)
+	}
+	if put := session.Handle(command("a=p,i=5")); !strings.Contains(string(put.ToProgram), "ENOENT") {
+		t.Errorf("placing a deleted image answered %q", put.ToProgram)
+	}
+}
+
+func TestSplitterJoinsACommandSentInManySmallReads(t *testing.T) {
+	payload := strings.Repeat("QUJD", 1<<18) // 1 MiB
+	output := "before\x1b_Ga=t,i=1;" + payload + "\x1b\\after"
+	cut := strings.Index(output, commandEnd) + 1 // the end marker falls across two reads
+	var s Splitter
+	var segments []Segment
+	for chunk := range slices.Chunk([]byte(output[:cut]), 1000) {
+		segments = append(segments, s.Split(chunk)...)
+	}
+	segments = append(segments, s.Split([]byte(output[cut:]))...)
+	var texts []string
+	var payloads []string
+	for _, segment := range segments {
+		if segment.Command != nil {
+			payloads = append(payloads, string(segment.Command.Payload))
+		} else {
+			texts = append(texts, string(segment.Text))
+		}
+	}
+	if len(payloads) != 1 || payloads[0] != payload || strings.Join(texts, "|") != "before|after" {
+		t.Errorf("got %d commands, texts %q", len(payloads), texts)
+	}
+}
+
+// A command sent in small reads must not be copied whole on every read, which is quadratic.
+func TestSplitterKeepsAnUnfinishedCommandWithoutCopyingItEachRead(t *testing.T) {
+	chunk := []byte(strings.Repeat("A", 1024))
+	allocs := testing.AllocsPerRun(1, func() {
+		var s Splitter
+		s.Split([]byte("\x1b_Ga=t;"))
+		for range 1024 {
+			s.Split(chunk)
+		}
+	})
+	if allocs > 100 {
+		t.Errorf("1024 reads of an unfinished command made %.0f allocations", allocs)
+	}
+}
+
+func TestSplitterDropsACommandPastTheLimit(t *testing.T) {
+	var s Splitter
+	s.Split([]byte("\x1b_Ga=t;"))
+	chunk := []byte(strings.Repeat("A", 1<<20))
+	for range maxPendingCommand >> 20 {
+		s.Split(chunk)
+	}
+	segments := s.Split([]byte("AA\x1b\\\x1b_Gi=1;OK\x1b\\"))
+	if len(segments) != 2 || string(segments[0].Text) != "AA\x1b\\" || segments[1].Command == nil {
+		t.Errorf("segments after an oversized command: %d", len(segments))
+	}
+}
+
+func BenchmarkSplitterChunkedUpload(b *testing.B) {
+	chunk := []byte(strings.Repeat("A", 4096))
+	for b.Loop() {
+		var s Splitter
+		s.Split([]byte("\x1b_Ga=t;"))
+		for range 4096 { // 16 MiB
+			s.Split(chunk)
+		}
+		s.Split([]byte("\x1b\\"))
 	}
 }
 

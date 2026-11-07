@@ -5,7 +5,6 @@ import (
 	"maps"
 	"slices"
 	"strings"
-	tparse "text/template/parse"
 
 	"github.com/AlexandreSJ/noct/internal/script"
 )
@@ -153,7 +152,7 @@ func references(text string) []reference {
 		return nil
 	}
 	var refs []reference
-	walkFields(t.Root, func(ident []string) {
+	script.WalkFields(t.Root, func(ident []string) {
 		switch {
 		case len(ident) >= 3 && ident[0] == "steps":
 			refs = append(refs, reference{step: ident[1], field: ident[2]})
@@ -162,42 +161,4 @@ func references(text string) []reference {
 		}
 	})
 	return refs
-}
-
-// walkFields calls visit with the names of each field a template node reads, such as
-// [steps pick color] for {{.steps.pick.color}}.
-func walkFields(node tparse.Node, visit func(ident []string)) {
-	switch n := node.(type) {
-	case *tparse.ListNode:
-		if n == nil {
-			return
-		}
-		for _, child := range n.Nodes {
-			walkFields(child, visit)
-		}
-	case *tparse.ActionNode:
-		walkFields(n.Pipe, visit)
-	case *tparse.PipeNode:
-		for _, command := range n.Cmds {
-			walkFields(command, visit)
-		}
-	case *tparse.CommandNode:
-		for _, arg := range n.Args {
-			walkFields(arg, visit)
-		}
-	case *tparse.FieldNode:
-		visit(n.Ident)
-	case *tparse.IfNode:
-		walkBranch(&n.BranchNode, visit)
-	case *tparse.RangeNode:
-		walkBranch(&n.BranchNode, visit)
-	case *tparse.WithNode:
-		walkBranch(&n.BranchNode, visit)
-	}
-}
-
-func walkBranch(b *tparse.BranchNode, visit func(ident []string)) {
-	walkFields(b.Pipe, visit)
-	walkFields(b.List, visit)
-	walkFields(b.ElseList, visit)
 }

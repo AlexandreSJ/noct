@@ -15,6 +15,8 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
+	"github.com/AlexandreSJ/noct/internal/naming"
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
@@ -42,7 +44,9 @@ type Flow struct {
 	Params map[string]Param `yaml:"params,omitempty"`
 	// Triggers start the flow on their own, once enabled on this machine.
 	Triggers []Trigger `yaml:"triggers,omitempty"`
-	Steps    []Step    `yaml:"steps"`
+	// Timeout bounds the whole run, as a duration like 1h30m; empty is no limit.
+	Timeout string `yaml:"timeout,omitempty"`
+	Steps   []Step `yaml:"steps"`
 }
 
 // Step does one thing: runs a script or a command line, branches, repeats steps, waits, asks the
@@ -62,6 +66,9 @@ type Step struct {
 	// Pane runs the step in a pane of its own (PaneNew); Background does not wait for it.
 	Pane       string `yaml:"pane,omitempty"`
 	Background bool   `yaml:"background,omitempty"`
+	// Timeout bounds a script or run step, as a duration like 10m; past it the step is stopped
+	// and fails. Empty is no limit.
+	Timeout string `yaml:"timeout,omitempty"`
 
 	If   string `yaml:"if,omitempty"`
 	Then []Step `yaml:"then,omitempty"`
@@ -230,15 +237,11 @@ func Find(flows []Flow, name string) (Flow, bool) {
 	return flows[i], true
 }
 
-var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
-
-var identifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-
 const exactlyOne = "a step sets exactly one of script, run, if, repeat, wait, prompt, set and unset"
 
 // Create writes a new, empty flow called name in dir.
 func Create(dir, name string) (Flow, error) {
-	if !validName.MatchString(name) {
+	if !naming.IsValid(name) {
 		return Flow{}, fmt.Errorf("flow name %q: use letters, digits, . - _", name)
 	}
 	f := Flow{Name: name, File: filepath.Join(dir, name+Ext)}
@@ -257,11 +260,7 @@ func (f Flow) Save() error {
 	if err := os.MkdirAll(filepath.Dir(f.File), 0o755); err != nil {
 		return fmt.Errorf("saving flow %s: %w", f.Name, err)
 	}
-	temp := f.File + ".tmp"
-	if err := os.WriteFile(temp, content, 0o644); err != nil {
-		return fmt.Errorf("saving flow %s: %w", f.Name, err)
-	}
-	if err := os.Rename(temp, f.File); err != nil {
+	if err := atomicfile.Write(f.File, content, 0o644); err != nil {
 		return fmt.Errorf("saving flow %s: %w", f.Name, err)
 	}
 	return nil

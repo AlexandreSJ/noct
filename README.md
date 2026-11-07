@@ -165,7 +165,7 @@ claude mcp add noct -- noct mcp
 | `noct setup` | Choose the keys, themes and animations, install the demo, add noct to AI clients and create shortcuts of your own |
 | `noct sessions` | List the sessions: open or closed, tabs, last use |
 | `noct kill <session>` | Delete a session: its programs stop and its layout is forgotten |
-| `noct -s <script> [name=value ...]` | Run a script in this terminal |
+| `noct run <script> [name=value ...]` (or `-s`) | Run a script in this terminal |
 | `noct ls` | List the scripts, their program version and folder |
 | `noct flow run <flow> [name=value ...]` | Run a flow in this terminal, step by step |
 | `noct flow ls` | List the flows, with their triggers on or off |

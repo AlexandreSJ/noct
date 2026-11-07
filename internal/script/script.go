@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"text/template"
@@ -16,17 +15,14 @@ import (
 	"time"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/AlexandreSJ/noct/internal/naming"
 )
 
 const (
 	FileName  = "script.yaml"
 	NotesName = "notes.md"
 )
-
-var identifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-
-// validName allows names that are safe as directory names and easy to type in `noct run`.
-var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 type Param struct {
 	Name    string   `yaml:"name"`
@@ -167,7 +163,7 @@ func validateParams(params []Param) (map[string]bool, error) {
 func validateOutputs(outputs []string) error {
 	seen := map[string]bool{}
 	for _, name := range outputs {
-		if !identifier.MatchString(name) {
+		if !naming.IsIdentifier(name) {
 			return fmt.Errorf("output %q must be letters, digits and _ only", name)
 		}
 		if seen[name] {
@@ -181,44 +177,50 @@ func validateOutputs(outputs []string) error {
 // fieldsUsed lists the fields a template reads, such as name in {{.name}}.
 func fieldsUsed(node parse.Node) []string {
 	var names []string
+	WalkFields(node, func(ident []string) { names = append(names, ident[0]) })
+	return names
+}
+
+// WalkFields calls visit with the names of each field a template node reads, in order, such as
+// [steps pick color] for {{.steps.pick.color}}.
+func WalkFields(node parse.Node, visit func(ident []string)) {
 	switch n := node.(type) {
 	case *parse.ListNode:
+		if n == nil {
+			return
+		}
 		for _, child := range n.Nodes {
-			names = append(names, fieldsUsed(child)...)
+			WalkFields(child, visit)
 		}
 	case *parse.ActionNode:
-		names = fieldsUsed(n.Pipe)
+		WalkFields(n.Pipe, visit)
 	case *parse.PipeNode:
 		for _, command := range n.Cmds {
-			names = append(names, fieldsUsed(command)...)
+			WalkFields(command, visit)
 		}
 	case *parse.CommandNode:
 		for _, arg := range n.Args {
-			names = append(names, fieldsUsed(arg)...)
+			WalkFields(arg, visit)
 		}
 	case *parse.FieldNode:
-		names = append(names, n.Ident[0])
+		visit(n.Ident)
 	case *parse.IfNode:
-		names = append(names, branchFields(&n.BranchNode)...)
+		walkBranch(&n.BranchNode, visit)
 	case *parse.RangeNode:
-		names = append(names, branchFields(&n.BranchNode)...)
+		walkBranch(&n.BranchNode, visit)
 	case *parse.WithNode:
-		names = append(names, branchFields(&n.BranchNode)...)
+		walkBranch(&n.BranchNode, visit)
 	}
-	return names
 }
 
-func branchFields(n *parse.BranchNode) []string {
-	names := fieldsUsed(n.Pipe)
-	names = append(names, fieldsUsed(n.List)...)
-	if n.ElseList != nil {
-		names = append(names, fieldsUsed(n.ElseList)...)
-	}
-	return names
+func walkBranch(b *parse.BranchNode, visit func(ident []string)) {
+	WalkFields(b.Pipe, visit)
+	WalkFields(b.List, visit)
+	WalkFields(b.ElseList, visit)
 }
 
 func (p Param) validate() error {
-	if !identifier.MatchString(p.Name) {
+	if !naming.IsIdentifier(p.Name) {
 		return fmt.Errorf("parameter name %q must be letters, digits and _ only", p.Name)
 	}
 	if p.From != "" && !strings.HasPrefix(p.From, "env:") {
@@ -282,7 +284,7 @@ func (s Script) NotesFile() string {
 
 // Rename gives the script a new name, which is the name of its directory.
 func Rename(s Script, name string) (Script, error) {
-	if !validName.MatchString(name) {
+	if !naming.IsValid(name) {
 		return Script{}, fmt.Errorf("script name %q: use letters, digits, '.', '-' and '_'", name)
 	}
 	dir := filepath.Join(filepath.Dir(s.Dir), name)
@@ -321,7 +323,7 @@ func Backup(s Script) error {
 }
 
 func Delete(s Script) error {
-	if s.Dir == "" || !validName.MatchString(filepath.Base(s.Dir)) {
+	if s.Dir == "" || !naming.IsValid(filepath.Base(s.Dir)) {
 		return fmt.Errorf("refusing to delete %q", s.Dir)
 	}
 	if err := os.RemoveAll(s.Dir); err != nil {

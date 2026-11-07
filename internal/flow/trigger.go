@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
 	"github.com/AlexandreSJ/noct/internal/logstore"
 )
 
@@ -261,8 +263,15 @@ type enabledFlows struct {
 // Enabled are the flows whose triggers run; a missing or unreadable file is none.
 func Enabled(path string) map[string]bool {
 	content, err := os.ReadFile(path)
+	if err != nil {
+		return map[string]bool{}
+	}
+	return parseEnabled(content)
+}
+
+func parseEnabled(content []byte) map[string]bool {
 	var stored enabledFlows
-	if err != nil || json.Unmarshal(content, &stored) != nil {
+	if json.Unmarshal(content, &stored) != nil {
 		return map[string]bool{}
 	}
 	on := map[string]bool{}
@@ -272,29 +281,21 @@ func Enabled(path string) map[string]bool {
 	return on
 }
 
-// SetEnabled turns a flow's triggers on or off.
+// SetEnabled turns a flow's triggers on or off, under a lock so flows another noct turns on or
+// off meanwhile keep their state.
 func SetEnabled(path, name string, on bool) error {
-	enabled := Enabled(path)
-	if on {
-		enabled[name] = true
-	} else {
-		delete(enabled, name)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("saving the enabled triggers: %w", err)
 	}
-	var stored enabledFlows
-	for name := range enabled {
-		stored.Enabled = append(stored.Enabled, name)
-	}
-	slices.Sort(stored.Enabled)
-	content, err := json.Marshal(stored)
-	if err == nil {
-		err = os.MkdirAll(filepath.Dir(path), 0o700)
-	}
-	if err == nil {
-		err = os.WriteFile(path+".tmp", content, 0o600)
-	}
-	if err == nil {
-		err = os.Rename(path+".tmp", path)
-	}
+	err := atomicfile.Update(path, 0o600, func(content []byte) ([]byte, error) {
+		enabled := parseEnabled(content)
+		if on {
+			enabled[name] = true
+		} else {
+			delete(enabled, name)
+		}
+		return json.Marshal(enabledFlows{Enabled: slices.Sorted(maps.Keys(enabled))})
+	})
 	if err != nil {
 		return fmt.Errorf("saving the enabled triggers: %w", err)
 	}
