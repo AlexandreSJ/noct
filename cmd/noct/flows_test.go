@@ -62,6 +62,23 @@ func lastResult(t *testing.T, s *session, name string) flow.Result {
 	return r
 }
 
+// noct check warns about a flow a trigger starts that has no timeout, and a run past its timeout
+// fails with 124, as timeout(1) does.
+func TestFlowTimeouts(t *testing.T) {
+	s := newSession(t)
+	writeFlow(t, s, "nightly", "triggers: [{cron: '0 3 * * *'}]\nsteps: [{run: 'true'}]\n")
+	writeFlow(t, s, "slow", "timeout: 200ms\nsteps: [{run: 'sleep 30'}]\n")
+	out, err := runNoct(t, s, "check")
+	if err != nil || !strings.Contains(out, "⚠ flow nightly: no timeout") || strings.Contains(out, "flow slow:") {
+		t.Fatalf("noct check: %v\n%s", err, out)
+	}
+	out, err = runNoct(t, s, "flow", "run", "slow")
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() != 124 || !strings.Contains(out, "flow timed out after 200ms") {
+		t.Fatalf("flow run: %v\n%s", err, out)
+	}
+}
+
 // noct check warns about a step read before it runs; a full run keeps the outputs, and a test
 // of one step reads them and replaces only that step.
 func TestFlowWarningsAndTestingAStep(t *testing.T) {

@@ -61,6 +61,9 @@ type running struct {
 	// steps holds, by step id, output, exit, ok and the captures, for the templates.
 	steps  map[string]map[string]string
 	result Result
+	// deadline is when the flow's timeout, as written in timeout, ends the run; zero without one.
+	deadline time.Time
+	timeout  string
 }
 
 // Run runs the flow with the parameters given over its defaults. Result.Exit is the exit code of
@@ -84,13 +87,18 @@ func (r *Runner) start(f Flow, params map[string]string) *running {
 		result: Result{Flow: f.Name, Start: time.Now(), Steps: map[string]StepResult{}, OK: true},
 	}
 	maps.Copy(x.vars, params)
+	x.startDeadline(f)
 	return x
 }
 
 // runSteps runs a list of steps, reporting false when the flow must stop.
 func (x *running) runSteps(steps []Step, parent, branch string) bool {
 	for i, s := range steps {
-		if !x.runStep(s, Path(parent, branch, i)) {
+		path := Path(parent, branch, i)
+		if x.runTimedOut() {
+			return x.stopTimedOut(path)
+		}
+		if !x.runStep(s, path) {
 			return false
 		}
 	}
@@ -113,17 +121,20 @@ func (x *running) runStep(s Step, path string) bool {
 		x.runUnset(s, path)
 		return true
 	case WaitStep:
-		x.runWait(s, path)
-		return true
+		return x.runWait(s, path)
 	}
 	return x.stop(path, exactlyOne, 1)
 }
 
-func (x *running) runWait(s Step, path string) {
+func (x *running) runWait(s Step, path string) bool {
 	d, _ := time.ParseDuration(s.Wait) // checked by Validate
 	x.header("⏱", "wait "+s.Wait, "")
-	x.Sleep(d)
+	x.sleep(d)
+	if x.runTimedOut() {
+		return x.stopTimedOut(path)
+	}
 	x.result.Steps[path] = StepResult{Status: StatusOK, Duration: d}
+	return true
 }
 
 func (x *running) runIf(s Step, path string) bool {
@@ -149,7 +160,7 @@ func (x *running) runRepeat(s Step, path string) bool {
 	start := time.Now()
 	for pass := 1; pass <= passes; pass++ {
 		if pass > 1 && every > 0 {
-			x.Sleep(every)
+			x.sleep(every)
 		}
 		x.forget(s.Steps)
 		x.header("↻", fmt.Sprintf("%s pass %d of %d", s.Label(), pass, passes), "")
@@ -202,25 +213,39 @@ func (x *running) runCommand(s Step, path string) bool {
 	}
 	x.header("▶", s.Label(), detail)
 	start := time.Now()
-	output, exit := x.launch(s, command, dir)
+	deadline := x.stepDeadline(s)
+	output, exit := x.launch(s, command, dir, deadline)
+	// A step that ended well right at its deadline finished on its own; only a failure past it
+	// was the stop.
+	timedOut := exit != 0 && passed(deadline)
+	if timedOut {
+		exit = timeoutExit
+	}
 	result := StepResult{Status: StatusOK, Exit: exit, Duration: time.Since(start), Captures: capture(x.capturePatterns(s), output), Output: truncate(output, x.KeepOutput)}
-	ok := succeeded(s.Expect, exit, output)
+	ok := !timedOut && succeeded(s.Expect, exit, output)
 	x.keepStepValues(s.ID, result, output, ok)
 	if ok {
 		x.result.Steps[path] = result
 		return true
 	}
 	result.Status, result.Message = StatusFailed, failure(s.Expect, exit)
+	if timedOut {
+		result.Message = "timed out after " + s.Timeout
+	}
 	x.result.Steps[path] = result
+	if x.runTimedOut() {
+		return x.stopTimedOut(path)
+	}
 	return x.afterFailure(s, path, result.Message, exit)
 }
 
-// launch runs a step's command line in a pane of its own when it asks for one, else here.
-func (x *running) launch(s Step, command, dir string) (string, int) {
+// launch runs a step's command line in a pane of its own when it asks for one, else here, and
+// stops it at the deadline.
+func (x *running) launch(s Step, command, dir string, deadline time.Time) (string, int) {
 	if s.Pane != "" {
-		return x.runInPane(s, command, dir)
+		return x.runInPane(s, command, dir, deadline)
 	}
-	return x.execute(command, dir)
+	return x.execute(command, dir, deadline)
 }
 
 // keepStepValues makes a step's output, exit, ok and captures readable by the templates after
@@ -313,9 +338,10 @@ func (x *running) commandLine(s Step) (string, string, error) {
 }
 
 // execute runs a command line with the terminal's input, showing its output as it comes and
-// keeping it, without colors, for captures and templates.
-func (x *running) execute(command, dir string) (string, int) {
-	cmd := exec.Command(x.Shell, "-c", command)
+// keeping it, without colors, for captures and templates. At the deadline it is stopped.
+func (x *running) execute(command, dir string, deadline time.Time) (string, int) {
+	cmd, cancel := x.commandUntil(deadline, command)
+	defer cancel()
 	cmd.Dir, cmd.Stdin = dir, x.Stdin
 	var kept limitedBuffer
 	cmd.Stdout = io.MultiWriter(x.Out, &kept)
@@ -323,6 +349,8 @@ func (x *running) execute(command, dir string) (string, int) {
 	err := cmd.Run()
 	var exit *exec.ExitError
 	switch {
+	case err != nil && passed(deadline):
+		return kept.text(), timeoutExit // stopped at the deadline; how it ended says nothing more
 	case errors.As(err, &exit):
 		return kept.text(), exit.ExitCode()
 	case err != nil:

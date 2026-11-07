@@ -44,7 +44,9 @@ type Flow struct {
 	Params map[string]Param `yaml:"params,omitempty"`
 	// Triggers start the flow on their own, once enabled on this machine.
 	Triggers []Trigger `yaml:"triggers,omitempty"`
-	Steps    []Step    `yaml:"steps"`
+	// Timeout bounds the whole run, as a duration like 1h30m; empty is no limit.
+	Timeout string `yaml:"timeout,omitempty"`
+	Steps   []Step `yaml:"steps"`
 }
 
 // Step does one thing: runs a script or a command line, branches, repeats steps, waits, asks the
@@ -64,6 +66,9 @@ type Step struct {
 	// Pane runs the step in a pane of its own (PaneNew); Background does not wait for it.
 	Pane       string `yaml:"pane,omitempty"`
 	Background bool   `yaml:"background,omitempty"`
+	// Timeout bounds a script or run step, as a duration like 10m; past it the step is stopped
+	// and fails. Empty is no limit.
+	Timeout string `yaml:"timeout,omitempty"`
 
 	If   string `yaml:"if,omitempty"`
 	Then []Step `yaml:"then,omitempty"`

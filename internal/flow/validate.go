@@ -30,6 +30,9 @@ func (f Flow) Validate(lookup func(id string) (script.Script, bool)) error {
 			return fmt.Errorf("trigger %d: %w", i+1, err)
 		}
 	}
+	if _, err := parseTimeout(f.Timeout); err != nil {
+		return err
+	}
 	ids := map[string]bool{}
 	return validateSteps(f.Steps, "", ids, lookup)
 }
@@ -64,6 +67,9 @@ func (s Step) validate(ids map[string]bool, lookup func(id string) (script.Scrip
 		return err
 	}
 	if err := s.validatePane(kind); err != nil {
+		return err
+	}
+	if err := s.validateTimeout(kind); err != nil {
 		return err
 	}
 	if err := s.validateTemplates(); err != nil {

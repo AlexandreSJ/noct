@@ -120,6 +120,22 @@ func TestAboutStepShowsTheKeptOutput(t *testing.T) {
 	}
 }
 
+// The inspect shows the timeouts: the flow's above the chart, a step's in its about.
+func TestInspectShowsTheTimeouts(t *testing.T) {
+	a := testApp(t)
+	saveFlow(t, "slow", "timeout: 1h\nsteps:\n  - {run: make, timeout: 10m}\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	p := a.currentTab().focusedView().(*inspectPanel)
+	f, _, _ := p.current()
+	if info := p.chartInfoText(f, nil); !strings.Contains(info, "timeout 1h") {
+		t.Errorf("line above the chart: %q", info)
+	}
+	pressDrawn(a, enterPress)
+	if !slices.ContainsFunc(a.info.lines, func(l styledLine) bool { return strings.Contains(l.text, "after 10m") }) {
+		t.Errorf("about lacks the timeout: %+v", a.info.lines)
+	}
+}
+
 // A range belongs to its flow: choosing another flow in the list starts without one.
 func TestRangeEndsWithItsFlow(t *testing.T) {
 	a := testApp(t)

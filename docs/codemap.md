@@ -30,7 +30,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/update/update_test.go` | Tests of versions, listing releases and installing them against a local server |
 | `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs; appending to one and reading its end |
 | `internal/logstore/entries.go` | Logs by day, each with when it started and was last written and a flow run's result beside it: listing, line counts, removing, pruning by last write and total size, terminal logs numbered within the day, readable sizes |
-| `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, exit code, foreground program and its command line, current directory |
+| `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, stop (SIGTERM then SIGKILL to the group), exit code, foreground program and its command line, current directory |
 | `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing and its history (the main screen under a full-screen program, for the logs preview) |
 | `internal/pane/mouse.go` | Mouse modes a program asked for, and forwarding mouse events to it |
 | `internal/pane/history.go` | An earlier program's output drawn on a screen of its own and replayed as text and colors above a new one |
@@ -82,7 +82,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/requests.go` | What the MCP server asks of the workspace: list and read panes, type into one, run a command, script or flow where the user sees it; reading a request's connection until it ends (`receiveUntilEnd`) |
 | `internal/app/mcp_panel.go` | MCP popup (prefix+y): approvals waiting for the user and their timeout, AI clients connected now (the `client` request), setups to copy |
 | `internal/app/mcp_setup.go` | The command or config JSON that adds noct to each known AI client, with this binary's path |
-| `internal/app/pane_request.go` | Opening the pane a flow's step asks for, beside its run, and answering with its exit code; bringing a run to the screen for its prompt (`attention`) |
+| `internal/app/pane_request.go` | Opening the pane a flow's step asks for, beside its run, and answering with its exit code; stopping it at the step's timeout; bringing a run to the screen for its prompt (`attention`) |
 | `internal/app/logs_heatmap.go` | The logs calendar's activity colors: each day's step by its logs, the style over it, and the legend |
 | `internal/app/logs_filter.go` | The logs filter line: words over name, date, time and status; size and line comparisons |
 | `internal/app/scope.go` | The inspect's scope pane (variables of the selected block with their last values) and the variable picker of template prompts (ctrl+t) |
@@ -142,6 +142,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/script/values.go` | Starting values of parameters, checking them, remembered values file |
 | `internal/script/history.go` | The list of recent runs of scripts and flows (the last 1000), with exit code, log and session, and sorting scripts by name, edit or last run |
 | `internal/flow/flow.go` | A flow: steps (script, run, if, repeat, wait, prompt, set, unset), loading, saving, creating, template functions |
+| `internal/flow/timeout.go` | Flow and step timeouts: parsing and validation, the `noct check` warning, run and step deadlines, stopping a step's processes |
 | `internal/flow/validate.go` | Checking a flow and its steps: ids, fields that belong to each kind, patterns |
 | `internal/flow/run.go` | Running a flow step by step in a terminal: commands, if, repeat, wait, captures (and scripts' outputs), expect |
 | `internal/flow/result.go` | A run's result with each step's output and status; saving and loading the last one |
@@ -155,7 +156,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/mcp/library_tools.go` | Tools over scripts and flows: list, read, check, scope, drafts, triggers |
 | `internal/mcp/run_tools.go` | Tools over runs and logs: list, the structured result, search, paged reading |
 | `internal/mcp/workspace_tools.go` | Tools the running workspace does: panes, runs the user sees, command lines, typing |
-| `internal/schedule/schedule.go` | Deciding when enabled flows start: cron minutes, watched files settling, another flow's run ending |
+| `internal/schedule/schedule.go` | Deciding when enabled flows start: cron minutes (each wall-clock minute once, across daylight saving), watched files settling, another flow's run ending |
 | `internal/flow/scope.go` | What templates can read at each point of a flow (parameters, variables set and unset, earlier steps' fields, how sure) |
 | `internal/flow/warnings.go` | Warnings for what templates read that may not be there |
 | `internal/flow/edit.go` | Editing a flow by step path: insert, replace, remove, move, unique ids |

@@ -55,6 +55,54 @@ func TestPaneRequestWaitsForTheExitCode(t *testing.T) {
 	}
 }
 
+// stopRecorder is a step's program that tells when it is stopped.
+type stopRecorder struct {
+	fakeView
+	stopped chan time.Duration
+}
+
+func (v *stopRecorder) Stop(grace time.Duration) { v.stopped <- grace }
+
+// launchStoppable starts each program as a stopRecorder, and gives the programs started.
+func launchStoppable(a *App) (*[]program, chan time.Duration) {
+	var started []program
+	stopped := make(chan time.Duration, 1)
+	a.launch = func(p program, _ pty.Size) (view, error) {
+		started = append(started, p)
+		return &stopRecorder{stopped: stopped}, nil
+	}
+	return &started, stopped
+}
+
+// A step that runs past its timeout is stopped; it then ends, and its exit code goes back.
+func TestPaneRequestStopsTheStepAtItsTimeout(t *testing.T) {
+	a := testApp(t, sideBySideTab(1, 2))
+	_, stopped := launchStoppable(a)
+	requestPane(t, a, ipc.PaneRequest{Command: "sleep 30", Near: 2, Wait: true, Timeout: 50 * time.Millisecond})
+	select {
+	case grace := <-stopped:
+		if grace <= 0 {
+			t.Errorf("stopped with no grace before SIGKILL")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the step was not stopped at its timeout")
+	}
+}
+
+// A step that ends in time is not stopped later.
+func TestPaneRequestDoesNotStopAStepThatEnded(t *testing.T) {
+	a := testApp(t, sideBySideTab(1, 2))
+	started, stopped := launchStoppable(a)
+	answers := requestPane(t, a, ipc.PaneRequest{Command: "true", Near: 2, Wait: true, Timeout: 50 * time.Millisecond})
+	(*started)[0].onExit(0)
+	<-answers
+	select {
+	case <-stopped:
+		t.Error("a step that ended was stopped")
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
 // A pane in the background answers once open and leaves the focus on the run.
 func TestPaneRequestInTheBackgroundAnswersAtOnce(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2))

@@ -236,6 +236,9 @@ func (d Deps) check() map[string]any {
 			problems = append(problems, f.Problem.Error())
 			continue
 		}
+		if warning := f.TimeoutWarning(); warning != "" {
+			warnings = append(warnings, "flow "+f.Name+": "+warning)
+		}
 		for _, w := range warningTexts(f, lib.Find) {
 			warnings = append(warnings, "flow "+f.Name+", "+w)
 		}

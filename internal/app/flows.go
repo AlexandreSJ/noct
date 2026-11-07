@@ -20,8 +20,9 @@ import (
 )
 
 // stepHints heads the file a step is edited in.
-const stepHints = `# One step: script (with, capture, expect, on_fail), run (capture, expect, on_fail),
-# if (then, else), repeat (times or until with max, every; steps) or wait (5s, 1m).
+const stepHints = `# One step: script (with, capture, expect, on_fail, timeout), run (capture, expect, on_fail,
+# timeout), if (then, else), repeat (times or until with max, every; steps) or wait (5s, 1m).
+# timeout stops a script or run step that runs longer: 30s, 10m, 1h30m.
 # Templates read {{.steps.<id>.output}}, .exit, .ok and captures. See docs/fluxos.md.
 `
 
@@ -533,6 +534,9 @@ func (a *App) stepResultLines(step flow.Step) []styledLine {
 	}
 	if step.ID != "" && (step.Kind() == flow.ScriptStep || step.Kind() == flow.CommandStep) {
 		add("later steps read {{.steps."+step.ID+".output}}, .exit, .ok and the captures", pal.panelMuted)
+	}
+	if step.Timeout != "" {
+		add("stopped, and failed, after "+step.Timeout+" (timeout)", pal.panelMuted)
 	}
 	if step.OnFail == flow.OnFailContinue {
 		add("a failure does not stop the flow", pal.panelMuted)

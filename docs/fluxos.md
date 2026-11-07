@@ -46,11 +46,13 @@ O fluxo `pedido-completo` fica em `~/.local/share/noct/flows/pedido-completo.yam
 description: Cria usuário, faz pedido e valida o e-mail
 params:
   env: staging
+timeout: 1h                        # a execução inteira; sem ele, não há limite
 
 steps:
   - id: user
     script: criar-usuario
     with: { env: "{{.env}}" }
+    timeout: 5m                    # só este passo
     capture:
       user_id: 'id=(\d+)'          # regex sobre a saída; grupo 1 vira variável
 
@@ -100,20 +102,21 @@ triggers:
 - **`if`** avalia um template que resulta em `true`/`false`; `else` é opcional.
 - **`repeat`** aceita `every` (intervalo entre execuções), `until` (condição de parada, avaliada depois de cada passada) e/ou `times` (número fixo). `max` é obrigatório quando não há `times`, para que nenhum laço rode para sempre; chegar ao `max` sem o `until` ficar verdadeiro é falha. Cada passada começa sem os resultados dos passos de dentro da passada anterior: um passo que não rodou nesta passada lê como vazio.
 - **`on_fail`** por passo: `stop` (padrão), `continue` ou `ask`. Com `ask`, a execução pausa no próprio terminal dela (o painel da execução, na TUI) e pergunta `Retry, continue or stop? [r/c/s]`: `r` roda o passo de novo, `c` segue como `continue`, e qualquer outra resposta para. Sem terminal para perguntar, como numa execução por trigger, `ask` para o fluxo.
+- **`timeout`** (ADR-061), uma duração do Go (`30s`, `10m`, `1h30m`), no fluxo e nos passos `script` e `run`; sem ele não há limite. Um passo que passa do seu é parado (SIGTERM e, 2 s depois, SIGKILL; numa execução sem terminal, como a de um trigger, o grupo de processos inteiro, então os filhos também; com terminal, só o shell do passo, que precisa ficar no grupo do terminal para ler a entrada) e falha com `timed out after 10m` e exit 124, como o `timeout(1)`; daí segue o `on_fail` como qualquer falha. O do fluxo cobre a execução inteira, `wait` e as pausas do `repeat` também: ao passar, o passo que roda é parado e a execução termina com falha (`flow timed out after 1h`, exit 124), seja qual for o `on_fail`. Um `prompt` ou a pergunta do `on_fail: ask` esperando no terminal não são interrompidos; o tempo é conferido de novo quando a resposta vem. Num passo com `pane: new`, o workspace para o programa do painel no tempo, e a saída continua no painel; `background: true` não tem `timeout`, porque o fluxo não espera por ele.
 - **`pane: new`** roda o passo num painel próprio, ao lado do painel da execução e na mesma tab, com o terminal de verdade (cores, entrada, programas interativos); o fluxo espera o programa sair e usa o código de saída. Com **`background: true`** (só junto de `pane: new`), o fluxo não espera: o painel abre e o fluxo segue. Como a saída não passa pelo fluxo, esses passos não têm `capture` nem `expect`. Fora do workspace do noct (um `noct flow run` no shell), não há painel: o passo roda no próprio terminal, e em segundo plano sem que o fluxo espere.
 - **Templates:** `text/template` do Go, com `.<param>` (ou variável), `.steps.<id>.<captura>`, `.steps.<id>.ok`, `.steps.<id>.exit`, `.steps.<id>.output` e a função `match`.
 - **Triggers** ficam desligados até o usuário habilitar o fluxo nesta máquina (`noct enable <fluxo>`, ou `o` no inspect), para que um fluxo recebido via git não comece a rodar sozinho. O que está habilitado fica em `~/.local/state/noct/triggers.json`, fora do arquivo do fluxo. Ver [Triggers](#triggers).
-- **Validação:** `noct check` valida schema, templates, referências a scripts, triggers (cron, caminhos, `after`), laços de `after` entre fluxos e a presença de `max`.
+- **Validação:** `noct check` valida schema, templates, referências a scripts, triggers (cron, caminhos, `after`), laços de `after` entre fluxos, a presença de `max` e os `timeout`. Avisa também do fluxo com trigger (`cron`, `watch` ou `after`) sem nenhum `timeout`, nem no fluxo nem num passo.
 
 ## Triggers
 
 Quem dispara é o daemon, então os triggers funcionam com a TUI fechada (`prefixo` + `d`), mas não com o workspace encerrado (`noct quit`): execuções perdidas nesse tempo não são recuperadas depois.
 
-- **`cron`**: cinco campos como no crontab (minuto, hora, dia, mês, dia da semana), com `*`, listas, faixas, passos (`*/15`) e nomes (`jan`, `mon`); com dia do mês e dia da semana definidos, vale qualquer um dos dois, como no crontab. O minuto em que o daemon sobe não dispara, para que reiniciar não rode um fluxo duas vezes.
+- **`cron`**: cinco campos como no crontab (minuto, hora, dia, mês, dia da semana), com `*`, listas, faixas, passos (`*/15`) e nomes (`jan`, `mon`); com dia do mês e dia da semana definidos, vale qualquer um dos dois, como no crontab. O minuto em que o daemon sobe não dispara, para que reiniciar não rode um fluxo duas vezes. O cron segue o relógio local, e no horário de verão (ADR-061): quando o relógio volta uma hora, os minutos dela se repetem, e o cron não olha de novo um minuto do relógio igual ou anterior ao último que já olhou, então `30 1 * * *` roda uma vez só e um `*/15` fica parado até o relógio passar de onde estava; quando o relógio adianta, os minutos pulados não existem, e o que estava marcado neles não roda naquele dia, como no cron clássico.
 - **`watch`**: `paths` são globs (`**` para qualquer número de pastas), relativos à pasta onde o workspace começou, ou absolutos, ou com `~`. O daemon compara, a cada 2 s, os caminhos, tamanhos e horários dos arquivos que casam (sem entrar em `.git`, até 50 mil arquivos por caminho vigiado); quando mudam e ficam parados por `debounce` (padrão 1 s), o fluxo roda.
 - **`after`**: roda quando outro fluxo termina (`status: ok`, `failed`, ou omitido para qualquer um), venha a execução de onde vier: da TUI, de outro trigger ou de um `noct flow run` no shell, porque toda execução grava o resultado do fluxo. Um fluxo não pode seguir a si mesmo, e fluxos que se disparam em círculo (a → b → a) ficam com problema, sem rodar.
 - **`manual`** só diz que o fluxo também é rodado à mão.
-- Uma execução por trigger roda sem painel: a saída vai para um log, a execução entra em `runs.json` com o que a disparou (`flow x (cron 0 9 * * 1-5)` na lista de logs), e um aviso aparece na barra de tabs. Enquanto uma execução disparada por trigger roda, o mesmo fluxo não é disparado de novo.
+- Uma execução por trigger roda sem painel: a saída vai para um log, a execução entra em `runs.json` com o que a disparou (`flow x (cron 0 9 * * 1-5)` na lista de logs), e um aviso aparece na barra de tabs. Enquanto uma execução disparada por trigger roda, o mesmo fluxo não é disparado de novo; por isso uma execução travada segura os triggers do fluxo até terminar, e um `timeout` garante que ela termine.
 - No inspect, `T` adiciona um trigger por menus (cron, arquivos ou outro fluxo) e já habilita os triggers do fluxo; `o` os liga e desliga. A lista marca com `⏰` os fluxos com triggers ligados, e o fluxograma mostra quais são.
 
 ## Variáveis e escopo

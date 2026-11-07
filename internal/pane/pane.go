@@ -405,6 +405,11 @@ func (p *Pane) Title() string {
 	return p.title.Load().(string)
 }
 
+// Stop ends the program, as a flow does to a step past its timeout, leaving its output on screen.
+func (p *Pane) Stop(grace time.Duration) {
+	p.process.Stop(grace)
+}
+
 // Close hangs up the program and stops the pane's goroutines. It is safe to call more than once.
 func (p *Pane) Close() {
 	p.screenLock.Lock()

@@ -29,7 +29,8 @@ type Scheduler struct {
 	Start func(name, reason string)
 
 	// since is the first tick: runs that ended before it are old news.
-	since   time.Time
+	since time.Time
+	// minute is the last minute cron looked at, as the wall clock showed it (see wallClock).
 	minute  time.Time
 	watches map[string]*watchState
 	ends    map[string]resultSeen
@@ -57,10 +58,12 @@ func (s *Scheduler) Tick(now time.Time, flows []flow.Flow, enabled map[string]bo
 	s.checkWatches(now, flows, enabled)
 }
 
-// checkCron runs, once in each new minute, the flows scheduled for it. The first tick only
-// notes its minute: a restart within a minute must not run a flow twice.
+// checkCron runs, once in each new minute of the wall clock, the flows scheduled for it. The
+// first tick only notes its minute: a restart within a minute must not run a flow twice. Minutes
+// are compared as the clock shows them, so when clocks go back an hour its minutes, which come
+// again, do not run anything twice.
 func (s *Scheduler) checkCron(now time.Time, flows []flow.Flow, enabled map[string]bool) {
-	minute := now.Truncate(time.Minute)
+	minute := wallClock(now)
 	if !minute.After(s.minute) {
 		return
 	}
@@ -74,11 +77,17 @@ func (s *Scheduler) checkCron(now time.Time, flows []flow.Flow, enabled map[stri
 			if t.Cron == "" || !enabled[f.Name] {
 				continue
 			}
-			if cron, err := flow.ParseCron(t.Cron); err == nil && cron.Matches(minute) {
+			if cron, err := flow.ParseCron(t.Cron); err == nil && cron.Matches(now) {
 				s.Start(f.Name, t.Label())
 			}
 		}
 	}
+}
+
+// wallClock is what t's clock shows, as the same reading in UTC, so two readings compare by
+// what the clock showed rather than by when they happened.
+func wallClock(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, time.UTC)
 }
 
 // checkEnds starts the flows waiting for another flow that ended since the last tick. Any run

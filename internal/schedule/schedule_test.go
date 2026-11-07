@@ -52,6 +52,57 @@ func TestCronDoesNotRunOnTheFirstTick(t *testing.T) {
 	}
 }
 
+// newYork is a zone with daylight saving time: on 2026-11-01 its clocks go back from 2:00 to
+// 1:00, and on 2026-03-08 forward from 2:00 to 3:00.
+func newYork(t *testing.T) *time.Location {
+	t.Helper()
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Skip("no time zone data:", err)
+	}
+	return ny
+}
+
+// tickUTC ticks at each instant, given in UTC and seen on the clock of loc.
+func tickUTC(s *Scheduler, loc *time.Location, flows []flow.Flow, enabled map[string]bool, instants ...string) {
+	for _, instant := range instants {
+		v, _ := time.Parse("2006-01-02 15:04", instant)
+		s.Tick(v.In(loc), flows, enabled)
+	}
+}
+
+// When clocks go back, the hour from 1:00 to 2:00 happens twice; a flow runs once in it.
+func TestCronRunsOnceWhenClocksGoBack(t *testing.T) {
+	ny := newYork(t)
+	s, started := newTestScheduler(t)
+	flows := []flow.Flow{
+		{Name: "nightly", Triggers: []flow.Trigger{{Cron: "30 1 * * *"}}},
+		{Name: "quarter", Triggers: []flow.Trigger{{Cron: "*/15 * * * *"}}},
+	}
+	enabled := map[string]bool{"nightly": true, "quarter": true}
+	// 1:29, 1:30 and 1:45 EDT, then 1:30 and 1:45 EST again, then 2:00 EST.
+	tickUTC(s, ny, flows, enabled, "2026-11-01 05:29", "2026-11-01 05:30", "2026-11-01 05:45", "2026-11-01 06:30", "2026-11-01 06:45", "2026-11-01 07:00")
+	quarter := "quarter: cron */15 * * * *"
+	want := []string{"nightly: cron 30 1 * * *", quarter, quarter, quarter}
+	if !slices.Equal(*started, want) {
+		t.Errorf("started %q, want %q", *started, want)
+	}
+}
+
+// When clocks go forward, the hour from 2:00 to 3:00 does not happen: a flow scheduled in it is
+// skipped that day, as cron does, and runs again the next.
+func TestCronSkipsTheMinutesClocksJumpOver(t *testing.T) {
+	ny := newYork(t)
+	s, started := newTestScheduler(t)
+	flows := []flow.Flow{{Name: "nightly", Triggers: []flow.Trigger{{Cron: "30 2 * * *"}}}}
+	enabled := map[string]bool{"nightly": true}
+	// 1:59 EST is followed by 3:00 EDT; a day later 2:30 EDT happens.
+	tickUTC(s, ny, flows, enabled, "2026-03-08 06:59", "2026-03-08 07:00", "2026-03-08 07:30", "2026-03-09 06:30")
+	if !slices.Equal(*started, []string{"nightly: cron 30 2 * * *"}) {
+		t.Errorf("started %q", *started)
+	}
+}
+
 func TestAfterStartsWhenTheOtherFlowEnds(t *testing.T) {
 	s, started := newTestScheduler(t)
 	flows := []flow.Flow{

@@ -86,6 +86,8 @@ type PaneRequest struct {
 	Title   string `json:"title,omitempty"`
 	Near    int    `json:"near,omitempty"`
 	Wait    bool   `json:"wait,omitempty"`
+	// Timeout is how long a step that waits may run before the workspace stops it; 0 is no limit.
+	Timeout time.Duration `json:"timeout,omitempty"`
 }
 
 // Reasons of the Exit that answers a pane request; any other reason says why it failed.

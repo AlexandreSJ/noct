@@ -228,7 +228,7 @@ func workspacePanes() func(flow.PaneRequest) (int, error) {
 		return nil
 	}
 	return func(r flow.PaneRequest) (int, error) {
-		return client.OpenPane(ipc.SocketPath(), ipc.PaneRequest{Command: r.Command, Dir: r.Dir, Title: r.Title, Near: near, Wait: r.Wait})
+		return client.OpenPane(ipc.SocketPath(), ipc.PaneRequest{Command: r.Command, Dir: r.Dir, Title: r.Title, Near: near, Wait: r.Wait, Timeout: r.Timeout})
 	}
 }
 
@@ -281,6 +281,9 @@ func checkFlows(out io.Writer, lib script.Library) ([]error, int) {
 		if f.Problem != nil {
 			problems = append(problems, f.Problem)
 			continue
+		}
+		if warning := f.TimeoutWarning(); warning != "" {
+			fmt.Fprintf(out, "⚠ flow %s: %s\n", f.Name, warning)
 		}
 		for _, w := range f.Warnings(lib.Find) {
 			step, _ := f.Step(w.Path)

@@ -95,18 +95,16 @@ Sem compromisso nem ordem:
 
 ## Dívida técnica
 
-O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decisão de design ou mais que uma correção pontual. As correções feitas estão no `CHANGELOG.md` e no ADR-060.
+O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decisão de design ou mais que uma correção pontual. As correções feitas estão no `CHANGELOG.md`, no ADR-060 e no ADR-061.
 
 **Segurança e correção**
 
 1. **Params do `run` como texto no template.** Desde o ADR-060 o `run` com `params` pede aprovação, mas os valores ainda entram no comando renderizado para `sh -c`. Passá-los como variáveis de ambiente (`"$pattern"`) ou argumentos posicionais fecha a injeção sem depender da aprovação; muda o formato dos scripts e pede ADR próprio.
 2. **Saídas de passos em `run:`** (`{{.steps.x.output}}`) também entram cruas no shell; o heredoc documentado é a única defesa. Uma função `quote` nos templates ajudaria aqui e nos scripts novos.
-3. **Passos sem timeout:** um passo travado num fluxo de cron para o agendamento dele até o daemon reiniciar (`a.triggered`).
-4. **Cron e horário de verão:** na volta do horário um minuto roda duas vezes, na ida é pulado. Guardar o último minuto rodado e documentar o pulo, como no cron.
 
 **Dependências**
 
-5. **`golang.org/x/sys`** fica na v0.41.0, com o GO-2026-5024, que só afeta o Windows (o noct não compila para ele) e não é alcançável. A v0.44.0, a primeira corrigida, exige Go 1.25, e subir o `go 1.24.2` do `go.mod` só por ela tiraria quem instala com `go install` num Go 1.24. Sobe junto com a próxima mudança de versão do Go.
+3. **`golang.org/x/sys`** fica na v0.41.0, com o GO-2026-5024, que só afeta o Windows (o noct não compila para ele) e não é alcançável. A v0.44.0, a primeira corrigida, exige Go 1.25, e subir o `go 1.24.2` do `go.mod` só por ela tiraria quem instala com `go install` num Go 1.24. Sobe junto com a próxima mudança de versão do Go.
 
 **Duplicação e complexidade**
 
