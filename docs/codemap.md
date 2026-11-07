@@ -151,7 +151,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/flow/cron.go` | Five-field cron schedules: parsing and matching a minute |
 | `internal/flow/pane.go` | Steps in a pane of their own (`pane: new`, `background`): validation, asking noct's workspace, running inline outside it |
 | `internal/mcp/server.go` | The MCP protocol: JSON-RPC over stdio, initialize, tools/list, tools/call, answers as text and structured content |
-| `internal/mcp/tools.go` | Tools, their input schemas, the policy (allow, ask, deny) and the audit log around every call |
+| `internal/mcp/tools.go` | Tools, their input schemas, the policy (allow, ask, deny) and the audit log around every call, whose context ends when the AI client leaves |
 | `internal/mcp/library_tools.go` | Tools over scripts and flows: list, read, check, scope, drafts, triggers |
 | `internal/mcp/run_tools.go` | Tools over runs and logs: list, the structured result, search, paged reading |
 | `internal/mcp/workspace_tools.go` | Tools the running workspace does: panes, runs the user sees, command lines, typing |

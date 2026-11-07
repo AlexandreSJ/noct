@@ -43,10 +43,18 @@ type Result struct {
 type Session struct {
 	newImageID func() uint32
 	cellSize   func() image.Point
-	outerIDs   map[int]uint32
-	sizes      map[uint32]image.Point
+	// images holds the images the program can still name, by the id it chose; an image without
+	// one cannot be placed again, so it is not kept.
+	images     map[int]outerImage
 	upload     []Command
 	uploadSize int
+}
+
+// outerImage is a program's image as the outer terminal knows it.
+type outerImage struct {
+	id uint32
+	// pixels is the image's size, zero when unknown.
+	pixels image.Point
 }
 
 // NewSession needs a source of outer-terminal image ids and the outer terminal's cell size in pixels.
@@ -54,8 +62,7 @@ func NewSession(newImageID func() uint32, cellSize func() image.Point) *Session 
 	return &Session{
 		newImageID: newImageID,
 		cellSize:   cellSize,
-		outerIDs:   make(map[int]uint32),
-		sizes:      make(map[uint32]image.Point),
+		images:     make(map[int]outerImage),
 	}
 }
 
@@ -105,22 +112,22 @@ func (s *Session) transmit(chunks []Command) Result {
 	if first.Get("U") == "1" {
 		return Result{ToTerminal: encodeAll(chunks)} // the program draws its own placeholders
 	}
-	outerID := s.newImageID()
+	outer := outerImage{id: s.newImageID()}
+	if pixels, ok := imageSize(first, joinPayloads(chunks)); ok {
+		outer.pixels = pixels
+	}
 	if programID := first.Int("i"); programID != 0 {
-		s.outerIDs[programID] = outerID
+		s.images[programID] = outer // a program reusing an id replaces its image, as in kitty
 	}
 	result := Result{ToProgram: reply(first, "OK")}
-	if pixels, ok := imageSize(first, joinPayloads(chunks)); ok {
-		s.sizes[outerID] = pixels
-	}
-	forwarded := first.Without("i", "I", "p", "C").With("i", fmt.Sprint(outerID)).With("q", "2")
+	forwarded := first.Without("i", "I", "p", "C").With("i", fmt.Sprint(outer.id)).With("q", "2")
 	if first.Action() == "T" {
-		cols, rows, ok := s.placementCells(first, outerID)
+		cols, rows, ok := s.placementCells(first, outer.pixels)
 		if !ok {
 			return Result{ToProgram: reply(first, "EINVAL:image size unknown")}
 		}
 		forwarded = forwarded.With("U", "1").With("c", fmt.Sprint(cols)).With("r", fmt.Sprint(rows))
-		result.Place = &Placement{ImageID: outerID, Cols: cols, Rows: rows, KeepCursor: first.Get("C") == "1"}
+		result.Place = &Placement{ImageID: outer.id, Cols: cols, Rows: rows, KeepCursor: first.Get("C") == "1"}
 	}
 	chunks = append([]Command{forwarded}, chunks[1:]...)
 	for i := 1; i < len(chunks); i++ {
@@ -131,38 +138,41 @@ func (s *Session) transmit(chunks []Command) Result {
 }
 
 func (s *Session) put(cmd Command) Result {
-	outerID, ok := s.outerIDs[cmd.Int("i")]
+	outer, ok := s.images[cmd.Int("i")]
 	if !ok {
 		return Result{ToProgram: reply(cmd, "ENOENT:no such image")}
 	}
-	cols, rows, ok := s.placementCells(cmd, outerID)
+	cols, rows, ok := s.placementCells(cmd, outer.pixels)
 	if !ok {
 		return Result{ToProgram: reply(cmd, "EINVAL:image size unknown")}
 	}
 	placement := Command{keys: map[string]string{
 		"a": "p", "U": "1", "q": "2",
-		"i": fmt.Sprint(outerID), "c": fmt.Sprint(cols), "r": fmt.Sprint(rows),
+		"i": fmt.Sprint(outer.id), "c": fmt.Sprint(cols), "r": fmt.Sprint(rows),
 	}}
 	return Result{
 		ToTerminal: placement.Encode(),
 		ToProgram:  reply(cmd, "OK"),
-		Place:      &Placement{ImageID: outerID, Cols: cols, Rows: rows, KeepCursor: cmd.Get("C") == "1"},
+		Place:      &Placement{ImageID: outer.id, Cols: cols, Rows: rows, KeepCursor: cmd.Get("C") == "1"},
 	}
 }
 
-// delete frees images by id, or all of this pane's images for d=a (the default).
+// delete frees images by id, or all of this pane's images for d=a (the default), and forgets them.
 // Deleting by position or placement is not supported; placeholders stay until overwritten.
 func (s *Session) delete(cmd Command) Result {
 	var ids []uint32
 	switch cmd.Get("d") {
 	case "i", "I":
-		if outerID, ok := s.outerIDs[cmd.Int("i")]; ok {
-			ids = append(ids, outerID)
+		programID := cmd.Int("i")
+		if outer, ok := s.images[programID]; ok {
+			ids = append(ids, outer.id)
+			delete(s.images, programID)
 		}
 	case "", "a", "A":
-		for _, outerID := range s.outerIDs {
-			ids = append(ids, outerID)
+		for _, outer := range s.images {
+			ids = append(ids, outer.id)
 		}
+		clear(s.images)
 	}
 	var out []byte
 	for _, id := range ids {
@@ -173,13 +183,12 @@ func (s *Session) delete(cmd Command) Result {
 
 // placementCells sizes a placement the way kitty does: c and r as given, the missing one from
 // the image's aspect ratio, or the image's natural size in cells.
-func (s *Session) placementCells(cmd Command, outerID uint32) (cols, rows int, ok bool) {
+func (s *Session) placementCells(cmd Command, pixels image.Point) (cols, rows int, ok bool) {
 	cols, rows = min(cmd.Int("c"), MaxPlacementCells), min(cmd.Int("r"), MaxPlacementCells)
 	if cols > 0 && rows > 0 {
 		return cols, rows, true
 	}
-	pixels, known := s.sizes[outerID]
-	if !known || pixels.X <= 0 || pixels.Y <= 0 {
+	if pixels.X <= 0 || pixels.Y <= 0 {
 		return 0, 0, false
 	}
 	cell := s.knownCellSize()

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,7 +44,7 @@ func runTools(d Deps) []Tool {
 				{Name: "until", Type: "string", Description: "Only runs up to this day: YYYY-MM-DD."},
 				{Name: "limit", Type: "integer", Description: "At most this many runs; 50 by default."},
 			},
-			Run: d.listRuns,
+			Run: noWait(d.listRuns),
 		},
 		{
 			Name: "get_run", Title: "Read a run's result", ReadOnly: true, Policy: config.PolicyAllow,
@@ -67,7 +68,7 @@ func runTools(d Deps) []Tool {
 				{Name: "context", Type: "integer", Description: "Lines before and after each match; 2 by default."},
 				{Name: "max_matches", Type: "integer", Description: "At most this many matches; 50 by default, 500 at most."},
 			},
-			Run: d.searchLogs,
+			Run: noWait(d.searchLogs),
 		},
 		{
 			Name: "read_log", Title: "Read a log", ReadOnly: true, Policy: config.PolicyAllow,
@@ -77,7 +78,7 @@ func runTools(d Deps) []Tool {
 				{Name: "offset", Type: "integer", Description: "The first line, from 0; a negative offset counts from the end."},
 				{Name: "limit", Type: "integer", Description: "How many lines; 200 by default, 2000 at most."},
 			},
-			Run: d.readLog,
+			Run: noWait(d.readLog),
 		},
 	}
 }
@@ -210,7 +211,7 @@ type stepInfo struct {
 	Tried      bool              `json:"tried_alone,omitempty"`
 }
 
-func (d Deps) getRun(args json.RawMessage) (any, error) {
+func (d Deps) getRun(ctx context.Context, args json.RawMessage) (any, error) {
 	var ask struct {
 		RunID       string `json:"run_id"`
 		Flow        string `json:"flow"`
@@ -223,12 +224,10 @@ func (d Deps) getRun(args json.RawMessage) (any, error) {
 		return nil, errors.New("give run_id, or flow for its last run")
 	}
 	run, err := findRun(ask.RunID, ask.Flow)
-	deadline := d.Now().Add(time.Duration(min(ask.WaitSeconds, maxWaitSeconds)) * time.Second)
-	for err == nil && run.Exit == nil && d.Now().Before(deadline) {
-		time.Sleep(500 * time.Millisecond)
-		run, err = findRun(run.Log, "")
-	}
 	if err != nil {
+		return nil, err
+	}
+	if run, err = d.waitForRun(ctx, run, ask.WaitSeconds); err != nil {
 		return nil, err
 	}
 	answer := map[string]any{"run": describeRun(run), "log_ref": run.Log, "log_tail": logTail(run.Log, logTailLines)}
@@ -236,6 +235,41 @@ func (d Deps) getRun(args json.RawMessage) (any, error) {
 		d.addFlowSteps(answer, run)
 	}
 	return answer, nil
+}
+
+// waitForRun rereads a running run until it ends or seconds pass. It stops early when ctx ends,
+// as when the client has gone, so noct mcp does not linger waiting for nobody.
+func (d Deps) waitForRun(ctx context.Context, run script.Run, seconds int) (script.Run, error) {
+	deadline := d.Now().Add(time.Duration(min(seconds, maxWaitSeconds)) * time.Second)
+	poll := time.NewTicker(500 * time.Millisecond)
+	defer poll.Stop()
+	for run.Exit == nil && d.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return run, fmt.Errorf("stopped waiting for the run: %w", ctx.Err())
+		case <-poll.C:
+		}
+		var err error
+		if run, err = reread(run); err != nil {
+			return run, err
+		}
+	}
+	return run, nil
+}
+
+// reread reads a run again from the list, found by when it started and what it ran, as FinishRun
+// finds it: a run from a shell keeps no log path to find it by.
+func reread(run script.Run) (script.Run, error) {
+	runs, err := script.Runs(runsPath())
+	if err != nil {
+		return run, err
+	}
+	for _, r := range slices.Backward(runs) {
+		if r.At.Equal(run.At) && r.Script == run.Script && r.Flow == run.Flow {
+			return r, nil
+		}
+	}
+	return run, errors.New("the run is no longer on record")
 }
 
 // addFlowSteps puts in a flow run's answer each step's result, in the order the flow runs them.

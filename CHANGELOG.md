@@ -15,6 +15,12 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - Runs, remembered parameter values and enabled triggers are no longer lost or damaged when the
   workspace and the `noct` command save them at the same time.
+- `noct mcp` exits as soon as the AI client closes, even while `get_run` waits for a run to end,
+  instead of staying open for up to 10 minutes.
+- `get_run` with `wait_seconds` follows a flow started with `noct flow run` in a shell to its end,
+  instead of answering at once that the flow has no run.
+- Panes whose programs show many images no longer keep growing in memory, and large images sent
+  in many small pieces no longer slow the pane down.
 
 ## v0.2.3 - 2026-11-04
 

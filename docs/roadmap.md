@@ -104,14 +104,9 @@ O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decis�
 3. **Passos sem timeout:** um passo travado num fluxo de cron para o agendamento dele até o daemon reiniciar (`a.triggered`).
 4. **Cron e horário de verão:** na volta do horário um minuto roda duas vezes, na ida é pulado. Guardar o último minuto rodado e documentar o pulo, como no cron.
 
-**Desempenho**
-
-5. **`kittygfx`:** `outerIDs` e `sizes` crescem por toda a vida do painel; `stream.go` copia e varre `pending` de novo a cada leitura (quadrático até 32 MiB).
-6. **`get_run` com `wait_seconds`** segura o `noct mcp` até 600 s depois que o cliente de IA sai, sem rodar nada.
-
 **Dependências**
 
-7. **`golang.org/x/sys`** fica na v0.41.0, com o GO-2026-5024, que só afeta o Windows (o noct não compila para ele) e não é alcançável. A v0.44.0, a primeira corrigida, exige Go 1.25, e subir o `go 1.24.2` do `go.mod` só por ela tiraria quem instala com `go install` num Go 1.24. Sobe junto com a próxima mudança de versão do Go.
+5. **`golang.org/x/sys`** fica na v0.41.0, com o GO-2026-5024, que só afeta o Windows (o noct não compila para ele) e não é alcançável. A v0.44.0, a primeira corrigida, exige Go 1.25, e subir o `go 1.24.2` do `go.mod` só por ela tiraria quem instala com `go install` num Go 1.24. Sobe junto com a próxima mudança de versão do Go.
 
 **Duplicação e complexidade**
 

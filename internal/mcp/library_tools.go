@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,12 +23,12 @@ func libraryTools(d Deps) []Tool {
 		{
 			Name: "list_scripts", Title: "List scripts", ReadOnly: true, Policy: config.PolicyAllow,
 			Description: "Lists the scripts: id, description, program, parameters (secret ones without values), outputs, and whether each is a draft or broken.",
-			Run:         func(json.RawMessage) (any, error) { return d.listScripts(), nil },
+			Run:         func(context.Context, json.RawMessage) (any, error) { return d.listScripts(), nil },
 		},
 		{
 			Name: "list_flows", Title: "List flows", ReadOnly: true, Policy: config.PolicyAllow,
 			Description: "Lists the flows: name, description, params, triggers and whether they are on, draft, problems, how many scope warnings, and the last run.",
-			Run:         func(json.RawMessage) (any, error) { return d.listFlows(), nil },
+			Run:         func(context.Context, json.RawMessage) (any, error) { return d.listFlows(), nil },
 		},
 		{
 			Name: "get_item", Title: "Read a script or flow", ReadOnly: true, Policy: config.PolicyAllow,
@@ -36,12 +37,12 @@ func libraryTools(d Deps) []Tool {
 				{Name: "flow", Type: "string", Description: "The flow's name."},
 				{Name: "script", Type: "string", Description: "The script's id: name, or folder/name."},
 			},
-			Run: d.getItem,
+			Run: noWait(d.getItem),
 		},
 		{
 			Name: "check", Title: "Check scripts and flows", ReadOnly: true, Policy: config.PolicyAllow,
 			Description: "Like noct check: every script and flow that cannot be used, and every template that reads a step that may not be there.",
-			Run:         func(json.RawMessage) (any, error) { return d.check(), nil },
+			Run:         func(context.Context, json.RawMessage) (any, error) { return d.check(), nil },
 		},
 		{
 			Name: "flow_scope", Title: "Variables a step can read", ReadOnly: true, Policy: config.PolicyAllow,
@@ -50,7 +51,7 @@ func libraryTools(d Deps) []Tool {
 				{Name: "flow", Type: "string", Description: "The flow's name.", Required: true},
 				{Name: "step", Type: "string", Description: "A step path like 2 or 0/steps/1 (list_flows and get_run show paths); the variables before it runs."},
 			},
-			Run: d.flowScope,
+			Run: noWait(d.flowScope),
 		},
 		{
 			Name: "draft_flow", Title: "Write a flow as a draft", Policy: config.PolicyAllow,
@@ -60,7 +61,7 @@ func libraryTools(d Deps) []Tool {
 				{Name: "yaml", Type: "string", Description: "The whole flow file: description, params, triggers, steps.", Required: true},
 			},
 			Summary: func(args json.RawMessage) string { return argText(args, "name", "yaml") },
-			Run:     d.draftFlow,
+			Run:     noWait(d.draftFlow),
 		},
 		{
 			Name: "draft_script", Title: "Write a script as a draft", Policy: config.PolicyAllow,
@@ -71,7 +72,7 @@ func libraryTools(d Deps) []Tool {
 				{Name: "notes", Type: "string", Description: "notes.md: how and why to use it; left as it is when omitted."},
 			},
 			Summary: func(args json.RawMessage) string { return argText(args, "name", "yaml") },
-			Run:     d.draftScript,
+			Run:     noWait(d.draftScript),
 		},
 		{
 			Name: "set_triggers", Title: "Turn a flow's triggers on or off", Destructive: true, Policy: config.PolicyAsk,
@@ -81,7 +82,7 @@ func libraryTools(d Deps) []Tool {
 				{Name: "enabled", Type: "boolean", Description: "true turns them on, false off.", Required: true},
 			},
 			Summary: func(args json.RawMessage) string { return argText(args, "flow", "enabled") },
-			Run:     d.setTriggers,
+			Run:     noWait(d.setTriggers),
 		},
 	}
 }

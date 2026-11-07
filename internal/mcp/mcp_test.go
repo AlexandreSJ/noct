@@ -324,6 +324,45 @@ func TestApprovalsAreWithdrawnWhenTheClientGoes(t *testing.T) {
 	}
 }
 
+func TestGetRunStopsWaitingWhenTheClientGoes(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	at := time.Now()
+	if err := script.AddRun(runsPath(), script.Run{Flow: "deploy", At: at, Log: logstore.Path("flow-deploy", at)}); err != nil {
+		t.Fatal(err)
+	}
+	server := NewServer("test", Deps{Config: config.Default, Now: time.Now})
+	in := strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_run","arguments":{"flow":"deploy","wait_seconds":600}}}` + "\n")
+	served := make(chan error, 1)
+	go func() { served <- server.Serve(in, io.Discard) }()
+	select {
+	case <-served:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the server kept waiting for a run after its client went")
+	}
+}
+
+// A flow run from a shell keeps no log path; waiting for it still follows it to its end.
+func TestGetRunWaitsForARunWithoutALog(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	run := script.Run{Flow: "deploy", At: time.Now()}
+	if err := script.AddRun(runsPath(), run); err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		time.Sleep(700 * time.Millisecond)
+		_ = script.FinishRun(runsPath(), run, 3)
+	}()
+	got, err := Deps{Now: time.Now}.getRun(context.Background(), json.RawMessage(`{"flow":"deploy","wait_seconds":10}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info := got.(map[string]any)["run"].(runInfo); info.Status != "failed" {
+		t.Errorf("status = %q, want failed: the wait did not see the run end", info.Status)
+	}
+}
+
 // The client that initializes the session is announced once, and told when the session ends.
 func TestInitializeAnnouncesTheClient(t *testing.T) {
 	type announced struct {
