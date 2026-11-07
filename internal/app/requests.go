@@ -73,13 +73,18 @@ func (a *App) answerApprovalRequest(c connection, req *ipc.Request, reply func(a
 	}
 	ap := a.queueApproval(args, func(approved bool) { reply(map[string]bool{"approved": approved}, nil) })
 	go func() {
-		for {
-			if _, err := c.conn.Receive(); err != nil {
-				break
-			}
-		}
+		receiveUntilEnd(c.conn)
 		a.onLoop(func() { a.decideApproval(ap, false) })
 	}()
+}
+
+// receiveUntilEnd reads a connection that sends nothing more, until it closes or fails.
+func receiveUntilEnd(conn *ipc.Conn) {
+	for {
+		if _, err := conn.Receive(); err != nil {
+			return
+		}
+	}
 }
 
 func (a *App) answerClientRequest(c connection, req *ipc.Request, reply func(any, error)) {

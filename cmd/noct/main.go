@@ -14,7 +14,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/update"
 )
 
-const usage = "usage: noct [-h] [attach [session] | new [session] | setup | sessions | kill <session> | ls | check | -s <script> [name=value ...] | flow run <flow> [--steps <first>..<last>] [name=value ...] | flow ls | enable <flow> | disable <flow> | promote <flow or script> | mcp | update | version | quit]"
+const usage = "usage: noct [-h] [attach [session] | new [session] | setup | sessions | kill <session> | ls | check | run <script> [name=value ...] | flow run <flow> [--steps <first>..<last>] [name=value ...] | flow ls | enable <flow> | disable <flow> | promote <flow or script> | mcp | update | version | quit]"
 
 const help = `noct: a terminal workspace for people who test.
 
@@ -28,7 +28,7 @@ Usage:
   noct sessions                     list the sessions: open or closed, tabs, last use
   noct kill <session>               delete a session: its programs stop, its layout is
                                     forgotten
-  noct -s, --script <script> [name=value ...]
+  noct run, -s, --script <script> [name=value ...]
                                     run a script in this terminal; parameters not given
                                     are asked, or keep their defaults without a terminal.
                                     <script> is its name, or folder/name inside a folder

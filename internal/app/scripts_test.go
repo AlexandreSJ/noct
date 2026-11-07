@@ -403,6 +403,33 @@ func TestTabCompletesAPathParameter(t *testing.T) {
 	}
 }
 
+// The list moves a row with the arrows, j and k, stops at its ends, and jumps to them with home,
+// end, g and G, also from a key the user put in place of one of those.
+func TestScriptsListKeys(t *testing.T) {
+	a := testApp(t)
+	for _, name := range []string{"alpha", "beta", "gamma"} {
+		saveScript(t, name, "run: true\n")
+	}
+	panel := openScriptsPanel(t, a)
+	for _, step := range []struct {
+		key  uv.KeyPressEvent
+		want int
+	}{
+		{letter('G'), 2}, {downPress, 2}, {letter('k'), 1}, {letter('g'), 0}, {upPress, 0},
+		{letter('j'), 1}, {endPress, 2}, {homePress, 0}, {downPress, 1},
+	} {
+		press(a, step.key)
+		if panel.selected != step.want {
+			t.Fatalf("%s selected %d, want %d", step.key, panel.selected, step.want)
+		}
+	}
+	a.keymap = newKeymap(map[string]map[string][]string{"scripts": {"last": {"x"}}})
+	press(a, letter('x'))
+	if panel.selected != 2 {
+		t.Errorf("x, put in place of end, selected %d, want the last", panel.selected)
+	}
+}
+
 func TestSharedStartKeepsWholeCharacters(t *testing.T) {
 	if got := sharedStart("é1", "è2"); got != "" {
 		t.Errorf("sharedStart = %q, want no half character", got)

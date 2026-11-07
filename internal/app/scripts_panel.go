@@ -104,16 +104,9 @@ func (p *scriptsPanel) SendKey(key uv.KeyPressEvent) {
 	case "a":
 		p.app.linkFolder()
 		return
-	case "up", "k":
-		p.selected--
-	case "down", "j":
-		p.selected++
-	case "home", "g":
-		p.selected = 0
-	case "end", "G", "shift+g":
-		p.selected = len(p.rows()) - 1
-	case "pgup", "pgdown":
-		p.selected, _ = listJump(name, p.selected, len(p.rows()), p.height)
+	}
+	if to, ok := listMove(name, p.selected, len(p.rows()), p.height); ok {
+		p.selected = to
 	}
 	row, ok := p.current()
 	switch {

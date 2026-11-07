@@ -92,7 +92,7 @@ func TestTheSetupStepByStep(t *testing.T) {
 	}
 	press(a, downPress, rightPress, rightPress, enterPress) // shortcut alt → ctrl → ctrl+alt
 	press(a, letter('a'))                                   // none of the themes
-	for a.setup.themeNames()[a.setup.selected] != "blood" {
+	for a.setup.themes[a.setup.selected] != "blood" {
 		press(a, downPress)
 	}
 	press(a, enterPress)

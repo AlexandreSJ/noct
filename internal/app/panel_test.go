@@ -74,6 +74,23 @@ func TestListJump(t *testing.T) {
 	}
 }
 
+func TestListMove(t *testing.T) {
+	for _, c := range []struct {
+		key                  string
+		selected, n, h, want int
+	}{
+		{"up", 3, 30, 10, 2}, {"k", 0, 30, 10, 0}, {"down", 3, 30, 10, 4}, {"j", 29, 30, 10, 29}, {"down", 0, 0, 10, 0},
+		{"g", 17, 30, 10, 0}, {"G", 2, 30, 10, 29}, {"shift+g", 2, 30, 10, 29}, {"end", 2, 30, 10, 29}, {"pgdown", 0, 30, 10, 9},
+	} {
+		if got, ok := listMove(c.key, c.selected, c.n, c.h); !ok || got != c.want {
+			t.Errorf("listMove(%s, %d, %d, %d) = %d, want %d", c.key, c.selected, c.n, c.h, got, c.want)
+		}
+	}
+	if _, ok := listMove("enter", 0, 30, 10); ok {
+		t.Error("enter moved")
+	}
+}
+
 var (
 	pgUpPress   = uv.KeyPressEvent{Code: uv.KeyPgUp}
 	pgDownPress = uv.KeyPressEvent{Code: uv.KeyPgDown}
@@ -129,6 +146,29 @@ func TestLogsPageTheListOrChangeTheMonth(t *testing.T) {
 	pressDrawn(a, endPress)
 	if p.selected != 39 {
 		t.Errorf("end selected %d, want the last of 40", p.selected)
+	}
+}
+
+// In the logs list, the arrows, j and k move a row and stop at the ends; g and G jump to them.
+func TestLogsListKeys(t *testing.T) {
+	a := testApp(t)
+	today := dateOf(time.Now()).Add(10 * time.Hour)
+	for i := range 3 {
+		writeTestLog(t, today.Add(time.Duration(i)*time.Second), fmt.Sprint("log", i), 10)
+	}
+	pressDrawn(a, prefixPress, letter('v'), enterPress)
+	p := a.currentTab().focusedView().(*logsPanel)
+	for _, step := range []struct {
+		key  uv.KeyPressEvent
+		want int
+	}{
+		{letter('G'), 2}, {downPress, 2}, {letter('k'), 1}, {letter('g'), 0}, {upPress, 0},
+		{letter('j'), 1}, {endPress, 2}, {homePress, 0},
+	} {
+		pressDrawn(a, step.key)
+		if !p.focusList || p.selected != step.want {
+			t.Fatalf("%s selected %d (list focused %v), want %d", step.key, p.selected, p.focusList, step.want)
+		}
 	}
 }
 

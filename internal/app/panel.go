@@ -69,6 +69,23 @@ func listJump(key string, selected, n, height int) (int, bool) {
 	return selected, false
 }
 
+// listMove is where a key that moves the selection of a list of n rows shown height at a time
+// leaves it: up and down (k and j) a row, g and G at the ends as home and end, and the keys
+// listJump knows. Other keys do not move it.
+func listMove(key string, selected, n, height int) (int, bool) {
+	switch key {
+	case "up", "k":
+		return max(selected-1, 0), true
+	case "down", "j":
+		return max(min(selected+1, n-1), 0), true
+	case "g":
+		key = "home"
+	case "G", "shift+g":
+		key = "end"
+	}
+	return listJump(key, selected, n, height)
+}
+
 // drawRow fills one line of area with style, the label on the left and the value on the right.
 func drawRow(screen uv.Screen, area image.Rectangle, y int, label, value string, style uv.Style) {
 	fillRect(screen, image.Rect(area.Min.X, y, area.Max.X, y+1), style)

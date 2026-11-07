@@ -11,6 +11,11 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Changed
+
+- `noct run <script>` is listed in `noct -h` and the README as the way to run a script; `-s` and
+  `--script` still work.
+
 ### Fixed
 
 - Runs, remembered parameter values and enabled triggers are no longer lost or damaged when the

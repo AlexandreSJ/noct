@@ -123,7 +123,7 @@ func problemsError(lib script.Library) error {
 // parameters are asked when this is a terminal, and otherwise keep their starting values.
 func runScript(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: noct -s <script> [name=value ...]")
+		return errors.New("usage: noct run <script> [name=value ...]")
 	}
 	s, err := findRunnableScript(args[0])
 	if err != nil {

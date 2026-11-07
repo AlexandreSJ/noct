@@ -48,12 +48,6 @@ func newEmptyTab() *tab {
 	return &tab{views: make(map[layout.PaneID]view), paneNames: make(map[layout.PaneID]string), paneColors: make(map[layout.PaneID]colorSet)}
 }
 
-func newTab(id layout.PaneID, v view) *tab {
-	t := newEmptyTab()
-	t.placeFirst(id, v)
-	return t
-}
-
 func (t *tab) isEmpty() bool {
 	return t.tree == nil
 }

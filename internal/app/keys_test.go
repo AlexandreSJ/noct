@@ -63,6 +63,13 @@ func testApp(t *testing.T, tabs ...*tab) *App {
 	return a
 }
 
+// newTab is a tab holding one view, made as the workspace makes a tab and opens its first pane.
+func newTab(id layout.PaneID, v view) *tab {
+	t := newEmptyTab()
+	t.placeFirst(id, v)
+	return t
+}
+
 func sideBySideTab(left, right layout.PaneID) *tab {
 	t := newTab(left, &fakeView{})
 	t.tree.Split(left, right, layout.SideBySide)

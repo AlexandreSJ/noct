@@ -110,11 +110,7 @@ O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decis�
 
 **Duplicação e complexidade**
 
-- `app/tab.go` `newTab` e `app/setup.go` `themeNames` só têm chamadores em teste.
-- A goroutine de "receber até fechar" aparece três vezes (`app/mcp_panel.go` duas, `app/requests.go` uma).
-- `app/config_panel.go`: `changeSetting` (~90 linhas, ~30 casos) e `configLines` (~83) passam do limite de complexidade do CONTRIBUTING.
-- `logs_panel.go` e `scripts_panel.go` tratam `end` e as setas à mão ao lado de `listJump`.
-- `cmd/noct/main.go`: `usage` e `help` repetem a lista de comandos, e nenhum cita o alias `run`.
+- `"◂ v ▸"` ainda é montado à mão em `config_numbers.go`, `stage_preview.go`, `form.go` e `template_save.go`, ao lado de `choiceValue`.
 - Escritas sem `atomicfile`: criar um script e salvar `notes.md` (`script/edit.go`) e `mcp/library_tools.go` `writeScriptFiles`, que repete `script.writeScriptFiles`. Arquivos da biblioteca (scripts e fluxos promovidos) são gravados sem trava, para não deixar `.lock` em pastas que podem estar no git.
 - `cmd/noct/main_test.go`: uma checagem negativa depois de um `time.Sleep(500ms)` fixo.
 

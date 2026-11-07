@@ -351,39 +351,74 @@ func (a *App) commitTyped() {
 	a.reloadScripts()
 }
 
+// changeSetting steps the selected row's setting back (-1) or on (1), or does what a row that is
+// no setting does.
 func (a *App) changeSetting(step int) {
-	if _, ok := bindRowAt(a.configPanel.selected); ok {
-		a.startBindEdit()
-		return
-	}
-	if _, ok := themeRowAt(a.configPanel.selected); ok {
-		a.pickColor()
-		return
-	}
-	if m, ok := animationRowAt(a.configPanel.selected); ok {
-		a.changeAnimation(m, step)
-		return
-	}
-	if m, ok := animationTimeRowAt(a.configPanel.selected); ok {
-		a.changeAnimationTime(m, step)
+	row := a.configPanel.selected
+	if a.actOnRow(row, step) {
 		return
 	}
 	next := a.config
-	switch a.configPanel.selected {
+	after := a.stepSetting(&next, row, step)
+	a.applyConfig(next)
+	if after != nil {
+		after()
+	}
+}
+
+// actOnRow does what a row does when it opens something, or applies its change its own way. It
+// tells whether the row is one of those.
+func (a *App) actOnRow(row configRow, step int) bool {
+	if _, ok := bindRowAt(row); ok {
+		a.startBindEdit()
+		return true
+	}
+	if _, ok := themeRowAt(row); ok {
+		a.pickColor()
+		return true
+	}
+	if m, ok := animationRowAt(row); ok {
+		a.changeAnimation(m, step)
+		return true
+	}
+	if m, ok := animationTimeRowAt(row); ok {
+		a.changeAnimationTime(m, step)
+		return true
+	}
+	switch row {
 	case prefixRow:
 		a.configPanel.capture = keyCapture{active: true}
-		return
 	case bindsRow:
 		a.openBinds()
-		return
 	case newThemeRow:
 		a.startNewTheme()
-		return
 	case editThemeRow:
 		a.editCurrentTheme()
-		return
 	case resetBindsRow, resetRow:
-		return // only enter resets, twice, so neither an arrow nor a click does it by accident
+		// only enter resets, twice, so neither an arrow nor a click does it by accident
+	case logsKeepRow, logsSizeRow:
+		a.stepLogLimit(row, step)
+	default:
+		return false
+	}
+	return true
+}
+
+// stepLogLimit steps how long or how much the logs keep; the logs past the new limit go at once.
+func (a *App) stepLogLimit(row configRow, step int) {
+	next := a.config
+	if row == logsKeepRow {
+		next.Logs.KeepDays = stepNumber(keepDaysChoices, next.Logs.KeepDays, step)
+	} else {
+		next.Logs.MaxSizeKB = stepNumber(logSizeChoices, next.Logs.MaxSizeKB, step)
+	}
+	a.applyLogLimits(next, nil)
+}
+
+// stepSetting changes the setting of a row in next, step places back or on. It returns what to do
+// once the change is in effect, or nil.
+func (a *App) stepSetting(next *config.Config, row configRow, step int) (after func()) {
+	switch row {
 	case shortcutCtrlRow:
 		next.Shortcut.Ctrl = !next.Shortcut.Ctrl
 	case shortcutAltRow:
@@ -416,15 +451,7 @@ func (a *App) changeSetting(step int) {
 		next.ScriptHints = !next.ScriptHints
 	case scriptsSortRow:
 		next.ScriptsSort = cycle(sortOrders, next.ScriptsSort, step)
-		defer a.sortScripts() // after the new order is in effect
-	case logsKeepRow:
-		next.Logs.KeepDays = stepNumber(keepDaysChoices, next.Logs.KeepDays, step)
-		a.applyLogLimits(next, nil)
-		return
-	case logsSizeRow:
-		next.Logs.MaxSizeKB = stepNumber(logSizeChoices, next.Logs.MaxSizeKB, step)
-		a.applyLogLimits(next, nil)
-		return
+		return a.sortScripts
 	case logsTerminalsRow:
 		next.Logs.Terminals = !next.Logs.Terminals
 	case logsPreviewRow:
@@ -437,10 +464,10 @@ func (a *App) changeSetting(step int) {
 	case updateCheckRow:
 		next.Update.Check = !next.Update.Check
 		if next.Update.Check && !a.updates.checked {
-			defer a.checkForUpdates()
+			return a.checkForUpdates
 		}
 	}
-	a.applyConfig(next)
+	return nil
 }
 
 // Choices of the log limits; a value set by hand in the file steps to the nearest one.
@@ -540,67 +567,98 @@ func onOff(on bool) string {
 	return "off"
 }
 
+// configLines are the lines of the page shown; the settings page goes section by section.
 func (a *App) configLines() []configLine {
-	choice := func(value string) string { return "◂ " + value + " ▸" }
 	switch a.configPanel.page {
 	case bindsPage:
 		return a.bindLines()
 	case themePage:
 		return a.themeEditorLines()
 	}
-	edit := "enter"
-	if a.themeNamed(a.sessionTheme(a.session)).Builtin {
-		edit = "copy"
-	}
+	return slices.Concat(
+		a.keysLines(), a.appearanceLines(), a.animationLines(), a.tabsLines(), a.programsLines(),
+		a.scriptsLines(), a.logsLines(), a.flowsLines(), a.updatesLines(), a.defaultsLines(),
+	)
+}
+
+// choiceValue marks a value that the arrows step through.
+func choiceValue(value string) string { return "◂ " + value + " ▸" }
+
+func (a *App) keysLines() []configLine {
 	binds := "defaults ▸"
 	if n := changedBinds(a.config); n > 0 {
 		binds = fmt.Sprintf("%d changed ▸", n)
 	}
 	lines := []configLine{{label: "Keys", heading: true}}
 	lines = append(lines, a.prefixLines()...)
-	lines = append(lines, configLine{label: "binds of every screen", value: binds, row: bindsRow})
-	lines = append(lines, []configLine{
-		{label: "Shortcut", value: a.shortcut.String(), heading: true},
-		{label: "ctrl", value: onOff(a.config.Shortcut.Ctrl), row: shortcutCtrlRow},
-		{label: "alt", value: onOff(a.config.Shortcut.Alt), row: shortcutAltRow},
+	return append(lines,
+		configLine{label: "binds of every screen", value: binds, row: bindsRow},
+		configLine{label: "Shortcut", value: a.shortcut.String(), heading: true},
+		configLine{label: "ctrl", value: onOff(a.config.Shortcut.Ctrl), row: shortcutCtrlRow},
+		configLine{label: "alt", value: onOff(a.config.Shortcut.Alt), row: shortcutAltRow},
+	)
+}
+
+func (a *App) appearanceLines() []configLine {
+	current := a.themeNamed(a.sessionTheme(a.session))
+	edit := "enter"
+	if current.Builtin {
+		edit = "copy"
+	}
+	return []configLine{
 		{label: "Appearance", heading: true},
-		{label: "theme", value: choice(a.themeNamed(a.sessionTheme(a.session)).Name), row: themeRow},
+		{label: "theme", value: choiceValue(current.Name), row: themeRow},
 		{label: "new theme", value: "enter", row: newThemeRow},
 		{label: "edit theme", value: edit, row: editThemeRow},
 		{label: "mode", value: a.config.Appearance.Mode, row: modeRow},
 		{label: "background", value: a.config.Appearance.Background, row: backgroundRow},
-		{label: "animate intro", value: choice(a.config.Appearance.AnimateIntro), row: animateIntroRow},
+		{label: "animate intro", value: choiceValue(a.config.Appearance.AnimateIntro), row: animateIntroRow},
 		{label: "mouse", value: onOff(a.config.Mouse), row: mouseRow},
-	}...)
-	lines = append(lines, a.animationLines()...)
-	lines = append(lines, []configLine{
-		{label: "Tabs", heading: true},
-		{label: "new tab opens", value: choice(a.newTabLabel(a.config.NewTab)), row: newTabRow},
-		{label: "close when empty", value: onOff(a.config.CloseEmptyTabs), row: closeEmptyTabsRow},
-		{label: "Programs", heading: true},
-	}...)
-	lines = append(lines, a.programLines("editor", &a.configPanel.editor, a.config.Editor, editorRow, editorCommandRow)...)
-	lines = append(lines, a.programLines("file manager", &a.configPanel.fileManager, a.config.FileManager, fileManagerRow, fileManagerCommandRow)...)
-	lines = append(lines,
-		configLine{label: "Scripts", heading: true},
-		configLine{label: "location", value: a.configPanel.scriptsDir.String(), row: scriptsDirRow, typed: true},
-	)
-	copyNote := "enter edit · ctrl+c copy"
-	switch {
-	case a.configPanel.copied:
-		copyNote = "copied to clipboard"
-	case a.configPanel.typing && a.configPanel.selected == scriptsDirRow:
-		copyNote = "enter saves · esc cancels · ctrl+c copy"
 	}
-	lines = append(lines, configLine{label: copyNote, note: true})
+}
+
+func (a *App) tabsLines() []configLine {
+	return []configLine{
+		{label: "Tabs", heading: true},
+		{label: "new tab opens", value: choiceValue(a.newTabLabel(a.config.NewTab)), row: newTabRow},
+		{label: "close when empty", value: onOff(a.config.CloseEmptyTabs), row: closeEmptyTabsRow},
+	}
+}
+
+func (a *App) programsLines() []configLine {
+	lines := []configLine{{label: "Programs", heading: true}}
+	lines = append(lines, a.programLines("editor", &a.configPanel.editor, a.config.Editor, editorRow, editorCommandRow)...)
+	return append(lines, a.programLines("file manager", &a.configPanel.fileManager, a.config.FileManager, fileManagerRow, fileManagerCommandRow)...)
+}
+
+func (a *App) scriptsLines() []configLine {
+	lines := []configLine{
+		{label: "Scripts", heading: true},
+		{label: "location", value: a.configPanel.scriptsDir.String(), row: scriptsDirRow, typed: true},
+		{label: a.scriptsDirHelp(), note: true},
+	}
 	if note := scriptsDirNote(a.configPanel.scriptsDir.String()); note != "" {
 		lines = append(lines, configLine{label: note, note: true})
 	}
-	lines = append(lines,
+	return append(lines,
 		configLine{label: "hints in new scripts", value: onOff(a.config.ScriptHints), row: scriptHintsRow},
-		configLine{label: "sort", value: "◂ " + sortLabels[a.config.ScriptsSort] + " ▸", row: scriptsSortRow},
-		configLine{label: "Logs", heading: true},
+		configLine{label: "sort", value: choiceValue(sortLabels[a.config.ScriptsSort]), row: scriptsSortRow},
 	)
+}
+
+// scriptsDirHelp is the note under the scripts' location: its keys, or that it was just copied.
+func (a *App) scriptsDirHelp() string {
+	switch {
+	case a.configPanel.copied:
+		return "copied to clipboard"
+	case a.configPanel.typing && a.configPanel.selected == scriptsDirRow:
+		return "enter saves · esc cancels · ctrl+c copy"
+	}
+	return "enter edit · ctrl+c copy"
+}
+
+func (a *App) logsLines() []configLine {
+	lines := []configLine{{label: "Logs", heading: true}}
 	lines = append(lines, a.numberLines("keep", logsKeepRow, fmt.Sprintf("%d days", a.config.Logs.KeepDays))...)
 	lines = append(lines, a.numberLines("max size", logsSizeRow, sizeText(a.config.Logs.MaxSizeKB))...)
 	lines = append(lines, a.logUsageLine()...)
@@ -611,18 +669,33 @@ func (a *App) configLines() []configLine {
 	)
 	lines = append(lines, a.logColumnsLines()...)
 	return append(lines,
-		configLine{label: "log", value: "◂ " + a.config.Logs.Preview + " ▸", row: logsPreviewRow},
-		configLine{label: "log size", value: fmt.Sprintf("◂ %d%% ▸", a.config.Logs.PreviewPercent), row: logsPreviewPercentRow},
+		configLine{label: "log", value: choiceValue(a.config.Logs.Preview), row: logsPreviewRow},
+		configLine{label: "log size", value: choiceValue(fmt.Sprintf("%d%%", a.config.Logs.PreviewPercent)), row: logsPreviewPercentRow},
 		configLine{label: "where the logs view shows the selected log; there, p moves it and + - size it", note: true},
-		configLine{label: "Flows", heading: true},
-		configLine{label: "step output kept", value: "◂ " + flowOutputLabel(a.config.Flows.OutputKB) + " ▸", row: flowsOutputRow},
-		configLine{label: "in each flow's last result; tests keep 4 KB", note: true},
-		configLine{label: "Updates", heading: true},
-		configLine{label: "check for new versions", value: onOff(a.config.Update.Check), row: updateCheckRow},
-		configLine{label: "only checks; install with " + a.prefix.String() + "+" + a.hint("commands", "{c}"), note: true},
-		configLine{label: "Defaults", heading: true},
-		configLine{label: "reset all to defaults", value: a.resetValue(), row: resetRow},
 	)
+}
+
+func (a *App) flowsLines() []configLine {
+	return []configLine{
+		{label: "Flows", heading: true},
+		{label: "step output kept", value: choiceValue(flowOutputLabel(a.config.Flows.OutputKB)), row: flowsOutputRow},
+		{label: "in each flow's last result; tests keep 4 KB", note: true},
+	}
+}
+
+func (a *App) updatesLines() []configLine {
+	return []configLine{
+		{label: "Updates", heading: true},
+		{label: "check for new versions", value: onOff(a.config.Update.Check), row: updateCheckRow},
+		{label: "only checks; install with " + a.prefix.String() + "+" + a.hint("commands", "{c}"), note: true},
+	}
+}
+
+func (a *App) defaultsLines() []configLine {
+	return []configLine{
+		{label: "Defaults", heading: true},
+		{label: "reset all to defaults", value: a.resetValue(), row: resetRow},
+	}
 }
 
 // logColumnsLines are the logs list's columns, typed in order, with the names there are and the
@@ -717,7 +790,7 @@ func (a *App) pressReset(key uv.KeyPressEvent) bool {
 // programLines are a program setting's row and, while custom is chosen, the command typed for it
 // with a note when that command is not installed.
 func (a *App) programLines(label string, setting *programSetting, current string, row, commandRow configRow) []configLine {
-	lines := []configLine{{label: label, value: "◂ " + setting.shown(current) + " ▸", row: row}}
+	lines := []configLine{{label: label, value: choiceValue(setting.shown(current)), row: row}}
 	if !setting.custom {
 		return lines
 	}

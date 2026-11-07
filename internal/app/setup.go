@@ -133,10 +133,6 @@ func (w *setupWizard) startChoices() []string {
 	return []string{setupKeep, setupDefault, setupChoose}
 }
 
-func (w *setupWizard) themeNames() []string {
-	return w.themes
-}
-
 // rows is how many rows the step has to select from.
 func (w *setupWizard) rows() int {
 	switch w.step {
