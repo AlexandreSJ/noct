@@ -128,13 +128,15 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/kittygfx/session.go` | Per-pane image state: id translation, uploads, sizing, replies |
 | `internal/kittygfx/placeholder.go` | Placeholder cell text and color for an image cell |
 | `internal/kittygfx/diacritics.go` | Kitty's fixed row/column diacritics table |
+| `internal/atomicfile/atomicfile.go` | Replacing files whole through a temp file of their own (`Write`) and changing shared state files under a `flock` on `<file>.lock` (`Update`) |
+| `internal/naming/naming.go` | The rules for names of scripts, flows, templates and themes (`IsValid`) and for template identifiers (`IsIdentifier`) |
 | `internal/config/config.go` | Settings file: defaults, validation, atomic load and save |
 | `third_party/ultraviolet`, `third_party/vt` | Copies of charmbracelet/ultraviolet and x/vt with throughput and rendering fixes (`noct:` comments); see `third_party/README.md`. `noct_render_test.go` replays the renderer's output into the emulator |
 | `docs/demo/record.sh`, `docs/demo/*.tape` | The README's GIFs (`make demo`): VHS tapes run noct in a home of its own, with the demo scripts and flows of `docs/demo/scripts` and `docs/demo/flows` |
 | `examples/examples.go`, `examples/demo/` | The demo the setup installs: scripts `demo/*` with tutorial notes and the flows `demo-deploy` (a deploy with health check and rollback) and `demo-loops` (each step kind alone), embedded and copied without overwriting |
 | `docs/assets/` | The README's logo (`logo.svg`, the home's art as rectangles) and GIFs |
 | `.github/workflows/release.yml`, `Makefile` (`dist`, `release-notes`), `CHANGELOG.md` | Releases: a pushed `vX.Y.Z` tag runs the checks, builds the archives and checksums, and publishes the GitHub release with the tag's CHANGELOG section, which noct's updates read (ADR-047) |
-| `internal/script/script.go` | A script: load, validate (params and outputs), render its command line, create and delete |
+| `internal/script/script.go` | A script: load, validate (params and outputs), render its command line, create and delete; `WalkFields`, the template field walker flows also use |
 | `internal/script/library.go` | The library: personal scripts, folders of scripts (in the scripts folder, linked, project), IDs, lookups |
 | `internal/script/edit.go` | Creating a script (with optional hints) and updating it from the form's fields, keeping the rest of the YAML; params as YAML text |
 | `internal/script/values.go` | Starting values of parameters, checking them, remembered values file |

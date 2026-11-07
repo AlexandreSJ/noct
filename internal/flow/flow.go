@@ -15,6 +15,8 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
+	"github.com/AlexandreSJ/noct/internal/naming"
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
@@ -230,15 +232,11 @@ func Find(flows []Flow, name string) (Flow, bool) {
 	return flows[i], true
 }
 
-var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
-
-var identifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-
 const exactlyOne = "a step sets exactly one of script, run, if, repeat, wait, prompt, set and unset"
 
 // Create writes a new, empty flow called name in dir.
 func Create(dir, name string) (Flow, error) {
-	if !validName.MatchString(name) {
+	if !naming.IsValid(name) {
 		return Flow{}, fmt.Errorf("flow name %q: use letters, digits, . - _", name)
 	}
 	f := Flow{Name: name, File: filepath.Join(dir, name+Ext)}
@@ -257,11 +255,7 @@ func (f Flow) Save() error {
 	if err := os.MkdirAll(filepath.Dir(f.File), 0o755); err != nil {
 		return fmt.Errorf("saving flow %s: %w", f.Name, err)
 	}
-	temp := f.File + ".tmp"
-	if err := os.WriteFile(temp, content, 0o644); err != nil {
-		return fmt.Errorf("saving flow %s: %w", f.Name, err)
-	}
-	if err := os.Rename(temp, f.File); err != nil {
+	if err := atomicfile.Write(f.File, content, 0o644); err != nil {
 		return fmt.Errorf("saving flow %s: %w", f.Name, err)
 	}
 	return nil

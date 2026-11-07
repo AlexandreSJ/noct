@@ -14,6 +14,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
 	"github.com/AlexandreSJ/noct/internal/layout"
 	"github.com/AlexandreSJ/noct/internal/logstore"
 )
@@ -124,11 +125,7 @@ func Save(path string, f File) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating %s: %w", filepath.Dir(path), err)
 	}
-	temporary := path + ".tmp"
-	if err := os.WriteFile(temporary, content, 0o600); err != nil {
-		return fmt.Errorf("saving the sessions: %w", err)
-	}
-	if err := os.Rename(temporary, path); err != nil {
+	if err := atomicfile.Write(path, content, 0o600); err != nil {
 		return fmt.Errorf("saving the sessions: %w", err)
 	}
 	return nil

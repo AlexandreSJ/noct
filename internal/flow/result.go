@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
 	"github.com/AlexandreSJ/noct/internal/logstore"
 )
 
@@ -61,10 +62,10 @@ func SaveResultTo(path string, r Result) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("saving the result: %w", err)
 	}
-	if err := os.WriteFile(path+".tmp", content, 0o600); err != nil {
+	if err := atomicfile.Write(path, content, 0o600); err != nil {
 		return fmt.Errorf("saving the result: %w", err)
 	}
-	return os.Rename(path+".tmp", path)
+	return nil
 }
 
 func ReadResult(path string) (Result, bool) {

@@ -376,7 +376,7 @@ func (x *running) render(text string) (string, error) {
 		data[name] = value
 	}
 	// A variable not set, or unset, reads as empty rather than as <no value>.
-	walkFields(t.Root, func(ident []string) {
+	script.WalkFields(t.Root, func(ident []string) {
 		if _, set := data[ident[0]]; !set {
 			data[ident[0]] = ""
 		}

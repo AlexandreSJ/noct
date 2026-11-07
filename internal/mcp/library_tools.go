@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -14,10 +13,9 @@ import (
 
 	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/flow"
+	"github.com/AlexandreSJ/noct/internal/naming"
 	"github.com/AlexandreSJ/noct/internal/script"
 )
-
-var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 func libraryTools(d Deps) []Tool {
 	return []Tool{
@@ -307,7 +305,7 @@ func (d Deps) draftFlow(args json.RawMessage) (any, error) {
 	if err := decode(args, &ask); err != nil {
 		return nil, err
 	}
-	if !validName.MatchString(ask.Name) {
+	if !naming.IsValid(ask.Name) {
 		return nil, fmt.Errorf("flow name %q: use letters, digits, . - _", ask.Name)
 	}
 	var f flow.Flow
@@ -360,7 +358,7 @@ func (d Deps) draftScript(args json.RawMessage) (any, error) {
 		return nil, err
 	}
 	parts := strings.Split(ask.Name, "/")
-	if len(parts) > 2 || slices.ContainsFunc(parts, func(p string) bool { return !validName.MatchString(p) }) {
+	if len(parts) > 2 || slices.ContainsFunc(parts, func(p string) bool { return !naming.IsValid(p) }) {
 		return nil, fmt.Errorf("script name %q: name or folder/name, each letters, digits, . - _", ask.Name)
 	}
 	content, err := markedDraft(ask.YAML)

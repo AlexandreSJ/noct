@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AlexandreSJ/noct/internal/naming"
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
@@ -98,7 +99,7 @@ func (s Step) validateID(ids map[string]bool) error {
 	if s.ID == "" {
 		return nil
 	}
-	if !identifier.MatchString(s.ID) {
+	if !naming.IsIdentifier(s.ID) {
 		return fmt.Errorf("id %q must be letters, digits and _ only", s.ID)
 	}
 	if ids[s.ID] {
@@ -128,7 +129,7 @@ func (s Step) validateKind(kind Kind, lookup func(id string) (script.Script, boo
 
 func (s Step) validatePatterns() error {
 	for name, pattern := range s.Capture {
-		if !identifier.MatchString(name) {
+		if !naming.IsIdentifier(name) {
 			return fmt.Errorf("capture name %q must be letters, digits and _ only", name)
 		}
 		if _, err := regexp.Compile(pattern); err != nil {
@@ -186,17 +187,12 @@ func (r *Repeat) validate() error {
 	return nil
 }
 
-// templates are the texts of the step that are rendered before it runs.
+// templates are every text of the step that is rendered: those before it runs and the repeat's
+// until.
 func (s Step) templates() []string {
-	texts := []string{s.Run, s.If, s.Prompt, s.Default}
+	texts := s.orderedTemplates()
 	if s.Repeat != nil {
 		texts = append(texts, s.Repeat.Until)
-	}
-	for _, value := range s.With {
-		texts = append(texts, value)
-	}
-	for _, value := range s.Set {
-		texts = append(texts, value)
 	}
 	return texts
 }

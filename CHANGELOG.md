@@ -11,6 +11,11 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Fixed
+
+- Runs, remembered parameter values and enabled triggers are no longer lost or damaged when the
+  workspace and the `noct` command save them at the same time.
+
 ## v0.2.3 - 2026-11-04
 
 ### Added

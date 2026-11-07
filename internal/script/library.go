@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/AlexandreSJ/noct/internal/naming"
 )
 
 // ProjectDirName is the folder, at a project's root, that holds its noct files.
@@ -224,7 +226,7 @@ func loadScript(dir, folder string) Script {
 }
 
 func CreateFolder(root, name string) (string, error) {
-	if !validName.MatchString(name) {
+	if !naming.IsValid(name) {
 		return "", fmt.Errorf("folder name %q: use letters, digits, '.', '-' and '_'", name)
 	}
 	dir := filepath.Join(root, name)
@@ -238,7 +240,7 @@ func CreateFolder(root, name string) (string, error) {
 }
 
 func DeleteFolder(f Folder) error {
-	if f.Kind != GroupFolder || !validName.MatchString(filepath.Base(f.Dir)) {
+	if f.Kind != GroupFolder || !naming.IsValid(filepath.Base(f.Dir)) {
 		return fmt.Errorf("refusing to delete %q", f.Dir)
 	}
 	if err := os.RemoveAll(f.Dir); err != nil {

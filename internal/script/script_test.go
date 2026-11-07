@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"text/template"
 	"time"
 )
 
@@ -394,5 +395,18 @@ func TestFromCommandAsksEachValueAsAPath(t *testing.T) {
 	}
 	if _, err := FromCommand("bad", "less {{.file", "/tmp"); err == nil {
 		t.Error("a broken template gave no error")
+	}
+}
+
+func TestWalkFieldsVisitsEveryFieldInOrder(t *testing.T) {
+	text := `{{.a}}{{if .steps.x.ok}}{{.b | printf "%s"}}{{else}}{{range .c}}{{.d.e}}{{end}}{{end}}{{with .f}}{{end}}`
+	tree, err := template.New("").Parse(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var visited []string
+	WalkFields(tree.Root, func(ident []string) { visited = append(visited, strings.Join(ident, ".")) })
+	if got := strings.Join(visited, " "); got != "a steps.x.ok b c d.e f" {
+		t.Errorf("visited %s", got)
 	}
 }

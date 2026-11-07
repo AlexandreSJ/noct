@@ -10,6 +10,9 @@ import (
 	"strings"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
+	"github.com/AlexandreSJ/noct/internal/naming"
 )
 
 // Fields are the parts of a script edited in noct's form.
@@ -142,7 +145,7 @@ func ParseParams(text string) ([]Param, error) {
 }
 
 func (f Fields) check() error {
-	if !validName.MatchString(f.Name) {
+	if !naming.IsValid(f.Name) {
 		return fmt.Errorf("script name %q: use letters, digits, '.', '-' and '_'", f.Name)
 	}
 	if strings.TrimSpace(f.Run) == "" {
@@ -193,11 +196,7 @@ func writeYAML(path string, document *yaml.Node) error {
 	if err := encoder.Encode(document); err != nil {
 		return err
 	}
-	temp := path + ".tmp"
-	if err := os.WriteFile(temp, out.Bytes(), 0o644); err != nil {
-		return err
-	}
-	return os.Rename(temp, path)
+	return atomicfile.Write(path, out.Bytes(), 0o644)
 }
 
 // setKey sets a key's value, adding the key when it is missing. An empty value removes the key.

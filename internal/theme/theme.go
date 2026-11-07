@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/AlexandreSJ/noct/internal/naming"
 )
 
 // Component is a part of the screen a theme colors.
@@ -237,12 +239,9 @@ func Find(themes []Theme, name string) (Theme, bool) {
 	return Theme{}, false
 }
 
-// validName is the rule scripts and flows use: safe as a file name and easy to type.
-var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
-
 // CheckName tells whether name can be a new theme's.
 func CheckName(name string) error {
-	if !validName.MatchString(name) {
+	if !naming.IsValid(name) {
 		return errors.New("a theme name has letters, digits, '.', '_' or '-', starting with a letter or digit")
 	}
 	if _, ok := Find(Builtins(), name); ok {

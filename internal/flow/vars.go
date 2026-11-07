@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/AlexandreSJ/noct/internal/naming"
 )
 
 // Types a parameter or a prompt's answer can have.
@@ -111,7 +113,7 @@ func checkType(kind string) error {
 // isVariable tells whether name can be a variable: an identifier other than steps, which holds
 // the steps' results.
 func isVariable(name string) bool {
-	return identifier.MatchString(name) && name != "steps"
+	return naming.IsIdentifier(name) && name != "steps"
 }
 
 // stepsPrefix starts what unset names to clear a step's results instead of a variable.
@@ -142,7 +144,7 @@ func (s Step) validateVariables(kind Kind) error {
 func validateUnsetNames(names []string) error {
 	for _, name := range names {
 		step, isStep := strings.CutPrefix(name, stepsPrefix)
-		if isStep && identifier.MatchString(step) || !isStep && isVariable(name) {
+		if isStep && naming.IsIdentifier(step) || !isStep && isVariable(name) {
 			continue
 		}
 		return fmt.Errorf("unset %q is a variable's name or %s<id>", name, stepsPrefix)
