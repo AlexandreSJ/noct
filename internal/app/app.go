@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -170,6 +171,11 @@ type App struct {
 	// loopTasks carries work from background goroutines, such as a program exiting, to the loop.
 	loopTasks chan func()
 	stopped   chan struct{}
+	// programs counts the programs running in panes, so stopping can wait for their logs to close.
+	programs sync.WaitGroup
+	// quitConn is the noct quit that stopped the workspace; shutdown closes it last, so the
+	// command returns once nothing is left to write.
+	quitConn *ipc.Conn
 	// triggered are the flows a trigger started that are still running.
 	triggered map[string]bool
 	// approvals are what AIs asked to do that wait for the user, the oldest first.
@@ -363,7 +369,7 @@ func (a *App) handleConnection(c connection) {
 	case ipc.Quit:
 		a.quitting = true
 		_ = c.conn.SendJSON(ipc.KindExit, ipc.Exit{Reason: "quit"}) // best effort: the daemon stops either way
-		_ = c.conn.Close()
+		a.quitConn = c.conn
 	case ipc.OpenPane:
 		a.openSession(a.session) // what a run asks for shows in the session on screen
 		a.openRequestedPane(c)
@@ -515,5 +521,25 @@ func (a *App) shutdown() error {
 	for _, s := range a.sessions {
 		a.closeViews(s)
 	}
+	a.waitForPrograms()
+	if a.quitConn != nil {
+		_ = a.quitConn.Close() // noct quit returns now; it only waits for the close
+	}
 	return nil
+}
+
+// programExitGrace bounds how long stopping waits for the programs it hung up to end and their
+// logs to close; a program that ignores the hangup is left behind.
+const programExitGrace = 2 * time.Second
+
+func (a *App) waitForPrograms() {
+	ended := make(chan struct{})
+	go func() {
+		a.programs.Wait()
+		close(ended)
+	}()
+	select {
+	case <-ended:
+	case <-time.After(programExitGrace):
+	}
 }

@@ -18,7 +18,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `cmd/noct/main_test.go` | End-to-end tests: the real binary in a pane, each test with its own daemon |
 | `cmd/noct/flows_test.go` | End-to-end tests of the flow commands: warnings, kept output, testing a range, enabling triggers, an after trigger and a step's pane in a real workspace |
 | `internal/ipc/ipc.go` | Client↔daemon protocol: framed messages, socket path, listen and dial; attach, quit and pane requests |
-| `internal/client/client.go` | The terminal side: raw mode, forwarding keys and size, writing frames (and tracing them with `NOCT_TRACE`) |
+| `internal/client/client.go` | The terminal side: raw mode, forwarding keys and size, writing frames (and tracing them with `NOCT_TRACE`); `Quit`, which returns once the daemon has stopped |
 | `internal/client/request.go` | Asking the running workspace to do one thing for the MCP server, and reading its answer |
 | `internal/client/pane.go` | Asking the running workspace for a step's pane and waiting for its exit code |
 | `internal/daemon/daemon.go` | Run the daemon at its version; start it in the background when needed; why it stopped, from the panic in `daemon.log` |
