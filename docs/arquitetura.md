@@ -83,7 +83,7 @@ Como no tmux, **o daemon desenha para o terminal do cliente** (ADR-017):
 - Um cliente conectado por vez; conectar de outro terminal desconecta o anterior.
 - `prefixo` + `d` desconecta; sem cliente, os programas continuam rodando e nada é desenhado. `noct` reconecta.
 - O daemon guarda várias **sessões** (ADR-037), cada uma com suas tabs; o cliente conectado vê uma delas. O `Hello` diz qual (`Session`, ou `NewSession` para criar); sem nome, é a última usada. Uma sessão que não existe é recusada (`Exit.Refused`).
-- `noct quit` fecha tudo e para o daemon, depois de gravar as sessões em `sessions.json`; o próximo `noct` reabre a última. `noct` inicia o daemon sozinho quando ele não está rodando (`noct daemon`, numa sessão própria, com a saída em `daemon.log`).
+- `noct quit` fecha tudo e para o daemon, depois de gravar as sessões em `sessions.json`; o próximo `noct` reabre a última. O comando só volta quando o daemon terminou: sessões gravadas e logs dos programas fechados (até 2 s pelos que ignoram o SIGHUP), para um `noct` logo em seguida não disputar os arquivos com ele. `noct` inicia o daemon sozinho quando ele não está rodando (`noct daemon`, numa sessão própria, com a saída em `daemon.log`).
 - **Reiniciar numa versão nova** (ADR-047): depois de instalar uma release, o daemon para como no quit, mas diz `restart` ao cliente; o cliente, já com o terminal restaurado, se troca (`exec`) pelo binário em disco, que inicia o daemon novo e reabre a sessão usada por último, a que estava na tela. O listener fecha antes de o cliente receber o `Exit`, então o cliente novo nunca encontra o daemon velho.
 - Protocolo: 1 byte de tipo + 4 bytes de tamanho + conteúdo; `Hello`, `Resize` e `Exit` em JSON, `Input` e `Output` em bytes crus.
 

@@ -103,8 +103,16 @@ func Quit(socketPath string) error {
 	if err := conn.SendJSON(ipc.KindHello, ipc.Hello{Version: ipc.Version, Purpose: ipc.Quit}); err != nil {
 		return err
 	}
-	_, err = writeOutput(conn, io.Discard)
-	return err
+	// The daemon answers at once, then closes the connection once it has stopped: sessions
+	// saved, logs closed. Returning only then keeps a noct started next from racing it.
+	for {
+		if _, err := writeOutput(conn, io.Discard); err != nil {
+			if errors.Is(err, ErrDaemonStopped) {
+				return nil
+			}
+			return err
+		}
+	}
 }
 
 func forwardInput(conn *ipc.Conn, input io.Reader) {

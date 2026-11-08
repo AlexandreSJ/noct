@@ -37,6 +37,8 @@ the shortcut is `Alt` by default. How to write an entry is in
   in many small pieces no longer slow the pane down.
 - A scheduled flow no longer runs twice when clocks go back an hour for daylight saving time.
   Times skipped when clocks go forward do not run that day, as in cron.
+- `noct quit` returns once the workspace has stopped, with the sessions saved and the logs of its
+  programs closed, so a `noct` started right after it no longer races the old workspace.
 
 ## v0.2.3 - 2026-11-04
 

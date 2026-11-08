@@ -60,7 +60,10 @@ func (a *App) startProgram(p program, size pty.Size) (view, error) {
 		Dir:            p.dir,
 		Size:           size,
 		OnScreenChange: a.screenChangeOf(p.pane),
-		OnExit:         func(code int) { a.onLoop(func() { p.onExit(code) }) },
+		OnExit: func(code int) {
+			a.programs.Done() // the pane closed its log before calling this
+			a.onLoop(func() { p.onExit(code) })
+		},
 		KeepScrollback: p.keepScrollback,
 
 		HistoryUnderFullScreen: p.historyUnderFullScreen,
@@ -85,8 +88,10 @@ func (a *App) startProgram(p program, size pty.Size) (view, error) {
 			a.statusMessage = err.Error() // the terminal still works, only without a log
 		}
 	}
+	a.programs.Add(1) // before Start: a program that ends at once calls OnExit
 	v, err := pane.Start(opts)
 	if err != nil {
+		a.programs.Done()
 		return nil, fmt.Errorf("starting %s: %w", filepath.Base(p.argv[0]), err)
 	}
 	return v, nil

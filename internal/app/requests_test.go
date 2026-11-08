@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 
@@ -159,5 +160,42 @@ func TestApprovalsWaitForTheUser(t *testing.T) {
 	}
 	if screen := screenText(a); a.mode != mcpMode || strings.Contains(screen, "Waiting for approval") {
 		t.Errorf("after deciding every approval, mode %v, screen:\n%s", a.mode, screen)
+	}
+}
+
+// noct quit returns when its connection closes, so the workspace keeps it open until the programs
+// it hung up have ended and their logs are closed: nothing writes after the command returns.
+func TestQuitReturnsOnceTheProgramsHaveEnded(t *testing.T) {
+	a := testApp(t, newTab(1, &fakeView{}))
+	a.stopped = make(chan struct{})
+	server, client := net.Pipe()
+	t.Cleanup(func() { server.Close(); client.Close() })
+	closed := make(chan struct{})
+	go func() {
+		conn := ipc.NewConn(client)
+		for {
+			if _, err := conn.Receive(); err != nil {
+				close(closed)
+				return
+			}
+		}
+	}()
+	a.programs.Add(1) // a program hung up that has not ended yet
+	a.handleConnection(connection{conn: ipc.NewConn(server), hello: ipc.Hello{Version: ipc.Version, Purpose: ipc.Quit}})
+	stopped := make(chan error, 1)
+	go func() { stopped <- a.shutdown() }()
+	select {
+	case <-closed:
+		t.Fatal("noct quit returned while a program was still running")
+	case <-time.After(200 * time.Millisecond):
+	}
+	a.programs.Done()
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatal("noct quit did not return after the programs ended")
+	}
+	if err := <-stopped; err != nil {
+		t.Fatal(err)
 	}
 }
