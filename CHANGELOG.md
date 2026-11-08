@@ -11,6 +11,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+## v0.2.4 - 2026-11-08
+
 ### Added
 
 - Flows and their `script` and `run` steps take an optional `timeout` (`30s`, `10m`, `1h30m`). A
