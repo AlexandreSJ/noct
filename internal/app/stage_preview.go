@@ -50,7 +50,7 @@ func (a *App) animationLines() []configLine {
 		{label: "animations", value: onOff(a.config.Appearance.Animations != config.AnimationsOff), row: animationsRow},
 	}
 	for m, info := range moments {
-		lines = append(lines, configLine{label: info.label, value: "◂ " + a.config.Animations.Effect(info.key) + " ▸", row: animationRowBase + configRow(m)})
+		lines = append(lines, configLine{label: info.label, value: choiceValue(a.config.Animations.Effect(info.key)), row: animationRowBase + configRow(m)})
 		ms := fmt.Sprintf("%d ms", a.config.AnimationTimes.Duration(info.key))
 		lines = append(lines, a.numberLines("  time", animationTimeRowBase+configRow(m), ms)...)
 	}

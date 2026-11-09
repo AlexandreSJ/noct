@@ -124,7 +124,7 @@ func (f *paramsForm) formValue(p script.Param, selected bool, width int) string 
 	value := f.values[p.Name]
 	switch {
 	case len(p.Choices) > 0:
-		return "◂ " + value + " ▸"
+		return choiceValue(value)
 	case selected:
 		field, _ := f.typedField()
 		return field.view(width, p.Secret)

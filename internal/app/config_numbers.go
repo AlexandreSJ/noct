@@ -222,7 +222,7 @@ func parseLogSize(text string) (int, error) {
 func (a *App) numberLines(label string, row configRow, value string) []configLine {
 	p := a.configPanel
 	if p.number == nil || p.selected != row {
-		return []configLine{{label: label, value: "◂ " + value + " ▸", row: row}}
+		return []configLine{{label: label, value: choiceValue(value), row: row}}
 	}
 	lines := []configLine{{label: label, value: p.number.String(), row: row, typed: true}}
 	if p.numberProblem != "" {

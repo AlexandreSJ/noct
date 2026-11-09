@@ -109,10 +109,6 @@ O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decis�
 
 3. **`golang.org/x/sys`** fica na v0.41.0, com o GO-2026-5024, que só afeta o Windows (o noct não compila para ele) e não é alcançável. A v0.44.0, a primeira corrigida, exige Go 1.25, e subir o `go 1.24.2` do `go.mod` só por ela tiraria quem instala com `go install` num Go 1.24. Sobe junto com a próxima mudança de versão do Go.
 
-**Duplicação e complexidade**
-
-- `"◂ v ▸"` ainda é montado à mão em `config_numbers.go`, `stage_preview.go`, `form.go` e `template_save.go`, ao lado de `choiceValue`.
-
 ## Riscos
 
 | Risco | Impacto | Mitigação |
