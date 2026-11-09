@@ -286,3 +286,38 @@ func TestALogKnowsTheDaysItWasWrittenOn(t *testing.T) {
 		t.Errorf("left after removing the log: %v", left)
 	}
 }
+
+func TestALogOutsideTheDayFoldersKeepsNoDays(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mcp.log")
+	log, err := Append(path, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.now = func() time.Time { return time.Now().AddDate(0, 0, 2) }
+	if _, err := log.Write([]byte("call\n")); err != nil {
+		t.Fatal(err)
+	}
+	_ = log.Close()
+	if _, err := os.Stat(DaysPath(path)); err == nil {
+		t.Error("a log outside the day folders got a days file")
+	}
+}
+
+func TestStartingALogAgainForgetsTheDaysOfTheOldOne(t *testing.T) {
+	day := time.Date(2026, 11, 2, 9, 0, 0, 0, time.Local)
+	path := filepath.Join(t.TempDir(), day.Format(DayLayout), "090000-run.log")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(DaysPath(path), []byte("2026-11-04\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	log, err := Create(path, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = log.Close()
+	if _, err := os.Stat(DaysPath(path)); err == nil {
+		t.Error("the new log kept the old one's days")
+	}
+}

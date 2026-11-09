@@ -31,7 +31,8 @@ type File struct {
 	size    int64
 	maxSize int64
 	now     func() time.Time
-	// lastDay is the last day the log has output on, as DayLayout writes it.
+	// lastDay is the last day the log has output on, as DayLayout writes it, or "" for a log
+	// outside the day folders, which keeps no days.
 	lastDay string
 }
 
@@ -39,7 +40,8 @@ func Create(path string, maxSize int64) (*File, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("creating the log directory: %w", err)
 	}
-	f := &File{path: path, maxSize: maxSize, now: time.Now, lastDay: lastDay(path)}
+	_ = os.Remove(DaysPath(path)) // a log started again has had output on its first day only
+	f := &File{path: path, maxSize: maxSize, now: time.Now, lastDay: lastDayOf(path)}
 	if err := f.open(os.O_TRUNC); err != nil {
 		return nil, err
 	}
@@ -52,7 +54,7 @@ func Append(path string, maxSize int64) (*File, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("creating the log directory: %w", err)
 	}
-	f := &File{path: path, maxSize: maxSize, now: time.Now, lastDay: lastDay(path)}
+	f := &File{path: path, maxSize: maxSize, now: time.Now, lastDay: lastDayOf(path)}
 	if err := f.open(os.O_APPEND); err != nil {
 		return nil, err
 	}
@@ -113,7 +115,7 @@ func (f *File) Write(p []byte) (int, error) {
 // than the one it started on, so the log shows on every day it has output.
 func (f *File) noteDay() {
 	day := f.now().Format(DayLayout)
-	if day == f.lastDay {
+	if f.lastDay == "" || day == f.lastDay {
 		return
 	}
 	f.lastDay = day
@@ -125,13 +127,17 @@ func (f *File) noteDay() {
 	_ = file.Close()
 }
 
-// lastDay is the last day the log at path has output on: the last its days file holds, or the
-// day it started.
-func lastDay(path string) string {
+// lastDayOf is the last day the log at path has output on: the last its days file holds, or the
+// day folder it started in; "" when it is in none.
+func lastDayOf(path string) string {
+	started := filepath.Base(filepath.Dir(path))
+	if _, err := time.Parse(DayLayout, started); err != nil {
+		return ""
+	}
 	if days := recordedDays(path); len(days) > 0 {
 		return days[len(days)-1]
 	}
-	return filepath.Base(filepath.Dir(path))
+	return started
 }
 
 func (f *File) rotate() error {
