@@ -52,13 +52,26 @@ func TestAClosingFadeCrossesIntoWhatIsBelow(t *testing.T) {
 	if early.Content != "x" || colorsEqual(early.Style.Bg, belowColor) {
 		t.Errorf("early in the closing the cell is %q on %v, want x near red", early.Content, early.Style.Bg)
 	}
-	middle := closingOver(t, effectFade, area, 0.5).CellAt(4, 3)
-	if colorsEqual(middle.Style.Bg, closedColor) || colorsEqual(middle.Style.Bg, belowColor) {
-		t.Errorf("halfway the background is %v, want a mix of red and blue", middle.Style.Bg)
-	}
 	late := closingOver(t, effectFade, area, 0.9).CellAt(4, 3)
-	if late.Content != "y" {
-		t.Errorf("late in the closing the cell shows %q, want what is below", late.Content)
+	if late.Content != "y" || !colorsEqual(late.Style.Bg, belowColor) {
+		t.Errorf("late in the closing the cell shows %q on %v, want what is below on its own background", late.Content, late.Style.Bg)
+	}
+	if colorsEqual(late.Style.Fg, color.White) {
+		t.Error("late in the closing the text below is in its full color already")
+	}
+}
+
+func TestAClosingFadeLeavesNoBackgroundOverATransparentOne(t *testing.T) {
+	a, _ := animatedApp(t)
+	area := image.Rect(2, 2, 12, 6)
+	old := uv.NewScreenBuffer(a.size.X, a.size.Y)
+	old.SetCell(4, 3, &uv.Cell{Content: "x", Width: 1, Style: uv.Style{Fg: color.White, Bg: closedColor}})
+	screen := uv.NewScreenBuffer(a.size.X, a.size.Y)
+	screen.SetCell(4, 3, &uv.Cell{Content: "y", Width: 1, Style: uv.Style{Fg: color.White}})
+	an := &animation{moment: momentPanels, effect: effectFade, closing: true, area: area, cells: old}
+	a.drawClosing(&screen, an, 0.9, time.Now())
+	if bg := screen.CellAt(4, 3).Style.Bg; bg != nil {
+		t.Errorf("over a transparent background the closing cell is on %v, want none", bg)
 	}
 }
 
@@ -74,15 +87,15 @@ func TestAClosingEffectRemovesCellsBeforeItEnds(t *testing.T) {
 	}
 }
 
-func TestFadingInMixesTheBackgroundToo(t *testing.T) {
+func TestFadingNeverChangesTheBackground(t *testing.T) {
 	a, _ := animatedApp(t)
 	area := image.Rect(1, 1, 5, 3)
 	screen := uv.NewScreenBuffer(a.size.X, a.size.Y)
 	screen.SetCell(2, 2, &uv.Cell{Content: "z", Width: 1, Style: uv.Style{Fg: color.White, Bg: closedColor}})
 	an := &animation{moment: momentPanels, effect: effectFade}
 	a.applyEffect(&screen, an, area, 0.3, time.Now(), nil)
-	if bg := screen.CellAt(2, 2).Style.Bg; colorsEqual(bg, closedColor) {
-		t.Errorf("a cell fading in has its background %v already", bg)
+	if bg := screen.CellAt(2, 2).Style.Bg; !colorsEqual(bg, closedColor) {
+		t.Errorf("a cell fading in is on %v, want its own background", bg)
 	}
 }
 

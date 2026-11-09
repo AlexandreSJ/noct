@@ -99,6 +99,7 @@ func (a *App) handleMouseMotion(event uv.MouseEvent) {
 		a.extendSelection(event.Mouse())
 	case a.onHome():
 		a.hoverHome(point)
+		a.hoverAt(point)
 	case a.mode == configMode:
 		a.hoverConfig(point)
 	default:

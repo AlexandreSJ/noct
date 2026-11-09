@@ -27,7 +27,7 @@ func cellStyleAt(a *App, at image.Point) (fg, bg interface{ RGBA() (r, g, b, a u
 	return c.Style.Fg, c.Style.Bg
 }
 
-func TestHoveringATabShowsItAsTheActiveOne(t *testing.T) {
+func TestHoveringATabColorsOnlyItsName(t *testing.T) {
 	a, name := hoverApp(t)
 	a.handleMouse(motion(name.X, name.Y))
 	if fg, _ := cellStyleAt(a, name); !colorsEqual(fg, a.palette.tab.Fg) {
@@ -35,8 +35,35 @@ func TestHoveringATabShowsItAsTheActiveOne(t *testing.T) {
 	}
 	rewind(a, time.Second)
 	a.advanceAnimations(a.now())
-	if fg, bg := cellStyleAt(a, name); !colorsEqual(fg, a.palette.activeTab.Fg) || !colorsEqual(bg, a.palette.activeTab.Bg) {
-		t.Errorf("hovered, the name is %v on %v, want the active tab's %v on %v", fg, bg, a.palette.activeTab.Fg, a.palette.activeTab.Bg)
+	fg, bg := cellStyleAt(a, name)
+	if !colorsEqual(fg, a.palette.activeTab.Bg) {
+		t.Errorf("hovered, the name is %v, want the active tab's color %v", fg, a.palette.activeTab.Bg)
+	}
+	if bg != nil && (a.palette.tab.Bg == nil || !colorsEqual(bg, a.palette.tab.Bg)) {
+		t.Errorf("hovered, the name is on %v, want the inactive tab's background %v", bg, a.palette.tab.Bg)
+	}
+}
+
+func TestHoveringATabWorksFromAnEmptyTab(t *testing.T) {
+	a, _ := animatedApp(t)
+	a.config.Animations.Hover = "fade"
+	a.session.tabs = []*tab{newEmptyTab(), newTab(5, &cellView{})}
+	a.session.activeTab = 0
+	drawnApp(a)
+	var name image.Point
+	for _, span := range a.tabBar() {
+		if span.tab == 1 && !span.mark {
+			name = image.Pt(span.start+1, 0)
+		}
+	}
+	a.handleMouse(motion(name.X, name.Y))
+	if animationOf(a, momentHover) == nil {
+		t.Fatal("hovering a tab from an empty tab played nothing")
+	}
+	rewind(a, time.Second)
+	a.advanceAnimations(a.now())
+	if fg, _ := cellStyleAt(a, name); !colorsEqual(fg, a.palette.activeTab.Bg) {
+		t.Errorf("hovered from an empty tab, the name is %v, want %v", fg, a.palette.activeTab.Bg)
 	}
 }
 
@@ -46,8 +73,8 @@ func TestLeavingATabFadesItBack(t *testing.T) {
 	rewind(a, time.Second)
 	a.advanceAnimations(a.now())
 	a.handleMouse(motion(a.size.X/2, a.size.Y/2))
-	if fg, _ := cellStyleAt(a, name); !colorsEqual(fg, a.palette.activeTab.Fg) {
-		t.Errorf("as the mouse leaves the name is %v, want it still in the active tab's %v", fg, a.palette.activeTab.Fg)
+	if fg, _ := cellStyleAt(a, name); !colorsEqual(fg, a.palette.activeTab.Bg) {
+		t.Errorf("as the mouse leaves the name is %v, want it still in the active tab's color %v", fg, a.palette.activeTab.Bg)
 	}
 	rewind(a, time.Second)
 	a.advanceAnimations(a.now())

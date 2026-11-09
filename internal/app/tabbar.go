@@ -162,8 +162,12 @@ func (a *App) drawTabBar(screen uv.Screen) {
 		if !span.mark {
 			active, style = a.palette.forTab(a.session.tabs[span.tab].colors)
 		}
-		if !span.mark && (span.tab == a.session.activeTab || a.hoverTarget == tabHoverName(span.tab)) {
+		switch {
+		case span.mark:
+		case span.tab == a.session.activeTab:
 			style = active
+		case a.hoverTarget == tabHoverName(span.tab):
+			style = hoveredTab(active, style)
 		}
 		x = drawText(screen, span.start, 0, a.size.X, span.text, style)
 	}

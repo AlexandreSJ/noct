@@ -23,11 +23,12 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Changed
 
-- Closing a pane, a tab or a popup no longer flashes away on the last frame. With `fade`, what
-  closes blends into what is below it, backgrounds included; with `01` and `jitter`, its cells go
-  away one by one. Fading in now fades cell backgrounds too, such as selected rows and popups.
-- Hovering a tab's name or a pane's title shows it as selected, in the active tab's or focused
-  pane's colors; with `fade`, `dissolve` or `wipe` the colors blend there and back.
+- Closing a pane, a tab or a popup no longer flashes away on the last frame. With `fade`, its
+  text fades out and what is below fades in; with `01` and `jitter`, its cells go away one by one.
+  Fades change only text colors, so a terminal's own background stays as it is.
+- Hovering a tab's name shows it in the active tab's color and a pane's title in the focused
+  pane's, on their own background, also from an empty tab; with `fade`, `dissolve` or `wipe` the
+  color blends there and back.
 - The logs view lists a log on every day it had output, not only the day it started and the
   day it was last written to, so a terminal used across several days shows on each of them;
   filtering by a date finds it there too.

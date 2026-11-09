@@ -115,11 +115,8 @@ type animation struct {
 	cells   uv.ScreenBuffer
 	// frameOnly animates only the border of area, so what a program shows is never touched.
 	frameOnly bool
-	// fromColor is the color a fade starts from (nil for the background), and fromBg the
-	// background it starts from (nil for the cell's own, unless the fade comes from the
-	// background).
+	// fromColor is the text color a fade starts from (nil for the background).
 	fromColor color.Color
-	fromBg    color.Color
 	seed      int64
 	duration  time.Duration
 }
@@ -323,21 +320,21 @@ func (a *App) hoverAt(point image.Point) bool {
 }
 
 func (a *App) playHover(on animation, from uv.Style) {
-	on.fromColor, on.fromBg = from.Fg, from.Bg
+	on.fromColor = from.Fg
 	if an := a.newAnimation(momentHover, on, a.now()); an != nil {
 		a.addAnimation(an)
 	}
 }
 
 // hoverStyles are how what a hover plays on looks without the mouse and under it: a tab's name
-// as the active tab's, a pane's title as the focused pane's.
+// in the active tab's color, a pane's title as the focused pane's.
 func (a *App) hoverStyles(on animation) (normal, hovered uv.Style) {
 	if on.target.kind == targetTabName {
-		hovered, normal = a.palette.forTab(on.target.tab.colors)
+		active, inactive := a.palette.forTab(on.target.tab.colors)
 		if a.currentTab() == on.target.tab {
-			normal = hovered
+			return active, active
 		}
-		return normal, hovered
+		return inactive, hoveredTab(active, inactive)
 	}
 	t := a.currentTab()
 	if t == nil {
@@ -348,6 +345,13 @@ func (a *App) hoverStyles(on animation) (normal, hovered uv.Style) {
 		return pal.focusedTitle, pal.focusedTitle
 	}
 	return pal.unfocusedTitle, pal.focusedTitle
+}
+
+// hoveredTab is an inactive tab's name under the mouse: on its own background, in the color the
+// active tab stands out with.
+func hoveredTab(active, inactive uv.Style) uv.Style {
+	inactive.Fg = orColor(active.Bg, active.Fg)
+	return inactive
 }
 
 func tabHoverName(index int) string { return fmt.Sprintf("tab %d", index) }
@@ -614,24 +618,19 @@ func (a *App) drawClosing(screen uv.Screen, an *animation, p float64, at time.Ti
 	}
 }
 
-// crossfade is old giving way to below as weight goes from 1 to 0: the backgrounds mix, and each
-// character fades into the mixed background before the other comes out of it.
+// crossfade is old giving way to below as weight goes from 1 to 0: old's text fades into its
+// background, then the cell below, on its own background, has its text come out of it.
+// Backgrounds never mix, so a terminal's own background shows through as it is.
 func crossfade(old uv.Cell, below *uv.Cell, weight float64, background color.Color) *uv.Cell {
-	under := uv.Cell{Content: " ", Width: 1}
+	cell, shown := uv.Cell{Content: " ", Width: 1}, 1-2*weight
 	if below != nil {
-		under = *below
+		cell = *below
 	}
-	bg := mix(orColor(under.Style.Bg, background), orColor(old.Style.Bg, background), weight)
-	cell, shown := under, 1-2*weight
 	if weight >= 0.5 {
 		cell, shown = old, 2*weight-1
 	}
 	if cell.Style.Fg != nil {
-		cell.Style.Fg = mix(bg, cell.Style.Fg, shown)
-	}
-	cell.Style.Bg = nil
-	if old.Style.Bg != nil || under.Style.Bg != nil {
-		cell.Style.Bg = bg
+		cell.Style.Fg = mix(orColor(cell.Style.Bg, background), cell.Style.Fg, shown)
 	}
 	return &cell
 }
@@ -695,8 +694,7 @@ func (a *App) backgroundColor() color.Color {
 // applyEffect changes the cells of area that only lets through (nil for all) as the effect looks
 // at progress p.
 func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle, p float64, at time.Time, only func(x, y int) bool) {
-	background := a.backgroundColor()
-	from := orColor(an.fromColor, background)
+	from := orColor(an.fromColor, a.backgroundColor())
 	frame := int64(at.Sub(an.start) / frameInterval) // characters change from frame to frame
 	for y := area.Min.Y; y < area.Max.Y; y++ {
 		for x := area.Min.X; x < area.Max.X; x++ {
@@ -711,12 +709,6 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 				f := colorWeight(an, area, x, y, p)
 				if cell.Style.Fg != nil {
 					cell.Style.Fg = mix(from, cell.Style.Fg, f)
-				}
-				switch {
-				case an.fromBg != nil:
-					cell.Style.Bg = mix(an.fromBg, orColor(cell.Style.Bg, background), f)
-				case an.fromColor == nil && cell.Style.Bg != nil:
-					cell.Style.Bg = mix(from, cell.Style.Bg, f)
 				}
 			case effectJitter:
 				if len(runes) == 1 {

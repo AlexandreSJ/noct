@@ -25,7 +25,7 @@ A atividade depende do indicador de "atividade não vista", previsto em [tui.md]
 |---|---|
 | `none` | Sem animação |
 | `01` | Células viram `0`/`1` sorteados e se revelam numa varredura com jitter, como a intro |
-| `fade` | A cor vai da antiga à nova por mistura (o `mix` que já existe): a do texto e, quando surge do fundo, a do fundo da célula. Ao fechar, cada célula se mistura com o que está embaixo dela: os fundos se misturam, e o caractere antigo some no fundo antes de o de baixo aparecer |
+| `fade` | A cor do texto vai da antiga à nova por mistura (o `mix` que já existe); o fundo nunca se mistura, para que o fundo do próprio terminal (`background = terminal`) continue transparente. Ao fechar, o caractere antigo some no fundo dele antes de o de baixo aparecer no seu |
 | `jitter` | Caracteres especiais se misturam até virar o caractere certo, como o *decrypt* de filmes |
 | `dissolve` | Cada célula passa da cor de partida à sua de uma vez, numa ordem aleatória |
 | `wipe` | Uma frente atravessa a área da esquerda para a direita, com a borda misturando as cores |
@@ -59,7 +59,7 @@ O `animate intro` continua como está, à parte.
 
 - **O programa nunca sabe da animação.** Ela só muda o que é desenhado. O PTY é redimensionado uma vez (no fim, ou no começo), nunca a cada quadro, para não mandar um SIGWINCH por quadro e fazer o shell e o vim redesenharem no meio.
 - **Abrir, fechar e popup** podem animar o conteúdo (o texto do painel novo "decifrando"). **Foco, mover, hover e atividade** só animam a moldura (bordas, títulos, a barra), porque acontecem toda hora e não podem mexer no que se está lendo.
-- **Hover** mostra o que está sob o mouse como selecionado: o nome de uma tab nas cores da tab ativa, o título de um painel nas do painel com foco. O efeito toca uma vez por passagem, partindo das cores de antes; o mouse parado não repete. Com `fade`, `dissolve` ou `wipe`, sair também volta às cores de antes pelo efeito. Nunca no conteúdo dos programas.
+- **Hover** mostra o que está sob o mouse como selecionado: o nome de uma tab na cor de destaque da tab ativa, sobre o próprio fundo, e o título de um painel na cor do painel com foco. Só o texto muda de cor. Vale também com a tab atual vazia, na home. O efeito toca uma vez por passagem, partindo da cor de antes; o mouse parado não repete. Com `fade`, `dissolve` ou `wipe`, sair também volta às cores de antes pelo efeito. Nunca no conteúdo dos programas.
 - **Cada animação segue o alvo:** o painel, o título dele, o nome da tab ou o popup são encontrados de novo a cada quadro, então uma tab que muda de nome ou um painel que se move levam a animação junto. Popups animam só dentro do próprio retângulo.
 - **Foco** anima só o painel que ganha o foco. Trocar o foco de novo no meio não interrompe: o painel deixado para trás termina voltando à cor dele, e trocar rápido deixa um rastro.
 - **Teclas não esperam:** qualquer tecla leva as outras animações ao estado final e é tratada normalmente, sem ser engolida (diferente da intro, que só pula).
