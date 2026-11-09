@@ -63,6 +63,7 @@ var commandShortcuts = []shortcut{
 	{"w", "stacked or split", true},
 	{"f", "fullscreen", true},
 	{"u", "floating panel", false},
+	{"D", "duplicate the terminal", true},
 	{"r", "rename tab", true},
 	{"e", "rename panel", true},
 	{"P", "colors of the panel and tab", true},
@@ -95,7 +96,7 @@ var arrowHeadings = map[string]layout.Heading{
 }
 
 // actionKeys are the noct mode commands that act, as opposed to moving around.
-var actionKeys = []string{"t", "T", "p", "s", "i", "v", "g", "space", "'", "y", "o", "?", "a", "n", "w", "f", "r", "e", "P", "R", "u", "x", ",", "c", "d", "q"}
+var actionKeys = []string{"t", "T", "p", "s", "i", "v", "g", "space", "'", "y", "o", "?", "a", "n", "w", "f", "r", "e", "P", "R", "u", "D", "x", ",", "c", "d", "q"}
 
 var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
 
@@ -321,6 +322,9 @@ func (a *App) runTabAction(name string) {
 		a.openColors()
 	case "R":
 		a.openTemplateSave()
+	case "D":
+		a.duplicateFocused()
+		a.mode = normalMode
 	case "a":
 		a.mode = moveMode
 	case "n":

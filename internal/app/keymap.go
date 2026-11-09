@@ -43,6 +43,7 @@ var keyContexts = []keyContext{
 		{"flows", "inspect flows", []string{"i"}},
 		{"logs", "logs and calendar", []string{"v"}},
 		{"floating", "floating panel", []string{"u"}},
+		{"duplicate", "duplicate the terminal", []string{"D", "shift+d"}},
 		{"search", "search", []string{"space", "'"}},
 		{"mcp", "MCP", []string{"y"}},
 		{"sessions", "sessions", []string{"o"}},

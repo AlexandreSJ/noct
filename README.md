@@ -88,6 +88,7 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `w` | Stack the panes of the focused group, as in zellij: the focused one takes the height, the others show as a title row each; again to split them |
 | `f` | Fullscreen: show only the focused pane, or the layout again |
 | `u` | New floating panel with a terminal, over the others; drag its border with the left button to move it, with the right one to resize it |
+| `D` | Duplicate the focused terminal: a new one beside it, in the same folder, offering to run the same program |
 | `r` | Rename the tab |
 | `e` | Rename the pane; an empty name gives back the program's |
 | `g` | Scroll the terminal's history with vim's keys and the arrows; any other key goes back to live |

@@ -88,6 +88,7 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `w` | Empilhar os painéis do grupo com foco, como no zellij: o painel com foco ocupa a altura e os outros viram uma linha de título cada; de novo para dividir |
 | `f` | Fullscreen: mostrar só o painel com foco, ou o layout de novo |
 | `u` | Novo painel flutuante com terminal, sobre os outros; arraste a borda com o botão esquerdo para mover e com o direito para redimensionar |
+| `D` | Duplica o terminal com foco: um novo ao lado, na mesma pasta, oferecendo rodar o mesmo programa |
 | `r` | Renomear a tab |
 | `e` | Renomear o painel; um nome vazio volta ao do programa |
 | `g` | Rolar o histórico do terminal com as teclas do vim e as setas; qualquer outra tecla volta ao vivo |

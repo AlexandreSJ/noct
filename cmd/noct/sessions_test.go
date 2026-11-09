@@ -118,3 +118,18 @@ func TestTerminalOffersToRunAgainAfterQuit(t *testing.T) {
 		return strings.Contains(screen, "started") && !strings.Contains(screen, "run again?")
 	})
 }
+
+func TestDuplicateOffersWhatTheTerminalRuns(t *testing.T) {
+	noct, _ := startNoct(t)
+	waitForScreen(t, noct, "the home screen", showsHome)
+	openTerminal(t, noct)
+	typeText(noct, `sh -c 'echo started; sleep 300; :'`)
+	enter(noct)
+	waitForScreen(t, noct, "the program running", func(screen string) bool { return strings.Count(screen, "started") >= 2 })
+
+	noct.SendKey(prefix)
+	typeText(noct, "D")
+	waitForScreen(t, noct, "the offer to run it in the new terminal", func(screen string) bool {
+		return strings.Contains(screen, "run again?") && strings.Contains(screen, "sleep 300")
+	})
+}

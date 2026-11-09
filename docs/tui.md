@@ -82,6 +82,7 @@ No modo noct:
 | `w` | stacked or split | Empilhar o painel com foco e os de baixo na coluna, ou dividir a pilha de novo | termina | 2 |
 | `f` | fullscreen | Mostrar só o painel com foco, ou o layout de novo | termina | 1 |
 | `u` | floating panel | Terminal num painel flutuante (antes `g`) | termina | 1 |
+| `D` | duplicate the terminal | Terminal novo ao lado, na pasta do terminal com foco; se o shell dele roda um programa, a caixa `run again?` oferece o mesmo comando (ADR-046). Só num terminal | termina | 5 |
 | `r` | rename tab | Renomear a tab: `Enter` salva, `Esc` cancela | prompt | 0 |
 | `e` | rename panel | Renomear o painel com foco; vazio volta ao nome do programa | prompt | 2 |
 | `P` | colors of the panel and tab | Cores próprias do painel com foco (bordas, títulos, fundo e texto) e da tab dele (nome e fundo, ativa e inativa), por cima do tema da sessão, com o palco ao lado e um aviso de contraste baixo; `Alt+Shift+P` com o atalho direto em `alt` (ADR-051) | popup | 5 |

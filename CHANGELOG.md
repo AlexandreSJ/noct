@@ -15,6 +15,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - Two animation effects for any moment in **Appearance → animations**: `dissolve` shows or hides
   each cell at once in a random order, and `wipe` sweeps across from left to right.
+- `prefix` + `D` duplicates the focused terminal: a new one opens beside it in the same folder and,
+  when its shell runs a program, offers to run the same command.
 - Script and flow templates have `quote`: `{{quote .pattern}}` puts a value in single quotes as one
   shell word, so spaces, quotes or `;` in a param or in another step's output never run as a
   command.
