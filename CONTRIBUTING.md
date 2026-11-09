@@ -80,6 +80,7 @@ noct stays small and focused by following these rules:
 
 - One logical change per commit, with a short imperative subject (`Add pane resize`, `Fix focus after closing a pane`).
 - Keep the build and the tests green on every commit.
+- Run `make hooks` once per clone: the pre-push hook then runs `make check` on each commit you push, in a clean checkout of it, and stops the push when it fails. GitHub runs the same check on every pushed branch (`.github/workflows/ci.yml`).
 
 ## 5. Releases
 
@@ -88,4 +89,4 @@ noct stays small and focused by following these rules:
 - A change that users notice adds its entry under `## Unreleased` in the same commit as the change. Changes they do not notice (refactors, tests, CI, design docs) get no entry.
 - Entries go under `### Added`, `### Changed`, `### Fixed`, `### Removed` or `### Security`, in that order, and only the groups that have entries appear. A fix of something no release has shipped yet is not a `Fixed` entry: edit the entry it fixes instead.
 - Each entry is one bullet, in English like the UI, in the present tense, saying what the user sees or can do now, and why when that is not obvious. Name keys and settings as noct shows them: `prefix` + `c` and `shortcut` + `c`, never `Ctrl+Space` or `Alt`, which the user may have changed, and settings by their config path (**Updates → check for new versions**). No file names, function names or ADR numbers. A change that breaks a habit, such as a key that moved, says what to do now.
-- To release, rename `## Unreleased` to the version and the date (`## v0.2.0 - 2026-11-03`), add an empty `## Unreleased` above it, commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`. The release workflow runs the checks, builds the archives (`make dist`) and publishes the release with that section as its text; `make dist VERSION=v0.2.0` and `make release-notes VERSION=v0.2.0` show locally what it will publish.
+- To release, rename `## Unreleased` to the version and the date (`## v0.2.0 - 2026-11-03`), add an empty `## Unreleased` above it, commit and push `main`, wait for its `ci` run to pass on GitHub, then tag that same commit and push the tag: `git tag v0.2.0 && git push origin v0.2.0`. A test can pass on your machine and fail on GitHub's smaller runner, so the green `ci` run, not a local `make check`, says the release will build. The pre-push hook stops a version tag that is not on the tip of `main` or has no CHANGELOG section. Never move a pushed tag to a commit that has not passed `ci`. The release workflow runs the checks, builds the archives (`make dist`) and publishes the release with that section as its text; `make dist VERSION=v0.2.0` and `make release-notes VERSION=v0.2.0` show locally what it will publish.

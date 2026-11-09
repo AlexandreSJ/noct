@@ -1,0 +1,33 @@
+# Runs the checks on every pushed branch and pull request, on the same runner the release uses,
+# so a test that only fails there shows up before a version is tagged. Tags are checked by
+# release.yml, which must only be pushed for a commit this workflow passed.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      # The same Go as release.yml, so a green run here means a green release check.
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: stable
+
+      # The end-to-end tests run /bin/sh in panes and expect bash's line editing and job
+      # control; Ubuntu's /bin/sh is dash.
+      - name: Use bash as /bin/sh
+        run: sudo ln -sf bash /bin/sh
+
+      - name: Check (gofmt, vet, race tests)
+        run: make check

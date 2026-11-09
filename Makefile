@@ -27,7 +27,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 .DEFAULT_GOAL := help
 
 .PHONY: help dev build run start release dist release-notes install test test-race cover \
-        fmt fmt-check vet check tidy clean demo
+        fmt fmt-check vet check hooks tidy clean demo
 
 help: ## Show this help
 	@printf "Usage: make \033[36m<target>\033[0m [ARGS=\"...\"]\n\n"
@@ -108,6 +108,9 @@ demo: ## Record the README GIFs again (docs/demo/*.tape; needs vhs, ttyd and ffm
 	docs/demo/record.sh
 
 ## --- Maintenance -------------------------------------------------------------
+
+hooks: ## Run make check before every git push (.githooks/pre-push), once per clone
+	git config core.hooksPath .githooks
 
 tidy: ## Tidy go.mod and go.sum
 	$(GO) mod tidy

@@ -135,6 +135,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `docs/demo/record.sh`, `docs/demo/*.tape` | The README's GIFs (`make demo`): VHS tapes run noct in a home of its own, with the demo scripts and flows of `docs/demo/scripts` and `docs/demo/flows` |
 | `examples/examples.go`, `examples/demo/` | The demo the setup installs: scripts `demo/*` with tutorial notes and the flows `demo-deploy` (a deploy with health check and rollback) and `demo-loops` (each step kind alone), embedded and copied without overwriting |
 | `docs/assets/` | The README's logo (`logo.svg`, the home's art as rectangles) and GIFs |
+| `.github/workflows/ci.yml`, `.githooks/pre-push`, `Makefile` (`hooks`) | Checks before a release: `make check` on GitHub for every pushed branch and pull request, and locally on each pushed commit, which also stops a version tag off the tip of `main` or without its CHANGELOG section |
 | `.github/workflows/release.yml`, `Makefile` (`dist`, `release-notes`), `CHANGELOG.md` | Releases: a pushed `vX.Y.Z` tag runs the checks, builds the archives and checksums, and publishes the GitHub release with the tag's CHANGELOG section, which noct's updates read (ADR-047) |
 | `internal/script/script.go` | A script: load, validate (params and outputs), render its command line, create and delete; `WalkFields`, the template field walker flows also use |
 | `internal/script/library.go` | The library: personal scripts, folders of scripts (in the scripts folder, linked, project), IDs, lookups |
