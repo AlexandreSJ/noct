@@ -800,6 +800,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Logs anteriores a esta versão não têm sessão para execuções; os de terminais ganham pela sessão onde estão. Uma TUI cortada no meio de uma parte se desenha a partir dali, sem o estado de antes do corte.
 
+**Dias com saída (2026-11-09).** Um log aparecia só no dia em que começou e no da última escrita, então um terminal usado em dias seguidos sumia dos dias do meio. O `logstore.File` anota num arquivo ao lado (`.days`) cada dia, depois do primeiro, em que o log escreve, uma linha por dia; ele conta no tamanho e sai junto com o log. Os dias do log são o do começo, os anotados e o da última escrita; um dia sem saída fica de fora, em vez de marcar todos os dias entre o começo e o fim. Logs anteriores a esta versão não têm o arquivo e continuam nos dois dias.
+
 ## ADR-060 — `run` com params pede aprovação, e o pedido some quando a IA sai
 
 **Contexto.** A revisão de novembro de 2026 (o que ficou dela está em [roadmap.md](roadmap.md#dívida-técnica)) achou dois jeitos de uma IA rodar um comando sem a aprovação do usuário. O `run` é `allow` por rodar um script do próprio usuário, mas os `params` que a IA passa entram no template do comando, renderizado para `sh -c`: num script com `{{.pattern}}`, o valor `x"; curl … | sh; echo "` vira comando, o que contorna o `ask` do `run_command`. E um pedido de aprovação continuava na fila depois que o cliente de IA saía: o `noct mcp` esperava as chamadas pendentes antes de terminar, e aprovar depois rodava uma ação que ninguém esperava mais.

@@ -28,8 +28,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/update/cache.go` | `updates.json`: the last check (releases, when, ETag, how long GitHub asked to wait), read at start and written after each check |
 | `internal/update/install.go` | Installing a release: download, checksum, replace the binary atomically; whether its folder is writable; the command that installs it by hand |
 | `internal/update/update_test.go` | Tests of versions, listing releases and installing them against a local server |
-| `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs; appending to one and reading its end |
-| `internal/logstore/entries.go` | Logs by day, each with when it started and was last written and a flow run's result beside it: listing, line counts, removing, pruning by last write and total size, terminal logs numbered within the day, readable sizes |
+| `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs; appending to one and reading its end; noting each new day a log writes on |
+| `internal/logstore/entries.go` | Logs by day, each with when it started and was last written, the days it had output on and a flow run's result beside it: listing, line counts, removing, pruning by last write and total size, terminal logs numbered within the day, readable sizes |
 | `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, stop (SIGTERM then SIGKILL to the group), exit code, foreground program and its command line, current directory |
 | `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing and its history (the main screen under a full-screen program, for the logs preview) |
 | `internal/pane/mouse.go` | Mouse modes a program asked for, and forwarding mouse events to it |

@@ -4,7 +4,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // logFilter is what the logs panel's filter line asks for: every word must match a log. A word
@@ -98,12 +97,13 @@ func (c logComparison) holds(value int64) bool {
 	return value == c.value
 }
 
-// logRowText is what the filter's words are looked for in: the name, the dates and times it
-// started and was last written to in a few ways of writing them, and how the run ended.
+// logRowText is what the filter's words are looked for in: the name, the times it started and
+// was last written to, the days it had output on in a few ways of writing them, and how the run
+// ended.
 func logRowText(row logRow) string {
-	parts := []string{row.name(), row.entry.Name}
-	for _, at := range []time.Time{row.entry.At, lastWrite(row.entry)} {
-		parts = append(parts, at.Format("2006-01-02 15:04:05"), at.Format("Jan 2 Monday"))
+	parts := []string{row.name(), row.entry.Name, row.entry.At.Format("15:04:05"), lastWrite(row.entry).Format("15:04:05")}
+	for _, day := range row.entry.Days() {
+		parts = append(parts, day.Format("2006-01-02"), day.Format("Jan 2 Monday"))
 	}
 	if row.run != nil {
 		switch {

@@ -262,6 +262,5 @@ Como a imagem vira texto na grade, ela rola, é recortada pelas bordas do painel
 - Re-executar o último fluxo com os mesmos parâmetros em uma tecla (scripts já têm: `r`).
 - Clicar/abrir URLs e caminhos de arquivo na saída.
 - Timestamps opcionais por linha nos logs.
-- Nos logs, os dias entre o início e a última escrita de um log (hoje ele aparece só nesses dois), gravando os dias em que ele recebeu saída (ADR-059).
 - Buscar texto no log selecionado da view de logs e ir à parte de 5 000 linhas que o tem.
 - Filtrar a saída de um painel por regex sem parar o processo.

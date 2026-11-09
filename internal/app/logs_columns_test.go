@@ -11,6 +11,7 @@ import (
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 
 	"github.com/AlexandreSJ/noct/internal/config"
+	"github.com/AlexandreSJ/noct/internal/logstore"
 	"github.com/AlexandreSJ/noct/internal/script"
 	saved "github.com/AlexandreSJ/noct/internal/session"
 )
@@ -131,5 +132,30 @@ func TestLogsKeysPopupFollowsTheBinds(t *testing.T) {
 	text := screenText(a)
 	if !strings.Contains(text, "ctrl+f         filter") || strings.Contains(text, "│  f ") {
 		t.Errorf("the popup does not show the filter's key as bound:\n%s", text)
+	}
+}
+
+// A log shows on each day it had output between the first and the last, and not on the days
+// it was quiet.
+func TestLogsShowOnEveryDayTheyHadOutput(t *testing.T) {
+	a := testApp(t)
+	today := dateOf(time.Now()).Add(10 * time.Hour)
+	open := writeTestLog(t, today.AddDate(0, 0, -3), "pane1", 10)
+	if err := os.WriteFile(logstore.DaysPath(open.Path), []byte(today.AddDate(0, 0, -2).Format(logstore.DayLayout)+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(open.Path, today, today); err != nil {
+		t.Fatal(err)
+	}
+	p := newLogsPanel(a, func() {})
+	for back, want := range map[int]int{0: 1, 1: 0, 2: 1, 3: 1} {
+		p.day = dateOf(today.AddDate(0, 0, -back))
+		if rows := p.rows(); len(rows) != want {
+			t.Errorf("%d days ago lists %d logs, want %d", back, len(rows), want)
+		}
+	}
+	p.filter = today.AddDate(0, 0, -2).Format(logstore.DayLayout)
+	if rows := p.rows(); len(rows) != 1 {
+		t.Errorf("filtering by a day it had output on lists %d logs, want it", len(rows))
 	}
 }
