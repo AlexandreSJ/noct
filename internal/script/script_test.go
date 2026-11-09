@@ -410,3 +410,23 @@ func TestWalkFieldsVisitsEveryFieldInOrder(t *testing.T) {
 		t.Errorf("visited %s", got)
 	}
 }
+
+func TestWriteFilesReplacesTheScriptAndKeepsNotesWhenNoneGiven(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "deploy")
+	if err := WriteFiles(dir, []byte("run: one\n"), "First notes."); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteFiles(dir, []byte("run: two\n"), ""); err != nil {
+		t.Fatal(err)
+	}
+	if content, _ := os.ReadFile(filepath.Join(dir, FileName)); string(content) != "run: two\n" {
+		t.Errorf("script.yaml: %q", content)
+	}
+	if notes, _ := os.ReadFile(filepath.Join(dir, NotesName)); string(notes) != "First notes." {
+		t.Errorf("notes.md: %q", notes)
+	}
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != 2 {
+		t.Errorf("files left in the folder: %v", entries)
+	}
+}

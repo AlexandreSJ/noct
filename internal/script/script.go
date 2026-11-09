@@ -16,6 +16,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
 	"github.com/AlexandreSJ/noct/internal/naming"
 )
 
@@ -316,7 +317,7 @@ func Backup(s Script) error {
 	if err != nil {
 		return fmt.Errorf("backing up script %s: %w", s.Name, err)
 	}
-	if err := os.WriteFile(s.BackupFile(), content, 0o644); err != nil {
+	if err := atomicfile.Write(s.BackupFile(), content, 0o644); err != nil {
 		return fmt.Errorf("backing up script %s: %w", s.Name, err)
 	}
 	return nil

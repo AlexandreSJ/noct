@@ -105,6 +105,8 @@ Como no tmux, **o daemon desenha para o terminal do cliente** (ADR-017):
 
 Itens de projeto e pessoais aparecem juntos nas listas, com o escopo indicado. Em conflito de nome, a do projeto vence.
 
+Scripts, notas e fluxos são gravados inteiros, por um arquivo temporário renomeado (`atomicfile.Write`), então uma queda no meio não deixa meio arquivo. Não levam trava, para não deixar `.lock` em pastas que podem estar no git; `params.json`, `runs.json` e `triggers.json`, que dois noct podem mudar juntos, levam (`atomicfile.Update`).
+
 Segredos nunca são gravados em scripts, fluxos, `params.json` nem em `runs.json`: parâmetros `secret` são mascarados na TUI e podem vir de variável de ambiente (`from: env:`). Detalhes e limites em [scripts.md](scripts.md).
 
 ## Tratamento de erros

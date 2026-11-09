@@ -112,7 +112,6 @@ O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decis�
 **Duplicação e complexidade**
 
 - `"◂ v ▸"` ainda é montado à mão em `config_numbers.go`, `stage_preview.go`, `form.go` e `template_save.go`, ao lado de `choiceValue`.
-- Escritas sem `atomicfile`: criar um script e salvar `notes.md` (`script/edit.go`) e `mcp/library_tools.go` `writeScriptFiles`, que repete `script.writeScriptFiles`. Arquivos da biblioteca (scripts e fluxos promovidos) são gravados sem trava, para não deixar `.lock` em pastas que podem estar no git.
 - `cmd/noct/main_test.go`: uma checagem negativa depois de um `time.Sleep(500ms)` fixo.
 
 ## Riscos

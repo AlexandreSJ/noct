@@ -11,6 +11,11 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Fixed
+
+- Saving a script, its notes or a draft from an AI no longer leaves a half-written file when noct
+  stops in the middle of the write.
+
 ## v0.2.4 - 2026-11-08
 
 ### Added
