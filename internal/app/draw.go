@@ -102,8 +102,11 @@ func (a *App) drawPlacedPane(screen uv.Screen, t *tab, placed placedPane) {
 	}
 	fillRect(screen, frame, uv.Style{Bg: pal.background}) // floating panes cover what is below
 	lineStyle, titleStyle := pal.unfocusedFrame, pal.unfocusedTitle
-	if id == t.focused {
+	switch {
+	case id == t.focused:
 		lineStyle, titleStyle = pal.focusedFrame, pal.focusedTitle
+	case a.hoverTarget == paneHoverName(id):
+		titleStyle = pal.focusedTitle
 	}
 	title := a.viewTitle(t, id)
 	if !t.fullscreen && t.tree.Folded(id) {

@@ -241,7 +241,7 @@ Nada é instalado nem reiniciado sem uma tecla do usuário. Sem reiniciar, a ver
 - Suporte a truecolor com fallback para 256 cores.
 - Em toda lista (config e binds, busca, scripts, logs, fluxos do inspect, sessões, MCP, escolhas), `PgUp`/`PgDn` andam uma página, deixando a última linha da página anterior à vista, e `Home`/`End` vão ao primeiro e ao último item (`listJump`); no popup de um passo, rolam o texto. Nos logs, com o calendário em foco, `PgUp`/`PgDn` mudam o mês.
 - Listas que não cabem (config e binds, busca, scripts, logs) rolam deixando linhas visíveis em volta da seleção, acima e abaixo: 30% da altura da lista, pelo menos 4 e no máximo metade, para o próximo item aparecer antes de ser alcançado (`scrollMargin`).
-- Animações por momento (abrir e fechar painel e tab, foco, mover, tela inteira, popup, hover, atividade), cada uma com um efeito (`01`, `fade`, `jitter`) e um tempo, escolhidos em `Appearance → animations`; nunca redimensionam os programas e uma tecla as termina, menos as do foco ([animacoes.md](animacoes.md), ADR-053).
+- Animações por momento (abrir e fechar painel e tab, foco, mover, tela inteira, popup, hover, atividade), cada uma com um efeito (`01`, `fade`, `jitter`, `dissolve`, `wipe`) e um tempo, escolhidos em `Appearance → animations`; nunca redimensionam os programas e uma tecla as termina, menos as do foco ([animacoes.md](animacoes.md), ADR-053).
 
 ## Imagens
 

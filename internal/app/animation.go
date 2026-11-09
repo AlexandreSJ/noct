@@ -56,6 +56,11 @@ const (
 // effects name each effect as the config file does.
 var effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe"}
 
+// blendsColors tells an effect that moves a cell from one color to another.
+func (e effect) blendsColors() bool {
+	return e == effectFade || e == effectDissolve || e == effectWipe
+}
+
 func effectNamed(name string) effect {
 	for i, e := range effects {
 		if e == name {
@@ -110,8 +115,11 @@ type animation struct {
 	cells   uv.ScreenBuffer
 	// frameOnly animates only the border of area, so what a program shows is never touched.
 	frameOnly bool
-	// fromColor is the color a fade starts from (nil for the background).
+	// fromColor is the color a fade starts from (nil for the background), and fromBg the
+	// background it starts from (nil for the cell's own, unless the fade comes from the
+	// background).
 	fromColor color.Color
+	fromBg    color.Color
 	seed      int64
 	duration  time.Duration
 }
@@ -293,22 +301,58 @@ const (
 	hoverPane  layout.PaneID = -4
 )
 
-// hoverAt hovers what is under the mouse, a tab's name or a pane's title, once per visit,
-// telling whether it started to.
+// hoverAt hovers what is under the mouse, a tab's name or a pane's title, once per visit: it
+// shows as selected, the hover's effect playing from its own colors, and what the mouse left
+// blends back. It tells whether what is hovered changed.
 func (a *App) hoverAt(point image.Point) bool {
 	name, on := a.hoverTargetAt(point)
 	if name == a.hoverTarget {
 		return false
 	}
-	a.hoverTarget = name
-	on.seed = int64(point.X)
-	an := a.newAnimation(momentHover, on, a.now())
-	if name == "" || an == nil {
-		return false
+	if a.hoverTarget != "" && a.effectFor(momentHover).blendsColors() {
+		_, hovered := a.hoverStyles(a.hoverOn)
+		a.playHover(a.hoverOn, hovered)
 	}
-	a.addAnimation(an)
+	a.hoverTarget, a.hoverOn = name, on
+	if name != "" {
+		on.seed = int64(point.X)
+		normal, _ := a.hoverStyles(on)
+		a.playHover(on, normal)
+	}
 	return true
 }
+
+func (a *App) playHover(on animation, from uv.Style) {
+	on.fromColor, on.fromBg = from.Fg, from.Bg
+	if an := a.newAnimation(momentHover, on, a.now()); an != nil {
+		a.addAnimation(an)
+	}
+}
+
+// hoverStyles are how what a hover plays on looks without the mouse and under it: a tab's name
+// as the active tab's, a pane's title as the focused pane's.
+func (a *App) hoverStyles(on animation) (normal, hovered uv.Style) {
+	if on.target.kind == targetTabName {
+		hovered, normal = a.palette.forTab(on.target.tab.colors)
+		if a.currentTab() == on.target.tab {
+			normal = hovered
+		}
+		return normal, hovered
+	}
+	t := a.currentTab()
+	if t == nil {
+		return a.palette.unfocusedTitle, a.palette.focusedTitle
+	}
+	pal := a.palette.forPane(t.paneColors[on.pane])
+	if on.pane == t.focused {
+		return pal.focusedTitle, pal.focusedTitle
+	}
+	return pal.unfocusedTitle, pal.focusedTitle
+}
+
+func tabHoverName(index int) string { return fmt.Sprintf("tab %d", index) }
+
+func paneHoverName(id layout.PaneID) string { return fmt.Sprintf("pane %d", id) }
 
 // hoverTargetAt names what is under the mouse, a tab's name or a pane's title, with the
 // animation that plays on it; "" when it is neither.
@@ -316,7 +360,7 @@ func (a *App) hoverTargetAt(point image.Point) (string, animation) {
 	if point.Y == 0 {
 		for _, span := range a.tabBar() {
 			if !span.mark && point.X >= span.start && point.X < span.end {
-				return fmt.Sprintf("tab %d", span.tab), animation{pane: hoverPane, target: target{kind: targetTabName, tab: a.session.tabs[span.tab]}}
+				return tabHoverName(span.tab), animation{pane: hoverPane, target: target{kind: targetTabName, tab: a.session.tabs[span.tab]}}
 			}
 		}
 		return "", animation{}
@@ -327,7 +371,7 @@ func (a *App) hoverTargetAt(point image.Point) (string, animation) {
 	}
 	for _, p := range t.visible(a.workspaceArea()) {
 		if point.Y == p.frame.Min.Y && point.X >= p.frame.Min.X && point.X < p.frame.Max.X {
-			return fmt.Sprintf("pane %d", p.id), animation{pane: p.id, target: target{kind: targetPaneTitle}}
+			return paneHoverName(p.id), animation{pane: p.id, target: target{kind: targetPaneTitle}}
 		}
 	}
 	return "", animation{}
@@ -389,11 +433,11 @@ func isPopupMode(m mode) bool {
 	return m != normalMode && m != scrollMode
 }
 
-// addAnimation plays an, in place of what the same moment played on the same pane.
+// addAnimation plays an, in place of what the same moment played on the same pane and target.
 func (a *App) addAnimation(an *animation) {
 	kept := a.animations[:0]
 	for _, old := range a.animations {
-		if old.moment != an.moment || old.pane != an.pane {
+		if old.moment != an.moment || old.pane != an.pane || old.target != an.target {
 			kept = append(kept, old)
 		}
 	}
@@ -651,7 +695,8 @@ func (a *App) backgroundColor() color.Color {
 // applyEffect changes the cells of area that only lets through (nil for all) as the effect looks
 // at progress p.
 func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle, p float64, at time.Time, only func(x, y int) bool) {
-	from := orColor(an.fromColor, a.backgroundColor())
+	background := a.backgroundColor()
+	from := orColor(an.fromColor, background)
 	frame := int64(at.Sub(an.start) / frameInterval) // characters change from frame to frame
 	for y := area.Min.Y; y < area.Max.Y; y++ {
 		for x := area.Min.X; x < area.Max.X; x++ {
@@ -667,7 +712,10 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 				if cell.Style.Fg != nil {
 					cell.Style.Fg = mix(from, cell.Style.Fg, f)
 				}
-				if an.fromColor == nil && cell.Style.Bg != nil {
+				switch {
+				case an.fromBg != nil:
+					cell.Style.Bg = mix(an.fromBg, orColor(cell.Style.Bg, background), f)
+				case an.fromColor == nil && cell.Style.Bg != nil:
 					cell.Style.Bg = mix(from, cell.Style.Bg, f)
 				}
 			case effectJitter:

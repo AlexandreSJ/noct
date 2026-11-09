@@ -723,6 +723,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **`dissolve` e `wipe` (2026-11-09, ADR-062).** Dois efeitos novos no registro, para todos os momentos: `dissolve` passa cada célula da cor de partida à dela de uma vez, numa ordem sorteada por célula; `wipe` passa da esquerda para a direita, com uma borda de 20% da área misturando as cores. Ao fechar, cada célula sai quando o efeito passa por ela.
 
+**Hover por cor (2026-11-09, ADR-062).** O hover partia do fundo para as cores que o nome ou o título já tinham, sem mudar nada. Agora o que está sob o mouse fica como selecionado (o nome de tab nas cores da tab ativa, o título de painel nas do painel com foco), e o efeito parte das cores de antes, a de fundo também; com um efeito de cor (`fade`, `dissolve`, `wipe`), sair volta pelo mesmo caminho. As listas ainda não têm hover. Uma animação nova só substitui a do mesmo momento, painel e alvo, para que a volta de uma tab não seja cortada pela ida da vizinha.
+
 ## ADR-054 — Lip Gloss no seletor de cores
 
 **Contexto.** O seletor de cores (editor de temas e `prefix` + `P`) era uma grade de 16×16 com as 256 cores em ordem de índice: as 16 do sistema, o cubo 6×6×6 e os cinzas se misturavam, e era difícil achar uma cor. O mantenedor pediu o seletor mais organizado, ainda com todas as cores, usando o Lip Gloss.
