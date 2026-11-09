@@ -321,7 +321,7 @@ func TestTerminalOutputIsLoggedWhenTheConfigSaysSo(t *testing.T) {
 func TestTerminalOutputIsNotLoggedByDefault(t *testing.T) {
 	s := newSession(t)
 	echoInATerminal(t, s)
-	time.Sleep(500 * time.Millisecond) // a log, were there one, gets the output within this
+	// a pane writes its log before its screen, so a log, were there one, already has the output
 	if logsContain(s, "logged-42") {
 		t.Error("a terminal's output was logged with terminals off")
 	}
