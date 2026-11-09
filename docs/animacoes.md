@@ -70,6 +70,15 @@ O config das animações tem o palco ([temas.md](temas.md#o-palco)) embaixo da l
 - Com o mesmo tempo e a mesma curva de quando acontece de verdade, só menor; mudar o tempo toca de novo.
 - Com `animations: off`, o palco mostra o estado final parado, com a nota `animations off`.
 
+## Próximas mudanças
+
+Pedidas pelo mantenedor (ADR-062), ainda não feitas. A que muda uma regra do ADR-053 o atualiza quando for feita.
+
+- **Fade com o fundo.** Hoje só a cor do texto se mistura, a partir do fundo do tema (`applyEffect`); o fundo das células, como a linha selecionada e as barras, aparece de uma vez. O fade passa a misturar as duas.
+- **Hover por cor.** Em vez de partir do fundo, a cor vai da normal à de destaque e volta ao sair. Vale também nas linhas das listas (scripts, inspect, logs, sessões, config, escolhas), que hoje não animam.
+- **Fechar sem corte.** Hoje o que fechou fica inteiro até o último quadro e some de uma vez (`drawClosing`); passa a sumir célula a célula, no ritmo do efeito.
+- **Efeitos novos:** `dissolve`, células que aparecem ou somem em ordem aleatória, e `wipe`, uma frente que atravessa a área de um lado ao outro. Entram no registro e valem em todos os momentos.
+
 ## Catálogo para depois
 
 Efeitos de outras bibliotecas que servem aos momentos do noct, para entrar no registro quando houver vontade. Do [tachyonfx](https://github.com/junkdog/tachyonfx) vem também a ideia de **padrões espaciais** (radial, diagonal, espiral, varredura), que dizem em que ordem as células animam: o mesmo efeito com padrões diferentes vira vários.

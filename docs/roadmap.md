@@ -52,11 +52,13 @@ Encadear scripts num editor visual (ver [fluxos.md](fluxos.md)).
 
 **Implementada; falta a confirmação do mantenedor pelo critério abaixo, num teste real.** Feitos: o inspect (`prefixo` + `i`) com o fluxograma montado pelas teclas, arrastável e com zoom; `script`, `run`, `if/else`, `repeat` (`times`, `until` com `max`, `every`), `wait`, capturas e `expect`; `noct flow run`; a view de logs com o calendário (`prefixo` + `v`), com limites de idade e tamanho dos logs (ADR-028, ADR-029); inserção exata pelas setas do fluxograma (ADR-030); variáveis com painel de escopo, avisos, busca ao digitar, `outputs` nos scripts, saída nos resultados e teste de trechos com `t` (ADR-031); triggers `cron`, `watch` e `after` disparados pelo daemon, adicionados pelo inspect (`T`) e habilitados por máquina (`o`, `noct enable`); `on_fail: ask`; passos em painel próprio (`pane: new`, `background`); abrir uma execução do calendário no fluxograma (`i`) e filtrar os logs (`f`) (ADR-032); params com tipo e o formulário `p`, e os passos `prompt`, `set` e `unset` (ADR-034).
 
+**Próximo no inspect (ADR-062):** editar um passo existente num formulário, em vez do YAML; menus para `with`, `capture`, `expect`, `on_fail`, `timeout`, `pane`/`background`, o `id` e o `every`/`max` do `repeat`; definir os params do fluxo (nome, tipo, padrão, obrigatório); editar e remover triggers; renomear e duplicar fluxos; mover um passo para dentro e para fora de `if` e `repeat`; desfazer; e o visual do fluxograma.
+
 **Pronto quando:** um teste de ponta a ponta com várias etapas é montado sem editar YAML à mão, roda sozinho por cron, para no passo certo em caso de falha, e a execução de ontem é encontrada pelo calendário.
 
 ## Fase 3 — IA (MCP)
 
-**Implementada antes da confirmação da fase 2, a pedido do mantenedor (ADR-033).** `noct mcp` com todas as ferramentas de [mcp.md](mcp.md), exceto `install_program` (fase 4); política, popup do MCP (`prefixo` + `y`: aprovações, clientes conectados, comandos para adicionar o noct a cada IA), rascunhos com `P`/`noct promote` e auditoria. Falta a confirmação pelo critério abaixo.
+**Implementada antes da confirmação da fase 2, a pedido do mantenedor (ADR-033).** `noct mcp` com todas as ferramentas de [mcp.md](mcp.md); política, popup do MCP (`prefixo` + `y`: aprovações, clientes conectados, comandos para adicionar o noct a cada IA), rascunhos com `P`/`noct promote` e auditoria. Falta a confirmação pelo critério abaixo.
 
 Pacotes `mcp` e `policy` (ver [mcp.md](mcp.md)).
 
@@ -67,15 +69,15 @@ Pacotes `mcp` e `policy` (ver [mcp.md](mcp.md)).
 
 **Pronto quando:** o Claude, num painel, cria um fluxo como rascunho, o usuário promove, e o Claude o executa, lê o resultado estruturado e corrige um passo que falhou, sem nenhum comando arbitrário rodar sem aprovação.
 
-## Fase 4 — Instalação de pacotes
+## Fase 4 — Removida
 
-Pacote `catalog`, adaptadores de gerenciadores e view Catálogo (ver [catalogo.md](catalogo.md)).
-
-**Pronto quando:** numa máquina nova, abrir um fluxo com programas faltando oferece instalá-los pelo gerenciador preferido, e a instalação roda num painel. A IA também pode pedir instalação, sempre com confirmação.
+A instalação de pacotes saiu do plano (ADR-062): o noct não mostra, não recomenda e não instala programas de fora. Cada usuário instala as próprias ferramentas e as chama em painéis, por binds próprias (ADR-057). A numeração das fases fica como estava.
 
 ## Fase 5 — Polimento
 
 Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase. Já antecipados: terminal novo no diretório do painel com foco (ADR-048), temas editáveis e por sessão ([temas.md](temas.md), ADR-049, ADR-050), cores por painel e por tab (ADR-051), templates de tab ([templates.md](templates.md), ADR-052), animações ([animacoes.md](animacoes.md), ADR-053) e o instalador ([instalador.md](instalador.md), ADR-056 a ADR-058).
+
+**Animações (antecipado, ADR-062).** Fade que mistura também o fundo das células; hover da cor normal à de destaque, também nas linhas das listas; fechar sumindo aos poucos, sem o corte no último quadro; e os efeitos novos de dissolver (ordem aleatória) e varredura (de um lado ao outro). Ver [animacoes.md](animacoes.md#próximas-mudanças).
 
 **Releases e atualização (antecipado, a pedido do mantenedor; ADR-047).** Cada tag `vX.Y.Z` publica uma release no GitHub com os binários de Linux e macOS e o changelog do `CHANGELOG.md`; o noct mostra a versão na barra de tabs, avisa de uma nova, mostra o changelog (`prefixo` + `c`) e se atualiza quando o usuário pede, também por `noct update`. A primeira é a v0.1.0, o primeiro beta.
 
@@ -92,6 +94,7 @@ Sem compromisso nem ordem:
 - **Painéis sem foco esmaecidos**, estilo de borda no tema (fina, arredondada, grossa, nenhuma), ícone por tipo de painel no título.
 - **Diretório no título** do terminal sem título próprio (`zsh · ~/proj`).
 - **Duplicar painel:** terminal novo no mesmo diretório e com o mesmo comando, na caixa `run?`.
+- **Mais efeitos** do catálogo de [animacoes.md](animacoes.md#catálogo-para-depois): crescer do centro, deslizar, um brilho passando no hover.
 
 ## Dívida técnica
 

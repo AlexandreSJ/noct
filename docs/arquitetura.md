@@ -14,7 +14,7 @@ O noct segue o modelo de tmux/Zellij: um **daemon** é dono de todos os processo
  noct run   ◄──►│   Pane = PTY + processo + emulador VT        │
  noct mcp   ◄──►│          + scrollback + log em disco         │
  (stdio p/ IA)  │  Runner (scripts/fluxos)  · Triggers         │
-                │  Catálogo · Policy (aprovações)              │
+                │  Policy (aprovações)                         │
                 └──────────────────────────────────────────────┘
                         socket Unix: $XDG_RUNTIME_DIR/noct/noct.sock
 ```
@@ -45,7 +45,6 @@ Cada componente é um pacote Go em `internal/`, com interface pequena e testáve
 | `mcp` | Servidor MCP por stdio (protocolo próprio, sem SDK): ferramentas sobre scripts, fluxos, execuções e logs, e pedidos ao daemon para painéis, execuções e aprovações; política e auditoria (ADR-033) | `script`, `flow`, `logstore`, `config` | 3 |
 | `update` | Releases do noct no GitHub: listar com o changelog, comparar versões, baixar, conferir o checksum e trocar o binário (ADR-047) | — | 5 |
 | `session` | Gravar e ler `sessions.json`: as tabs de cada sessão como formas de layout e os painéis que podem reabrir (ADR-037) | `layout`, `logstore` | 5 |
-| `catalog` | Manifestos de programas, detecção e adaptadores de gerenciadores de pacote | — | 4 |
 
 Desde a fase 0b, o `app` roda **dentro do daemon** (ADR-017), e o processo `noct` que o usuário abre é o `client`, um cliente fino.
 
@@ -91,10 +90,9 @@ Como no tmux, **o daemon desenha para o terminal do cliente** (ADR-017):
 
 | Caminho | Conteúdo |
 |---|---|
-| `~/.config/noct/config.toml` | Configuração do usuário (tema, atalhos, gerenciadores preferidos, política MCP) |
+| `~/.config/noct/config.toml` | Configuração do usuário (tema, atalhos, política MCP) |
 | `~/.local/share/noct/scripts/`, `.../flows/` | Scripts e fluxos pessoais |
 | `<projeto>/.noct/scripts/`, `.../flows/` | Scripts e fluxos do projeto, versionados no git e compartilhados com o time |
-| `~/.local/share/noct/catalog/` | Manifestos de ferramentas adicionados pelo usuário |
 | `~/.local/state/noct/logs/<data>/<hora>-<nome>.log` | Saída crua de cada execução (scripts, fluxos, comandos da IA) e, com `[logs] terminals` ligado, de cada terminal (`pane<N>`, numerado dentro do dia: o primeiro terminal de cada dia é `pane1`), até 10 MiB + um arquivo `.1` com o anterior |
 | `~/.local/state/noct/daemon.log` | Mensagens do daemon |
 | `~/.local/state/noct/sessions.json` | As sessões: nome, criação, último uso e, por tab, o layout e os painéis que reabrem (shells com o diretório, o comando que rodavam e o log, painéis do noct) (ADR-037, ADR-046) |
@@ -114,12 +112,12 @@ Segredos nunca são gravados em scripts, fluxos, `params.json` nem em `runs.json
 - **Daemon cai:** processos filhos morrem com ele (como no tmux). Logs em disco e as sessões gravadas até 30 s antes sobrevivem; o cliente restaura o terminal sozinho e avisa; `noct` inicia um daemon novo.
 - **Cliente cai** (janela fechada): nada acontece com os processos; `noct` reconecta.
 - **Passo de fluxo falha:** o fluxo para (padrão) ou segue, conforme `on_fail` do passo; o estado fica no histórico com o log.
-- **Programa ausente:** antes de rodar, o runner confere se os programas usados existem e avisa; a partir da fase 4, oferece instalar.
+- **Programa ausente:** antes de rodar, o runner confere se os programas usados existem e avisa; instalar fica com o usuário (ADR-062).
 - **Versão de protocolo:** o cliente manda a versão no `Hello`; em divergência, o daemon recusa e manda rodar `noct quit` e abrir o noct de novo.
 
 ## Testes
 
-- `layout`, `command`, `flow`, `policy`, `catalog`: testes unitários puros (tabelas de casos).
+- `layout`, `command`, `flow`, `policy`: testes unitários puros (tabelas de casos).
 - `pane`: testes de integração com processos reais curtos (`printf`, `sh -c`) num PTY, conferindo a tela do emulador.
 - `runner`: fluxos reais executando scripts simples (`echo`, `false`, `sleep`).
 - `ipc`, `logstore`: testes unitários.

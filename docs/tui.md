@@ -13,7 +13,6 @@
 | **Execuções** | O que está rodando agora, com status, duração e passo atual. Enter salta para o painel. | 2 |
 | **Logs** | `prefixo` + `v`: o calendário do mês, cada dia marcado pelo que rodou nele e colorido pela quantidade de logs, e os logs do dia em colunas (última escrita, início, como a execução terminou, nome, sessão, barra de peso, tamanho e linhas); ver o log selecionado ao lado, acompanhando a seleção, em partes de 5 000 linhas, com lugar e tamanho que `p` e `+`/`-` mudam, sozinho (`z`) ou escondido (`v`), ordenar, filtrar (`f`: data, nome, status, peso ou linhas numa linha só), abrir uma execução de fluxo no fluxograma (`i`) e limpar (ver [fluxos.md](fluxos.md#logs-e-calendário)). | 2 |
 | **Aprovações** | Pedidos pendentes da IA ou de triggers, com o comando completo; aprovar/negar. | 3 |
-| **Catálogo** | Programas instalados, faltando e recomendados; instalar abre um painel com o gerenciador escolhido. | 4 |
 
 ## Tabs e painéis
 
@@ -99,7 +98,6 @@ No modo noct:
 | `Space`, `'` | search | Busca fuzzy sobre scripts, ações, tabs e binds próprias | busca | 1 |
 | `o` | | Execuções | | 2 |
 | `y` | MCP | Popup do MCP: no topo as aprovações (o que uma IA pediu e espera a decisão; `y` aprova, `n` nega), depois os clientes de IA conectados agora, e o comando para adicionar o noct a cada cliente conhecido (Claude Code, Codex, Gemini CLI, VS Code, opencode, Cursor), com o caminho deste binário; `Enter` copia e fecha (ver [mcp.md](mcp.md#como-a-ia-se-conecta)) | MCP | 3 |
-| `u` | | Catálogo (instalar) | | 4 |
 
 Scripts são abertos pelo scripts panel (`s`) ou pela busca (`Space`), e fluxos pelo inspect (`i`), não por teclas próprias no modo noct.
 

@@ -46,6 +46,8 @@ Formato: contexto → decisão → consequências. Decisões novas são acrescen
 
 **Consequências.** Não há lógica de pacotes para manter; `sudo` e prompts funcionam naturalmente. A busca além do catálogo é só texto na v1.
 
+*Substituída pela ADR-062:* a instalação de pacotes saiu do plano.
+
 ## ADR-006 — Linux e macOS na v1
 
 **Contexto.** No Windows, PTYs usam ConPTY, com comportamento e bibliotecas diferentes.
@@ -87,6 +89,8 @@ Formato: contexto → decisão → consequências. Decisões novas são acrescen
 **Decisão.** O catálogo com instalação vira a fase 4, depois do MCP. A fase 1 mantém só a detecção de versão ou `(não encontrado)`.
 
 **Consequências.** As fases 1–3 não dependem de adaptadores de gerenciadores de pacote.
+
+*Substituída pela ADR-062:* a fase 4 saiu do plano.
 
 ## ADR-011 — Resultado da fase 0a: Go serve (aceita)
 
@@ -818,3 +822,15 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Alternativas.** Um timeout padrão para execuções por trigger mudaria o comportamento de quem tem fluxos longos sem avisar; o aviso do `check` deixa a escolha com o usuário. Matar o `noct flow run` inteiro pelo daemon também destravaria o agendamento, mas sem dizer qual passo travou nem deixar o `on_fail` agir. No cron, guardar o instante (como antes) não evita a hora repetida, que são instantes diferentes, e guardar o último minuto de cada fluxo daria o mesmo resultado com um mapa a mais; rodar na ida os minutos pulados, como faz o cron do Vixie para tarefas de hora fixa, foi deixado de lado por somar um caso para um evento de duas vezes por ano.
 
 **Consequências.** Um fluxo de cron com `timeout` volta a ser disparado depois de um passo travado, sem reiniciar o daemon. Numa execução com terminal (no shell, ou com `r` no inspect), só o shell do passo recebe os sinais, e os processos que ele iniciou podem continuar depois dele. Um daemon antigo ignora o `timeout` de um passo em painel. Um fluxo que roda de 15 em 15 minutos fica uma hora sem rodar na noite em que o relógio volta. O `check` do MCP traz o mesmo aviso que o `noct check`.
+
+## ADR-062 — Sem instalação de pacotes; inspect e animações antecipados
+
+**Contexto.** A fase 4 previa um catálogo de programas: detectar o que falta e instalar pelo gerenciador de pacotes preferido, também a pedido da IA (ADR-005, ADR-010). O mantenedor decidiu que o noct não vai mostrar, recomendar nem instalar programas de fora: cada usuário escolhe as próprias ferramentas, e uma lista de recomendações (as TUIs do charm.land, por exemplo) pesa pouco perto de o usuário decidir sozinho. No mesmo pedido, ele quer melhorar o uso do inspect e as animações antes da confirmação das fases 2 e 3.
+
+**Decisão.**
+- **A fase 4 sai do plano.** Sem pacote `catalog`, view Catálogo, tecla reservada, manifestos de ferramentas nem a ferramenta `install_program` do MCP; `catalogo.md` é apagado. A detecção de versão dos scripts, ou `(not found)`, continua (fase 1). A fase fica no roadmap como removida, para que as referências à fase 5 continuem valendo.
+- **Ferramentas de fora** rodam em painéis, chamadas por binds próprias (ADR-057), instaladas pelo usuário.
+- **Inspect:** editar passos e seus campos, params e triggers pela TUI, sem YAML, é da fase 2 e entra já; ajuda o critério de pronto dela.
+- **Animações** (fase 5) entram antes, como no ADR-053: o fade mistura também o fundo das células, o hover vai da cor normal à de destaque e passa a valer nas linhas das listas, o que fecha some aos poucos em vez de sumir no último quadro, e entram os efeitos `dissolve` e `wipe` ([animacoes.md](animacoes.md#próximas-mudanças)). Cada mudança que altera uma regra do ADR-053 o atualiza quando for feita.
+
+**Consequências.** Numa máquina nova, um script com programa faltando mostra `(not found)` e o usuário instala por fora. O noct não tem lógica de pacotes nem comandos com `sudo` para manter. O ADR-005 e o ADR-010 ficam substituídos.
