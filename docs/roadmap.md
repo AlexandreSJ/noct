@@ -103,7 +103,7 @@ O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decis�
 **Segurança e correção**
 
 1. **Params do `run` como texto no template.** Desde o ADR-060 o `run` com `params` pede aprovação, mas os valores ainda entram no comando renderizado para `sh -c`. Passá-los como variáveis de ambiente (`"$pattern"`) ou argumentos posicionais fecha a injeção sem depender da aprovação; muda o formato dos scripts e pede ADR próprio.
-2. **Saídas de passos em `run:`** (`{{.steps.x.output}}`) também entram cruas no shell; o heredoc documentado é a única defesa. Uma função `quote` nos templates ajudaria aqui e nos scripts novos.
+2. **Saídas de passos em `run:`** (`{{.steps.x.output}}`) também entram cruas no shell quando o fluxo não usa `{{quote …}}`. Com o `quote` nos templates, o que falta é decidir se ele vira o padrão junto com o item 1.
 
 **Dependências**
 

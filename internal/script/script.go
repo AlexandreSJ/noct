@@ -233,8 +233,16 @@ func (p Param) validate() error {
 	return nil
 }
 
+// templateFuncs are the functions script and flow templates can call besides Go's own.
+var templateFuncs = template.FuncMap{"quote": Quote}
+
+// Quote makes text one shell word, whatever it holds: {{quote .pattern}}.
+func Quote(text string) string {
+	return "'" + strings.ReplaceAll(text, "'", `'\''`) + "'"
+}
+
 func (s Script) template() (*template.Template, error) {
-	t, err := template.New(s.Name).Option("missingkey=error").Parse(s.Run)
+	t, err := template.New(s.Name).Option("missingkey=error").Funcs(templateFuncs).Parse(s.Run)
 	if err != nil {
 		return nil, fmt.Errorf("run: %w", err)
 	}

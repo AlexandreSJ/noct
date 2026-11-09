@@ -234,3 +234,24 @@ func TestSaveAndLoadKeepTheFlow(t *testing.T) {
 		t.Error("created a flow twice")
 	}
 }
+
+func TestQuotePassesOutputToTheShellAsOneArgument(t *testing.T) {
+	r, out := testRunner(t, nil)
+	f := parse(t, `
+steps:
+  - id: tricky
+    run: printf '%s' "it's; echo injected"
+  - id: echo
+    run: printf '[%s]' {{quote .steps.tricky.output}}
+`)
+	if err := f.Validate(r.Lookup); err != nil {
+		t.Fatal(err)
+	}
+	result := r.Run(f, nil)
+	if !result.OK {
+		t.Fatalf("run failed: %s", out)
+	}
+	if got := result.Steps["1"].Output; got != "[it's; echo injected]" {
+		t.Errorf("output = %q", got)
+	}
+}

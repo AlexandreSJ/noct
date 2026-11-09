@@ -11,6 +11,12 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Added
+
+- Script and flow templates have `quote`: `{{quote .pattern}}` puts a value in single quotes as one
+  shell word, so spaces, quotes or `;` in a param or in another step's output never run as a
+  command.
+
 ### Fixed
 
 - Saving a script, its notes or a draft from an AI no longer leaves a half-written file when noct

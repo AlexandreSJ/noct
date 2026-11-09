@@ -206,4 +206,5 @@ show the terminals; run_command and send_input act in them and, like run with pa
 the user's approval, which they give in noct (prefix+y); a denied call says so, do not retry it
 unasked.
 
-Templates are Go text/template and every value is a string: compare with {{eq .steps.x.exit "0"}}.`
+Templates are Go text/template and every value is a string: compare with {{eq .steps.x.exit "0"}}.
+In a run line, write {{quote .name}} or {{quote .steps.x.output}} so a value is one shell word.`

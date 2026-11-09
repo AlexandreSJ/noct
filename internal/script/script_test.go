@@ -430,3 +430,15 @@ func TestWriteFilesReplacesTheScriptAndKeepsNotesWhenNoneGiven(t *testing.T) {
 		t.Errorf("files left in the folder: %v", entries)
 	}
 }
+
+func TestQuoteRendersAValueAsOneShellWord(t *testing.T) {
+	dir := writeScript(t, t.TempDir(), "grep", "run: grep -r {{quote .pattern}} .\nparams:\n  - name: pattern\n")
+	s, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	command, err := s.Command(map[string]string{"pattern": `x'; rm -rf ~; echo '`})
+	if want := `grep -r 'x'\''; rm -rf ~; echo '\''' .`; err != nil || command != want {
+		t.Errorf("command %q, %v; want %q", command, err, want)
+	}
+}

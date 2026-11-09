@@ -291,4 +291,5 @@ var templateFuncs = template.FuncMap{
 	"match": func(text, pattern string) (bool, error) {
 		return regexp.MatchString(pattern, text)
 	},
+	"quote": script.Quote,
 }
