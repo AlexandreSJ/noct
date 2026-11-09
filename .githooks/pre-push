@@ -1,0 +1,54 @@
+#!/bin/sh
+# Runs make check on each commit being pushed, in a clean checkout of that commit, so
+# uncommitted files in the working tree can neither hide nor cause a failure. A version tag must
+# also point at the tip of main and have its section in CHANGELOG.md: v0.2.4's first tag was
+# left on the commit before its fix and failed the release twice.
+#
+# Turn it on once per clone with `make hooks`; skip it for one push with `git push --no-verify`.
+set -eu
+
+zero=0000000000000000000000000000000000000000
+root=$(git rev-parse --show-toplevel)
+checked=""
+status=0
+
+check_commit() {
+	sha=$1
+	case " $checked " in *" $sha "*) return 0 ;; esac
+	checked="$checked $sha"
+	dir=$(mktemp -d)
+	git -C "$root" worktree add --quiet --detach "$dir" "$sha"
+	echo "pre-push: make check on $(git -C "$root" log -1 --format='%h %s' "$sha")"
+	result=0
+	make -C "$dir" check || result=$?
+	git -C "$root" worktree remove --force "$dir"
+	return "$result"
+}
+
+check_tag() {
+	tag=$1
+	sha=$2
+	main=$(git -C "$root" rev-parse --verify --quiet main) || main=""
+	if [ "$sha" != "$main" ]; then
+		echo "pre-push: $tag points at $(git -C "$root" log -1 --format=%h "$sha"), not at the tip of main" >&2
+		return 1
+	fi
+	if ! git -C "$root" show "$sha:CHANGELOG.md" | grep -q "^## $tag "; then
+		echo "pre-push: CHANGELOG.md at $tag has no section ## $tag" >&2
+		return 1
+	fi
+}
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+	[ "$local_sha" = "$zero" ] && continue
+	sha=$(git -C "$root" rev-parse "$local_sha^{commit}")
+	case "$remote_ref" in
+	refs/tags/v*) check_tag "${remote_ref#refs/tags/}" "$sha" || { status=1; continue; } ;;
+	esac
+	check_commit "$sha" || status=1
+done
+
+if [ "$status" -ne 0 ]; then
+	echo "pre-push: push stopped; fix the failure above, or push with --no-verify to skip" >&2
+fi
+exit "$status"

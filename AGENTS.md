@@ -14,6 +14,8 @@
 - A new `go.mod` dependency needs a justification in an ADR.
 - Keep `docs/codemap.md` current when adding a file or moving a responsibility.
 - A change users notice adds its entry under `## Unreleased` in `CHANGELOG.md` in the same commit, following CONTRIBUTING.md §5: Keep a Changelog groups, written for users, keys as `prefix` + `x` / `shortcut` + `x`.
+- Before any push, `make check` must pass on the commit being pushed; `make hooks` turns on the pre-push hook that enforces it. Never push with `--no-verify` unless the user asks.
+- Releasing: push `main`, wait for its `ci` run on GitHub to pass, then tag that commit (CONTRIBUTING.md §5). A local pass is not enough: the e2e tests have failed only on GitHub's 2-CPU runner. Never move a pushed tag without the user's go-ahead.
 - Tests that start processes use `sh -c`/`printf`, never the user's shell config.
 - App tests replace `App.launch` with fake views instead of starting real programs.
 - `third_party/` holds patched copies of two Charm libraries; change them only as `third_party/README.md` says.
