@@ -49,10 +49,12 @@ const (
 	effect01
 	effectFade
 	effectJitter
+	effectDissolve
+	effectWipe
 )
 
 // effects name each effect as the config file does.
-var effects = []string{"none", "01", "fade", "jitter"}
+var effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe"}
 
 func effectNamed(name string) effect {
 	for i, e := range effects {
@@ -549,7 +551,7 @@ func (a *App) drawFocus(screen uv.Screen, an *animation, frame image.Rectangle, 
 func (a *App) drawClosing(screen uv.Screen, an *animation, p float64, at time.Time) {
 	left := 1 - p
 	background := a.backgroundColor()
-	kept := func(x, y int) bool { return left >= settleAt(an, an.area, x, y)/2 }
+	kept := func(x, y int) bool { return left >= vanishAt(an, an.area, x, y) }
 	for y := an.area.Min.Y; y < an.area.Max.Y; y++ {
 		for x := an.area.Min.X; x < an.area.Max.X; x++ {
 			old := an.cells.CellAt(x, y)
@@ -597,12 +599,46 @@ func orColor(c, fallback color.Color) color.Color {
 	return c
 }
 
-// settleAt is when, in the effect's progress, the cell at x, y of area shows its own character.
+// settleAt is when, in the effect's progress, the cell at x, y of area shows its own character
+// and color.
 func settleAt(an *animation, area image.Rectangle, x, y int) float64 {
-	if an.effect == effect01 {
-		return 0.7*float64(x-area.Min.X)/float64(max(area.Dx(), 1)) + 0.3*noise(x, y, an.seed)
+	across := float64(x-area.Min.X) / float64(max(area.Dx(), 1))
+	switch an.effect {
+	case effect01:
+		return 0.7*across + 0.3*noise(x, y, an.seed)
+	case effectDissolve:
+		return noise(x, y, an.seed)
+	case effectWipe:
+		return across
 	}
 	return 0.2 + 0.8*noise(x, y, an.seed)
+}
+
+// vanishAt is when, in a closing's remaining progress, the cell at x, y of area gives way to what
+// is below: 01 and jitter first turn it to noise.
+func vanishAt(an *animation, area image.Rectangle, x, y int) float64 {
+	if an.effect == effect01 || an.effect == effectJitter {
+		return settleAt(an, area, x, y) / 2
+	}
+	return settleAt(an, area, x, y)
+}
+
+// wipeEdge is how much of the area the wipe's front blends across.
+const wipeEdge = 0.2
+
+// colorWeight is how far the cell at x, y of area has gone from the start color to its own.
+func colorWeight(an *animation, area image.Rectangle, x, y int, p float64) float64 {
+	switch {
+	case an.effect == effectDissolve && p >= settleAt(an, area, x, y):
+		return 1
+	case an.effect == effectDissolve:
+		return 0
+	case an.effect == effectWipe:
+		return clamp01((p*(1+wipeEdge) - settleAt(an, area, x, y)) / wipeEdge)
+	case an.moment == momentActivity:
+		return 1 - 0.7*math.Sin(math.Pi*p) // dims and comes back: a pulse
+	}
+	return easeOut(p)
 }
 
 func (a *App) backgroundColor() color.Color {
@@ -626,11 +662,8 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 			cell := *c
 			runes := []rune(cell.Content)
 			switch an.effect {
-			case effectFade:
-				f := easeOut(p)
-				if an.moment == momentActivity {
-					f = 1 - 0.7*math.Sin(math.Pi*p) // dims and comes back: a pulse
-				}
+			case effectFade, effectDissolve, effectWipe:
+				f := colorWeight(an, area, x, y, p)
 				if cell.Style.Fg != nil {
 					cell.Style.Fg = mix(from, cell.Style.Fg, f)
 				}

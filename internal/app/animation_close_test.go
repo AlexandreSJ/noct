@@ -64,7 +64,7 @@ func TestAClosingFadeCrossesIntoWhatIsBelow(t *testing.T) {
 
 func TestAClosingEffectRemovesCellsBeforeItEnds(t *testing.T) {
 	area := image.Rect(0, 1, 40, 9)
-	for _, e := range []effect{effect01, effectJitter} {
+	for _, e := range []effect{effect01, effectJitter, effectDissolve, effectWipe} {
 		if below := countContent(closingOver(t, e, area, 0.05), area, "y"); below > area.Dx()*area.Dy()/4 {
 			t.Errorf("effect %v: %d cells already gone at the start", e, below)
 		}
@@ -83,5 +83,52 @@ func TestFadingInMixesTheBackgroundToo(t *testing.T) {
 	a.applyEffect(&screen, an, area, 0.3, time.Now(), nil)
 	if bg := screen.CellAt(2, 2).Style.Bg; colorsEqual(bg, closedColor) {
 		t.Errorf("a cell fading in has its background %v already", bg)
+	}
+}
+
+// openingOver is effect e opening over area, whose cells show "x" in red, drawn at progress p,
+// with whether each cell already has its own color.
+func openingOver(t *testing.T, e effect, area image.Rectangle, p float64) func(x, y int) bool {
+	t.Helper()
+	a, _ := animatedApp(t)
+	screen := uv.NewScreenBuffer(a.size.X, a.size.Y)
+	for y := area.Min.Y; y < area.Max.Y; y++ {
+		for x := area.Min.X; x < area.Max.X; x++ {
+			screen.SetCell(x, y, &uv.Cell{Content: "x", Width: 1, Style: uv.Style{Fg: closedColor}})
+		}
+	}
+	a.applyEffect(&screen, &animation{moment: momentPanels, effect: e, seed: 5}, area, p, time.Now(), nil)
+	return func(x, y int) bool { return colorsEqual(screen.CellAt(x, y).Style.Fg, closedColor) }
+}
+
+func TestDissolveShowsCellsInARandomOrder(t *testing.T) {
+	area := image.Rect(0, 1, 40, 9)
+	shown := openingOver(t, effectDissolve, area, 0.5)
+	left, right := 0, 0
+	for y := area.Min.Y; y < area.Max.Y; y++ {
+		for x := area.Min.X; x < area.Max.X; x++ {
+			switch {
+			case !shown(x, y):
+			case x < 20:
+				left++
+			default:
+				right++
+			}
+		}
+	}
+	half := area.Dx() * area.Dy() / 2
+	if left+right < half/2 || left+right > half*3/2 || left == 0 || right == 0 {
+		t.Errorf("halfway %d cells shown on the left and %d on the right, want about half spread over both", left, right)
+	}
+}
+
+func TestWipeCrossesTheAreaFromOneSide(t *testing.T) {
+	area := image.Rect(0, 1, 40, 9)
+	shown := openingOver(t, effectWipe, area, 0.5)
+	if !shown(area.Min.X, 3) || shown(area.Max.X-1, 3) {
+		t.Errorf("halfway the left edge shows %v and the right edge %v, want only the left", shown(area.Min.X, 3), shown(area.Max.X-1, 3))
+	}
+	if done := openingOver(t, effectWipe, area, 1); !done(area.Max.X-1, 3) {
+		t.Error("at the end the right edge still lacks its color")
 	}
 }

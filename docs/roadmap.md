@@ -77,7 +77,7 @@ A instalação de pacotes saiu do plano (ADR-062): o noct não mostra, não reco
 
 Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase. Já antecipados: terminal novo no diretório do painel com foco (ADR-048), temas editáveis e por sessão ([temas.md](temas.md), ADR-049, ADR-050), cores por painel e por tab (ADR-051), templates de tab ([templates.md](templates.md), ADR-052), animações ([animacoes.md](animacoes.md), ADR-053) e o instalador ([instalador.md](instalador.md), ADR-056 a ADR-058).
 
-**Animações (antecipado, ADR-062).** Feitos: fade que mistura também o fundo das células, e fechar sumindo aos poucos, sem o corte no último quadro. Faltam o hover da cor normal à de destaque, também nas linhas das listas, e os efeitos novos de dissolver (ordem aleatória) e varredura (de um lado ao outro). Ver [animacoes.md](animacoes.md#próximas-mudanças).
+**Animações (antecipado, ADR-062).** Feitos: fade que mistura também o fundo das células, fechar sumindo aos poucos, sem o corte no último quadro, e os efeitos `dissolve` (ordem aleatória) e `wipe` (de um lado ao outro). Falta o hover da cor normal à de destaque, também nas linhas das listas. Ver [animacoes.md](animacoes.md#próximas-mudanças).
 
 **Releases e atualização (antecipado, a pedido do mantenedor; ADR-047).** Cada tag `vX.Y.Z` publica uma release no GitHub com os binários de Linux e macOS e o changelog do `CHANGELOG.md`; o noct mostra a versão na barra de tabs, avisa de uma nova, mostra o changelog (`prefixo` + `c`) e se atualiza quando o usuário pede, também por `noct update`. A primeira é a v0.1.0, o primeiro beta.
 

@@ -27,8 +27,10 @@ A atividade depende do indicador de "atividade não vista", previsto em [tui.md]
 | `01` | Células viram `0`/`1` sorteados e se revelam numa varredura com jitter, como a intro |
 | `fade` | A cor vai da antiga à nova por mistura (o `mix` que já existe): a do texto e, quando surge do fundo, a do fundo da célula. Ao fechar, cada célula se mistura com o que está embaixo dela: os fundos se misturam, e o caractere antigo some no fundo antes de o de baixo aparecer |
 | `jitter` | Caracteres especiais se misturam até virar o caractere certo, como o *decrypt* de filmes |
+| `dissolve` | Cada célula passa da cor de partida à sua de uma vez, numa ordem aleatória |
+| `wipe` | Uma frente atravessa a área da esquerda para a direita, com a borda misturando as cores |
 
-Ao fechar, `01` e `jitter` tocam ao contrário e cada célula sai na metade do caminho dela até virar ruído, mostrando o que está embaixo; nada fica inteiro até o último quadro.
+Ao fechar, `01` e `jitter` tocam ao contrário e cada célula sai na metade do caminho dela até virar ruído, mostrando o que está embaixo; `dissolve` e `wipe` tiram cada célula quando o efeito passa por ela, na ordem inversa; nada fica inteiro até o último quadro.
 
 A mola (`spring`) e o `flicker` existiram e saíram (ADR-053, nota de 2026-10-21): na mola o conteúdo aparecia de uma vez e só as bordas chegavam atrasadas, e o flicker era lento e pedia um aviso a cada passagem.
 
@@ -77,7 +79,6 @@ O config das animações tem o palco ([temas.md](temas.md#o-palco)) embaixo da l
 Pedidas pelo mantenedor (ADR-062), ainda não feitas. A que muda uma regra do ADR-053 o atualiza quando for feita.
 
 - **Hover por cor.** Em vez de partir do fundo, a cor vai da normal à de destaque e volta ao sair. Vale também nas linhas das listas (scripts, inspect, logs, sessões, config, escolhas), que hoje não animam.
-- **Efeitos novos:** `dissolve`, células que aparecem ou somem em ordem aleatória, e `wipe`, uma frente que atravessa a área de um lado ao outro. Entram no registro e valem em todos os momentos.
 
 ## Catálogo para depois
 
@@ -87,9 +88,7 @@ Efeitos de outras bibliotecas que servem aos momentos do noct, para entrar no re
 |---|---|---|---|
 | BinaryPath | [TTE](https://github.com/ChrisBuilds/terminaltexteffects) | Caracteres viram binário e andam em ângulo reto até o lugar | Abrir tab, intro |
 | Evolve | tachyonfx | Cada célula passa por uma série de símbolos (`░▒▓█`) até o caractere | Variante do `jitter` |
-| Coalesce / Dissolve | tachyonfx | Células aparecem ou somem em ordem aleatória | Abrir e fechar painel |
 | Crumble | TTE | O texto vira pó e cai | Fechar painel ou tab |
-| Sweep / Wipe | ambos | Uma faixa atravessa a área revelando | Trocar de sessão, com o tema novo |
 | Highlight | TTE | Um brilho especular passa pelo texto | Hover, foco |
 | Slide / Slice | ambos | Entra de fora, ou duas metades de lados opostos | Popup, mover |
 | Expand / MiddleOut | ambos | Cresce do centro para fora | Tela inteira, popup |

@@ -13,6 +13,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Added
 
+- Two animation effects for any moment in **Appearance → animations**: `dissolve` shows or hides
+  each cell at once in a random order, and `wipe` sweeps across from left to right.
 - Script and flow templates have `quote`: `{{quote .pattern}}` puts a value in single quotes as one
   shell word, so spaces, quotes or `;` in a param or in another step's output never run as a
   command.
