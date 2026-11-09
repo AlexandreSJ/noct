@@ -17,6 +17,12 @@ the shortcut is `Alt` by default. How to write an entry is in
   shell word, so spaces, quotes or `;` in a param or in another step's output never run as a
   command.
 
+### Changed
+
+- Closing a pane, a tab or a popup no longer flashes away on the last frame. With `fade`, what
+  closes blends into what is below it, backgrounds included; with `01` and `jitter`, its cells go
+  away one by one. Fading in now fades cell backgrounds too, such as selected rows and popups.
+
 ### Fixed
 
 - Saving a script, its notes or a draft from an AI no longer leaves a half-written file when noct

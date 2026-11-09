@@ -544,29 +544,78 @@ func (a *App) drawFocus(screen uv.Screen, an *animation, frame image.Rectangle, 
 	a.applyEffect(screen, &focus, frame, p, at, onBorder(frame))
 }
 
-// drawClosing draws what a closed pane showed, going away: its effect played backwards.
+// drawClosing draws what a closed pane showed, going away: its effect played backwards, each cell
+// giving way to what is below it before the end.
 func (a *App) drawClosing(screen uv.Screen, an *animation, p float64, at time.Time) {
+	left := 1 - p
+	background := a.backgroundColor()
+	kept := func(x, y int) bool { return left >= settleAt(an, an.area, x, y)/2 }
 	for y := an.area.Min.Y; y < an.area.Max.Y; y++ {
 		for x := an.area.Min.X; x < an.area.Max.X; x++ {
-			if c := an.cells.CellAt(x, y); c != nil {
-				cell := *c
+			old := an.cells.CellAt(x, y)
+			switch {
+			case old == nil:
+			case an.effect == effectFade:
+				screen.SetCell(x, y, crossfade(*old, screen.CellAt(x, y), easeOut(left), background))
+			case kept(x, y):
+				cell := *old
 				screen.SetCell(x, y, &cell)
 			}
 		}
 	}
-	a.applyEffect(screen, an, an.area, 1-p, at, nil)
+	if an.effect != effectFade {
+		a.applyEffect(screen, an, an.area, left, at, kept)
+	}
+}
+
+// crossfade is old giving way to below as weight goes from 1 to 0: the backgrounds mix, and each
+// character fades into the mixed background before the other comes out of it.
+func crossfade(old uv.Cell, below *uv.Cell, weight float64, background color.Color) *uv.Cell {
+	under := uv.Cell{Content: " ", Width: 1}
+	if below != nil {
+		under = *below
+	}
+	bg := mix(orColor(under.Style.Bg, background), orColor(old.Style.Bg, background), weight)
+	cell, shown := under, 1-2*weight
+	if weight >= 0.5 {
+		cell, shown = old, 2*weight-1
+	}
+	if cell.Style.Fg != nil {
+		cell.Style.Fg = mix(bg, cell.Style.Fg, shown)
+	}
+	cell.Style.Bg = nil
+	if old.Style.Bg != nil || under.Style.Bg != nil {
+		cell.Style.Bg = bg
+	}
+	return &cell
+}
+
+func orColor(c, fallback color.Color) color.Color {
+	if c == nil {
+		return fallback
+	}
+	return c
+}
+
+// settleAt is when, in the effect's progress, the cell at x, y of area shows its own character.
+func settleAt(an *animation, area image.Rectangle, x, y int) float64 {
+	if an.effect == effect01 {
+		return 0.7*float64(x-area.Min.X)/float64(max(area.Dx(), 1)) + 0.3*noise(x, y, an.seed)
+	}
+	return 0.2 + 0.8*noise(x, y, an.seed)
+}
+
+func (a *App) backgroundColor() color.Color {
+	if a.palette.background != nil {
+		return a.palette.background
+	}
+	return a.shownTheme(a.sessionTheme(a.session)).Colors[theme.Background].Resolve()
 }
 
 // applyEffect changes the cells of area that only lets through (nil for all) as the effect looks
 // at progress p.
 func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle, p float64, at time.Time, only func(x, y int) bool) {
-	from := an.fromColor
-	if from == nil {
-		from = a.palette.background
-	}
-	if from == nil {
-		from = a.shownTheme(a.sessionTheme(a.session)).Colors[theme.Background].Resolve()
-	}
+	from := orColor(an.fromColor, a.backgroundColor())
 	frame := int64(at.Sub(an.start) / frameInterval) // characters change from frame to frame
 	for y := area.Min.Y; y < area.Max.Y; y++ {
 		for x := area.Min.X; x < area.Max.X; x++ {
@@ -585,14 +634,16 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 				if cell.Style.Fg != nil {
 					cell.Style.Fg = mix(from, cell.Style.Fg, f)
 				}
+				if an.fromColor == nil && cell.Style.Bg != nil {
+					cell.Style.Bg = mix(from, cell.Style.Bg, f)
+				}
 			case effectJitter:
 				if len(runes) == 1 {
-					cell.Content = string(jitterAt(runes[0], p, 0.2+0.8*noise(x, y, an.seed), int64(noise(x, y, frame)*1000)))
+					cell.Content = string(jitterAt(runes[0], p, settleAt(an, area, x, y), int64(noise(x, y, frame)*1000)))
 				}
 			case effect01:
-				reveal := 0.7*float64(x-area.Min.X)/float64(max(area.Dx(), 1)) + 0.3*noise(x, y, an.seed)
 				if len(runes) == 1 {
-					cell.Content = string(binaryAt(runes[0], p, reveal, int64(noise(x, y, frame)*2)))
+					cell.Content = string(binaryAt(runes[0], p, settleAt(an, area, x, y), int64(noise(x, y, frame)*2)))
 				}
 			}
 			screen.SetCell(x, y, &cell)

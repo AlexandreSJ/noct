@@ -25,8 +25,10 @@ A atividade depende do indicador de "atividade não vista", previsto em [tui.md]
 |---|---|
 | `none` | Sem animação |
 | `01` | Células viram `0`/`1` sorteados e se revelam numa varredura com jitter, como a intro |
-| `fade` | A cor vai da antiga à nova por mistura (o `mix` que já existe) |
+| `fade` | A cor vai da antiga à nova por mistura (o `mix` que já existe): a do texto e, quando surge do fundo, a do fundo da célula. Ao fechar, cada célula se mistura com o que está embaixo dela: os fundos se misturam, e o caractere antigo some no fundo antes de o de baixo aparecer |
 | `jitter` | Caracteres especiais se misturam até virar o caractere certo, como o *decrypt* de filmes |
+
+Ao fechar, `01` e `jitter` tocam ao contrário e cada célula sai na metade do caminho dela até virar ruído, mostrando o que está embaixo; nada fica inteiro até o último quadro.
 
 A mola (`spring`) e o `flicker` existiram e saíram (ADR-053, nota de 2026-10-21): na mola o conteúdo aparecia de uma vez e só as bordas chegavam atrasadas, e o flicker era lento e pedia um aviso a cada passagem.
 
@@ -74,9 +76,7 @@ O config das animações tem o palco ([temas.md](temas.md#o-palco)) embaixo da l
 
 Pedidas pelo mantenedor (ADR-062), ainda não feitas. A que muda uma regra do ADR-053 o atualiza quando for feita.
 
-- **Fade com o fundo.** Hoje só a cor do texto se mistura, a partir do fundo do tema (`applyEffect`); o fundo das células, como a linha selecionada e as barras, aparece de uma vez. O fade passa a misturar as duas.
 - **Hover por cor.** Em vez de partir do fundo, a cor vai da normal à de destaque e volta ao sair. Vale também nas linhas das listas (scripts, inspect, logs, sessões, config, escolhas), que hoje não animam.
-- **Fechar sem corte.** Hoje o que fechou fica inteiro até o último quadro e some de uma vez (`drawClosing`); passa a sumir célula a célula, no ritmo do efeito.
 - **Efeitos novos:** `dissolve`, células que aparecem ou somem em ordem aleatória, e `wipe`, uma frente que atravessa a área de um lado ao outro. Entram no registro e valem em todos os momentos.
 
 ## Catálogo para depois
