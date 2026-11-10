@@ -12,17 +12,20 @@ the shortcut is `Alt` by default. How to write an entry is in
 ## Unreleased
 
 Animations got a lot smoother. Panes, tabs and popups now go away as gently as they appear,
-instead of vanishing on the last frame; two new effects, `dissolve` and `wipe`, join `01`, `fade`
-and `jitter`; and hovering a tab or a pane's title lights it in the selected color and blends it
-back as the mouse leaves. Fades touch only text colors, so a terminal's own background stays
-untouched.
+instead of vanishing on the last frame; three new effects, `dissolve`, `wipe` and `grow`, join
+`01`, `fade` and `jitter`; and hovering a tab, a pane's title or a list's row lights it in the
+selected color and blends it back as the mouse leaves. Fades touch only text colors, so a
+terminal's own background stays untouched.
 
 ### Added
 
-- Two animation effects for any moment in **Appearance → animations**: `dissolve` shows or hides
-  each cell at once in a random order, and `wipe` sweeps across from left to right.
+- Three animation effects for any moment in **Appearance → animations**: `dissolve` shows or
+  hides each cell at once in a random order, `wipe` sweeps across from left to right, and `grow`
+  spreads out from the center and shrinks back into it.
 - `prefix` + `D` duplicates the focused terminal: a new one opens beside it in the same folder and,
   when its shell runs a program, offers to run the same command.
+- A shell's pane title tells the folder it is in, as `zsh · ~/proj`, until a program sets a
+  title of its own.
 - Script and flow templates have `quote`: `{{quote .pattern}}` puts a value in single quotes as one
   shell word, so spaces, quotes or `;` in a param or in another step's output never run as a
   command.
@@ -33,8 +36,10 @@ untouched.
   text fades out and what is below fades in; with `01` and `jitter`, its cells go away one by one.
   Fades change only text colors, so a terminal's own background stays as it is.
 - Hovering a tab's name shows it in the active tab's color and a pane's title in the focused
-  pane's, on their own background, also from an empty tab; with `fade`, `dissolve` or `wipe` the
-  color blends there and back. Only the title's text lights up, never the border around it.
+  pane's, on their own background, also from an empty tab; with `fade`, `dissolve`, `wipe` or
+  `grow` the color blends there and back. Only the title's text lights up, never the border around it.
+- Rows of the scripts, logs and flows lists light up under the mouse in the selection's color,
+  text only, and blend back as it leaves; the selected row stays as it is.
 - Config choices show `<` and `>` instead of `◂` and `▸`, and only the arrows, with a cell on
   each side, change a choice when clicked; clicking its text only selects the row. With the mouse
   where a click changes something, that shows in reverse: the arrow, a value without arrows

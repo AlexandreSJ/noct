@@ -75,9 +75,9 @@ A instalação de pacotes saiu do plano (ADR-062): o noct não mostra, não reco
 
 ## Fase 5 — Polimento
 
-Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase. Já antecipados: terminal novo no diretório do painel com foco (ADR-048), temas editáveis e por sessão ([temas.md](temas.md), ADR-049, ADR-050), cores por painel e por tab (ADR-051), templates de tab ([templates.md](templates.md), ADR-052), duplicar o terminal com foco (`prefixo` + `D`), animações ([animacoes.md](animacoes.md), ADR-053) e o instalador ([instalador.md](instalador.md), ADR-056 a ADR-058).
+Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase. Já antecipados: terminal novo no diretório do painel com foco (ADR-048), temas editáveis e por sessão ([temas.md](temas.md), ADR-049, ADR-050), cores por painel e por tab (ADR-051), templates de tab ([templates.md](templates.md), ADR-052), duplicar o terminal com foco (`prefixo` + `D`), a pasta no título do shell sem título próprio (`zsh · ~/proj`), animações ([animacoes.md](animacoes.md), ADR-053) e o instalador ([instalador.md](instalador.md), ADR-056 a ADR-058).
 
-**Animações (antecipado, ADR-062).** Feitos: fade só na cor do texto, fechar sumindo aos poucos, sem o corte no último quadro, e os efeitos `dissolve` (ordem aleatória) e `wipe` (de um lado ao outro). O hover já leva nomes de tab e títulos de painel da cor normal à de selecionado; faltam as linhas das listas. Ver [animacoes.md](animacoes.md#próximas-mudanças).
+**Animações (antecipado, ADR-062).** Feitos: fade só na cor do texto, fechar sumindo aos poucos, sem o corte no último quadro, e os efeitos `dissolve` (ordem aleatória) `wipe` (de um lado ao outro) e `grow` (do centro para fora). O hover leva nomes de tab, títulos de painel e linhas das listas da cor normal à de selecionado. Ver [animacoes.md](animacoes.md).
 
 **Releases e atualização (antecipado, a pedido do mantenedor; ADR-047).** Cada tag `vX.Y.Z` publica uma release no GitHub com os binários de Linux e macOS e o changelog do `CHANGELOG.md`; o noct mostra a versão na barra de tabs, avisa de uma nova, mostra o changelog (`prefixo` + `c`) e se atualiza quando o usuário pede, também por `noct update`. A primeira é a v0.1.0, o primeiro beta.
 
@@ -92,8 +92,7 @@ Sem compromisso nem ordem:
 - **Diretório e comando por terminal no template** (hoje os terminais abrem no diretório herdado).
 - **OSC 7** como segunda fonte do diretório, para o macOS e para saber quando ele é de outra máquina.
 - **Painéis sem foco esmaecidos**, estilo de borda no tema (fina, arredondada, grossa, nenhuma), ícone por tipo de painel no título.
-- **Diretório no título** do terminal sem título próprio (`zsh · ~/proj`).
-- **Mais efeitos** do catálogo de [animacoes.md](animacoes.md#catálogo-para-depois): crescer do centro, deslizar, um brilho passando no hover.
+- **Mais efeitos** do catálogo de [animacoes.md](animacoes.md#catálogo-para-depois): deslizar, um brilho passando no hover.
 
 ## Dívida técnica
 

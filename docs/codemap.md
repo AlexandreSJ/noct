@@ -120,6 +120,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/template_save.go` | The popup of prefix + R: the tab as a template, with how each terminal's command starts |
 | `internal/app/templates_popup.go` | The popup of prefix + T: the templates with the layout of the selected one, opening one as a tab, and edit, rename and delete |
 | `internal/app/animation.go` | Animations: what changed since the last frame, the ones running, and drawing them over the frame without touching the programs |
+| `internal/app/hover.go` | Hover: what is under the mouse (a tab's name, a pane's title, a list's row), its animation there and back, and lighting list rows |
 | `internal/app/effects.go` | The animation effects as functions of time: easing, 01 and jitter |
 | `internal/app/stage_preview.go` | The config's rows of the animations (each moment's effect and time) and the stage under them playing the selected moment's effect |
 | `internal/app/stage.go` | The stage: a small made-up workspace with a bit of everything a theme colors, to preview themes in place |

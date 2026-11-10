@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"math"
@@ -51,14 +50,15 @@ const (
 	effectJitter
 	effectDissolve
 	effectWipe
+	effectGrow
 )
 
 // effects name each effect as the config file does.
-var effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe"}
+var effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe", "grow"}
 
 // blendsColors tells an effect that moves a cell from one color to another.
 func (e effect) blendsColors() bool {
-	return e == effectFade || e == effectDissolve || e == effectWipe
+	return e == effectFade || e == effectDissolve || e == effectWipe || e == effectGrow
 }
 
 func effectNamed(name string) effect {
@@ -250,6 +250,8 @@ type target struct {
 	kind targetKind
 	// tab is the tab whose name a targetTabName animation plays on.
 	tab *tab
+	// row is where the list row a targetListRow animation plays on is, on the screen.
+	row image.Rectangle
 }
 
 type targetKind int
@@ -260,6 +262,7 @@ const (
 	targetPaneTitle                   // the top row of that frame, where its title is
 	targetTabName                     // the tab's name in the tab bar
 	targetPopup                       // the popup the frame draws
+	targetListRow                     // a row of a pane's list, which drawRowHovers lights
 )
 
 // placeOf is where the animation plays on this frame, or false when its target is not on screen.
@@ -275,6 +278,8 @@ func (a *App) placeOf(an *animation) (image.Rectangle, bool) {
 		return a.tabNameSpan(an.target.tab)
 	case targetPopup:
 		return a.popupArea, !a.popupArea.Empty()
+	case targetListRow:
+		return an.target.row, true
 	}
 	return an.area, true
 }
@@ -297,89 +302,6 @@ const (
 	tabBarPane layout.PaneID = -3
 	hoverPane  layout.PaneID = -4
 )
-
-// hoverAt hovers what is under the mouse, a tab's name or a pane's title, once per visit: it
-// shows as selected, the hover's effect playing from its own colors, and what the mouse left
-// blends back. It tells whether what is hovered changed.
-func (a *App) hoverAt(point image.Point) bool {
-	name, on := a.hoverTargetAt(point)
-	if name == a.hoverTarget {
-		return false
-	}
-	if a.hoverTarget != "" && a.effectFor(momentHover).blendsColors() {
-		_, hovered := a.hoverStyles(a.hoverOn)
-		a.playHover(a.hoverOn, hovered)
-	}
-	a.hoverTarget, a.hoverOn = name, on
-	if name != "" {
-		on.seed = int64(point.X)
-		normal, _ := a.hoverStyles(on)
-		a.playHover(on, normal)
-	}
-	return true
-}
-
-func (a *App) playHover(on animation, from uv.Style) {
-	on.fromColor = from.Fg
-	if an := a.newAnimation(momentHover, on, a.now()); an != nil {
-		a.addAnimation(an)
-	}
-}
-
-// hoverStyles are how what a hover plays on looks without the mouse and under it: a tab's name
-// in the active tab's color, a pane's title as the focused pane's.
-func (a *App) hoverStyles(on animation) (normal, hovered uv.Style) {
-	if on.target.kind == targetTabName {
-		active, inactive := a.palette.forTab(on.target.tab.colors)
-		if a.currentTab() == on.target.tab {
-			return active, active
-		}
-		return inactive, hoveredTab(active, inactive)
-	}
-	t := a.currentTab()
-	if t == nil {
-		return a.palette.unfocusedTitle, a.palette.focusedTitle
-	}
-	pal := a.palette.forPane(t.paneColors[on.pane])
-	if on.pane == t.focused {
-		return pal.focusedTitle, pal.focusedTitle
-	}
-	return pal.unfocusedTitle, pal.focusedTitle
-}
-
-// hoveredTab is an inactive tab's name under the mouse: on its own background, in the color the
-// active tab stands out with.
-func hoveredTab(active, inactive uv.Style) uv.Style {
-	inactive.Fg = orColor(active.Bg, active.Fg)
-	return inactive
-}
-
-func tabHoverName(index int) string { return fmt.Sprintf("tab %d", index) }
-
-func paneHoverName(id layout.PaneID) string { return fmt.Sprintf("pane %d", id) }
-
-// hoverTargetAt names what is under the mouse, a tab's name or a pane's title, with the
-// animation that plays on it; "" when it is neither.
-func (a *App) hoverTargetAt(point image.Point) (string, animation) {
-	if point.Y == 0 {
-		for _, span := range a.tabBar() {
-			if !span.mark && point.X >= span.start && point.X < span.end {
-				return tabHoverName(span.tab), animation{pane: hoverPane, target: target{kind: targetTabName, tab: a.session.tabs[span.tab]}}
-			}
-		}
-		return "", animation{}
-	}
-	t := a.currentTab()
-	if t == nil || t.isEmpty() {
-		return "", animation{}
-	}
-	for _, p := range t.visible(a.workspaceArea()) {
-		if point.Y == p.frame.Min.Y && point.X >= p.frame.Min.X && point.X < p.frame.Max.X {
-			return paneHoverName(p.id), animation{pane: p.id, target: target{kind: targetPaneTitle}}
-		}
-	}
-	return "", animation{}
-}
 
 // screenChangeOf is what a pane's program calls on new output: a frame, and, while the pane is
 // out of sight, its activity marked once until it is seen.
@@ -534,6 +456,7 @@ func (a *App) drawAnimations(screen uv.Screen, at time.Time) {
 		area, ok := a.placeOf(an)
 		switch {
 		case !ok: // what it played on is not on screen any more
+		case an.target.kind == targetListRow && an.effect.blendsColors(): // drawRowHovers blends it
 		case an.closing:
 			a.drawClosing(screen, an, p, at)
 		case an.moment == momentFocus:
@@ -653,8 +576,18 @@ func settleAt(an *animation, area image.Rectangle, x, y int) float64 {
 		return noise(x, y, an.seed)
 	case effectWipe:
 		return across
+	case effectGrow:
+		return fromCenter(area, x, y)
 	}
 	return 0.2 + 0.8*noise(x, y, an.seed)
+}
+
+// fromCenter is how far the cell at x, y is from area's center, 0 there and 1 at the corners.
+func fromCenter(area image.Rectangle, x, y int) float64 {
+	half := func(at, from, size int) float64 {
+		return (float64(at-from) + 0.5 - float64(size)/2) / max(float64(size)/2, 1)
+	}
+	return math.Hypot(half(x, area.Min.X, area.Dx()), half(y, area.Min.Y, area.Dy())) / math.Sqrt2
 }
 
 // vanishAt is when, in a closing's remaining progress, the cell at x, y of area gives way to what
@@ -666,7 +599,7 @@ func vanishAt(an *animation, area image.Rectangle, x, y int) float64 {
 	return settleAt(an, area, x, y)
 }
 
-// wipeEdge is how much of the area the wipe's front blends across.
+// wipeEdge is how much of the area the front of wipe and grow blends across.
 const wipeEdge = 0.2
 
 // colorWeight is how far the cell at x, y of area has gone from the start color to its own.
@@ -676,7 +609,7 @@ func colorWeight(an *animation, area image.Rectangle, x, y int, p float64) float
 		return 1
 	case an.effect == effectDissolve:
 		return 0
-	case an.effect == effectWipe:
+	case an.effect == effectWipe || an.effect == effectGrow:
 		return clamp01((p*(1+wipeEdge) - settleAt(an, area, x, y)) / wipeEdge)
 	case an.moment == momentActivity:
 		return 1 - 0.7*math.Sin(math.Pi*p) // dims and comes back: a pulse
@@ -705,7 +638,7 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 			cell := *c
 			runes := []rune(cell.Content)
 			switch an.effect {
-			case effectFade, effectDissolve, effectWipe:
+			case effectFade, effectDissolve, effectWipe, effectGrow:
 				f := colorWeight(an, area, x, y, p)
 				if cell.Style.Fg != nil {
 					cell.Style.Fg = mix(from, cell.Style.Fg, f)

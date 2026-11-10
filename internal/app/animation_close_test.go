@@ -77,7 +77,7 @@ func TestAClosingFadeLeavesNoBackgroundOverATransparentOne(t *testing.T) {
 
 func TestAClosingEffectRemovesCellsBeforeItEnds(t *testing.T) {
 	area := image.Rect(0, 1, 40, 9)
-	for _, e := range []effect{effect01, effectJitter, effectDissolve, effectWipe} {
+	for _, e := range []effect{effect01, effectJitter, effectDissolve, effectWipe, effectGrow} {
 		if below := countContent(closingOver(t, e, area, 0.05), area, "y"); below > area.Dx()*area.Dy()/4 {
 			t.Errorf("effect %v: %d cells already gone at the start", e, below)
 		}
@@ -143,5 +143,28 @@ func TestWipeCrossesTheAreaFromOneSide(t *testing.T) {
 	}
 	if done := openingOver(t, effectWipe, area, 1); !done(area.Max.X-1, 3) {
 		t.Error("at the end the right edge still lacks its color")
+	}
+}
+
+func TestGrowSpreadsFromTheCenter(t *testing.T) {
+	area := image.Rect(0, 1, 40, 9)
+	center := image.Pt(20, 5)
+	shown := openingOver(t, effectGrow, area, 0.5)
+	if !shown(center.X, center.Y) || shown(area.Min.X, area.Min.Y) || shown(area.Max.X-1, area.Max.Y-1) {
+		t.Errorf("halfway the center shows %v and the corners %v and %v, want only the center", shown(center.X, center.Y), shown(area.Min.X, area.Min.Y), shown(area.Max.X-1, area.Max.Y-1))
+	}
+	if done := openingOver(t, effectGrow, area, 1); !done(area.Min.X, area.Min.Y) {
+		t.Error("at the end a corner still lacks its color")
+	}
+}
+
+func TestGrowClosesTowardTheCenter(t *testing.T) {
+	area := image.Rect(0, 1, 40, 9)
+	screen := closingOver(t, effectGrow, area, 0.5)
+	if c := screen.CellAt(20, 5); c == nil || c.Content == "y" {
+		t.Error("halfway through closing the center is gone, want it kept to the last")
+	}
+	if c := screen.CellAt(area.Min.X, area.Min.Y); c == nil || c.Content != "y" {
+		t.Error("halfway through closing a corner is still there, want it gone first")
 	}
 }

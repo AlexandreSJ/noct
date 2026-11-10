@@ -32,10 +32,12 @@ type scriptsPanel struct {
 	seenLoad    int
 
 	// list is where the list was last drawn, relative to the panel, and first the row on its
-	// top line: what a click lands on. height is how many rows it showed, a page for pgup.
-	list   image.Rectangle
-	first  int
-	height int
+	// top line: what a click lands on. height is how many rows it showed, a page for pgup, and
+	// rowCount how many it had.
+	list     image.Rectangle
+	first    int
+	height   int
+	rowCount int
 
 	// notes caches the notes of script notesOf, read again when the selection or library changes.
 	notesOf     string
@@ -192,6 +194,11 @@ func (p *scriptsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	p.list = list.Sub(area.Min)
 }
 
+// RowAt is the list's row under point, which a click selects.
+func (p *scriptsPanel) RowAt(point image.Point) (image.Rectangle, bool, bool) {
+	return listRowAt(p.list, point, p.first, p.rowCount, p.selected)
+}
+
 // WantsMouseAt takes clicks on the list; the details and notes stay selectable.
 func (p *scriptsPanel) WantsMouseAt(point image.Point) bool {
 	return point.In(p.list)
@@ -248,7 +255,7 @@ func (p *scriptsPanel) drawList(screen uv.Screen, area image.Rectangle) {
 	rows := p.rows()
 	active := rows[p.selected].folder
 	first := listFirst(p.first, p.selected, len(rows), area.Dy())
-	p.first, p.height = first, area.Dy()
+	p.first, p.height, p.rowCount = first, area.Dy(), len(rows)
 	for i := first; i < len(rows) && i-first < area.Dy(); i++ {
 		row, y := rows[i], area.Min.Y+i-first
 		label, value := p.rowText(row)

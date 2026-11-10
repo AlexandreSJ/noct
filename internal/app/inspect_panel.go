@@ -618,6 +618,12 @@ func (p *inspectPanel) runText(r *flow.Result) string {
 	return fmt.Sprintf("%s %s ✗ exit %d", which, r.Start.Format("Jan 2 15:04"), r.Exit)
 }
 
+// RowAt is the row of the flows' list under point, which a click selects.
+func (p *inspectPanel) RowAt(point image.Point) (image.Rectangle, bool, bool) {
+	_, selected, _ := p.current()
+	return listRowAt(p.list, point, 0, len(p.app.flows), selected)
+}
+
 // WantsMouseAt takes the mouse over the list and the chart.
 func (p *inspectPanel) WantsMouseAt(point image.Point) bool {
 	return point.In(p.list) || point.In(p.chartArea)

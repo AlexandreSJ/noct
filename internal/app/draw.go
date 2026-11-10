@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -37,6 +38,7 @@ func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 		a.drawHome(screen)
 	} else {
 		a.drawPanes(screen, a.currentTab())
+		a.drawRowHovers(screen, at)
 	}
 	a.drawAnimations(screen, at)
 	a.drawOverlay(screen, at)
@@ -109,7 +111,7 @@ func (a *App) drawPlacedPane(screen uv.Screen, t *tab, placed placedPane) {
 	case a.hoverTarget == paneHoverName(id):
 		titleStyle = pal.focusedTitle
 	}
-	title := a.viewTitle(t, id)
+	title := a.paneTitle(t, id)
 	if !t.fullscreen && t.tree.Folded(id) {
 		a.paneTitles[id] = drawFoldedPane(screen, frame, title, lineStyle, titleStyle)
 		return
@@ -260,6 +262,35 @@ func (a *App) viewTitle(t *tab, id layout.PaneID) string {
 		return title
 	}
 	return filepath.Base(a.shellArgv[0])
+}
+
+// paneTitle is a pane's title on its frame: a shell that set no title of its own also tells the
+// folder it is in.
+func (a *App) paneTitle(t *tab, id layout.PaneID) string {
+	title := a.viewTitle(t, id)
+	teller, ok := t.views[id].(directoryTeller)
+	if !ok || a.shells[id] == nil || t.paneNames[id] != "" || t.views[id].Title() != "" {
+		return title
+	}
+	if dir := teller.Dir(); dir != "" {
+		return title + " · " + underHome(dir)
+	}
+	return title
+}
+
+// underHome writes a folder in the home folder from ~.
+func underHome(dir string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return dir
+	}
+	if dir == home {
+		return "~"
+	}
+	if rest, ok := strings.CutPrefix(dir, home+string(filepath.Separator)); ok {
+		return "~/" + rest
+	}
+	return dir
 }
 
 // drawFoldedPane draws a pane folded to its title, telling where the title is.
