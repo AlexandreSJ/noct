@@ -94,6 +94,7 @@ type logsPanel struct {
 	grid      image.Point
 	list      image.Rectangle
 	first     int
+	rowCount  int
 	lastClick time.Time
 }
 
@@ -735,7 +736,7 @@ func (p *logsPanel) drawDay(screen uv.Screen, area image.Rectangle, s dayStats) 
 	drawText(screen, area.Min.X, area.Min.Y+2, area.Max.X, "sorted by "+p.order+"; the bar goes from the lightest log to the heaviest", pal.panelMuted)
 	list := image.Rect(area.Min.X, min(area.Min.Y+4, area.Max.Y), area.Max.X, area.Max.Y) // image.Rect would swap the ends of an area too short
 	first := p.first
-	p.list, p.first = list, 0
+	p.list, p.first, p.rowCount = list, 0, len(rows)
 	if len(rows) == 0 {
 		drawText(screen, list.Min.X, list.Min.Y, list.Max.X, "no logs", pal.panelMuted)
 		return
@@ -812,7 +813,7 @@ func groupDigits(n int) string {
 
 // RowAt is the list's row under point, which a click selects.
 func (p *logsPanel) RowAt(point image.Point) (image.Rectangle, bool, bool) {
-	return listRowAt(p.list, point, p.first, len(p.rows()), p.selected)
+	return listRowAt(p.list, point, p.first, p.rowCount, p.selected)
 }
 
 // WantsMouseAt takes clicks on the month's title, its days, the list and the log.

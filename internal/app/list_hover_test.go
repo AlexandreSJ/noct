@@ -159,3 +159,27 @@ var (
 	_ rowLister = (*logsPanel)(nil)
 	_ rowLister = (*inspectPanel)(nil)
 )
+
+func TestHoveringAScriptLightsItsRow(t *testing.T) {
+	a := testApp(t)
+	saveScript(t, "greet", greetScript)
+	saveScript(t, "wave", greetScript)
+	panel := openScriptsPanel(t, a)
+	drawnApp(a)
+	frame, _ := a.currentTab().frameOf(a.currentTab().focused, a.workspaceArea())
+	content := contentRect(frame)
+	var row image.Point
+	for y := panel.list.Min.Y; y < panel.list.Max.Y; y++ {
+		if _, selected, ok := panel.RowAt(image.Pt(panel.list.Min.X, y)); ok && !selected {
+			row = content.Min.Add(image.Pt(panel.list.Min.X+3, y))
+			break
+		}
+	}
+	if row == (image.Point{}) {
+		t.Fatal("the scripts list has no row besides the selected one")
+	}
+	a.handleMouse(motion(row.X, row.Y))
+	if fg, _ := cellStyleAt(a, row); !colorsEqual(fg, a.palette.selectedRow.Bg) {
+		t.Errorf("a hovered script's row is %v, want the selection's color %v", fg, a.palette.selectedRow.Bg)
+	}
+}
