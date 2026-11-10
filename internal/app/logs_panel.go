@@ -810,6 +810,11 @@ func groupDigits(n int) string {
 	return text
 }
 
+// RowAt is the list's row under point, which a click selects.
+func (p *logsPanel) RowAt(point image.Point) (image.Rectangle, bool, bool) {
+	return listRowAt(p.list, point, p.first, len(p.rows()), p.selected)
+}
+
 // WantsMouseAt takes clicks on the month's title, its days, the list and the log.
 func (p *logsPanel) WantsMouseAt(point image.Point) bool {
 	grid := image.Rectangle{Min: p.grid, Max: p.grid.Add(image.Pt(7*dayCellWidth, 6))}

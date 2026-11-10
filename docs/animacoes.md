@@ -59,7 +59,7 @@ O `animate intro` continua como está, à parte.
 
 - **O programa nunca sabe da animação.** Ela só muda o que é desenhado. O PTY é redimensionado uma vez (no fim, ou no começo), nunca a cada quadro, para não mandar um SIGWINCH por quadro e fazer o shell e o vim redesenharem no meio.
 - **Abrir, fechar e popup** podem animar o conteúdo (o texto do painel novo "decifrando"). **Foco, mover, hover e atividade** só animam a moldura (bordas, títulos, a barra), porque acontecem toda hora e não podem mexer no que se está lendo.
-- **Hover** mostra o que está sob o mouse como selecionado: o nome de uma tab na cor de destaque da tab ativa, sobre o próprio fundo, e o título de um painel na cor do painel com foco. Só o texto muda de cor. Vale também com a tab atual vazia, na home. O efeito toca uma vez por passagem, partindo da cor de antes; o mouse parado não repete. Com `fade`, `dissolve` ou `wipe`, sair também volta às cores de antes pelo efeito. Nunca no conteúdo dos programas.
+- **Hover** mostra o que está sob o mouse como selecionado: o nome de uma tab na cor de destaque da tab ativa, sobre o próprio fundo, o título de um painel na cor do painel com foco, e uma linha das listas de scripts, de logs e de fluxos (no inspect) na cor do fundo da seleção, cada célula partindo da própria cor. Só o texto muda de cor. A linha já selecionada não muda, e uma que é selecionada sob o mouse aparece como selecionada. As listas dos popups (sessões, escolhas, busca) não têm hover, porque não recebem clique; o config marca o que o clique muda (ADR-040). Vale também com a tab atual vazia, na home. O efeito toca uma vez por passagem, partindo da cor de antes; o mouse parado não repete. Com `fade`, `dissolve` ou `wipe`, sair também volta às cores de antes pelo efeito. Nunca no conteúdo dos programas.
 - **Cada animação segue o alvo:** o painel, o título dele, o nome da tab ou o popup são encontrados de novo a cada quadro, então uma tab que muda de nome ou um painel que se move levam a animação junto. Popups animam só dentro do próprio retângulo.
 - **Foco** anima só o painel que ganha o foco. Trocar o foco de novo no meio não interrompe: o painel deixado para trás termina voltando à cor dele, e trocar rápido deixa um rastro.
 - **Teclas não esperam:** qualquer tecla leva as outras animações ao estado final e é tratada normalmente, sem ser engolida (diferente da intro, que só pula).
@@ -73,12 +73,6 @@ O config das animações tem o palco ([temas.md](temas.md#o-palco)) embaixo da l
 - Toca uma vez ao chegar na linha (do efeito ou do tempo) e a cada troca (`←`/`→`); `space` repete. Sem loop.
 - Com o mesmo tempo e a mesma curva de quando acontece de verdade, só menor; mudar o tempo toca de novo.
 - Com `animations: off`, o palco mostra o estado final parado, com a nota `animations off`.
-
-## Próximas mudanças
-
-Pedidas pelo mantenedor (ADR-062), ainda não feitas. A que muda uma regra do ADR-053 o atualiza quando for feita.
-
-- **Hover nas listas.** As linhas das listas (scripts, inspect, logs, sessões, config, escolhas) passam a ficar como selecionadas sob o mouse, como os nomes de tab e os títulos de painel já ficam.
 
 ## Catálogo para depois
 

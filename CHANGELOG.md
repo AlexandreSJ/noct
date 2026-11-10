@@ -13,8 +13,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 Animations got a lot smoother. Panes, tabs and popups now go away as gently as they appear,
 instead of vanishing on the last frame; two new effects, `dissolve` and `wipe`, join `01`, `fade`
-and `jitter`; and hovering a tab or a pane's title lights it in the selected color and blends it
-back as the mouse leaves. Fades touch only text colors, so a terminal's own background stays
+and `jitter`; and hovering a tab, a pane's title or a list's row lights it in the selected color
+and blends it back as the mouse leaves. Fades touch only text colors, so a terminal's own background stays
 untouched.
 
 ### Added
@@ -35,6 +35,8 @@ untouched.
 - Hovering a tab's name shows it in the active tab's color and a pane's title in the focused
   pane's, on their own background, also from an empty tab; with `fade`, `dissolve` or `wipe` the
   color blends there and back. Only the title's text lights up, never the border around it.
+- Rows of the scripts, logs and flows lists light up under the mouse in the selection's color,
+  text only, and blend back as it leaves; the selected row stays as it is.
 - Config choices show `<` and `>` instead of `◂` and `▸`, and only the arrows, with a cell on
   each side, change a choice when clicked; clicking its text only selects the row. With the mouse
   where a click changes something, that shows in reverse: the arrow, a value without arrows

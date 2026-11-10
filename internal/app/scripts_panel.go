@@ -192,6 +192,11 @@ func (p *scriptsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	p.list = list.Sub(area.Min)
 }
 
+// RowAt is the list's row under point, which a click selects.
+func (p *scriptsPanel) RowAt(point image.Point) (image.Rectangle, bool, bool) {
+	return listRowAt(p.list, point, p.first, len(p.rows()), p.selected)
+}
+
 // WantsMouseAt takes clicks on the list; the details and notes stay selectable.
 func (p *scriptsPanel) WantsMouseAt(point image.Point) bool {
 	return point.In(p.list)

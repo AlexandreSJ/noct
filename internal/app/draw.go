@@ -37,6 +37,7 @@ func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 		a.drawHome(screen)
 	} else {
 		a.drawPanes(screen, a.currentTab())
+		a.drawRowHovers(screen, at)
 	}
 	a.drawAnimations(screen, at)
 	a.drawOverlay(screen, at)
