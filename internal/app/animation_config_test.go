@@ -155,18 +155,18 @@ func TestTheStageIsUnderTheRowsWithItsNote(t *testing.T) {
 func TestClickingTheArrowsDrawnChangesTheEffect(t *testing.T) {
 	a := animationConfig(t, momentPanels)
 	row := drawnCell(t, a, "open and close panels", 0)
-	next := drawnCell(t, a, "▸", row.Y)
+	next := drawnCell(t, a, ">", row.Y)
 	if next.Y != row.Y {
-		t.Fatalf("the row's ▸ is not on its line")
+		t.Fatalf("the row's > is not on its line")
 	}
 	click(a, next.X, next.Y)
 	if a.config.Animations.Panels != "jitter" {
-		t.Fatalf("panels on %q after clicking ▸, want jitter", a.config.Animations.Panels)
+		t.Fatalf("panels on %q after clicking >, want jitter", a.config.Animations.Panels)
 	}
-	back := drawnCell(t, a, "◂", row.Y)
+	back := drawnCell(t, a, "<", row.Y)
 	click(a, back.X, back.Y)
 	if a.config.Animations.Panels != "fade" {
-		t.Errorf("panels on %q after clicking ◂, want fade back", a.config.Animations.Panels)
+		t.Errorf("panels on %q after clicking <, want fade back", a.config.Animations.Panels)
 	}
 }
 
@@ -175,5 +175,24 @@ func TestAShortTerminalKeepsTheRowsWithoutTheStage(t *testing.T) {
 	a.size.Y = 24
 	if text := screenText(a); strings.Contains(text, "example ·") {
 		t.Errorf("the stage's note shows where the stage does not fit:\n%s", text)
+	}
+}
+
+func TestHoveringAConfigValueLightsWhatAClickChanges(t *testing.T) {
+	a := animationConfig(t, momentPanels)
+	row := drawnCell(t, a, "open and close panels", 0)
+	back, next := drawnCell(t, a, "<", row.Y), drawnCell(t, a, ">", row.Y)
+	lit := func(p image.Point) bool { return drawnApp(a).CellAt(p.X, p.Y).Style.Attrs&uv.AttrReverse != 0 }
+	a.handleMouse(motion(back.X, back.Y))
+	if !lit(back) || lit(next) {
+		t.Errorf("over <: < lit %v, > lit %v; want only <", lit(back), lit(next))
+	}
+	a.handleMouse(motion(back.X+3, back.Y))
+	if lit(back) || !lit(next) {
+		t.Errorf("over the value: < lit %v, > lit %v; want only >, which a click there does", lit(back), lit(next))
+	}
+	a.handleMouse(motion(row.X+1, row.Y))
+	if lit(back) || lit(next) {
+		t.Errorf("over the label: < lit %v, > lit %v; want neither", lit(back), lit(next))
 	}
 }

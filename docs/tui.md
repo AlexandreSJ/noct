@@ -72,7 +72,7 @@ No modo noct:
 | `1`–`9` | go to tab | Ir para a tab N | continua | 0 |
 | `t` | new tab | Nova tab com o painel escolhido no config (terminal por padrão; ou vazia, ADR-039) | termina | 0 |
 | `T` | open a template | Lista dos templates com a miniatura do layout: `Enter` abre como tab nova, `e` edita o arquivo, `r` renomeia, `d` apaga (ADR-052) | popup | 5 |
-| `R` | save the tab as a template | Grava a tab como template: nome, e em cada terminal com comando `◂ ask ▸` (`run`, `ask`, `none`); um nome que existe pergunta antes | popup | 5 |
+| `R` | save the tab as a template | Grava a tab como template: nome, e em cada terminal com comando `< ask >` (`run`, `ask`, `none`); um nome que existe pergunta antes | popup | 5 |
 | `p` | new panel | Painel de terminal: divide o painel com foco; na home, abre uma tab | termina | 0 |
 | `s` | scripts panel | Scripts panel, do mesmo jeito que `p` | termina | 0 |
 | `i` | inspect flows | Inspect: fluxos e o fluxograma, do mesmo jeito que `p` | termina | 2 |
@@ -176,7 +176,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 
 ## Config
 
-`prefixo` + `,` (ou `Alt+,`) abre o painel **config**, gravado em `~/.config/noct/config.toml` (TOML legível, editável à mão). Cada mudança vale na hora e é salva. Com o mouse (ADR-040): passar sobre uma linha a destaca, clicar a seleciona, e clicar no valor o muda: em `◂` volta, em qualquer outro ponto (`▸`, `on`/`off`) avança, como `←`/`→`; numa linha de texto, o clique só seleciona, para digitar. A roda move a seleção, e um clique fora fecha o painel.
+`prefixo` + `,` (ou `Alt+,`) abre o painel **config**, gravado em `~/.config/noct/config.toml` (TOML legível, editável à mão). Cada mudança vale na hora e é salva. Com o mouse (ADR-040): passar sobre uma linha a destaca, clicar a seleciona, e clicar no valor o muda: em `<` volta, em qualquer outro ponto (`>`, `on`/`off`) avança, como `←`/`→`. Com o mouse sobre o valor, o que o clique muda fica em vídeo reverso: a seta que ele aciona, o valor inteiro quando não há setas, ou o campo de uma linha de texto; numa linha de texto, o clique só seleciona, para digitar. A roda move a seleção, e um clique fora fecha o painel.
 
 | Seção | Item | Valores |
 |---|---|---|
@@ -189,7 +189,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 | | `mode` | `dark` (padrão) ou `light`: cada tema embutido tem cores para fundo escuro e para fundo claro, e o modo escolhe quais a tela mostra, em todas as sessões. Os temas do usuário têm um jogo de cores só, que vale nos dois modos (ADR-055). |
 | | `background` | `terminal` mantém o fundo do terminal; `theme` pinta o fundo e o texto padrão com as cores do tema, inclusive dentro dos painéis. |
 | | `animate intro` | Quando a intro do título roda ao abrir o noct: `empty` (padrão) só quando a home está à vista (sessão sem tabs ou tab vazia); `always` sempre, cobrindo os painéis durante a intro e mais 1000 ms antes de mostrar a sessão (uma tecla ou um clique pula); `never` nunca. |
-| | `animations` | Liga (padrão) ou desliga todas as animações. Embaixo, uma linha por momento (`hover`, `open and close panels`, `open and close tabs`, `focus`, `move a panel`, `fullscreen`, `popups`, `activity`) com o efeito em `◂ ▸`: `none`, `01`, `fade`, `jitter`, `dissolve`, `wipe`; embaixo de cada uma, `time`, em ms (de 50 a 2000, de 50 em 50 com `←`/`→`, ou digitado). Com uma dessas linhas selecionada, o palco embaixo da lista (30% da altura, com o subtítulo `example · space repeats it`) toca o efeito uma vez, com o tempo dela; `space` toca de novo (ADR-053). |
+| | `animations` | Liga (padrão) ou desliga todas as animações. Embaixo, uma linha por momento (`hover`, `open and close panels`, `open and close tabs`, `focus`, `move a panel`, `fullscreen`, `popups`, `activity`) com o efeito em `< >`: `none`, `01`, `fade`, `jitter`, `dissolve`, `wipe`; embaixo de cada uma, `time`, em ms (de 50 a 2000, de 50 em 50 com `←`/`→`, ou digitado). Com uma dessas linhas selecionada, o palco embaixo da lista (30% da altura, com o subtítulo `example · space repeats it`) toca o efeito uma vez, com o tempo dela; `space` toca de novo (ADR-053). |
 | **Mouse** | `clicks and drag` (`mouse` no arquivo) | Liga os cliques, o arraste das divisórias e a roda; padrão ligado. |
 | **Tabs** | `new tab opens` (`new_tab` no arquivo) | O painel com que `t` abre uma tab: `empty`, `terminal` (padrão), `scripts`, `flows` ou `logs`, cada um mostrado com as teclas que o abrem (`terminal (alt+p)`). As opções vêm da lista de tipos de painel (`panelKinds`), então um tipo novo aparece aqui sozinho. Um nome desconhecido no arquivo abre um terminal. (ADR-039) |
 | **Tabs** | `close when empty` (`close_empty_tabs` no arquivo) | Ligado (padrão): a tab fecha quando o último painel fecha. Desligado: a tab fica, vazia, mostrando a home; um painel aberto nela a ocupa, e `x` ou `Ctrl+D` a fecham. Mover o último painel para outra tab fecha a de origem de qualquer jeito. (ADR-039) |
