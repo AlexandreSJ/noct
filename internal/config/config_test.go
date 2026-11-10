@@ -308,13 +308,13 @@ func TestSaveKeepsALinkedConfigALink(t *testing.T) {
 	}
 }
 
-func TestConfigReadsDissolveAndWipe(t *testing.T) {
+func TestConfigReadsTheNewerEffects(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
-	if err := os.WriteFile(path, []byte("[animations]\npanels = \"dissolve\"\npopup = \"wipe\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("[animations]\npanels = \"dissolve\"\npopup = \"wipe\"\ntabs = \"grow\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	c, err := Load(path)
-	if err != nil || c.Animations.Panels != "dissolve" || c.Animations.Popup != "wipe" {
-		t.Errorf("read panels %q and popup %q, %v", c.Animations.Panels, c.Animations.Popup, err)
+	if err != nil || c.Animations.Panels != "dissolve" || c.Animations.Popup != "wipe" || c.Animations.Tabs != "grow" {
+		t.Errorf("read panels %q, popup %q and tabs %q, %v", c.Animations.Panels, c.Animations.Popup, c.Animations.Tabs, err)
 	}
 }

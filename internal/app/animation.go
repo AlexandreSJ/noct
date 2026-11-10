@@ -50,14 +50,15 @@ const (
 	effectJitter
 	effectDissolve
 	effectWipe
+	effectGrow
 )
 
 // effects name each effect as the config file does.
-var effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe"}
+var effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe", "grow"}
 
 // blendsColors tells an effect that moves a cell from one color to another.
 func (e effect) blendsColors() bool {
-	return e == effectFade || e == effectDissolve || e == effectWipe
+	return e == effectFade || e == effectDissolve || e == effectWipe || e == effectGrow
 }
 
 func effectNamed(name string) effect {
@@ -575,8 +576,18 @@ func settleAt(an *animation, area image.Rectangle, x, y int) float64 {
 		return noise(x, y, an.seed)
 	case effectWipe:
 		return across
+	case effectGrow:
+		return fromCenter(area, x, y)
 	}
 	return 0.2 + 0.8*noise(x, y, an.seed)
+}
+
+// fromCenter is how far the cell at x, y is from area's center, 0 there and 1 at the corners.
+func fromCenter(area image.Rectangle, x, y int) float64 {
+	half := func(at, from, size int) float64 {
+		return (float64(at-from) + 0.5 - float64(size)/2) / max(float64(size)/2, 1)
+	}
+	return math.Hypot(half(x, area.Min.X, area.Dx()), half(y, area.Min.Y, area.Dy())) / math.Sqrt2
 }
 
 // vanishAt is when, in a closing's remaining progress, the cell at x, y of area gives way to what
@@ -588,7 +599,7 @@ func vanishAt(an *animation, area image.Rectangle, x, y int) float64 {
 	return settleAt(an, area, x, y)
 }
 
-// wipeEdge is how much of the area the wipe's front blends across.
+// wipeEdge is how much of the area the front of wipe and grow blends across.
 const wipeEdge = 0.2
 
 // colorWeight is how far the cell at x, y of area has gone from the start color to its own.
@@ -598,7 +609,7 @@ func colorWeight(an *animation, area image.Rectangle, x, y int, p float64) float
 		return 1
 	case an.effect == effectDissolve:
 		return 0
-	case an.effect == effectWipe:
+	case an.effect == effectWipe || an.effect == effectGrow:
 		return clamp01((p*(1+wipeEdge) - settleAt(an, area, x, y)) / wipeEdge)
 	case an.moment == momentActivity:
 		return 1 - 0.7*math.Sin(math.Pi*p) // dims and comes back: a pulse
@@ -627,7 +638,7 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 			cell := *c
 			runes := []rune(cell.Content)
 			switch an.effect {
-			case effectFade, effectDissolve, effectWipe:
+			case effectFade, effectDissolve, effectWipe, effectGrow:
 				f := colorWeight(an, area, x, y, p)
 				if cell.Style.Fg != nil {
 					cell.Style.Fg = mix(from, cell.Style.Fg, f)
