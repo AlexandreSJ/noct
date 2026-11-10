@@ -117,6 +117,8 @@ type App struct {
 	lastPopup    drawnPopup
 	popupArea    image.Rectangle
 	drawingPopup bool
+	// paneTitles are where the frame being drawn put each pane's title, which hovering animates.
+	paneTitles map[layout.PaneID]image.Rectangle
 	// activity marks, per pane, that output out of sight was told; unseen are the panes that
 	// pulsed and were not seen since.
 	activity map[layout.PaneID]*atomic.Bool

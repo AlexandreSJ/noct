@@ -85,6 +85,7 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 }
 
 func (a *App) drawPanes(screen uv.Screen, t *tab) {
+	a.paneTitles = map[layout.PaneID]image.Rectangle{}
 	for _, placed := range t.visible(a.workspaceArea()) {
 		a.drawPlacedPane(screen, t, placed)
 	}
@@ -110,7 +111,7 @@ func (a *App) drawPlacedPane(screen uv.Screen, t *tab, placed placedPane) {
 	}
 	title := a.viewTitle(t, id)
 	if !t.fullscreen && t.tree.Folded(id) {
-		drawFoldedPane(screen, frame, title, lineStyle, titleStyle)
+		a.paneTitles[id] = drawFoldedPane(screen, frame, title, lineStyle, titleStyle)
 		return
 	}
 	var status []string
@@ -120,13 +121,13 @@ func (a *App) drawPlacedPane(screen uv.Screen, t *tab, placed placedPane) {
 	scrolled, isScrollable := t.views[id].(scrollable)
 	if id == t.focused && a.mode == scrollMode && isScrollable {
 		status = append(status, a.scrollPosition())
-		drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
+		a.paneTitles[id] = drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
 		a.drawExits(screen, t, frame, lineStyle)
 		scrolled.DrawScrolled(viewScreen, contentRect(frame), a.scrollOffset)
 		a.highlightSelection(screen, t, id)
 		return
 	}
-	drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
+	a.paneTitles[id] = drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
 	a.drawExits(screen, t, frame, lineStyle)
 	t.views[id].Draw(viewScreen, contentRect(frame))
 	if command := a.pendingRerun(id); command != "" {
@@ -261,14 +262,16 @@ func (a *App) viewTitle(t *tab, id layout.PaneID) string {
 	return filepath.Base(a.shellArgv[0])
 }
 
-func drawFoldedPane(screen uv.Screen, frame image.Rectangle, title string, lineStyle, titleStyle uv.Style) {
+// drawFoldedPane draws a pane folded to its title, telling where the title is.
+func drawFoldedPane(screen uv.Screen, frame image.Rectangle, title string, lineStyle, titleStyle uv.Style) image.Rectangle {
 	if frame.Empty() {
-		return
+		return image.Rectangle{}
 	}
 	for x := frame.Min.X; x < frame.Max.X; x++ {
 		setRune(screen, x, frame.Min.Y, "─", lineStyle)
 	}
-	drawText(screen, frame.Min.X+2, frame.Min.Y, frame.Max.X-1, " ▸ "+title+" ", titleStyle)
+	end := drawText(screen, frame.Min.X+2, frame.Min.Y, frame.Max.X-1, " ▸ "+title+" ", titleStyle)
+	return image.Rect(frame.Min.X+2, frame.Min.Y, end, frame.Min.Y+1)
 }
 
 func drawFrame(screen uv.Screen, frame image.Rectangle, title string, lineStyle, titleStyle uv.Style) {
@@ -276,13 +279,13 @@ func drawFrame(screen uv.Screen, frame image.Rectangle, title string, lineStyle,
 }
 
 // drawFrameStatus draws a frame with a status, such as the scroll position, at the right of its
-// top line.
-func drawFrameStatus(screen uv.Screen, frame image.Rectangle, title, status string, lineStyle, titleStyle uv.Style) {
+// top line, telling where the title is.
+func drawFrameStatus(screen uv.Screen, frame image.Rectangle, title, status string, lineStyle, titleStyle uv.Style) image.Rectangle {
 	if frame.Dx() < 2 || frame.Dy() < 2 {
-		return
+		return image.Rectangle{}
 	}
 	right, bottom := frame.Max.X-1, frame.Max.Y-1
-	drawTitleLine(screen, frame.Min.X+1, right, frame.Min.Y, title, status, lineStyle, titleStyle)
+	titleArea := drawTitleLine(screen, frame.Min.X+1, right, frame.Min.Y, title, status, lineStyle, titleStyle)
 	for x := frame.Min.X + 1; x < right; x++ {
 		setRune(screen, x, bottom, "─", lineStyle)
 	}
@@ -294,6 +297,7 @@ func drawFrameStatus(screen uv.Screen, frame image.Rectangle, title, status stri
 	setRune(screen, right, frame.Min.Y, "┐", lineStyle)
 	setRune(screen, frame.Min.X, bottom, "└", lineStyle)
 	setRune(screen, right, bottom, "┘", lineStyle)
+	return titleArea
 }
 
 // drawExits dashes, in fullscreen, the middle of each side of the frame that has a pane beyond
@@ -351,7 +355,7 @@ func gapCell(screen uv.Screen, x, y int, plain string, style uv.Style) {
 
 // drawTitleLine draws a frame's line from x up to maxX, with the title near its start and the
 // status near its end. The title gives way to the status, cut with "…".
-func drawTitleLine(screen uv.Screen, x, maxX, y int, title, status string, lineStyle, titleStyle uv.Style) {
+func drawTitleLine(screen uv.Screen, x, maxX, y int, title, status string, lineStyle, titleStyle uv.Style) image.Rectangle {
 	for column := x; column < maxX; column++ {
 		setRune(screen, column, y, "─", lineStyle)
 	}
@@ -363,8 +367,10 @@ func drawTitleLine(screen uv.Screen, x, maxX, y int, title, status string, lineS
 		titleEnd = start - 1
 	}
 	if room := titleEnd - x - 3; title != "" && room > 0 {
-		drawText(screen, x+1, y, titleEnd, " "+ansi.Truncate(title, room, "…")+" ", titleStyle)
+		end := drawText(screen, x+1, y, titleEnd, " "+ansi.Truncate(title, room, "…")+" ", titleStyle)
+		return image.Rect(x+1, y, end, y+1)
 	}
+	return image.Rectangle{}
 }
 
 func fillRect(screen uv.Screen, area image.Rectangle, style uv.Style) {

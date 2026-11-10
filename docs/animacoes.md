@@ -8,7 +8,7 @@ Além da intro do título, com os `0`/`1` que revelam o ASCII (ADR-025, ADR-043)
 
 | Momento | O que anima |
 |---|---|
-| Hover do mouse | O que está sob o mouse: nome de tab, título de painel, linha de lista, o corvo |
+| Hover do mouse | O que está sob o mouse: nome de tab, o texto do título de painel (não a borda em volta), linha de lista, o corvo |
 | Abrir e fechar painel | O painel que abre ou fecha, e o espaço que os vizinhos ganham ou cedem |
 | Abrir e fechar tab | O nome na barra e o conteúdo da tab |
 | Foco | A borda e o título do painel que perde e do que ganha o foco |

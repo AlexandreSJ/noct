@@ -265,12 +265,12 @@ const (
 // placeOf is where the animation plays on this frame, or false when its target is not on screen.
 func (a *App) placeOf(an *animation) (image.Rectangle, bool) {
 	switch an.target.kind {
-	case targetPane, targetPaneTitle:
+	case targetPane:
 		frame, ok := a.lastShot.frames[an.pane]
-		if an.target.kind == targetPaneTitle {
-			frame.Max.Y = frame.Min.Y + 1
-		}
 		return frame, ok
+	case targetPaneTitle:
+		title, ok := a.paneTitles[an.pane]
+		return title, ok && !title.Empty()
 	case targetTabName:
 		return a.tabNameSpan(an.target.tab)
 	case targetPopup:

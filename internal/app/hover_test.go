@@ -103,3 +103,25 @@ func TestHoveringAPaneTitleShowsItAsFocused(t *testing.T) {
 		t.Errorf("hovered, the title is %v, want the focused title's %v", fg, a.palette.focusedTitle.Fg)
 	}
 }
+
+func TestLeavingAPaneTitleLeavesItsBorderAlone(t *testing.T) {
+	a, tb := animatedApp(t)
+	a.config.Animations.Hover = "fade"
+	a.openPanel(a.startTerminal)
+	a.finishAnimations()
+	drawnApp(a)
+	var other image.Rectangle
+	for _, p := range tb.visible(a.workspaceArea()) {
+		if p.id != tb.focused {
+			other = p.frame
+		}
+	}
+	a.handleMouse(motion(other.Min.X+3, other.Min.Y))
+	rewind(a, time.Second)
+	a.advanceAnimations(a.now())
+	a.handleMouse(motion(a.size.X/2, a.size.Y-2))
+	border := image.Pt(other.Max.X-3, other.Min.Y)
+	if fg, _ := cellStyleAt(a, border); !colorsEqual(fg, a.palette.unfocusedFrame.Fg) {
+		t.Errorf("as the mouse leaves the title the border is %v, want its own %v", fg, a.palette.unfocusedFrame.Fg)
+	}
+}
