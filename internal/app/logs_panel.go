@@ -157,19 +157,10 @@ func (p *logsPanel) reload() {
 	p.loaded = time.Now()
 }
 
-// onDay tells whether a log shows on a day: the day it started or the day it was last written
-// to, so a terminal left open since yesterday shows today too.
+// onDay tells whether a log shows on a day: one it had output on, so a terminal left open since
+// yesterday shows today too.
 func onDay(e logstore.Entry, day time.Time) bool {
-	return dateOf(e.At).Equal(day) || dateOf(lastWrite(e)).Equal(day)
-}
-
-// logDays are the days a log shows on, once each.
-func logDays(e logstore.Entry) []time.Time {
-	started, written := dateOf(e.At), dateOf(lastWrite(e))
-	if started.Equal(written) {
-		return []time.Time{started}
-	}
-	return []time.Time{started, written}
+	return slices.ContainsFunc(e.Days(), day.Equal)
 }
 
 // rows are the logs listed: the selected day's, or every day's, or those of any day that match
@@ -222,7 +213,7 @@ type dayStats struct {
 func (p *logsPanel) statsByDay() map[time.Time]dayStats {
 	stats := map[time.Time]dayStats{}
 	for _, e := range p.entries {
-		for _, day := range logDays(e) {
+		for _, day := range e.Days() {
 			s := stats[day]
 			s.logs++
 			s.size += e.Size
@@ -693,7 +684,7 @@ func (p *logsPanel) monthStats() dayStats {
 	inMonth := func(day time.Time) bool { return day.Year() == p.day.Year() && day.Month() == p.day.Month() }
 	var month dayStats
 	for _, e := range p.entries {
-		if slices.ContainsFunc(logDays(e), inMonth) {
+		if slices.ContainsFunc(e.Days(), inMonth) {
 			month.logs++
 			month.size += e.Size
 		}

@@ -13,7 +13,6 @@
 | **Execuções** | O que está rodando agora, com status, duração e passo atual. Enter salta para o painel. | 2 |
 | **Logs** | `prefixo` + `v`: o calendário do mês, cada dia marcado pelo que rodou nele e colorido pela quantidade de logs, e os logs do dia em colunas (última escrita, início, como a execução terminou, nome, sessão, barra de peso, tamanho e linhas); ver o log selecionado ao lado, acompanhando a seleção, em partes de 5 000 linhas, com lugar e tamanho que `p` e `+`/`-` mudam, sozinho (`z`) ou escondido (`v`), ordenar, filtrar (`f`: data, nome, status, peso ou linhas numa linha só), abrir uma execução de fluxo no fluxograma (`i`) e limpar (ver [fluxos.md](fluxos.md#logs-e-calendário)). | 2 |
 | **Aprovações** | Pedidos pendentes da IA ou de triggers, com o comando completo; aprovar/negar. | 3 |
-| **Catálogo** | Programas instalados, faltando e recomendados; instalar abre um painel com o gerenciador escolhido. | 4 |
 
 ## Tabs e painéis
 
@@ -73,7 +72,7 @@ No modo noct:
 | `1`–`9` | go to tab | Ir para a tab N | continua | 0 |
 | `t` | new tab | Nova tab com o painel escolhido no config (terminal por padrão; ou vazia, ADR-039) | termina | 0 |
 | `T` | open a template | Lista dos templates com a miniatura do layout: `Enter` abre como tab nova, `e` edita o arquivo, `r` renomeia, `d` apaga (ADR-052) | popup | 5 |
-| `R` | save the tab as a template | Grava a tab como template: nome, e em cada terminal com comando `◂ ask ▸` (`run`, `ask`, `none`); um nome que existe pergunta antes | popup | 5 |
+| `R` | save the tab as a template | Grava a tab como template: nome, e em cada terminal com comando `< ask >` (`run`, `ask`, `none`); um nome que existe pergunta antes | popup | 5 |
 | `p` | new panel | Painel de terminal: divide o painel com foco; na home, abre uma tab | termina | 0 |
 | `s` | scripts panel | Scripts panel, do mesmo jeito que `p` | termina | 0 |
 | `i` | inspect flows | Inspect: fluxos e o fluxograma, do mesmo jeito que `p` | termina | 2 |
@@ -83,6 +82,7 @@ No modo noct:
 | `w` | stacked or split | Empilhar o painel com foco e os de baixo na coluna, ou dividir a pilha de novo | termina | 2 |
 | `f` | fullscreen | Mostrar só o painel com foco, ou o layout de novo | termina | 1 |
 | `u` | floating panel | Terminal num painel flutuante (antes `g`) | termina | 1 |
+| `D` | duplicate the terminal | Terminal novo ao lado, na pasta do terminal com foco; se o shell dele roda um programa, a caixa `run again?` oferece o mesmo comando (ADR-046). Só num terminal | termina | 5 |
 | `r` | rename tab | Renomear a tab: `Enter` salva, `Esc` cancela | prompt | 0 |
 | `e` | rename panel | Renomear o painel com foco; vazio volta ao nome do programa | prompt | 2 |
 | `P` | colors of the panel and tab | Cores próprias do painel com foco (bordas, títulos, fundo e texto) e da tab dele (nome e fundo, ativa e inativa), por cima do tema da sessão, com o palco ao lado e um aviso de contraste baixo; `Alt+Shift+P` com o atalho direto em `alt` (ADR-051) | popup | 5 |
@@ -99,7 +99,6 @@ No modo noct:
 | `Space`, `'` | search | Busca fuzzy sobre scripts, ações, tabs e binds próprias | busca | 1 |
 | `o` | | Execuções | | 2 |
 | `y` | MCP | Popup do MCP: no topo as aprovações (o que uma IA pediu e espera a decisão; `y` aprova, `n` nega), depois os clientes de IA conectados agora, e o comando para adicionar o noct a cada cliente conhecido (Claude Code, Codex, Gemini CLI, VS Code, opencode, Cursor), com o caminho deste binário; `Enter` copia e fecha (ver [mcp.md](mcp.md#como-a-ia-se-conecta)) | MCP | 3 |
-| `u` | | Catálogo (instalar) | | 4 |
 
 Scripts são abertos pelo scripts panel (`s`) ou pela busca (`Space`), e fluxos pelo inspect (`i`), não por teclas próprias no modo noct.
 
@@ -177,7 +176,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 
 ## Config
 
-`prefixo` + `,` (ou `Alt+,`) abre o painel **config**, gravado em `~/.config/noct/config.toml` (TOML legível, editável à mão). Cada mudança vale na hora e é salva. Com o mouse (ADR-040): passar sobre uma linha a destaca, clicar a seleciona, e clicar no valor o muda: em `◂` volta, em qualquer outro ponto (`▸`, `on`/`off`) avança, como `←`/`→`; numa linha de texto, o clique só seleciona, para digitar. A roda move a seleção, e um clique fora fecha o painel.
+`prefixo` + `,` (ou `Alt+,`) abre o painel **config**, gravado em `~/.config/noct/config.toml` (TOML legível, editável à mão). Cada mudança vale na hora e é salva. Com o mouse (ADR-040): passar sobre uma linha a destaca, clicar a seleciona, e clicar no valor o muda, como `←`/`→`: numa escolha, `<` volta e `>` avança, cada seta com uma célula de cada lado (` < `, ` > `), e o texto entre elas só seleciona; num valor sem setas (`on`/`off`, `defaults >`), qualquer ponto avança. Com o mouse onde o clique muda algo, isso fica em vídeo reverso: a seta, o valor sem setas inteiro, ou o campo de uma linha de texto; numa linha de texto, o clique só seleciona, para digitar. A roda move a seleção, e um clique fora fecha o painel.
 
 | Seção | Item | Valores |
 |---|---|---|
@@ -190,7 +189,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 | | `mode` | `dark` (padrão) ou `light`: cada tema embutido tem cores para fundo escuro e para fundo claro, e o modo escolhe quais a tela mostra, em todas as sessões. Os temas do usuário têm um jogo de cores só, que vale nos dois modos (ADR-055). |
 | | `background` | `terminal` mantém o fundo do terminal; `theme` pinta o fundo e o texto padrão com as cores do tema, inclusive dentro dos painéis. |
 | | `animate intro` | Quando a intro do título roda ao abrir o noct: `empty` (padrão) só quando a home está à vista (sessão sem tabs ou tab vazia); `always` sempre, cobrindo os painéis durante a intro e mais 1000 ms antes de mostrar a sessão (uma tecla ou um clique pula); `never` nunca. |
-| | `animations` | Liga (padrão) ou desliga todas as animações. Embaixo, uma linha por momento (`hover`, `open and close panels`, `open and close tabs`, `focus`, `move a panel`, `fullscreen`, `popups`, `activity`) com o efeito em `◂ ▸`: `none`, `01`, `fade`, `jitter`; embaixo de cada uma, `time`, em ms (de 50 a 2000, de 50 em 50 com `←`/`→`, ou digitado). Com uma dessas linhas selecionada, o palco embaixo da lista (30% da altura, com o subtítulo `example · space repeats it`) toca o efeito uma vez, com o tempo dela; `space` toca de novo (ADR-053). |
+| | `animations` | Liga (padrão) ou desliga todas as animações. Embaixo, uma linha por momento (`hover`, `open and close panels`, `open and close tabs`, `focus`, `move a panel`, `fullscreen`, `popups`, `activity`) com o efeito em `< >`: `none`, `01`, `fade`, `jitter`, `dissolve`, `wipe`; embaixo de cada uma, `time`, em ms (de 50 a 2000, de 50 em 50 com `←`/`→`, ou digitado). Com uma dessas linhas selecionada, o palco embaixo da lista (30% da altura, com o subtítulo `example · space repeats it`) toca o efeito uma vez, com o tempo dela; `space` toca de novo (ADR-053). |
 | **Mouse** | `clicks and drag` (`mouse` no arquivo) | Liga os cliques, o arraste das divisórias e a roda; padrão ligado. |
 | **Tabs** | `new tab opens` (`new_tab` no arquivo) | O painel com que `t` abre uma tab: `empty`, `terminal` (padrão), `scripts`, `flows` ou `logs`, cada um mostrado com as teclas que o abrem (`terminal (alt+p)`). As opções vêm da lista de tipos de painel (`panelKinds`), então um tipo novo aparece aqui sozinho. Um nome desconhecido no arquivo abre um terminal. (ADR-039) |
 | **Tabs** | `close when empty` (`close_empty_tabs` no arquivo) | Ligado (padrão): a tab fecha quando o último painel fecha. Desligado: a tab fica, vazia, mostrando a home; um painel aberto nela a ocupa, e `x` ou `Ctrl+D` a fecham. Mover o último painel para outra tab fecha a de origem de qualquer jeito. (ADR-039) |
@@ -242,7 +241,7 @@ Nada é instalado nem reiniciado sem uma tecla do usuário. Sem reiniciar, a ver
 - Suporte a truecolor com fallback para 256 cores.
 - Em toda lista (config e binds, busca, scripts, logs, fluxos do inspect, sessões, MCP, escolhas), `PgUp`/`PgDn` andam uma página, deixando a última linha da página anterior à vista, e `Home`/`End` vão ao primeiro e ao último item (`listJump`); no popup de um passo, rolam o texto. Nos logs, com o calendário em foco, `PgUp`/`PgDn` mudam o mês.
 - Listas que não cabem (config e binds, busca, scripts, logs) rolam deixando linhas visíveis em volta da seleção, acima e abaixo: 30% da altura da lista, pelo menos 4 e no máximo metade, para o próximo item aparecer antes de ser alcançado (`scrollMargin`).
-- Animações por momento (abrir e fechar painel e tab, foco, mover, tela inteira, popup, hover, atividade), cada uma com um efeito (`01`, `fade`, `jitter`) e um tempo, escolhidos em `Appearance → animations`; nunca redimensionam os programas e uma tecla as termina, menos as do foco ([animacoes.md](animacoes.md), ADR-053).
+- Animações por momento (abrir e fechar painel e tab, foco, mover, tela inteira, popup, hover, atividade), cada uma com um efeito (`01`, `fade`, `jitter`, `dissolve`, `wipe`) e um tempo, escolhidos em `Appearance → animations`; nunca redimensionam os programas e uma tecla as termina, menos as do foco ([animacoes.md](animacoes.md), ADR-053).
 
 ## Imagens
 
@@ -263,6 +262,5 @@ Como a imagem vira texto na grade, ela rola, é recortada pelas bordas do painel
 - Re-executar o último fluxo com os mesmos parâmetros em uma tecla (scripts já têm: `r`).
 - Clicar/abrir URLs e caminhos de arquivo na saída.
 - Timestamps opcionais por linha nos logs.
-- Nos logs, os dias entre o início e a última escrita de um log (hoje ele aparece só nesses dois), gravando os dias em que ele recebeu saída (ADR-059).
 - Buscar texto no log selecionado da view de logs e ir à parte de 5 000 linhas que o tem.
 - Filtrar a saída de um painel por regex sem parar o processo.

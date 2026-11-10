@@ -62,20 +62,25 @@ func Create(root string, f Fields, withHints bool) (Script, error) {
 	if strings.TrimSpace(notes) == "" {
 		notes = fmt.Sprintf(notesSkeleton, f.Name)
 	}
-	if err := writeScriptFiles(dir, body, notes); err != nil {
+	if err := WriteFiles(dir, body, notes); err != nil {
 		return Script{}, fmt.Errorf("creating script %s: %w", f.Name, err)
 	}
 	return Load(dir)
 }
 
-func writeScriptFiles(dir string, body []byte, notes string) error {
+// WriteFiles replaces a script's script.yaml and, when notes is not empty, its notes.md, creating
+// the folder when needed.
+func WriteFiles(dir string, body []byte, notes string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, FileName), body, 0o644); err != nil {
+	if err := atomicfile.Write(filepath.Join(dir, FileName), body, 0o644); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, NotesName), []byte(notes), 0o644)
+	if notes == "" {
+		return nil
+	}
+	return atomicfile.Write(filepath.Join(dir, NotesName), []byte(notes), 0o644)
 }
 
 // Update saves the fields into the script. Only what changed is rewritten: the rest of
@@ -97,7 +102,7 @@ func Update(s Script, f Fields) (Script, error) {
 		return Script{}, fmt.Errorf("saving script %s: %w", s.Name, err)
 	}
 	if f.Notes != s.Notes() {
-		if err := os.WriteFile(s.NotesFile(), []byte(f.Notes), 0o644); err != nil {
+		if err := atomicfile.Write(s.NotesFile(), []byte(f.Notes), 0o644); err != nil {
 			return Script{}, fmt.Errorf("saving the notes of %s: %w", s.Name, err)
 		}
 	}

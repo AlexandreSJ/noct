@@ -49,10 +49,17 @@ const (
 	effect01
 	effectFade
 	effectJitter
+	effectDissolve
+	effectWipe
 )
 
 // effects name each effect as the config file does.
-var effects = []string{"none", "01", "fade", "jitter"}
+var effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe"}
+
+// blendsColors tells an effect that moves a cell from one color to another.
+func (e effect) blendsColors() bool {
+	return e == effectFade || e == effectDissolve || e == effectWipe
+}
 
 func effectNamed(name string) effect {
 	for i, e := range effects {
@@ -108,7 +115,7 @@ type animation struct {
 	cells   uv.ScreenBuffer
 	// frameOnly animates only the border of area, so what a program shows is never touched.
 	frameOnly bool
-	// fromColor is the color a fade starts from (nil for the background).
+	// fromColor is the text color a fade starts from (nil for the background).
 	fromColor color.Color
 	seed      int64
 	duration  time.Duration
@@ -258,12 +265,12 @@ const (
 // placeOf is where the animation plays on this frame, or false when its target is not on screen.
 func (a *App) placeOf(an *animation) (image.Rectangle, bool) {
 	switch an.target.kind {
-	case targetPane, targetPaneTitle:
+	case targetPane:
 		frame, ok := a.lastShot.frames[an.pane]
-		if an.target.kind == targetPaneTitle {
-			frame.Max.Y = frame.Min.Y + 1
-		}
 		return frame, ok
+	case targetPaneTitle:
+		title, ok := a.paneTitles[an.pane]
+		return title, ok && !title.Empty()
 	case targetTabName:
 		return a.tabNameSpan(an.target.tab)
 	case targetPopup:
@@ -291,22 +298,65 @@ const (
 	hoverPane  layout.PaneID = -4
 )
 
-// hoverAt hovers what is under the mouse, a tab's name or a pane's title, once per visit,
-// telling whether it started to.
+// hoverAt hovers what is under the mouse, a tab's name or a pane's title, once per visit: it
+// shows as selected, the hover's effect playing from its own colors, and what the mouse left
+// blends back. It tells whether what is hovered changed.
 func (a *App) hoverAt(point image.Point) bool {
 	name, on := a.hoverTargetAt(point)
 	if name == a.hoverTarget {
 		return false
 	}
-	a.hoverTarget = name
-	on.seed = int64(point.X)
-	an := a.newAnimation(momentHover, on, a.now())
-	if name == "" || an == nil {
-		return false
+	if a.hoverTarget != "" && a.effectFor(momentHover).blendsColors() {
+		_, hovered := a.hoverStyles(a.hoverOn)
+		a.playHover(a.hoverOn, hovered)
 	}
-	a.addAnimation(an)
+	a.hoverTarget, a.hoverOn = name, on
+	if name != "" {
+		on.seed = int64(point.X)
+		normal, _ := a.hoverStyles(on)
+		a.playHover(on, normal)
+	}
 	return true
 }
+
+func (a *App) playHover(on animation, from uv.Style) {
+	on.fromColor = from.Fg
+	if an := a.newAnimation(momentHover, on, a.now()); an != nil {
+		a.addAnimation(an)
+	}
+}
+
+// hoverStyles are how what a hover plays on looks without the mouse and under it: a tab's name
+// in the active tab's color, a pane's title as the focused pane's.
+func (a *App) hoverStyles(on animation) (normal, hovered uv.Style) {
+	if on.target.kind == targetTabName {
+		active, inactive := a.palette.forTab(on.target.tab.colors)
+		if a.currentTab() == on.target.tab {
+			return active, active
+		}
+		return inactive, hoveredTab(active, inactive)
+	}
+	t := a.currentTab()
+	if t == nil {
+		return a.palette.unfocusedTitle, a.palette.focusedTitle
+	}
+	pal := a.palette.forPane(t.paneColors[on.pane])
+	if on.pane == t.focused {
+		return pal.focusedTitle, pal.focusedTitle
+	}
+	return pal.unfocusedTitle, pal.focusedTitle
+}
+
+// hoveredTab is an inactive tab's name under the mouse: on its own background, in the color the
+// active tab stands out with.
+func hoveredTab(active, inactive uv.Style) uv.Style {
+	inactive.Fg = orColor(active.Bg, active.Fg)
+	return inactive
+}
+
+func tabHoverName(index int) string { return fmt.Sprintf("tab %d", index) }
+
+func paneHoverName(id layout.PaneID) string { return fmt.Sprintf("pane %d", id) }
 
 // hoverTargetAt names what is under the mouse, a tab's name or a pane's title, with the
 // animation that plays on it; "" when it is neither.
@@ -314,7 +364,7 @@ func (a *App) hoverTargetAt(point image.Point) (string, animation) {
 	if point.Y == 0 {
 		for _, span := range a.tabBar() {
 			if !span.mark && point.X >= span.start && point.X < span.end {
-				return fmt.Sprintf("tab %d", span.tab), animation{pane: hoverPane, target: target{kind: targetTabName, tab: a.session.tabs[span.tab]}}
+				return tabHoverName(span.tab), animation{pane: hoverPane, target: target{kind: targetTabName, tab: a.session.tabs[span.tab]}}
 			}
 		}
 		return "", animation{}
@@ -325,7 +375,7 @@ func (a *App) hoverTargetAt(point image.Point) (string, animation) {
 	}
 	for _, p := range t.visible(a.workspaceArea()) {
 		if point.Y == p.frame.Min.Y && point.X >= p.frame.Min.X && point.X < p.frame.Max.X {
-			return fmt.Sprintf("pane %d", p.id), animation{pane: p.id, target: target{kind: targetPaneTitle}}
+			return paneHoverName(p.id), animation{pane: p.id, target: target{kind: targetPaneTitle}}
 		}
 	}
 	return "", animation{}
@@ -387,11 +437,11 @@ func isPopupMode(m mode) bool {
 	return m != normalMode && m != scrollMode
 }
 
-// addAnimation plays an, in place of what the same moment played on the same pane.
+// addAnimation plays an, in place of what the same moment played on the same pane and target.
 func (a *App) addAnimation(an *animation) {
 	kept := a.animations[:0]
 	for _, old := range a.animations {
-		if old.moment != an.moment || old.pane != an.pane {
+		if old.moment != an.moment || old.pane != an.pane || old.target != an.target {
 			kept = append(kept, old)
 		}
 	}
@@ -544,29 +594,107 @@ func (a *App) drawFocus(screen uv.Screen, an *animation, frame image.Rectangle, 
 	a.applyEffect(screen, &focus, frame, p, at, onBorder(frame))
 }
 
-// drawClosing draws what a closed pane showed, going away: its effect played backwards.
+// drawClosing draws what a closed pane showed, going away: its effect played backwards, each cell
+// giving way to what is below it before the end.
 func (a *App) drawClosing(screen uv.Screen, an *animation, p float64, at time.Time) {
+	left := 1 - p
+	background := a.backgroundColor()
+	kept := func(x, y int) bool { return left >= vanishAt(an, an.area, x, y) }
 	for y := an.area.Min.Y; y < an.area.Max.Y; y++ {
 		for x := an.area.Min.X; x < an.area.Max.X; x++ {
-			if c := an.cells.CellAt(x, y); c != nil {
-				cell := *c
+			old := an.cells.CellAt(x, y)
+			switch {
+			case old == nil:
+			case an.effect == effectFade:
+				screen.SetCell(x, y, crossfade(*old, screen.CellAt(x, y), easeOut(left), background))
+			case kept(x, y):
+				cell := *old
 				screen.SetCell(x, y, &cell)
 			}
 		}
 	}
-	a.applyEffect(screen, an, an.area, 1-p, at, nil)
+	if an.effect != effectFade {
+		a.applyEffect(screen, an, an.area, left, at, kept)
+	}
+}
+
+// crossfade is old giving way to below as weight goes from 1 to 0: old's text fades into its
+// background, then the cell below, on its own background, has its text come out of it.
+// Backgrounds never mix, so a terminal's own background shows through as it is.
+func crossfade(old uv.Cell, below *uv.Cell, weight float64, background color.Color) *uv.Cell {
+	cell, shown := uv.Cell{Content: " ", Width: 1}, 1-2*weight
+	if below != nil {
+		cell = *below
+	}
+	if weight >= 0.5 {
+		cell, shown = old, 2*weight-1
+	}
+	if cell.Style.Fg != nil {
+		cell.Style.Fg = mix(orColor(cell.Style.Bg, background), cell.Style.Fg, shown)
+	}
+	return &cell
+}
+
+func orColor(c, fallback color.Color) color.Color {
+	if c == nil {
+		return fallback
+	}
+	return c
+}
+
+// settleAt is when, in the effect's progress, the cell at x, y of area shows its own character
+// and color.
+func settleAt(an *animation, area image.Rectangle, x, y int) float64 {
+	across := float64(x-area.Min.X) / float64(max(area.Dx(), 1))
+	switch an.effect {
+	case effect01:
+		return 0.7*across + 0.3*noise(x, y, an.seed)
+	case effectDissolve:
+		return noise(x, y, an.seed)
+	case effectWipe:
+		return across
+	}
+	return 0.2 + 0.8*noise(x, y, an.seed)
+}
+
+// vanishAt is when, in a closing's remaining progress, the cell at x, y of area gives way to what
+// is below: 01 and jitter first turn it to noise.
+func vanishAt(an *animation, area image.Rectangle, x, y int) float64 {
+	if an.effect == effect01 || an.effect == effectJitter {
+		return settleAt(an, area, x, y) / 2
+	}
+	return settleAt(an, area, x, y)
+}
+
+// wipeEdge is how much of the area the wipe's front blends across.
+const wipeEdge = 0.2
+
+// colorWeight is how far the cell at x, y of area has gone from the start color to its own.
+func colorWeight(an *animation, area image.Rectangle, x, y int, p float64) float64 {
+	switch {
+	case an.effect == effectDissolve && p >= settleAt(an, area, x, y):
+		return 1
+	case an.effect == effectDissolve:
+		return 0
+	case an.effect == effectWipe:
+		return clamp01((p*(1+wipeEdge) - settleAt(an, area, x, y)) / wipeEdge)
+	case an.moment == momentActivity:
+		return 1 - 0.7*math.Sin(math.Pi*p) // dims and comes back: a pulse
+	}
+	return easeOut(p)
+}
+
+func (a *App) backgroundColor() color.Color {
+	if a.palette.background != nil {
+		return a.palette.background
+	}
+	return a.shownTheme(a.sessionTheme(a.session)).Colors[theme.Background].Resolve()
 }
 
 // applyEffect changes the cells of area that only lets through (nil for all) as the effect looks
 // at progress p.
 func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle, p float64, at time.Time, only func(x, y int) bool) {
-	from := an.fromColor
-	if from == nil {
-		from = a.palette.background
-	}
-	if from == nil {
-		from = a.shownTheme(a.sessionTheme(a.session)).Colors[theme.Background].Resolve()
-	}
+	from := orColor(an.fromColor, a.backgroundColor())
 	frame := int64(at.Sub(an.start) / frameInterval) // characters change from frame to frame
 	for y := area.Min.Y; y < area.Max.Y; y++ {
 		for x := area.Min.X; x < area.Max.X; x++ {
@@ -577,22 +705,18 @@ func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle,
 			cell := *c
 			runes := []rune(cell.Content)
 			switch an.effect {
-			case effectFade:
-				f := easeOut(p)
-				if an.moment == momentActivity {
-					f = 1 - 0.7*math.Sin(math.Pi*p) // dims and comes back: a pulse
-				}
+			case effectFade, effectDissolve, effectWipe:
+				f := colorWeight(an, area, x, y, p)
 				if cell.Style.Fg != nil {
 					cell.Style.Fg = mix(from, cell.Style.Fg, f)
 				}
 			case effectJitter:
 				if len(runes) == 1 {
-					cell.Content = string(jitterAt(runes[0], p, 0.2+0.8*noise(x, y, an.seed), int64(noise(x, y, frame)*1000)))
+					cell.Content = string(jitterAt(runes[0], p, settleAt(an, area, x, y), int64(noise(x, y, frame)*1000)))
 				}
 			case effect01:
-				reveal := 0.7*float64(x-area.Min.X)/float64(max(area.Dx(), 1)) + 0.3*noise(x, y, an.seed)
 				if len(runes) == 1 {
-					cell.Content = string(binaryAt(runes[0], p, reveal, int64(noise(x, y, frame)*2)))
+					cell.Content = string(binaryAt(runes[0], p, settleAt(an, area, x, y), int64(noise(x, y, frame)*2)))
 				}
 			}
 			screen.SetCell(x, y, &cell)

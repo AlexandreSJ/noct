@@ -11,6 +11,43 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+Animations got a lot smoother. Panes, tabs and popups now go away as gently as they appear,
+instead of vanishing on the last frame; two new effects, `dissolve` and `wipe`, join `01`, `fade`
+and `jitter`; and hovering a tab or a pane's title lights it in the selected color and blends it
+back as the mouse leaves. Fades touch only text colors, so a terminal's own background stays
+untouched.
+
+### Added
+
+- Two animation effects for any moment in **Appearance → animations**: `dissolve` shows or hides
+  each cell at once in a random order, and `wipe` sweeps across from left to right.
+- `prefix` + `D` duplicates the focused terminal: a new one opens beside it in the same folder and,
+  when its shell runs a program, offers to run the same command.
+- Script and flow templates have `quote`: `{{quote .pattern}}` puts a value in single quotes as one
+  shell word, so spaces, quotes or `;` in a param or in another step's output never run as a
+  command.
+
+### Changed
+
+- Closing a pane, a tab or a popup no longer flashes away on the last frame. With `fade`, its
+  text fades out and what is below fades in; with `01` and `jitter`, its cells go away one by one.
+  Fades change only text colors, so a terminal's own background stays as it is.
+- Hovering a tab's name shows it in the active tab's color and a pane's title in the focused
+  pane's, on their own background, also from an empty tab; with `fade`, `dissolve` or `wipe` the
+  color blends there and back. Only the title's text lights up, never the border around it.
+- Config choices show `<` and `>` instead of `◂` and `▸`, and only the arrows, with a cell on
+  each side, change a choice when clicked; clicking its text only selects the row. With the mouse
+  where a click changes something, that shows in reverse: the arrow, a value without arrows
+  whole, or a text row's field.
+- The logs view lists a log on every day it had output, not only the day it started and the
+  day it was last written to, so a terminal used across several days shows on each of them;
+  filtering by a date finds it there too.
+
+### Fixed
+
+- Saving a script, its notes or a draft from an AI no longer leaves a half-written file when noct
+  stops in the middle of the write.
+
 ## v0.2.4 - 2026-11-08
 
 ### Added

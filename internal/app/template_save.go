@@ -177,7 +177,7 @@ func (a *App) drawTemplateSave(screen uv.Screen) {
 		}
 		value := ""
 		if p.start != "" {
-			value = "◂ " + string(p.start) + " ▸"
+			value = choiceValue(string(p.start))
 		}
 		drawRow(screen, inner, y, tail(label, inner.Dx()-len([]rune(value))-3), value, style(i+1))
 	}

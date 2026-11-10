@@ -106,15 +106,19 @@ type App struct {
 	// animations are the ones running, animTick their next frame (nil when none runs), lastShot
 	// what the last frame showed and lastFrame its cells, which a pane closing animates.
 	animations []*animation
-	// hoverTarget is what the mouse is over, which hovering animates once per visit; quietMotion
-	// tells that the last motion changed nothing on screen, so it needs no frame.
+	// hoverTarget is what the mouse is over, shown as selected and animated once per visit, and
+	// hoverOn the animation that plays on it; quietMotion tells that the last motion changed
+	// nothing on screen, so it needs no frame.
 	hoverTarget string
+	hoverOn     animation
 	quietMotion bool
 	// lastPopup is the popup the last frame drew, which closing it animates. popupArea is where
 	// the popup of the frame being drawn is, kept by drawPanel while drawingPopup.
 	lastPopup    drawnPopup
 	popupArea    image.Rectangle
 	drawingPopup bool
+	// paneTitles are where the frame being drawn put each pane's title, which hovering animates.
+	paneTitles map[layout.PaneID]image.Rectangle
 	// activity marks, per pane, that output out of sight was told; unseen are the panes that
 	// pulsed and were not seen since.
 	activity map[layout.PaneID]*atomic.Bool

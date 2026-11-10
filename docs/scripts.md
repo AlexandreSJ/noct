@@ -46,7 +46,7 @@ params:
 outputs: [token, expires]      # opcional: o que o script devolve a um fluxo, em linhas nome=valor
 ```
 
-- **`run`** é um `text/template` do Go, renderizado com os valores dos parâmetros (`{{.nome}}`); um parâmetro que não existe é erro. A linha roda com `$SHELL -c`, então pipes, `&&` e variáveis de ambiente funcionam como no terminal.
+- **`run`** é um `text/template` do Go, renderizado com os valores dos parâmetros (`{{.nome}}`); um parâmetro que não existe é erro. A linha roda com `$SHELL -c`, então pipes, `&&` e variáveis de ambiente funcionam como no terminal. `{{quote .nome}}` põe o valor entre aspas simples, como uma palavra só do shell: espaços, aspas e `;` nele não viram comando.
 - **Valor inicial** de cada parâmetro: o ambiente para `from: env:`; o último valor usado se `remember: true`; senão o `default`; senão a primeira das `choices`.
 - **`outputs`** são o "retorno" do script num fluxo: para cada nome, a primeira linha `nome=valor` da saída vira `{{.steps.<id>.nome}}`, sem escrever um `capture` com regex. Um `capture` do passo com o mesmo nome vence. Os nomes aparecem no painel scope do inspect ([fluxos.md](fluxos.md#variáveis-e-escopo)).
 - **Valores lembrados** ficam em `~/.local/state/noct/params.json`, compartilhados pela TUI e pela CLI. Segredos nunca são gravados.

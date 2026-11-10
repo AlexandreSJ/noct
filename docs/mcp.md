@@ -39,7 +39,7 @@ O protocolo é implementado à mão, sem SDK: `initialize` (versões `2025-06-18
 | `run_command` | Roda uma linha de shell qualquer num painel novo | **ask** |
 | `send_input` | Digita texto (e `Enter`) num painel existente | **ask** |
 
-`install_program` fica para a fase 4, junto do catálogo.
+Não há `install_program`: o noct não instala programas (ADR-062).
 
 ## Resultado estruturado
 

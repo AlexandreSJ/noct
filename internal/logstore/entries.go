@@ -59,6 +59,20 @@ func NumberedName(prefix string, at time.Time) string {
 // resultSuffix names the result a flow run keeps beside its log.
 const resultSuffix = ".result.json"
 
+// daysSuffix names the file beside a log with the days, after the first, it got output on.
+const daysSuffix = ".days"
+
+// DaysPath is where the days a log got output on are kept, beside it.
+func DaysPath(logPath string) string {
+	return strings.TrimSuffix(logPath, ".log") + daysSuffix
+}
+
+// recordedDays are the days the log at logPath wrote to its days file, as DayLayout writes them.
+func recordedDays(logPath string) []string {
+	content, _ := os.ReadFile(DaysPath(logPath)) // a log without one has output only on its first day
+	return strings.Fields(string(content))
+}
+
 // ResultPath is where the result of the flow run that wrote a log goes: beside it, so it is
 // counted and removed with it.
 func ResultPath(logPath string) string {
@@ -74,11 +88,27 @@ type Entry struct {
 	At     time.Time
 	Edited time.Time
 	Size   int64
+	// written are the days after the first the log got output on.
+	written []time.Time
 }
 
 // Day is the date the log was started on.
 func (e Entry) Day() string {
 	return e.At.Format(DayLayout)
+}
+
+// Days are the days the log has output on, at midnight, once each and in order: the day it
+// started, the days it recorded and the day it was last written to.
+func (e Entry) Days() []time.Time {
+	days := append([]time.Time{e.At}, e.written...)
+	if !e.Edited.IsZero() {
+		days = append(days, e.Edited)
+	}
+	for i, d := range days {
+		days[i] = time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.Local)
+	}
+	slices.SortFunc(days, time.Time.Compare)
+	return slices.CompactFunc(days, time.Time.Equal)
 }
 
 // LogFiles are what the program printed: the log and its rotated older part, when there is one.
@@ -90,11 +120,14 @@ func (e Entry) LogFiles() []string {
 	return files
 }
 
-// Files are the log files and, for a flow run, its result: all that goes with the log.
+// Files are the log files, its days file and, for a flow run, its result: all that goes with the
+// log.
 func (e Entry) Files() []string {
 	files := e.LogFiles()
-	if _, err := os.Stat(ResultPath(e.Path)); err == nil {
-		files = append(files, ResultPath(e.Path))
+	for _, beside := range []string{DaysPath(e.Path), ResultPath(e.Path)} {
+		if _, err := os.Stat(beside); err == nil {
+			files = append(files, beside)
+		}
 	}
 	return files
 }
@@ -124,6 +157,7 @@ func List(dir string) ([]Entry, error) {
 func dayEntries(dir string, date time.Time) []Entry {
 	files, _ := os.ReadDir(dir) // an unreadable day shows as empty
 	sizes := map[string]int64{}
+	withDays := map[string]bool{}
 	var entries []Entry
 	for _, file := range files {
 		info, err := file.Info()
@@ -139,6 +173,11 @@ func dayEntries(dir string, date time.Time) []Entry {
 			sizes[base+".log"] += info.Size()
 			continue
 		}
+		if base, isDays := strings.CutSuffix(name, daysSuffix); isDays {
+			sizes[base+".log"] += info.Size()
+			withDays[base+".log"] = true
+			continue
+		}
 		entry, ok := parseEntry(name, date)
 		if !ok {
 			continue
@@ -147,9 +186,23 @@ func dayEntries(dir string, date time.Time) []Entry {
 		entries = append(entries, entry)
 	}
 	for i := range entries {
-		entries[i].Size += sizes[filepath.Base(entries[i].Path)]
+		base := filepath.Base(entries[i].Path)
+		entries[i].Size += sizes[base]
+		if withDays[base] {
+			entries[i].written = parseDays(recordedDays(entries[i].Path))
+		}
 	}
 	return entries
+}
+
+func parseDays(texts []string) []time.Time {
+	var days []time.Time
+	for _, text := range texts {
+		if day, err := time.ParseInLocation(DayLayout, text, time.Local); err == nil {
+			days = append(days, day)
+		}
+	}
+	return days
 }
 
 // parseEntry reads the time and name out of a log's file name, 143005-name.log.

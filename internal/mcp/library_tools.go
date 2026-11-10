@@ -12,6 +12,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/AlexandreSJ/noct/internal/atomicfile"
 	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/naming"
@@ -350,7 +351,7 @@ func keepBackup(path string, wanted func(content []byte) bool) (string, error) {
 		return "", err
 	}
 	backup := path + ".bak"
-	if err := os.WriteFile(backup, content, 0o644); err != nil {
+	if err := atomicfile.Write(backup, content, 0o644); err != nil {
 		return "", fmt.Errorf("keeping a copy of %s: %w", path, err)
 	}
 	return backup, nil
@@ -370,15 +371,12 @@ func (d Deps) draftScript(args json.RawMessage) (any, error) {
 		return nil, err
 	}
 	dir := filepath.Join(append([]string{d.ScriptsDir()}, parts...)...)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, err
-	}
 	file := filepath.Join(dir, script.FileName)
 	backup, err := keepBackup(file, func([]byte) bool { return true })
 	if err != nil {
 		return nil, err
 	}
-	if err := writeScriptFiles(dir, content, ask.Notes); err != nil {
+	if err := script.WriteFiles(dir, content, ask.Notes); err != nil {
 		return nil, err
 	}
 	_, problem := script.Load(dir)
@@ -398,17 +396,6 @@ func markedDraft(scriptYAML string) ([]byte, error) {
 	}
 	fields["draft"] = true
 	return yaml.Marshal(fields)
-}
-
-// writeScriptFiles writes a script's script.yaml and, when given, its notes.md.
-func writeScriptFiles(dir string, content []byte, notes string) error {
-	if err := os.WriteFile(filepath.Join(dir, script.FileName), content, 0o644); err != nil {
-		return err
-	}
-	if notes == "" {
-		return nil
-	}
-	return os.WriteFile(filepath.Join(dir, script.NotesName), []byte(notes), 0o644)
 }
 
 func (d Deps) setTriggers(args json.RawMessage) (any, error) {

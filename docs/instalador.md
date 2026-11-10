@@ -117,12 +117,12 @@ Pedido: instalar ferramentas de fora (as da Charm, por exemplo) para rodar dentr
 
 | Camada | O que é | Dificuldade |
 |---|---|---|
-| Ferramentas de terminal | Qualquer TUI já roda num painel. Um manifesto (`name`, `bin`, `install` por gerenciador, `run`) mais a bind própria faz o "instalar e mapear". É o catálogo da fase 4 ([catalogo.md](catalogo.md)) com um `run`. | Baixa. As binds deste documento já são metade; o resto é a fase 4. |
+| Ferramentas de terminal | Qualquer TUI já roda num painel. O usuário a instala por fora e uma bind própria a chama. O noct não instala nem recomenda ferramentas (ADR-062). | Feito: são as binds deste documento. |
 | Painéis do noct como peças | Scripts, inspect e logs já são `panelKinds`; uma bind pode abrir um painel pelo nome (`panel = "logs"`). | Baixa. Um campo a mais na bind. |
 | Mods de usuário que desenham na TUI | Código de terceiros dentro do noct. Em Go não há carregamento seguro de código (`plugin` só Linux, mesma versão de compilador, sem isolamento). O caminho viável é um mod ser **um programa à parte** que fala com o noct: desenha no próprio painel (já funciona, é um terminal) e pede coisas ao workspace pelo mesmo protocolo do MCP (`list_panes`, `run`, `send_input`), com a política e as aprovações que já existem. | Média para o protocolo (o socket do MCP já existe; falta um cliente local e um manifesto de permissões). Alta para qualquer coisa que mude o desenho do próprio noct (bordas, barra de tabs), que fica fora. |
-| Distribuição | Baixar mods de um repositório, versões, atualização. | Alta, e com risco de segurança (código de terceiros rodando com o usuário). Depois da fase 4, com assinatura ou só de fontes que o usuário adiciona. |
+| Distribuição | Baixar mods de um repositório, versões, atualização. | Alta, e com risco de segurança (código de terceiros rodando com o usuário). Fora do plano; se voltar, com assinatura ou só de fontes que o usuário adiciona. |
 
-Conclusão: é possível sem reestruturar o noct. Ferramentas e painéis cabem nas binds e no catálogo; mods são programas em painéis que usam o protocolo do MCP. O que não cabe é código de terceiros rodando dentro do daemon.
+Conclusão: é possível sem reestruturar o noct. Ferramentas e painéis cabem nas binds; mods são programas em painéis que usam o protocolo do MCP. O que não cabe é código de terceiros rodando dentro do daemon.
 
 ## Decisões de construção
 
@@ -140,4 +140,4 @@ Escolhas feitas na implementação, sem o mantenedor; cada uma pode mudar.
 
 - Baixar temas ou mods da internet.
 - Desinstalar temas embutidos do binário: "instalar" é escolher quais aparecem.
-- Sugerir atalhos para ferramentas ou instalá-las (é a fase 4).
+- Sugerir ou instalar ferramentas de fora (ADR-062).

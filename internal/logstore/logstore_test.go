@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 )
@@ -243,5 +244,80 @@ func TestPathKeepsLogsStartedInTheSameSecondApart(t *testing.T) {
 	log.Close()
 	if second := Path("build", at); second == first || filepath.Base(second) != "143005-build-2.log" {
 		t.Errorf("the second log of the second is %s, the first %s", second, first)
+	}
+}
+
+func TestALogKnowsTheDaysItWasWrittenOn(t *testing.T) {
+	dir := t.TempDir()
+	first := time.Date(2026, 11, 2, 9, 0, 0, 0, time.Local)
+	path := filepath.Join(dir, first.Format(DayLayout), "090000-pane1.log")
+	log, err := Create(path, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, at := range []time.Time{first, first.Add(30 * time.Minute), first.AddDate(0, 0, 1), first.AddDate(0, 0, 3)} {
+		log.now = func() time.Time { return at }
+		if _, err := log.Write([]byte("output\n")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := log.Close(); err != nil {
+		t.Fatal(err)
+	}
+	last := first.AddDate(0, 0, 3)
+	if err := os.Chtimes(path, last, last); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := List(dir)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("listed %v, %v", entries, err)
+	}
+	var days []string
+	for _, day := range entries[0].Days() {
+		days = append(days, day.Format(DayLayout))
+	}
+	if want := []string{"2026-11-02", "2026-11-03", "2026-11-05"}; !slices.Equal(days, want) {
+		t.Errorf("days %v, want %v", days, want)
+	}
+	if err := Remove(entries[0]); err != nil {
+		t.Fatal(err)
+	}
+	if left, _ := os.ReadDir(dir); len(left) != 0 {
+		t.Errorf("left after removing the log: %v", left)
+	}
+}
+
+func TestALogOutsideTheDayFoldersKeepsNoDays(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mcp.log")
+	log, err := Append(path, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.now = func() time.Time { return time.Now().AddDate(0, 0, 2) }
+	if _, err := log.Write([]byte("call\n")); err != nil {
+		t.Fatal(err)
+	}
+	_ = log.Close()
+	if _, err := os.Stat(DaysPath(path)); err == nil {
+		t.Error("a log outside the day folders got a days file")
+	}
+}
+
+func TestStartingALogAgainForgetsTheDaysOfTheOldOne(t *testing.T) {
+	day := time.Date(2026, 11, 2, 9, 0, 0, 0, time.Local)
+	path := filepath.Join(t.TempDir(), day.Format(DayLayout), "090000-run.log")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(DaysPath(path), []byte("2026-11-04\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	log, err := Create(path, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = log.Close()
+	if _, err := os.Stat(DaysPath(path)); err == nil {
+		t.Error("the new log kept the old one's days")
 	}
 }

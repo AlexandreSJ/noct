@@ -104,8 +104,8 @@ func (a *App) setupLines() []setupLine {
 		return a.setupStartLines()
 	case setupKeys:
 		return []setupLine{
-			{text: "prefix     ◂ " + prefixName(w.draft.Prefix) + " ▸", selected: w.selected == 0},
-			{text: "shortcut   ◂ " + shortcutName(w.draft.Shortcut) + " ▸", selected: w.selected == 1},
+			{text: "prefix     " + choiceValue(prefixName(w.draft.Prefix)), selected: w.selected == 0},
+			{text: "shortcut   " + choiceValue(shortcutName(w.draft.Shortcut)), selected: w.selected == 1},
 			{},
 			{text: "the prefix, then a key, runs a noct command; the shortcut held with that key runs it", muted: true},
 			{text: "directly. ctrl+alt keeps alt+letter for the shell's word moves.", muted: true},

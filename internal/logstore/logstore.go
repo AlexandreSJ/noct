@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 // Dir is noct's state directory: $XDG_STATE_HOME/noct, or ~/.local/state/noct.
@@ -29,13 +30,18 @@ type File struct {
 	file    *os.File
 	size    int64
 	maxSize int64
+	now     func() time.Time
+	// lastDay is the last day the log has output on, as DayLayout writes it, or "" for a log
+	// outside the day folders, which keeps no days.
+	lastDay string
 }
 
 func Create(path string, maxSize int64) (*File, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("creating the log directory: %w", err)
 	}
-	f := &File{path: path, maxSize: maxSize}
+	_ = os.Remove(DaysPath(path)) // a log started again has had output on its first day only
+	f := &File{path: path, maxSize: maxSize, now: time.Now, lastDay: lastDayOf(path)}
 	if err := f.open(os.O_TRUNC); err != nil {
 		return nil, err
 	}
@@ -48,7 +54,7 @@ func Append(path string, maxSize int64) (*File, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("creating the log directory: %w", err)
 	}
-	f := &File{path: path, maxSize: maxSize}
+	f := &File{path: path, maxSize: maxSize, now: time.Now, lastDay: lastDayOf(path)}
 	if err := f.open(os.O_APPEND); err != nil {
 		return nil, err
 	}
@@ -94,6 +100,7 @@ func Tail(path string, size int64) []byte {
 func (f *File) Write(p []byte) (int, error) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
+	f.noteDay()
 	if f.size+int64(len(p)) > f.maxSize && f.size > 0 {
 		if err := f.rotate(); err != nil {
 			return 0, err
@@ -102,6 +109,35 @@ func (f *File) Write(p []byte) (int, error) {
 	n, err := f.file.Write(p)
 	f.size += int64(n)
 	return n, err
+}
+
+// noteDay adds today to the log's days file the first time the log gets output on a day other
+// than the one it started on, so the log shows on every day it has output.
+func (f *File) noteDay() {
+	day := f.now().Format(DayLayout)
+	if f.lastDay == "" || day == f.lastDay {
+		return
+	}
+	f.lastDay = day
+	file, err := os.OpenFile(DaysPath(f.path), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return // the log only misses that day in the calendar
+	}
+	_, _ = fmt.Fprintln(file, day)
+	_ = file.Close()
+}
+
+// lastDayOf is the last day the log at path has output on: the last its days file holds, or the
+// day folder it started in; "" when it is in none.
+func lastDayOf(path string) string {
+	started := filepath.Base(filepath.Dir(path))
+	if _, err := time.Parse(DayLayout, started); err != nil {
+		return ""
+	}
+	if days := recordedDays(path); len(days) > 0 {
+		return days[len(days)-1]
+	}
+	return started
 }
 
 func (f *File) rotate() error {

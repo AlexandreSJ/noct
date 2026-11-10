@@ -2,6 +2,8 @@ package app
 
 import (
 	"image"
+	"strings"
+	"unicode"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
@@ -26,6 +28,35 @@ func (a *App) pendingRerun(id layout.PaneID) string {
 		return sh.rerun
 	}
 	return ""
+}
+
+// duplicateFocused opens a terminal beside the focused one, in its folder, offering to run what
+// its shell runs.
+func (a *App) duplicateFocused() {
+	t := a.currentTab()
+	if a.shells[t.focused] == nil {
+		a.statusMessage = "only a terminal can be duplicated"
+		return
+	}
+	command := ""
+	if teller, ok := t.focusedView().(commandTeller); ok {
+		command = teller.ForegroundCommand()
+	}
+	a.openPanel(func(id layout.PaneID, frame image.Rectangle) (view, error) {
+		v, err := a.startTerminal(id, frame)
+		if err == nil {
+			a.offerRerun(id, command)
+		}
+		return v, err
+	})
+}
+
+// offerRerun shows the box that runs command again in the terminal id. A command with a control
+// character is not offered: typed as keys, the character would be a key.
+func (a *App) offerRerun(id layout.PaneID, command string) {
+	if !strings.ContainsFunc(command, unicode.IsControl) {
+		a.shells[id].rerun = command
+	}
 }
 
 // handleRerunKey answers the box over the focused terminal: enter types the command into the

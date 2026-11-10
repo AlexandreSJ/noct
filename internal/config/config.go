@@ -273,7 +273,7 @@ const (
 )
 
 // Effects are the names of the animation effects, in the order the config offers them.
-var Effects = []string{"none", "01", "fade", "jitter"}
+var Effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe"}
 
 // AnimationMoments are the moments that animate, by their key in the config file.
 var AnimationMoments = []string{"hover", "panels", "tabs", "focus", "move", "fullscreen", "popup", "activity"}

@@ -46,6 +46,8 @@ Formato: contexto → decisão → consequências. Decisões novas são acrescen
 
 **Consequências.** Não há lógica de pacotes para manter; `sudo` e prompts funcionam naturalmente. A busca além do catálogo é só texto na v1.
 
+*Substituída pela ADR-062:* a instalação de pacotes saiu do plano.
+
 ## ADR-006 — Linux e macOS na v1
 
 **Contexto.** No Windows, PTYs usam ConPTY, com comportamento e bibliotecas diferentes.
@@ -87,6 +89,8 @@ Formato: contexto → decisão → consequências. Decisões novas são acrescen
 **Decisão.** O catálogo com instalação vira a fase 4, depois do MCP. A fase 1 mantém só a detecção de versão ou `(não encontrado)`.
 
 **Consequências.** As fases 1–3 não dependem de adaptadores de gerenciadores de pacote.
+
+*Substituída pela ADR-062:* a fase 4 saiu do plano.
 
 ## ADR-011 — Resultado da fase 0a: Go serve (aceita)
 
@@ -519,12 +523,14 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 **Contexto.** O mantenedor pediu o config clicável (hover, clique nas setas e em `on`/`off`), um prefixo com quantos modificadores o usuário quiser, pego apertando a combinação e com aviso do que ela já usa, e uma última linha para voltar tudo ao padrão. É a primeira de quatro partes; as outras são o mapa de teclas (todas as teclas trocáveis, por tela) e o mesmo "voltar ao padrão" nele. Personalizar teclas é polimento da fase 5, antecipado pelo mantenedor.
 
 **Decisão.**
-- **Mouse:** `configLayout` põe o painel, as linhas e a rolagem num lugar só, que o desenho, o clique e o hover leem. Com o config aberto, o noct pede ao terminal todo movimento do mouse (modo 1003), como na home, para marcar a linha sob ele. Clique no rótulo seleciona; no valor, `◂` volta e o resto avança, como `←`/`→`, o que cobre as setas, `on`/`off` e valores sem setas (`background`, o prefixo); numa linha de texto, só seleciona. A roda move a seleção; um clique fora fecha, como `esc`.
+- **Mouse:** `configLayout` põe o painel, as linhas e a rolagem num lugar só, que o desenho, o clique e o hover leem. Com o config aberto, o noct pede ao terminal todo movimento do mouse (modo 1003), como na home, para marcar a linha sob ele. Clique no rótulo seleciona; no valor, `◂` (hoje `<`) volta e o resto avança, como `←`/`→`, o que cobre as setas, `on`/`off` e valores sem setas (`background`, o prefixo); numa linha de texto, só seleciona. A roda move a seleção; um clique fora fecha, como `esc`.
 - **Prefixo capturado:** uma linha `prefix` no lugar de `ctrl`, `alt`, `shift` e `key`. A combinação é a que o terminal mandou, sem uma tabela do que cada terminal distingue: `ctrl+shift+a` chega e aparece como `ctrl+a`. Duas fases, para `Enter` também poder ser apertado como combinação: a primeira tecla é a combinação, `Enter` depois a usa; `esc` cancela, e por isso não pode ser o prefixo. Continua exigindo `ctrl` ou `alt` e recusando o `shift` que o terminal não manda (`shiftIsVisible`).
 - **Avisos, não proibição:** a linha lista o que a combinação tomaria: o comando de um atalho direto (o prefixo é conferido antes, então o comando só sairia com o prefixo) e teclas comuns de programas nos painéis (`terminalKeys`: `ctrl+c`, `ctrl+d`, `ctrl+r`, `ctrl+b` do tmux…). Quem quer mesmo aquela combinação a usa.
 - **Voltar ao padrão:** a última linha pede `Enter` duas vezes, sem sair do config (a confirmação comum fecharia o painel); mover a seleção desarma. Volta `config.Default()` em tudo o que o painel mostra, inclusive a pasta dos scripts e as teclas trocadas (ADR-041); as pastas extras (`script_folders`) e a política da IA, editadas fora dele, ficam.
 
 **Consequências.** O arquivo continua com `ctrl`, `alt`, `shift` e `key` em `[prefix]`; só o painel mudou. Os atalhos diretos continuam como modificadores ligados e desligados. A lista de teclas de programas é curta e não sabe o que o usuário usa de fato.
+
+**Setas e o que o clique muda (2026-11-09).** As setas das escolhas viram `<` e `>`, que todo terminal e fonte desenham do mesmo tamanho. Numa escolha, só as setas mudam o valor, cada uma com uma célula de cada lado (` < `, ` > `); o texto entre elas só seleciona a linha, para que clicar para ler não troque o valor. Num valor sem setas (`defaults >`, `on`), qualquer ponto avança, como antes. Com o mouse onde o clique muda algo, isso aparece em vídeo reverso (`AttrReverse`, para valer com as cores padrão e o fundo do terminal): a seta, o valor sem setas inteiro, ou o campo de uma linha de texto. O clique e o destaque leem a mesma função (`valueStep`), então não divergem. O editor de temas, com clique próprio, não acende nada.
 
 ## ADR-041 — Teclas trocáveis por contexto: registro e tradução
 
@@ -715,6 +721,11 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 **Sem mola e sem flicker (2026-10-21).** Na mola, o conteúdo do painel aparecia de uma vez e só as bordas chegavam atrasadas, e o flicker era lento, pedia o aviso a cada vez que se passava por ele e atrapalhava escolher. O mantenedor preferiu tirar os dois e deixar cada momento com o tempo próprio. Os arquivos com `spring` ou `flicker` voltam ao padrão do momento.
 
 **Animações seguem o alvo (2026-10-21).** O mantenedor viu na barra de tabs uma célula com a cor antiga quando o nome de uma tab mudava de tamanho, e o fechamento do config animava uma área que não era a do popup. As animações guardavam a posição na tela de quando começavam, e a área de um popup saía da comparação da tela antes e depois dele. Agora cada animação tem um alvo (o quadro de um painel, o título dele, o nome de uma tab, o popup) e a posição é recalculada a cada quadro; um alvo que saiu da tela deixa de ser desenhado. O popup registra o próprio retângulo ao ser desenhado (`drawPanel`), e abrir e fechar animam só ele, sem copiar a tela inteira. Só o que já fechou (um painel, uma tab, um popup) anima onde estava, com as células que tinha.
+**Fechar sem corte (2026-11-09, ADR-062).** O fade misturava só a cor do texto, a partir do fundo: o fundo das células (linha selecionada, barras, popups) aparecia ou sumia de uma vez, e o que fechava ficava inteiro até o último quadro e sumia junto. Agora, ao fechar, o fade troca cada célula pela que está embaixo: o caractere antigo some no fundo dele antes de o de baixo aparecer no seu. O fundo nunca se mistura: misturado, um fundo transparente (`background = terminal`) aparecia na cor do fundo do tema durante a animação, então o fade mexe só na cor do texto; e `01` e `jitter` tiram cada célula na metade do caminho dela até virar ruído.
+
+**`dissolve` e `wipe` (2026-11-09, ADR-062).** Dois efeitos novos no registro, para todos os momentos: `dissolve` passa cada célula da cor de partida à dela de uma vez, numa ordem sorteada por célula; `wipe` passa da esquerda para a direita, com uma borda de 20% da área misturando as cores. Ao fechar, cada célula sai quando o efeito passa por ela.
+
+**Hover por cor (2026-11-09, ADR-062).** O hover partia do fundo para as cores que o nome ou o título já tinham, sem mudar nada. Agora o que está sob o mouse fica como selecionado, só no texto: o nome de tab na cor de destaque da tab ativa (o fundo dela), sobre o próprio fundo, e o título de painel na cor do painel com foco; o efeito parte da cor de antes e toca só no texto do título, que o desenho registra a cada quadro (`paneTitles`), e não na linha de cima inteira, que fazia a borda piscar na cor de destaque ao sair. Numa tab vazia, que mostra a home, o hover das tabs também vale; com um efeito de cor (`fade`, `dissolve`, `wipe`), sair volta pelo mesmo caminho. As listas ainda não têm hover. Uma animação nova só substitui a do mesmo momento, painel e alvo, para que a volta de uma tab não seja cortada pela ida da vizinha.
 
 ## ADR-054 — Lip Gloss no seletor de cores
 
@@ -793,6 +804,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Logs anteriores a esta versão não têm sessão para execuções; os de terminais ganham pela sessão onde estão. Uma TUI cortada no meio de uma parte se desenha a partir dali, sem o estado de antes do corte.
 
+**Dias com saída (2026-11-09).** Um log aparecia só no dia em que começou e no da última escrita, então um terminal usado em dias seguidos sumia dos dias do meio. O `logstore.File` anota num arquivo ao lado (`.days`) cada dia, depois do primeiro, em que o log escreve, uma linha por dia; ele conta no tamanho e sai junto com o log. Os dias do log são o do começo, os anotados e o da última escrita; um dia sem saída fica de fora, em vez de marcar todos os dias entre o começo e o fim. Logs anteriores a esta versão não têm o arquivo e continuam nos dois dias.
+
 ## ADR-060 — `run` com params pede aprovação, e o pedido some quando a IA sai
 
 **Contexto.** A revisão de novembro de 2026 (o que ficou dela está em [roadmap.md](roadmap.md#dívida-técnica)) achou dois jeitos de uma IA rodar um comando sem a aprovação do usuário. O `run` é `allow` por rodar um script do próprio usuário, mas os `params` que a IA passa entram no template do comando, renderizado para `sh -c`: num script com `{{.pattern}}`, o valor `x"; curl … | sh; echo "` vira comando, o que contorna o `ask` do `run_command`. E um pedido de aprovação continuava na fila depois que o cliente de IA saía: o `noct mcp` esperava as chamadas pendentes antes de terminar, e aprovar depois rodava uma ação que ninguém esperava mais.
@@ -818,3 +831,15 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Alternativas.** Um timeout padrão para execuções por trigger mudaria o comportamento de quem tem fluxos longos sem avisar; o aviso do `check` deixa a escolha com o usuário. Matar o `noct flow run` inteiro pelo daemon também destravaria o agendamento, mas sem dizer qual passo travou nem deixar o `on_fail` agir. No cron, guardar o instante (como antes) não evita a hora repetida, que são instantes diferentes, e guardar o último minuto de cada fluxo daria o mesmo resultado com um mapa a mais; rodar na ida os minutos pulados, como faz o cron do Vixie para tarefas de hora fixa, foi deixado de lado por somar um caso para um evento de duas vezes por ano.
 
 **Consequências.** Um fluxo de cron com `timeout` volta a ser disparado depois de um passo travado, sem reiniciar o daemon. Numa execução com terminal (no shell, ou com `r` no inspect), só o shell do passo recebe os sinais, e os processos que ele iniciou podem continuar depois dele. Um daemon antigo ignora o `timeout` de um passo em painel. Um fluxo que roda de 15 em 15 minutos fica uma hora sem rodar na noite em que o relógio volta. O `check` do MCP traz o mesmo aviso que o `noct check`.
+
+## ADR-062 — Sem instalação de pacotes; inspect e animações antecipados
+
+**Contexto.** A fase 4 previa um catálogo de programas: detectar o que falta e instalar pelo gerenciador de pacotes preferido, também a pedido da IA (ADR-005, ADR-010). O mantenedor decidiu que o noct não vai mostrar, recomendar nem instalar programas de fora: cada usuário escolhe as próprias ferramentas, e uma lista de recomendações (as TUIs do charm.land, por exemplo) pesa pouco perto de o usuário decidir sozinho. No mesmo pedido, ele quer melhorar o uso do inspect e as animações antes da confirmação das fases 2 e 3.
+
+**Decisão.**
+- **A fase 4 sai do plano.** Sem pacote `catalog`, view Catálogo, tecla reservada, manifestos de ferramentas nem a ferramenta `install_program` do MCP; `catalogo.md` é apagado. A detecção de versão dos scripts, ou `(not found)`, continua (fase 1). A fase fica no roadmap como removida, para que as referências à fase 5 continuem valendo.
+- **Ferramentas de fora** rodam em painéis, chamadas por binds próprias (ADR-057), instaladas pelo usuário.
+- **Inspect:** editar passos e seus campos, params e triggers pela TUI, sem YAML, é da fase 2 e entra já; ajuda o critério de pronto dela.
+- **Animações** (fase 5) entram antes, como no ADR-053: o fade some sem o corte do último quadro, o hover vai da cor normal à de destaque e passa a valer nas linhas das listas, o que fecha some aos poucos em vez de sumir no último quadro, e entram os efeitos `dissolve` e `wipe` ([animacoes.md](animacoes.md#próximas-mudanças)). Cada mudança que altera uma regra do ADR-053 o atualiza quando for feita.
+
+**Consequências.** Numa máquina nova, um script com programa faltando mostra `(not found)` e o usuário instala por fora. O noct não tem lógica de pacotes nem comandos com `sudo` para manter. O ADR-005 e o ADR-010 ficam substituídos.

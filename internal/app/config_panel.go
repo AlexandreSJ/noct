@@ -98,8 +98,9 @@ type configPanel struct {
 	typedBefore string
 	// copied says the location was just copied, until the selection or the text changes.
 	copied bool
-	// hover is the row under the mouse, when hovering is true.
+	// hover is the row under the mouse, when hovering is true, and hoverX its column.
 	hover    configRow
+	hoverX   int
 	hovering bool
 	// edit is the theme being edited on the theme page.
 	edit *themeEdit
@@ -582,12 +583,12 @@ func (a *App) configLines() []configLine {
 }
 
 // choiceValue marks a value that the arrows step through.
-func choiceValue(value string) string { return "◂ " + value + " ▸" }
+func choiceValue(value string) string { return "< " + value + " >" }
 
 func (a *App) keysLines() []configLine {
-	binds := "defaults ▸"
+	binds := "defaults >"
 	if n := changedBinds(a.config); n > 0 {
-		binds = fmt.Sprintf("%d changed ▸", n)
+		binds = fmt.Sprintf("%d changed >", n)
 	}
 	lines := []configLine{{label: "Keys", heading: true}}
 	lines = append(lines, a.prefixLines()...)
@@ -963,9 +964,10 @@ func (a *App) drawConfigPanel(screen uv.Screen) {
 	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
 }
 
-// clickConfig selects the row clicked. On its value, a click steps the setting, back on ◂ and
-// forward anywhere else, as ←→ do; on a typed row, it only selects, and enter opens it for typing. A click outside
-// the panel closes it, as esc does.
+// clickConfig selects the row clicked. On a choice's arrows, a cell around each included, a click
+// steps the setting back or forward, as ←→ do; on another value, such as on/off, it steps
+// forward. On a choice's text or a typed row it only selects, and enter opens a typed row for
+// typing. A click outside the panel closes it, as esc does.
 func (a *App) clickConfig(point image.Point) {
 	l := a.configLayout()
 	if !point.In(l.panel) {
@@ -982,27 +984,69 @@ func (a *App) clickConfig(point image.Point) {
 		return
 	}
 	a.selectConfigRow(line.row)
-	valueX := l.list.Max.X - 1 - ansi.StringWidth(line.value)
-	if line.typed || point.X < valueX || line.value == "" {
+	step, acts := valueStep(l.list, line, point.X)
+	if !acts {
 		return
 	}
 	if row, ok := bindRowAt(line.row); ok {
-		a.clickBind(row, point.X-valueX)
+		start, _ := valueSpan(l.list, line)
+		a.clickBind(row, point.X-start)
 		return
 	}
-	if strings.HasPrefix(line.value, "◂") && point.X < valueX+2 {
-		a.changeSetting(-1)
-		return
-	}
-	a.changeSetting(1)
+	a.changeSetting(step)
 }
 
-// hoverConfig marks the row under the mouse.
+// valueSpan is where line's value is drawn in list: its first column and the one past its last.
+func valueSpan(list image.Rectangle, line configLine) (int, int) {
+	end := list.Max.X - 1
+	return end - ansi.StringWidth(line.value), end
+}
+
+// valueStep is what a click at column x does to line's value: on a choice, -1 on its < and 1 on
+// its >, each with the cell on either side; on another value, 1, stepping forward or opening it.
+// acts is false where a click only selects the row.
+func valueStep(list image.Rectangle, line configLine, x int) (step int, acts bool) {
+	start, end := valueSpan(list, line)
+	switch {
+	case line.typed || line.value == "":
+		return 0, false
+	case !strings.HasPrefix(line.value, "<"):
+		return 1, x >= start
+	case x >= start-1 && x <= start+1:
+		return -1, true
+	case x >= end-2 && x <= end:
+		return 1, true
+	}
+	return 0, false
+}
+
+// clickable is the columns of line, from and up to, that a click at column x acts on, which
+// hovering lights: a choice's arrow that the click takes, another value whole, or a typed
+// row's field.
+func clickable(list image.Rectangle, line configLine, x int) (from, to int, ok bool) {
+	if line.typed {
+		from = list.Min.X + textColumn
+		return from, list.Max.X - 1, x >= from
+	}
+	step, acts := valueStep(list, line, x)
+	start, end := valueSpan(list, line)
+	switch {
+	case !acts:
+		return 0, 0, false
+	case !strings.HasPrefix(line.value, "<"):
+		return start, end, true
+	case step < 0:
+		return start, start + 1, true
+	}
+	return end - 1, end, true
+}
+
+// hoverConfig marks the row under the mouse, and where on it the mouse is.
 func (a *App) hoverConfig(point image.Point) {
 	l := a.configLayout()
 	line, ok := l.lineAt(point.Y)
 	a.configPanel.hovering = ok && line.selectable() && point.In(l.list)
-	a.configPanel.hover = line.row
+	a.configPanel.hover, a.configPanel.hoverX = line.row, point.X
 }
 
 func (a *App) drawConfigLine(screen uv.Screen, inner image.Rectangle, y int, line configLine) {
@@ -1026,6 +1070,24 @@ func (a *App) drawConfigLine(screen uv.Screen, inner image.Rectangle, y int, lin
 		drawRow(screen, inner, y, line.label, line.value, style)
 	default:
 		drawRow(screen, inner, y, "  "+line.label, line.value, style)
+	}
+	if !a.configPanel.hovering || line.row != a.configPanel.hover || a.configPanel.page == themePage {
+		return
+	}
+	if from, to, ok := clickable(inner, line, a.configPanel.hoverX); ok {
+		lightCells(screen, from, to, y)
+	}
+}
+
+// lightCells shows the cells of line y from column from up to to in reverse video, marking what
+// a click under the mouse acts on; the terminal swaps the colors, its defaults included.
+func lightCells(screen uv.Screen, from, to, y int) {
+	for x := from; x < to; x++ {
+		if c := screen.CellAt(x, y); c != nil {
+			cell := *c
+			cell.Style.Attrs |= uv.AttrReverse
+			screen.SetCell(x, y, &cell)
+		}
 	}
 }
 

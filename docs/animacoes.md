@@ -8,7 +8,7 @@ Além da intro do título, com os `0`/`1` que revelam o ASCII (ADR-025, ADR-043)
 
 | Momento | O que anima |
 |---|---|
-| Hover do mouse | O que está sob o mouse: nome de tab, título de painel, linha de lista, o corvo |
+| Hover do mouse | O que está sob o mouse: nome de tab, o texto do título de painel (não a borda em volta), linha de lista, o corvo |
 | Abrir e fechar painel | O painel que abre ou fecha, e o espaço que os vizinhos ganham ou cedem |
 | Abrir e fechar tab | O nome na barra e o conteúdo da tab |
 | Foco | A borda e o título do painel que perde e do que ganha o foco |
@@ -25,8 +25,12 @@ A atividade depende do indicador de "atividade não vista", previsto em [tui.md]
 |---|---|
 | `none` | Sem animação |
 | `01` | Células viram `0`/`1` sorteados e se revelam numa varredura com jitter, como a intro |
-| `fade` | A cor vai da antiga à nova por mistura (o `mix` que já existe) |
+| `fade` | A cor do texto vai da antiga à nova por mistura (o `mix` que já existe); o fundo nunca se mistura, para que o fundo do próprio terminal (`background = terminal`) continue transparente. Ao fechar, o caractere antigo some no fundo dele antes de o de baixo aparecer no seu |
 | `jitter` | Caracteres especiais se misturam até virar o caractere certo, como o *decrypt* de filmes |
+| `dissolve` | Cada célula passa da cor de partida à sua de uma vez, numa ordem aleatória |
+| `wipe` | Uma frente atravessa a área da esquerda para a direita, com a borda misturando as cores |
+
+Ao fechar, `01` e `jitter` tocam ao contrário e cada célula sai na metade do caminho dela até virar ruído, mostrando o que está embaixo; `dissolve` e `wipe` tiram cada célula quando o efeito passa por ela, na ordem inversa; nada fica inteiro até o último quadro.
 
 A mola (`spring`) e o `flicker` existiram e saíram (ADR-053, nota de 2026-10-21): na mola o conteúdo aparecia de uma vez e só as bordas chegavam atrasadas, e o flicker era lento e pedia um aviso a cada passagem.
 
@@ -55,7 +59,7 @@ O `animate intro` continua como está, à parte.
 
 - **O programa nunca sabe da animação.** Ela só muda o que é desenhado. O PTY é redimensionado uma vez (no fim, ou no começo), nunca a cada quadro, para não mandar um SIGWINCH por quadro e fazer o shell e o vim redesenharem no meio.
 - **Abrir, fechar e popup** podem animar o conteúdo (o texto do painel novo "decifrando"). **Foco, mover, hover e atividade** só animam a moldura (bordas, títulos, a barra), porque acontecem toda hora e não podem mexer no que se está lendo.
-- **Hover** anima uma vez por passagem; o mouse parado não repete. Nunca no conteúdo dos programas.
+- **Hover** mostra o que está sob o mouse como selecionado: o nome de uma tab na cor de destaque da tab ativa, sobre o próprio fundo, e o título de um painel na cor do painel com foco. Só o texto muda de cor. Vale também com a tab atual vazia, na home. O efeito toca uma vez por passagem, partindo da cor de antes; o mouse parado não repete. Com `fade`, `dissolve` ou `wipe`, sair também volta às cores de antes pelo efeito. Nunca no conteúdo dos programas.
 - **Cada animação segue o alvo:** o painel, o título dele, o nome da tab ou o popup são encontrados de novo a cada quadro, então uma tab que muda de nome ou um painel que se move levam a animação junto. Popups animam só dentro do próprio retângulo.
 - **Foco** anima só o painel que ganha o foco. Trocar o foco de novo no meio não interrompe: o painel deixado para trás termina voltando à cor dele, e trocar rápido deixa um rastro.
 - **Teclas não esperam:** qualquer tecla leva as outras animações ao estado final e é tratada normalmente, sem ser engolida (diferente da intro, que só pula).
@@ -70,6 +74,12 @@ O config das animações tem o palco ([temas.md](temas.md#o-palco)) embaixo da l
 - Com o mesmo tempo e a mesma curva de quando acontece de verdade, só menor; mudar o tempo toca de novo.
 - Com `animations: off`, o palco mostra o estado final parado, com a nota `animations off`.
 
+## Próximas mudanças
+
+Pedidas pelo mantenedor (ADR-062), ainda não feitas. A que muda uma regra do ADR-053 o atualiza quando for feita.
+
+- **Hover nas listas.** As linhas das listas (scripts, inspect, logs, sessões, config, escolhas) passam a ficar como selecionadas sob o mouse, como os nomes de tab e os títulos de painel já ficam.
+
 ## Catálogo para depois
 
 Efeitos de outras bibliotecas que servem aos momentos do noct, para entrar no registro quando houver vontade. Do [tachyonfx](https://github.com/junkdog/tachyonfx) vem também a ideia de **padrões espaciais** (radial, diagonal, espiral, varredura), que dizem em que ordem as células animam: o mesmo efeito com padrões diferentes vira vários.
@@ -78,9 +88,7 @@ Efeitos de outras bibliotecas que servem aos momentos do noct, para entrar no re
 |---|---|---|---|
 | BinaryPath | [TTE](https://github.com/ChrisBuilds/terminaltexteffects) | Caracteres viram binário e andam em ângulo reto até o lugar | Abrir tab, intro |
 | Evolve | tachyonfx | Cada célula passa por uma série de símbolos (`░▒▓█`) até o caractere | Variante do `jitter` |
-| Coalesce / Dissolve | tachyonfx | Células aparecem ou somem em ordem aleatória | Abrir e fechar painel |
 | Crumble | TTE | O texto vira pó e cai | Fechar painel ou tab |
-| Sweep / Wipe | ambos | Uma faixa atravessa a área revelando | Trocar de sessão, com o tema novo |
 | Highlight | TTE | Um brilho especular passa pelo texto | Hover, foco |
 | Slide / Slice | ambos | Entra de fora, ou duas metades de lados opostos | Popup, mover |
 | Expand / MiddleOut | ambos | Cresce do centro para fora | Tela inteira, popup |

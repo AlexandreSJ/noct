@@ -155,18 +155,18 @@ func TestTheStageIsUnderTheRowsWithItsNote(t *testing.T) {
 func TestClickingTheArrowsDrawnChangesTheEffect(t *testing.T) {
 	a := animationConfig(t, momentPanels)
 	row := drawnCell(t, a, "open and close panels", 0)
-	next := drawnCell(t, a, "▸", row.Y)
+	next := drawnCell(t, a, ">", row.Y)
 	if next.Y != row.Y {
-		t.Fatalf("the row's ▸ is not on its line")
+		t.Fatalf("the row's > is not on its line")
 	}
 	click(a, next.X, next.Y)
 	if a.config.Animations.Panels != "jitter" {
-		t.Fatalf("panels on %q after clicking ▸, want jitter", a.config.Animations.Panels)
+		t.Fatalf("panels on %q after clicking >, want jitter", a.config.Animations.Panels)
 	}
-	back := drawnCell(t, a, "◂", row.Y)
+	back := drawnCell(t, a, "<", row.Y)
 	click(a, back.X, back.Y)
 	if a.config.Animations.Panels != "fade" {
-		t.Errorf("panels on %q after clicking ◂, want fade back", a.config.Animations.Panels)
+		t.Errorf("panels on %q after clicking <, want fade back", a.config.Animations.Panels)
 	}
 }
 
@@ -175,5 +175,41 @@ func TestAShortTerminalKeepsTheRowsWithoutTheStage(t *testing.T) {
 	a.size.Y = 24
 	if text := screenText(a); strings.Contains(text, "example ·") {
 		t.Errorf("the stage's note shows where the stage does not fit:\n%s", text)
+	}
+}
+
+func TestHoveringAConfigValueLightsOnlyTheArrowsAround(t *testing.T) {
+	a := animationConfig(t, momentPanels)
+	row := drawnCell(t, a, "open and close panels", 0)
+	back, next := drawnCell(t, a, "<", row.Y), drawnCell(t, a, ">", row.Y)
+	lit := func(p image.Point) bool { return drawnApp(a).CellAt(p.X, p.Y).Style.Attrs&uv.AttrReverse != 0 }
+	for _, c := range []struct {
+		name      string
+		x         int
+		back, fwd bool
+	}{
+		{"before <", back.X - 1, true, false},
+		{"on <", back.X, true, false},
+		{"after <", back.X + 1, true, false},
+		{"on the text", back.X + 3, false, false},
+		{"before >", next.X - 1, false, true},
+		{"on >", next.X, false, true},
+		{"after >", next.X + 1, false, true},
+		{"on the label", row.X + 1, false, false},
+	} {
+		a.handleMouse(motion(c.x, row.Y))
+		if lit(back) != c.back || lit(next) != c.fwd {
+			t.Errorf("%s: < lit %v, > lit %v; want %v, %v", c.name, lit(back), lit(next), c.back, c.fwd)
+		}
+	}
+}
+
+func TestClickingAChoicesTextOnlySelectsIt(t *testing.T) {
+	a := animationConfig(t, momentPanels)
+	row := drawnCell(t, a, "open and close panels", 0)
+	back := drawnCell(t, a, "<", row.Y)
+	click(a, back.X+3, row.Y)
+	if a.config.Animations.Panels != "fade" {
+		t.Errorf("panels on %q after clicking the text, want fade still", a.config.Animations.Panels)
 	}
 }
