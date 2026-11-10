@@ -23,6 +23,8 @@ untouched.
   each cell at once in a random order, and `wipe` sweeps across from left to right.
 - `prefix` + `D` duplicates the focused terminal: a new one opens beside it in the same folder and,
   when its shell runs a program, offers to run the same command.
+- A shell's pane title tells the folder it is in, as `zsh · ~/proj`, until a program sets a
+  title of its own.
 - Script and flow templates have `quote`: `{{quote .pattern}}` puts a value in single quotes as one
   shell word, so spaces, quotes or `;` in a param or in another step's output never run as a
   command.
