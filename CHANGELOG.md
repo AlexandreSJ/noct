@@ -24,6 +24,9 @@ terminal's own background stays untouched.
   spreads out from the center and shrinks back into it.
 - `prefix` + `D` duplicates the focused terminal: a new one opens beside it in the same folder and,
   when its shell runs a program, offers to run the same command.
+- In a log in the logs view, `/` searches up from the end, `n` and `N` go to the next match up and
+  down, and `f` shows only the lines with a text. Matches show in reverse, lower case matches any
+  case, and `esc` clears the search or filter before going back to the list.
 - A shell's pane title tells the folder it is in, as `zsh · ~/proj`, until a program sets a
   title of its own.
 - Script and flow templates have `quote`: `{{quote .pattern}}` puts a value in single quotes as one

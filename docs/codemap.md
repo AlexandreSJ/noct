@@ -75,6 +75,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/logs_panel.go` | Logs panel (prefix+v): month calendar marked by runs, the logs of a day (started or last written on it), sorting, clearing, where the log goes and whether it or the lists show, the hints of the part with the focus and the popup of every key; log pruning |
 | `internal/app/logs_columns.go` | The logs list's columns from the config: their widths over the whole list, dropping them on a narrow list, each cell (times, session, size, compact line counts), the titles |
 | `internal/app/logs_preview.go` | The selected log beside the logs panel's lists: a terminal that prints a part of 5000 lines of it, the last following its end, restarted as the selection or the part changes, and scrolling its history on into the parts before and after |
+| `internal/app/logs_search.go` | Searching the log shown (`/`, `n`, `N`, its matches lit) and filtering its lines (`f`) |
 | `internal/app/library_watch.go` | Reading scripts and flows again while a panel shows them and their files changed on disk |
 | `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks |
 | `internal/app/flowchart.go` | Laying out and drawing a flow as a flowchart on its own canvas, and which block is where: steps, empty lists and the gaps where steps are added; ranges and warnings marked |

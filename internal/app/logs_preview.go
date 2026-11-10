@@ -15,7 +15,7 @@ import (
 )
 
 // logsPreviewHints are the keys while the preview has the focus, scrolling the log's history.
-const logsPreviewHints = "{up}{down} line  {pgup}{pgdown} page  {g} top  {G} live  {enter} the list  {p} move  {+}{-} size  {?} keys"
+const logsPreviewHints = "{up}{down} line  {pgup}{pgdown} page  {g} top  {G} live  {/} search  {n}{N} matches  {f} filter  {enter} the list  {p} move  {+}{-} size  {?} keys"
 
 // logPartLines is how many lines of a log the preview holds at a time. A terminal keeps a
 // bounded history, and a log can have millions of lines: scrolling past either end of the part
@@ -45,6 +45,12 @@ type logPreview struct {
 	pageUp bool
 	// area is where it was drawn, relative to the panel, for the mouse.
 	area image.Rectangle
+	// query is what the log is searched for, and match the line of history and screen the last
+	// match is on, while matched. filter keeps only the lines with it.
+	query   string
+	match   int
+	matched bool
+	filter  string
 }
 
 // focusPreview gives the log the keys, to scroll it, at the live end or a page up.
@@ -67,6 +73,16 @@ func (p *logsPanel) leavePreview() {
 	}
 }
 
+// clearSearch ends the search and the filter, telling whether there was one.
+func (v *logPreview) clearSearch() bool {
+	searched := v.query != "" || v.filter != ""
+	if v.filter != "" {
+		v.setFilter("")
+	}
+	v.query, v.matched = "", false
+	return searched
+}
+
 func (v *logPreview) close() {
 	if v.terminal != nil {
 		v.terminal.Close()
@@ -74,8 +90,11 @@ func (v *logPreview) close() {
 	}
 }
 
-// parts is how many parts of logPartLines the log is shown in.
+// parts is how many parts of logPartLines the log is shown in; filtered, it shows whole.
 func (v *logPreview) parts() int {
+	if v.filter != "" {
+		return 1
+	}
 	return max((v.lines+logPartLines-1)/logPartLines, 1)
 }
 
@@ -104,8 +123,22 @@ func (v *logPreview) showPart(back int, top bool) bool {
 func (p *logsPanel) previewKey(name string) {
 	v := &p.preview
 	switch name {
-	case "esc", "q", "left", "h", "enter", "space":
+	case "esc", "q":
+		if !v.clearSearch() {
+			p.leavePreview()
+		}
+		return
+	case "left", "h", "enter", "space":
 		p.leavePreview()
+		return
+	case "/":
+		p.searchLog()
+		return
+	case "n", "N", "shift+n":
+		p.nextMatch(name == "n")
+		return
+	case "f":
+		p.filterLog()
 		return
 	}
 	if v.changePart(name) {
@@ -150,6 +183,7 @@ func (p *logsPanel) follow(row logRow, ok bool, size pty.Size) {
 	if v.path != row.entry.Path {
 		v.close()
 		v.path, v.offset, v.back = row.entry.Path, 0, 0
+		v.query, v.matched, v.filter = "", false, ""
 		if ok {
 			v.lines = p.linesOf(row.entry)
 		}
@@ -187,6 +221,9 @@ func (v *logPreview) partCommand(e logstore.Entry) []string {
 	files := slices.Clone(e.LogFiles()) // the current part first
 	slices.Reverse(files)
 	current := files[len(files)-1]
+	if v.filter != "" {
+		return append([]string{"/bin/sh", "-c", filteredLog, "log", v.filter, filterCase(v.filter)}, files...)
+	}
 	from, last := v.partLines()
 	olderLines := 0
 	if len(files) > 1 {
@@ -200,6 +237,19 @@ func (v *logPreview) partCommand(e logstore.Entry) []string {
 		return []string{"/bin/sh", "-c", `exec tail -n "+$1" -f -- "$2"`, "log", strconv.Itoa(from - olderLines), current}
 	}
 	return []string{"/bin/sh", "-c", `sed -n "$1,\$p" "$2"; exec tail -n +1 -f -- "$3"`, "log", strconv.Itoa(from), files[0], current}
+}
+
+// filteredLog prints the lines of the log's files with the text, then of its current file as it
+// grows: sh -c filteredLog log text case older... current.
+const filteredLog = `text=$1 case=$2; shift 2
+{ while [ $# -gt 1 ]; do cat -- "$1"; shift; done; exec tail -n +1 -f -- "$1"; } | exec grep --line-buffered -F "$case" -e "$text"`
+
+// filterCase is grep's flag for the case text matches in: any, unless text has a capital.
+func filterCase(text string) string {
+	if strings.ToLower(text) == text {
+		return "-i"
+	}
+	return "-F"
 }
 
 // drawPreview draws the preview's title line and the log under it.
@@ -227,6 +277,9 @@ func (p *logsPanel) drawPreview(screen uv.Screen, area image.Rectangle, row logR
 	} else {
 		v.terminal.Draw(screen, output)
 	}
+	if v.query != "" {
+		lightMatches(screen, output, v.query)
+	}
 }
 
 // previewStatus says where in the log the preview is: in a full-screen program, which lines of
@@ -234,6 +287,9 @@ func (p *logsPanel) drawPreview(screen uv.Screen, area image.Rectangle, row logR
 func (p *logsPanel) previewStatus(row logRow, offset int) []string {
 	v := &p.preview
 	var status []string
+	if v.filter != "" {
+		status = append(status, "filter: "+v.filter)
+	}
 	if s, ok := v.terminal.(fullScreener); ok && s.FullScreen() {
 		status = append(status, "▣ ends in a full-screen program")
 	}

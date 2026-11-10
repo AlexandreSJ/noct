@@ -46,3 +46,27 @@ func TestEmptyHistoryShowsNothing(t *testing.T) {
 		t.Errorf("blank history rendered as %q", got)
 	}
 }
+
+func TestLinesReadAsTextThroughTheHistory(t *testing.T) {
+	exited := make(chan struct{})
+	p, err := Start(Options{
+		Argv:   []string{"sh", "-c", `i=1; while [ $i -le 12 ]; do printf 'line %d 日本\n' $i; i=$((i+1)); done`},
+		Env:    []string{"TERM=xterm-256color", "PATH=/usr/bin:/bin"},
+		Size:   pty.Size{Cols: 20, Rows: 4},
+		OnExit: func(int) { close(exited) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(p.Close)
+	waitFor(t, exited)
+	if n := p.LineCount(); n != p.ScrollbackLen()+4 || n < 12 {
+		t.Fatalf("%d lines, %d of them history; want the history and the 4 rows", n, p.ScrollbackLen())
+	}
+	if got := p.LineText(0); got != "line 1 日本" {
+		t.Errorf("the oldest line reads %q, want %q", got, "line 1 日本")
+	}
+	if got := p.LineText(11); got != "line 12 日本" {
+		t.Errorf("line 12 reads %q", got)
+	}
+}
