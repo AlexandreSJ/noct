@@ -178,21 +178,38 @@ func TestAShortTerminalKeepsTheRowsWithoutTheStage(t *testing.T) {
 	}
 }
 
-func TestHoveringAConfigValueLightsWhatAClickChanges(t *testing.T) {
+func TestHoveringAConfigValueLightsOnlyTheArrowsAround(t *testing.T) {
 	a := animationConfig(t, momentPanels)
 	row := drawnCell(t, a, "open and close panels", 0)
 	back, next := drawnCell(t, a, "<", row.Y), drawnCell(t, a, ">", row.Y)
 	lit := func(p image.Point) bool { return drawnApp(a).CellAt(p.X, p.Y).Style.Attrs&uv.AttrReverse != 0 }
-	a.handleMouse(motion(back.X, back.Y))
-	if !lit(back) || lit(next) {
-		t.Errorf("over <: < lit %v, > lit %v; want only <", lit(back), lit(next))
+	for _, c := range []struct {
+		name      string
+		x         int
+		back, fwd bool
+	}{
+		{"before <", back.X - 1, true, false},
+		{"on <", back.X, true, false},
+		{"after <", back.X + 1, true, false},
+		{"on the text", back.X + 3, false, false},
+		{"before >", next.X - 1, false, true},
+		{"on >", next.X, false, true},
+		{"after >", next.X + 1, false, true},
+		{"on the label", row.X + 1, false, false},
+	} {
+		a.handleMouse(motion(c.x, row.Y))
+		if lit(back) != c.back || lit(next) != c.fwd {
+			t.Errorf("%s: < lit %v, > lit %v; want %v, %v", c.name, lit(back), lit(next), c.back, c.fwd)
+		}
 	}
-	a.handleMouse(motion(back.X+3, back.Y))
-	if lit(back) || !lit(next) {
-		t.Errorf("over the value: < lit %v, > lit %v; want only >, which a click there does", lit(back), lit(next))
-	}
-	a.handleMouse(motion(row.X+1, row.Y))
-	if lit(back) || lit(next) {
-		t.Errorf("over the label: < lit %v, > lit %v; want neither", lit(back), lit(next))
+}
+
+func TestClickingAChoicesTextOnlySelectsIt(t *testing.T) {
+	a := animationConfig(t, momentPanels)
+	row := drawnCell(t, a, "open and close panels", 0)
+	back := drawnCell(t, a, "<", row.Y)
+	click(a, back.X+3, row.Y)
+	if a.config.Animations.Panels != "fade" {
+		t.Errorf("panels on %q after clicking the text, want fade still", a.config.Animations.Panels)
 	}
 }

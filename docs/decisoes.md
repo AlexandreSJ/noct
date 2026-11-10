@@ -530,7 +530,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** O arquivo continua com `ctrl`, `alt`, `shift` e `key` em `[prefix]`; só o painel mudou. Os atalhos diretos continuam como modificadores ligados e desligados. A lista de teclas de programas é curta e não sabe o que o usuário usa de fato.
 
-**Setas e o que o clique muda (2026-11-09).** As setas das escolhas viram `<` e `>`, que todo terminal e fonte desenham do mesmo tamanho. Com o mouse sobre o valor, o que o clique ali faz aparece em vídeo reverso (`AttrReverse`, para valer com as cores padrão e o fundo do terminal): a seta `<` ou `>` que ele aciona, o valor inteiro quando não há setas (`defaults >`, `on`), ou o campo de uma linha de texto. O clique e o destaque leem a mesma função (`valueStep`), então não divergem. O editor de temas, com clique próprio, não acende nada.
+**Setas e o que o clique muda (2026-11-09).** As setas das escolhas viram `<` e `>`, que todo terminal e fonte desenham do mesmo tamanho. Numa escolha, só as setas mudam o valor, cada uma com uma célula de cada lado (` < `, ` > `); o texto entre elas só seleciona a linha, para que clicar para ler não troque o valor. Num valor sem setas (`defaults >`, `on`), qualquer ponto avança, como antes. Com o mouse onde o clique muda algo, isso aparece em vídeo reverso (`AttrReverse`, para valer com as cores padrão e o fundo do terminal): a seta, o valor sem setas inteiro, ou o campo de uma linha de texto. O clique e o destaque leem a mesma função (`valueStep`), então não divergem. O editor de temas, com clique próprio, não acende nada.
 
 ## ADR-041 — Teclas trocáveis por contexto: registro e tradução
 

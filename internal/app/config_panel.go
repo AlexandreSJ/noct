@@ -964,9 +964,10 @@ func (a *App) drawConfigPanel(screen uv.Screen) {
 	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
 }
 
-// clickConfig selects the row clicked. On its value, a click steps the setting, back on < and
-// forward anywhere else, as ←→ do; on a typed row, it only selects, and enter opens it for typing. A click outside
-// the panel closes it, as esc does.
+// clickConfig selects the row clicked. On a choice's arrows, a cell around each included, a click
+// steps the setting back or forward, as ←→ do; on another value, such as on/off, it steps
+// forward. On a choice's text or a typed row it only selects, and enter opens a typed row for
+// typing. A click outside the panel closes it, as esc does.
 func (a *App) clickConfig(point image.Point) {
 	l := a.configLayout()
 	if !point.In(l.panel) {
@@ -1001,17 +1002,22 @@ func valueSpan(list image.Rectangle, line configLine) (int, int) {
 	return end - ansi.StringWidth(line.value), end
 }
 
-// valueStep is what a click at column x does to line's value: -1 on the back arrow of a choice,
-// else 1, stepping forward or opening it. acts is false where a click only selects the row.
+// valueStep is what a click at column x does to line's value: on a choice, -1 on its < and 1 on
+// its >, each with the cell on either side; on another value, 1, stepping forward or opening it.
+// acts is false where a click only selects the row.
 func valueStep(list image.Rectangle, line configLine, x int) (step int, acts bool) {
-	start, _ := valueSpan(list, line)
-	if line.typed || line.value == "" || x < start {
+	start, end := valueSpan(list, line)
+	switch {
+	case line.typed || line.value == "":
 		return 0, false
-	}
-	if strings.HasPrefix(line.value, "<") && x < start+2 {
+	case !strings.HasPrefix(line.value, "<"):
+		return 1, x >= start
+	case x >= start-1 && x <= start+1:
 		return -1, true
+	case x >= end-2 && x <= end:
+		return 1, true
 	}
-	return 1, true
+	return 0, false
 }
 
 // clickable is the columns of line, from and up to, that a click at column x acts on, which

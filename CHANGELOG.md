@@ -29,9 +29,10 @@ the shortcut is `Alt` by default. How to write an entry is in
 - Hovering a tab's name shows it in the active tab's color and a pane's title in the focused
   pane's, on their own background, also from an empty tab; with `fade`, `dissolve` or `wipe` the
   color blends there and back.
-- Config choices show `<` and `>` instead of `◂` and `▸`. With the mouse over a value, what a
-  click there changes is shown in reverse: the arrow it takes, a value without arrows whole, or a
-  text row's field.
+- Config choices show `<` and `>` instead of `◂` and `▸`, and only the arrows, with a cell on
+  each side, change a choice when clicked; clicking its text only selects the row. With the mouse
+  where a click changes something, that shows in reverse: the arrow, a value without arrows
+  whole, or a text row's field.
 - The logs view lists a log on every day it had output, not only the day it started and the
   day it was last written to, so a terminal used across several days shows on each of them;
   filtering by a date finds it there too.

@@ -176,7 +176,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 
 ## Config
 
-`prefixo` + `,` (ou `Alt+,`) abre o painel **config**, gravado em `~/.config/noct/config.toml` (TOML legível, editável à mão). Cada mudança vale na hora e é salva. Com o mouse (ADR-040): passar sobre uma linha a destaca, clicar a seleciona, e clicar no valor o muda: em `<` volta, em qualquer outro ponto (`>`, `on`/`off`) avança, como `←`/`→`. Com o mouse sobre o valor, o que o clique muda fica em vídeo reverso: a seta que ele aciona, o valor inteiro quando não há setas, ou o campo de uma linha de texto; numa linha de texto, o clique só seleciona, para digitar. A roda move a seleção, e um clique fora fecha o painel.
+`prefixo` + `,` (ou `Alt+,`) abre o painel **config**, gravado em `~/.config/noct/config.toml` (TOML legível, editável à mão). Cada mudança vale na hora e é salva. Com o mouse (ADR-040): passar sobre uma linha a destaca, clicar a seleciona, e clicar no valor o muda, como `←`/`→`: numa escolha, `<` volta e `>` avança, cada seta com uma célula de cada lado (` < `, ` > `), e o texto entre elas só seleciona; num valor sem setas (`on`/`off`, `defaults >`), qualquer ponto avança. Com o mouse onde o clique muda algo, isso fica em vídeo reverso: a seta, o valor sem setas inteiro, ou o campo de uma linha de texto; numa linha de texto, o clique só seleciona, para digitar. A roda move a seleção, e um clique fora fecha o painel.
 
 | Seção | Item | Valores |
 |---|---|---|
