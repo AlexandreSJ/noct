@@ -31,6 +31,8 @@ terminal's own background stays untouched.
   by a system notification, or by the terminal's bell, as **Flows → tell when runs end** sets.
   Over ssh, or without `notify-send` or `osascript`, the notification goes through the terminal
   (OSC 9).
+- In a log in the logs view, `t` shows when each line started (`2026-11-11 09-30-00`) before it.
+  Logs written before this version show the lines without times.
 - Flow params can come from the environment, as script params already could: with
   `from: env:NAME`, the variable's value is used without asking. `secret: true` masks a flow
   param in the form and never remembers it. The demo's `demo-deploy` reads its `token` from

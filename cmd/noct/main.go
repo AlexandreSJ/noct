@@ -116,6 +116,8 @@ func run(args []string) error {
 			return fmt.Errorf("usage: noct %s <flow>", args[0])
 		}
 		return enableTriggers(args[1], args[0] == "enable")
+	case "log-times":
+		return printLogTimes(args[1:], os.Stdout)
 	case "-h", "--help", "help":
 		fmt.Print(help)
 		return nil

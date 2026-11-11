@@ -153,7 +153,7 @@ var keyContexts = []keyContext{
 		{"enter", "the day's logs, the log, or back to the list", []string{"enter"}},
 		{"toggle-log", "the day's logs, the log, or back to the list", []string{"space"}},
 		{"scroll-log", "the log, a page up", []string{"u"}},
-		{"today", "today", []string{"t"}},
+		{"today", "today, or when each line of the log started", []string{"t"}},
 		{"home", "today, the first log, or the top of the log", []string{"home"}},
 		{"first", "the first log, or the top of the log", []string{"g"}},
 		{"last", "the last log, or the live end of the log", []string{"end", "G", "shift+g"}},

@@ -11,6 +11,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `cmd/noct/version_test.go` | Tests of `noct update` against a local release server: install on yes, nothing without, newest, a read-only folder, a dev build |
 | `cmd/noct/sessions.go` | `noct attach`/`a`/`att`/`-a` (listing the sessions without a name), `noct new`, `noct sessions`, `noct kill`: sessions by name, asking the running workspace or, without one, reading `sessions.json` |
 | `cmd/noct/sessions_test.go` | End-to-end tests of sessions: two sessions apart, a missing one refused, a session opened again after quit in its shell's directory, a program offered to run again after quit, kill without noct running |
+| `cmd/noct/log_times.go` | `noct log-times`, which the logs view runs: a log's lines, a range of them or following its end, after when each started |
 | `cmd/noct/mcp.go` | `noct mcp`: the MCP server on stdin and stdout, with the audit log and the daemon as its workspace |
 | `cmd/noct/mcp_test.go` | End-to-end test of `noct mcp`: an AI runs a flow in a real workspace and reads its result and pane |
 | `cmd/noct/scripts.go` | `noct ls`, `noct check`, `noct -s`: scripts in the current terminal, without the daemon |
@@ -29,6 +30,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/update/install.go` | Installing a release: download, checksum, replace the binary atomically; whether its folder is writable; the command that installs it by hand |
 | `internal/update/update_test.go` | Tests of versions, listing releases and installing them against a local server |
 | `internal/logstore/logstore.go` | State directory and size-capped, rotating pane logs; appending to one and reading its end; noting each new day a log writes on |
+| `internal/logstore/times.go` | When each line of a log started: the `.times` file beside it (a record per second with output), and printing lines after their times, following the last file (`noct log-times`) |
 | `internal/logstore/entries.go` | Logs by day, each with when it started and was last written, the days it had output on and a flow run's result beside it: listing, line counts, removing, pruning by last write and total size, terminal logs numbered within the day, readable sizes |
 | `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, stop (SIGTERM then SIGKILL to the group), exit code, foreground program and its command line, current directory |
 | `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing and its history (the main screen under a full-screen program, for the logs preview) |

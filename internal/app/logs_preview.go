@@ -15,7 +15,7 @@ import (
 )
 
 // logsPreviewHints are the keys while the preview has the focus, scrolling the log's history.
-const logsPreviewHints = "{up}{down} line  {pgup}{pgdown} page  {g} top  {G} live  {/} search  {n}{N} matches  {f} filter  {enter} the list  {p} move  {+}{-} size  {?} keys"
+const logsPreviewHints = "{up}{down} line  {pgup}{pgdown} page  {g} top  {G} live  {/} search  {n}{N} matches  {f} filter  {t} times  {enter} the list  {p} move  {+}{-} size  {?} keys"
 
 // logPartLines is how many lines of a log the preview holds at a time. A terminal keeps a
 // bounded history, and a log can have millions of lines: scrolling past either end of the part
@@ -51,6 +51,9 @@ type logPreview struct {
 	match   int
 	matched bool
 	filter  string
+	// times shows when each line started, as noct (the binary's path) prints it.
+	times bool
+	noct  string
 }
 
 // focusPreview gives the log the keys, to scroll it, at the live end or a page up.
@@ -140,6 +143,10 @@ func (p *logsPanel) previewKey(name string) {
 	case "f":
 		p.filterLog()
 		return
+	case "t":
+		v.close()
+		v.times = !v.times
+		return
 	}
 	if v.changePart(name) {
 		return
@@ -206,6 +213,7 @@ func (p *logsPanel) follow(row logRow, ok bool, size pty.Size) {
 	v.title = "log " + lastWrite(row.entry).Format("15:04:05") + " " + row.name()
 	// a clear near the end of the log would otherwise leave nothing above it to scroll to, and a
 	// log ending inside a full-screen program no history at all
+	v.noct = orDefault(p.app.binary.path, "noct")
 	terminal, err := p.app.launch(program{argv: v.partCommand(row.entry), dir: p.app.workDir, onExit: func(int) {}, keepScrollback: true, historyUnderFullScreen: true}, size)
 	if err != nil {
 		p.app.statusMessage = err.Error()
@@ -221,10 +229,22 @@ func (v *logPreview) partCommand(e logstore.Entry) []string {
 	files := slices.Clone(e.LogFiles()) // the current part first
 	slices.Reverse(files)
 	current := files[len(files)-1]
+	if v.filter != "" && v.times {
+		return append([]string{"/bin/sh", "-c", filteredTimedLog, "log", v.filter, filterCase(v.filter), v.noct}, files...)
+	}
 	if v.filter != "" {
 		return append([]string{"/bin/sh", "-c", filteredLog, "log", v.filter, filterCase(v.filter)}, files...)
 	}
 	from, last := v.partLines()
+	if v.times {
+		argv := []string{v.noct, "log-times", "--from", strconv.Itoa(from)}
+		if v.back > 0 {
+			argv = append(argv, "--to", strconv.Itoa(last))
+		} else {
+			argv = append(argv, "--follow")
+		}
+		return append(append(argv, "--"), files...)
+	}
 	olderLines := 0
 	if len(files) > 1 {
 		olderLines = logstore.CountFileLines(files[0])
@@ -243,6 +263,11 @@ func (v *logPreview) partCommand(e logstore.Entry) []string {
 // grows: sh -c filteredLog log text case older... current.
 const filteredLog = `text=$1 case=$2; shift 2
 { while [ $# -gt 1 ]; do cat -- "$1"; shift; done; exec tail -n +1 -f -- "$1"; } | exec grep --line-buffered -F "$case" -e "$text"`
+
+// filteredTimedLog is filteredLog over the lines with their times: sh -c filteredTimedLog log text
+// case noct older... current.
+const filteredTimedLog = `text=$1 case=$2 noct=$3; shift 3
+"$noct" log-times --follow -- "$@" | exec grep --line-buffered -F "$case" -e "$text"`
 
 // filterCase is grep's flag for the case text matches in: any, unless text has a capital.
 func filterCase(text string) string {
@@ -289,6 +314,9 @@ func (p *logsPanel) previewStatus(row logRow, offset int) []string {
 	var status []string
 	if v.filter != "" {
 		status = append(status, "filter: "+v.filter)
+	}
+	if v.times {
+		status = append(status, "times")
 	}
 	if s, ok := v.terminal.(fullScreener); ok && s.FullScreen() {
 		status = append(status, "▣ ends in a full-screen program")
