@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/AlexandreSJ/noct/internal/layout"
+	"github.com/AlexandreSJ/noct/internal/theme"
 )
 
 func (a *App) render() error {
@@ -100,8 +101,8 @@ func (a *App) drawPlacedPane(screen uv.Screen, t *tab, placed placedPane) {
 	id, frame := placed.id, placed.frame
 	pal := a.palette.forPane(t.paneColors[id])
 	viewScreen := screen
-	if pal.background != nil || pal.text != nil {
-		viewScreen = themedScreen{Screen: screen, background: pal.background, text: pal.text}
+	if pal.background != nil || pal.text != nil || pal.ansi != nil {
+		viewScreen = themedScreen{Screen: screen, background: pal.background, text: pal.text, ansi: pal.ansi}
 	}
 	fillRect(screen, frame, uv.Style{Bg: pal.background}) // floating panes cover what is below
 	lineStyle, titleStyle := pal.unfocusedFrame, pal.unfocusedTitle
@@ -143,20 +144,37 @@ type themedScreen struct {
 	uv.Screen
 	background color.Color
 	text       color.Color
+	ansi       *[theme.ANSICount]color.Color
 }
 
 func (s themedScreen) SetCell(x, y int, cell *uv.Cell) {
-	if cell != nil && (cell.Style.Bg == nil || cell.Style.Fg == nil) {
-		themed := *cell // the cell belongs to the pane's screen and must not change
-		if themed.Style.Bg == nil {
-			themed.Style.Bg = s.background
-		}
-		if themed.Style.Fg == nil {
-			themed.Style.Fg = s.text
-		}
-		cell = &themed
+	if cell == nil {
+		s.Screen.SetCell(x, y, cell)
+		return
 	}
-	s.Screen.SetCell(x, y, cell)
+	themed := *cell // the cell belongs to the pane's screen and must not change
+	themed.Style.Fg = s.colorOf(themed.Style.Fg, s.text)
+	themed.Style.Bg = s.colorOf(themed.Style.Bg, s.background)
+	themed.Style.UnderlineColor = s.colorOf(themed.Style.UnderlineColor, nil)
+	s.Screen.SetCell(x, y, &themed)
+}
+
+// colorOf is the color a program asked for as the theme draws it: unset, the default given; one of
+// the terminal's 16, the theme's, when it has one.
+func (s themedScreen) colorOf(c, unset color.Color) color.Color {
+	n := -1
+	switch c := c.(type) {
+	case nil:
+		return unset
+	case ansi.BasicColor:
+		n = int(c)
+	case ansi.IndexedColor:
+		n = int(c)
+	}
+	if s.ansi != nil && n >= 0 && n < theme.ANSICount && s.ansi[n] != nil {
+		return s.ansi[n]
+	}
+	return c
 }
 
 // placeCursor puts the real cursor where the focused program has it, or hides it. Showing or

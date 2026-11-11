@@ -75,7 +75,7 @@ A instalação de pacotes saiu do plano (ADR-062): o noct não mostra, não reco
 
 ## Fase 5 — Polimento
 
-Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase. Já antecipados: terminal novo no diretório do painel com foco (ADR-048), temas editáveis e por sessão ([temas.md](temas.md), ADR-049, ADR-050), cores por painel e por tab (ADR-051), templates de tab ([templates.md](templates.md), ADR-052), duplicar o terminal com foco (`prefixo` + `D`), a pasta no título do shell sem título próprio (`zsh · ~/proj`), o aviso ao fim de uma execução fora de vista (notificação do sistema, OSC 9 ou sino; [fluxos.md](fluxos.md)), animações ([animacoes.md](animacoes.md), ADR-053) e o instalador ([instalador.md](instalador.md), ADR-056 a ADR-058).
+Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase. Já antecipados: terminal novo no diretório do painel com foco (ADR-048), temas editáveis e por sessão ([temas.md](temas.md), ADR-049, ADR-050), cores por painel e por tab (ADR-051), templates de tab ([templates.md](templates.md), ADR-052), duplicar o terminal com foco (`prefixo` + `D`), a pasta no título do shell sem título próprio (`zsh · ~/proj`), a paleta ANSI do tema nos painéis (`[ansi]`, com `background = theme`; [temas.md](temas.md)), o aviso ao fim de uma execução fora de vista (notificação do sistema, OSC 9 ou sino; [fluxos.md](fluxos.md)), animações ([animacoes.md](animacoes.md), ADR-053) e o instalador ([instalador.md](instalador.md), ADR-056 a ADR-058).
 
 **Animações (antecipado, ADR-062).** Feitos: fade só na cor do texto, fechar sumindo aos poucos, sem o corte no último quadro, e os efeitos `dissolve` (ordem aleatória) `wipe` (de um lado ao outro) e `grow` (do centro para fora). O hover leva nomes de tab, títulos de painel e linhas das listas da cor normal à de selecionado. Ver [animacoes.md](animacoes.md).
 
@@ -85,7 +85,6 @@ Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, lay
 
 Sem compromisso nem ordem:
 
-- **Paleta ANSI nos painéis:** um tema com as 16 cores ANSI, usadas nas cores indexadas dos programas com `background = theme`, para o workspace inteiro seguir o tema.
 - **Importar temas** do kitty, Ghostty ou base16.
 - **Templates de projeto** (`.noct/templates/` no repositório), com os comandos sempre em `ask`, por segurança.
 - **Sessão a partir de templates** (`noct new <nome> --template …`).

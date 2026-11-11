@@ -130,6 +130,20 @@ type Theme struct {
 	Colors  [Count]Color
 	// Light are the colors for a light background, which only the themes noct comes with have.
 	Light [Count]Color
+	// ANSI are the terminal's 16 colors as programs in panes get them, with the theme's
+	// background; "" keeps the outer terminal's own.
+	ANSI [ANSICount]Color
+}
+
+// ANSICount is how many colors a terminal names: 8 and their bright versions.
+const ANSICount = 16
+
+// ANSIGroup is the table of a theme file with the 16 colors, as color0 to color15.
+const ANSIGroup = "ansi"
+
+// ANSIKey is the key of terminal color n in a theme file.
+func ANSIKey(n int) string {
+	return "color" + strconv.Itoa(n)
 }
 
 // In is t with the colors it shows in light mode or in dark mode; a theme without light colors

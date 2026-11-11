@@ -31,6 +31,9 @@ terminal's own background stays untouched.
   by a system notification, or by the terminal's bell, as **Flows → tell when runs end** sets.
   Over ssh, or without `notify-send` or `osascript`, the notification goes through the terminal
   (OSC 9).
+- A theme file can give the terminal's 16 colors in an `[ansi]` table (`color0` to `color15`).
+  With **Appearance → background** on `theme`, programs in panes draw with them, so the whole
+  workspace follows the theme.
 - In a log in the logs view, `t` shows when each line started (`2026-11-11 09-30-00`) before it.
   Logs written before this version show the lines without times.
 - Flow params can come from the environment, as script params already could: with

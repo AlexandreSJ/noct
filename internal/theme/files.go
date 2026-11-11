@@ -29,6 +29,7 @@ func Dir() (string, error) {
 type file struct {
 	base   string
 	colors map[Component]Color
+	ansi   map[int]Color
 }
 
 func readFile(path string) (file, error) {
@@ -36,7 +37,7 @@ func readFile(path string) (file, error) {
 	if _, err := toml.DecodeFile(path, &raw); err != nil {
 		return file{}, err
 	}
-	f := file{base: "noct", colors: map[Component]Color{}}
+	f := file{base: "noct", colors: map[Component]Color{}, ansi: map[int]Color{}}
 	for key, value := range raw {
 		if key == "base" {
 			base, ok := value.(string)
@@ -52,7 +53,8 @@ func readFile(path string) (file, error) {
 		}
 		for name, v := range table {
 			c, ok := component(key, name)
-			if !ok {
+			n, isANSI := ansiIndex(key, name)
+			if !ok && !isANSI {
 				return file{}, fmt.Errorf("%s.%s is not something a theme colors", key, name)
 			}
 			var text string
@@ -68,6 +70,10 @@ func readFile(path string) (file, error) {
 			if err != nil {
 				return file{}, fmt.Errorf("%s.%s: %w", key, name, err)
 			}
+			if isANSI {
+				f.ansi[n] = color
+				continue
+			}
 			if color == "" && !FollowsBackground(c) {
 				return file{}, fmt.Errorf("%s.%s needs a color: only backgrounds can be empty", key, name)
 			}
@@ -75,6 +81,16 @@ func readFile(path string) (file, error) {
 		}
 	}
 	return f, nil
+}
+
+// ansiIndex is the terminal color a key of the ansi table names.
+func ansiIndex(group, key string) (int, bool) {
+	for n := range ANSICount {
+		if group == ANSIGroup && key == ANSIKey(n) {
+			return n, true
+		}
+	}
+	return 0, false
 }
 
 func component(group, key string) (Component, bool) {
@@ -127,9 +143,12 @@ func LoadDir(dir string, builtins []Theme) ([]Theme, []error) {
 		if err != nil {
 			return Theme{}, err
 		}
-		t := Theme{Name: name, Base: f.base, Colors: base.Colors}
+		t := Theme{Name: name, Base: f.base, Colors: base.Colors, ANSI: base.ANSI}
 		for c, color := range f.colors {
 			t.Colors[c] = color
+		}
+		for n, color := range f.ansi {
+			t.ANSI[n] = color
 		}
 		return t, nil
 	}
@@ -160,6 +179,14 @@ func Save(dir string, t Theme, base Theme) error {
 			fmt.Fprintf(&out, "\n[%s]\n", group)
 		}
 		fmt.Fprintf(&out, "%s = %s\n", info.Key, strconv.Quote(string(t.Colors[c])))
+	}
+	if t.ANSI != base.ANSI {
+		fmt.Fprintf(&out, "\n[%s]\n", ANSIGroup)
+		for n, color := range t.ANSI {
+			if color != base.ANSI[n] {
+				fmt.Fprintf(&out, "%s = %s\n", ANSIKey(n), strconv.Quote(string(color)))
+			}
+		}
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
