@@ -168,6 +168,9 @@ func (a *App) clickInWorkspace(event uv.MouseEvent) {
 	t.raise(id)
 	frame, _ := t.frameOf(id, a.workspaceArea())
 	content := contentRect(frame)
+	if m.Button == uv.MouseLeft && m.Mod.Contains(uv.ModCtrl) && point.In(content) && a.openLinkAt(t, id, point) {
+		return
+	}
 	if !point.In(content) || a.forwardMouse(event) {
 		return
 	}

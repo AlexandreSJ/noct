@@ -106,6 +106,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/mouse.go` | Mouse: tab and pane clicks, dragging dividers, wheel scrolling (over the tab bar, changing tab), forwarding to views that take it |
 | `internal/app/editor.go` | Program settings (editor, file manager): choices found on the system or a custom command; opening a folder |
 | `internal/app/script_form.go` | Script form: name and program typed in place, command line, description, params and notes each edited alone in the editor |
+| `internal/app/links.go` | `Ctrl` + click on a pane: the OSC 8 link, URL (joined over wrapped rows) or existing path under the mouse, opened with `xdg-open`/`open`, or copied over ssh |
 | `internal/app/selection.go` | Selecting text with the mouse in one pane, across scrolling, highlighting and copying it (OSC 52) |
 | `internal/app/rebuild.go` | Notices on attach that the noct binary was rebuilt after the daemon started |
 | `internal/app/prefix.go` | The configurable prefix key: parsing, matching, key names; capturing a new one and what it would take from shortcuts and programs |

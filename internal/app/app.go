@@ -150,6 +150,8 @@ type App struct {
 	launch func(p program, size pty.Size) (view, error)
 	// desktopNotify shows a notification of the desktop's, telling whether it could.
 	desktopNotify func(title, body string) bool
+	// openURL opens a link or path with the system's opener, telling whether it could.
+	openURL func(target string) bool
 
 	scripts script.Library
 	// scriptsLoaded counts library loads, so panels know when what they cached is stale.
@@ -222,6 +224,7 @@ func New(version string) *App {
 	a.workDir, _ = os.Getwd() // until a terminal attaches and reports its own
 	a.launch = a.startProgram
 	a.desktopNotify = desktopNotification
+	a.openURL = systemOpen
 	a.binary = currentBinary()
 	a.updateTarget, _ = update.Executable() // without it, updates can only be checked
 	a.updateCachePath = filepath.Join(logstore.Dir(), update.CacheFile)

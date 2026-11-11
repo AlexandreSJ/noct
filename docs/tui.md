@@ -172,6 +172,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 - Arrastar sobre o texto de um painel (terminal ou painel do noct) seleciona, e soltar copia para a área de transferência (OSC 52; kitty e Ghostty aceitam). A seleção nunca passa para outro painel: arrastar para fora a prende na borda do painel onde começou. Um clique ou uma tecla limpa a seleção. Só bordas, tabs, divisórias e itens clicáveis, como a lista do scripts panel, recebem cliques.
 - A seleção acompanha a rolagem, como num terminal: com o botão segurado, a roda rola o histórico e a seleção continua de onde começou, e arrastar para cima ou para baixo do painel rola uma linha por vez. O texto copiado inclui as linhas que saíram da tela.
 - No painel de uma execução de script, a linha de estado (`✓ done  r run again  enter close`) não entra na seleção: só a saída do script é copiada.
+- `Ctrl` + clique num painel abre o que está sob o mouse com `xdg-open` (ou `open` no macOS): o link que o programa marcou (OSC 8, como `ls --hyperlink` e o `gcc`), uma URL no texto (`http`, `https`, `ftp`, `file`), também quando a linha longa quebrou em várias, ou o caminho de um arquivo ou pasta que existe, a partir da pasta do terminal, sem o `:linha:coluna` que compiladores e `grep -n` põem depois. A pontuação no fim de uma frase e um parêntese que a URL não abriu ficam de fora. Conectado por ssh, ou sem o programa que abre, o noct copia em vez de abrir (abrir aconteceria na máquina de lá). Vale também com programas que ligam o mouse; alguns terminais de fora tomam `Ctrl` + clique para si, e aí o `Shift` + `Ctrl` + clique do próprio terminal abre a URL.
 - `Shift` + arrastar ainda usa a seleção do próprio terminal de fora. Quem prefere só ela desliga o mouse no config.
 
 ## Config
@@ -271,9 +272,6 @@ Como a imagem vira texto na grade, ela rola, é recortada pelas bordas do painel
 
 ## Qualidade de vida (lista viva)
 
-- Notificação (sino do terminal e/ou notificação do sistema) quando uma execução em segundo plano termina.
-- Re-executar o último fluxo com os mesmos parâmetros em uma tecla (scripts já têm: `r`).
-- Clicar/abrir URLs e caminhos de arquivo na saída.
-- Timestamps opcionais por linha nos logs.
-- Buscar texto no log selecionado da view de logs e ir à parte de 5 000 linhas que o tem.
+- Feitos: aviso ao fim de uma execução fora de vista ([fluxos.md](fluxos.md)), `Ctrl` + clique em URLs e caminhos ([Mouse](#mouse)), horário por linha nos logs (`t`) e busca e filtro no log (`/`, `n`, `N`, `f`).
+- Re-executar o último fluxo com os mesmos parâmetros em uma tecla: fechado, `r` no inspect e na execução já fazem.
 - Filtrar a saída de um painel por regex sem parar o processo.

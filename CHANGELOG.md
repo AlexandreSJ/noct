@@ -31,6 +31,9 @@ terminal's own background stays untouched.
   by a system notification, or by the terminal's bell, as **Flows → tell when runs end** sets.
   Over ssh, or without `notify-send` or `osascript`, the notification goes through the terminal
   (OSC 9).
+- `Ctrl` + click on a pane opens what is under the mouse: a link the program set, a URL in the
+  text, even one a long line wrapped, or the path of a file or folder that exists. Over ssh it is
+  copied instead.
 - `noct export theme`, `noct export config` and `noct export keys` print a theme, the settings
   you changed, or your keys and binds as one `noct import …` line, with a QR code of it on a
   terminal, to run on another machine. `noct import` shows what it changes, each bind's command
