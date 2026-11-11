@@ -33,8 +33,16 @@ type file struct {
 }
 
 func readFile(path string) (file, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return file{}, err
+	}
+	return parseFile(content)
+}
+
+func parseFile(content []byte) (file, error) {
 	var raw map[string]any
-	if _, err := toml.DecodeFile(path, &raw); err != nil {
+	if _, err := toml.Decode(string(content), &raw); err != nil {
 		return file{}, err
 	}
 	f := file{base: "noct", colors: map[Component]Color{}, ansi: map[int]Color{}}
@@ -164,9 +172,41 @@ func LoadDir(dir string, builtins []Theme) ([]Theme, []error) {
 	return themes, errs
 }
 
+// Parse reads a theme file's content as the theme name, built on one of themes.
+func Parse(name string, content []byte, themes []Theme) (Theme, error) {
+	f, err := parseFile(content)
+	if err != nil {
+		return Theme{}, err
+	}
+	base, ok := Find(themes, f.base)
+	if !ok {
+		return Theme{}, fmt.Errorf("its base %s is not a theme here", f.base)
+	}
+	t := Theme{Name: name, Base: f.base, Colors: base.Colors, ANSI: base.ANSI}
+	for c, color := range f.colors {
+		t.Colors[c] = color
+	}
+	for n, color := range f.ansi {
+		t.ANSI[n] = color
+	}
+	return t, nil
+}
+
 // Save writes t to dir with only the colors that differ from base, through a temporary file so
 // a theme being read is never half written.
 func Save(dir string, t Theme, base Theme) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(dir, t.Name+".toml")
+	if target, err := filepath.EvalSymlinks(path); err == nil {
+		path = target // a theme linked from dotfiles stays a link, with the change in its target
+	}
+	return atomicfile.Write(path, Encode(t, base), 0o644)
+}
+
+// Encode is t's file, with only the colors that differ from base.
+func Encode(t Theme, base Theme) []byte {
 	var out strings.Builder
 	fmt.Fprintf(&out, "base = %s\n", strconv.Quote(t.Base))
 	group := ""
@@ -188,12 +228,5 @@ func Save(dir string, t Theme, base Theme) error {
 			}
 		}
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	path := filepath.Join(dir, t.Name+".toml")
-	if target, err := filepath.EvalSymlinks(path); err == nil {
-		path = target // a theme linked from dotfiles stays a link, with the change in its target
-	}
-	return atomicfile.Write(path, []byte(out.String()), 0o644)
+	return []byte(out.String())
 }

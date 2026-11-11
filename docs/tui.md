@@ -218,6 +218,18 @@ Atalhos do próprio terminal têm prioridade: se o kitty usa `Ctrl+L` para limpa
 map --when-focus-on var:in_noct ctrl+l
 ```
 
+## Levar o config para outra máquina
+
+`noct export` imprime uma linha só, `noct import <código>`, que traz para outra máquina o que foi exportado; num terminal, imprime antes um QR code dessa linha, para ler com o celular (`--no-qr` tira o QR). O código é o TOML comprimido (deflate) em base64 de URL depois de `noct1.`, então cabe numa linha e sobrevive a quebras de linha numa cópia.
+
+- `noct export theme [nome]`: o tema (sem nome, o que está em uso), sobre a base dele quando ela vem com o noct, senão sobre `noct`, com as cores `[ansi]`.
+- `noct export config`: só as configurações diferentes do padrão, sem as teclas. Importar muda só essas; as outras ficam como estão.
+- `noct export keys` (ou `shortcuts`): as teclas trocadas (`[keys]`) e as binds próprias (`[[custom_binds]]`). Importar põe as do código no lugar das suas.
+
+`noct import` mostra antes o que muda: cada configuração com o valor de agora e o novo (avisando quando muda o editor ou o gerenciador de arquivos, que são comandos), ou cada bind com o comando, script ou fluxo que ela roda. Só aplica com `y`; sem um terminal para perguntar, só com `--yes`. Um tema com o nome de um que já existe pergunta antes de substituir; com o nome de um embutido, pede outro com `--name`. O noct em execução lê o config novo quando começa de novo (`noct quit`, depois `noct`); temas novos aparecem na hora.
+
+`noct import theme <arquivo>` lê um tema do kitty (`color0 #…`), do Ghostty (`palette = 0=#…`) ou do base16 (`base00: "…"`), e também um arquivo de tema do noct. O nome vem do arquivo (`Tokyo Night.conf` vira `tokyo-night`) ou de `--name`. As 16 cores vão para o `[ansi]`; o fundo e o texto, para `[background]`; o azul vira o destaque, o preto claro o texto apagado, o amarelo as mensagens, o magenta o corvo, o verde e o vermelho sucesso e erro ([temas.md](temas.md)). O ADR-064 tem os motivos.
+
 ## Atualizações
 
 O noct mostra a versão que roda à direita da barra de tabs, antes do nome da sessão (`noct v0.1.0`; `noct dev` num build sem versão). Quando há uma release mais nova, ela aparece em seguida na cor de destaque (`↑ v0.2.0`), e depois de instalada, `v0.2.0 ready: restart`. (ADR-047)

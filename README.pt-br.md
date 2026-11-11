@@ -175,6 +175,9 @@ claude mcp add noct -- noct mcp
 | `noct mcp` | Serve o noct a um cliente de IA por stdin e stdout |
 | `noct check` | Aponta os scripts e fluxos que não carregam |
 | `noct quit` | Fecha todos os painéis e encerra o workspace; as sessões reabrem como estavam |
+| `noct export theme [nome]`, `config`, `keys` | Imprime um tema, as configurações que você mudou, ou suas teclas e binds como uma linha `noct import …`, com o QR code dela, para rodar em outra máquina |
+| `noct import <código>` | Traz o que o `noct export` imprimiu, mostrando o que muda e perguntando antes |
+| `noct import theme <arquivo>` | Transforma um tema do kitty, Ghostty ou base16 num tema do noct, com as 16 cores |
 | `noct update` | Mostra o que há de novo nas releases depois desta e, se você concordar, instala a mais nova |
 | `noct version` | Imprime a versão do noct |
 

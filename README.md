@@ -174,6 +174,9 @@ claude mcp add noct -- noct mcp
 | `noct promote <flow or script>` | Let a draft an AI wrote run, once reviewed |
 | `noct mcp` | Serve noct to an AI client over stdin and stdout |
 | `noct check` | Report the scripts and flows that cannot be loaded |
+| `noct export theme [name]`, `config`, `keys` | Print a theme, the settings you changed, or your keys and binds as one `noct import …` line, with a QR code of it, to run on another machine |
+| `noct import <code>` | Bring in what `noct export` printed, showing what changes and asking first |
+| `noct import theme <file>` | Turn a kitty, Ghostty or base16 theme into a noct theme, with its 16 colors |
 | `noct quit` | Close every pane and stop the workspace; sessions open again as they were |
 | `noct update` | Show what is new in the releases after this one and, if you agree, install the newest |
 | `noct version` | Print noct's version |

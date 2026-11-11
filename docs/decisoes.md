@@ -859,3 +859,18 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - Os valores continuam renderizados no `run:` dos scripts; para eles virarem uma palavra só do shell, `{{quote .nome}}`.
 
 **Consequências.** Um script `from` que antes falhava sem a variável agora abre o formulário. O demo da instalação mostra o recurso no `demo-deploy` (`token`, de `DEMO_DEPLOY_TOKEN`). Passar todos os params como variáveis de ambiente, mudando o formato dos scripts, fica fora; se voltar, é um ADR novo.
+
+## ADR-064 — Exportar e importar por código e QR code; `rsc.io/qr`
+
+**Contexto.** O mantenedor quer levar tema, config e teclas para outra máquina de um jeito prático, de preferência uma linha do noct para copiar ou um QR code, e depois rodar `noct import`. A task de importar temas do kitty, Ghostty e base16 entra junto, porque passa pelo mesmo comando.
+
+**Decisão.**
+- **Código.** `noct1.` seguido do tipo, do nome e do TOML, comprimidos com deflate e em base64 de URL: uma palavra só, que sobrevive a quebras de linha numa cópia e cabe num QR code. O `1` deixa mudar o formato depois.
+- **O que vai.** Um tema sobre uma base embutida (ou sobre `noct`), então o código não depende de outro tema do usuário; do config, só o que difere do padrão e sem as teclas; as teclas e as binds próprias num código à parte (`keys`, também `shortcuts`).
+- **Importar pergunta.** Antes de gravar, o `noct import` lista cada configuração que muda (o editor e o gerenciador de arquivos com aviso, porque são comandos), cada bind com o que ela roda, ou o tema que substitui. Só `y` aplica; sem terminal, só `--yes`. Um código é texto de outra pessoa, e uma bind roda comandos.
+- **QR code.** Desenhado com meios-blocos, escuro sobre claro com cores fixas (preto sobre branco claro), qualquer que seja o tema do terminal, com borda de 2 módulos; nível M de correção, e L quando não cabe. Só num terminal; `--no-qr` tira.
+- **Dependência: `rsc.io/qr` v0.2.0.** Codificador de QR do Russ Cox (licença BSD, a mesma do Go), só a biblioteca padrão, sem cgo no pacote usado, pequeno o bastante para ler inteiro. Escrever um codificador próprio pede as tabelas de blocos de Reed–Solomon das 40 versões e os padrões de alinhamento; um erro nelas gera um código que não lê, e o teste só pegaria com um leitor. O teste do noct lê o QR desenhado com o `zbarimg` quando ele está instalado.
+- **Temas de fora.** `noct import theme <arquivo>` lê kitty, Ghostty e base16 (o mapeamento das 16 cores do base16-shell): o fundo e o texto do tema, as 16 cores no `[ansi]`, e os componentes a partir delas (azul destaque, preto claro apagado, amarelo mensagens, magenta o corvo, verde e vermelho).
+
+**Consequências.** Um novo módulo no `go.mod`. O config importado vale quando o noct começa de novo, porque o daemon só lê o config ao iniciar; temas novos aparecem na hora, porque a pasta de temas é vigiada. Painéis web para montar e ler esses códigos ficam como ideia.
+

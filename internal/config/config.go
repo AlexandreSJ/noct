@@ -523,6 +523,15 @@ func Path() (string, error) {
 	return filepath.Join(dir, "noct", "config.toml"), nil
 }
 
+// Overlay is base with the settings text gives over it, read as Load reads a file.
+func Overlay(base Config, text []byte) (Config, error) {
+	cfg := base
+	if _, err := toml.Decode(string(text), &cfg); err != nil {
+		return base, err
+	}
+	return cfg.normalized(), nil
+}
+
 // Load reads the settings file. Missing settings keep their defaults; a missing file is not an
 // error. When the file is invalid, the defaults for the invalid part come back with the error.
 func Load(path string) (Config, error) {

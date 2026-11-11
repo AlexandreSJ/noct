@@ -46,6 +46,14 @@ Usage:
                                     MCP server on stdin and stdout; see docs/mcp.md
   noct check                        report the scripts and flows that cannot be loaded,
                                     and warn about steps read where they may not have run
+  noct export theme [name] | config | keys
+                                    print a theme (the one in use without a name), the
+                                    settings you changed, or the keys and binds as one line
+                                    to run on another machine, with a QR code of it
+  noct import <code>                bring in what noct export printed, showing what changes
+                                    and asking first
+  noct import theme <file> [--name name]
+                                    turn a theme of kitty, Ghostty or base16 into a noct theme
   noct quit                         close every pane and stop the workspace; the sessions
                                     are kept and open again as they were
   noct update                       show what is new in the releases after this one and,
@@ -116,6 +124,15 @@ func run(args []string) error {
 			return fmt.Errorf("usage: noct %s <flow>", args[0])
 		}
 		return enableTriggers(args[1], args[0] == "enable")
+	case "export", "import":
+		sio, err := terminalShareIO()
+		if err != nil {
+			return err
+		}
+		if args[0] == "export" {
+			return exportCommand(args[1:], sio)
+		}
+		return importCommand(args[1:], sio)
 	case "log-times":
 		return printLogTimes(args[1:], os.Stdout)
 	case "-h", "--help", "help":

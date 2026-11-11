@@ -11,6 +11,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `cmd/noct/version_test.go` | Tests of `noct update` against a local release server: install on yes, nothing without, newest, a read-only folder, a dev build |
 | `cmd/noct/sessions.go` | `noct attach`/`a`/`att`/`-a` (listing the sessions without a name), `noct new`, `noct sessions`, `noct kill`: sessions by name, asking the running workspace or, without one, reading `sessions.json` |
 | `cmd/noct/sessions_test.go` | End-to-end tests of sessions: two sessions apart, a missing one refused, a session opened again after quit in its shell's directory, a program offered to run again after quit, kill without noct running |
+| `cmd/noct/share.go` | `noct export` (a theme, the changed settings, the keys and binds as a line and a QR code) and `noct import` (a code, showing what changes and asking; a theme file of kitty, Ghostty or base16) |
 | `cmd/noct/log_times.go` | `noct log-times`, which the logs view runs: a log's lines, a range of them or following its end, after when each started |
 | `cmd/noct/mcp.go` | `noct mcp`: the MCP server on stdin and stdout, with the audit log and the daemon as its workspace |
 | `cmd/noct/mcp_test.go` | End-to-end test of `noct mcp`: an AI runs a flow in a real workspace and reads its result and pane |
@@ -41,7 +42,10 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/pane/keys.go` | Key encodings the emulator lacks (modified navigation keys) |
 | `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again (a terminal with its command and log), names, what the command line lists |
 | `internal/theme/theme.go` | Theme components, colors (hex, terminal indexes, following the background) and the themes noct comes with, each with dark and light colors |
-| `internal/theme/files.go` | User themes: the themes folder, reading theme files built on a base, and writing only what differs from it |
+| `internal/theme/foreign.go` | Themes of other terminals (kitty, Ghostty, base16) read as noct themes: background, text, the 16 colors and the components from them |
+| `internal/theme/files.go` | User themes: the themes folder, reading theme files built on a base (with their `[ansi]` colors), and writing only what differs from it |
+| `internal/share/share.go` | The codes `noct export` prints and `noct import` reads: kind, name and TOML, compressed into one word after `noct1.` |
+| `internal/share/qr.go` | A code's line drawn as a QR code with half blocks, dark on light (rsc.io/qr, ADR-064) |
 | `internal/templates/templates.go` | Tab templates: the YAML file (panes, groups, colors, how each command starts), layouts to and from it, and the templates folder |
 | `internal/layout/shape.go` | A tree as plain data (`Shape`) and building it again under new pane IDs |
 | `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks of a pane and those below it (one pane shown, the others folded to a row), move by columns, remove, rects, directional focus, draggable dividers |

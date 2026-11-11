@@ -31,6 +31,12 @@ terminal's own background stays untouched.
   by a system notification, or by the terminal's bell, as **Flows → tell when runs end** sets.
   Over ssh, or without `notify-send` or `osascript`, the notification goes through the terminal
   (OSC 9).
+- `noct export theme`, `noct export config` and `noct export keys` print a theme, the settings
+  you changed, or your keys and binds as one `noct import …` line, with a QR code of it on a
+  terminal, to run on another machine. `noct import` shows what it changes, each bind's command
+  included, and asks before applying it.
+- `noct import theme <file>` turns a kitty, Ghostty or base16 theme into a noct theme, with its
+  16 colors.
 - A theme file can give the terminal's 16 colors in an `[ansi]` table (`color0` to `color15`).
   With **Appearance → background** on `theme`, programs in panes draw with them, so the whole
   workspace follows the theme.
