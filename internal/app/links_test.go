@@ -131,7 +131,7 @@ func mustPaneFrame(t *testing.T, a *App, id int) image.Rectangle {
 
 func TestCtrlClickNeverOpensAProgram(t *testing.T) {
 	dir := t.TempDir()
-	for name, mode := range map[string]os.FileMode{"run.sh": 0o755, "app.desktop": 0o644, "notes.txt": 0o644} {
+	for name, mode := range map[string]os.FileMode{"run.sh": 0o755, "app.desktop": 0o644, "notes.txt": 0o644, "tool.jar": 0o644, "launcher": 0o644} {
 		if err := os.WriteFile(filepath.Join(dir, name), nil, mode); err != nil {
 			t.Fatal(err)
 		}
@@ -150,11 +150,20 @@ func TestCtrlClickNeverOpensAProgram(t *testing.T) {
 		{filepath.Join(dir, "run.sh"), false},
 		{"file://" + filepath.Join(dir, "run.sh"), false},
 		{filepath.Join(dir, "app.desktop"), false},
+		{filepath.Join(dir, "tool.jar"), false},
+		{filepath.Join(dir, "launcher"), false},
+		{filepath.Join(dir, "link.txt"), false},
 		{dir, true},
 	} {
-		if opens := unsafeTarget(c.target) == ""; opens != c.opens {
-			t.Errorf("%s: opens %v, want %v (%s)", c.target, opens, c.opens, unsafeTarget(c.target))
+		if _, reason := safeTarget(c.target); (reason == "") != c.opens {
+			t.Errorf("%s: opens %v, want %v (%s)", c.target, reason == "", c.opens, reason)
 		}
+	}
+	if err := os.Symlink(filepath.Join(dir, "run.sh"), filepath.Join(dir, "looks.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if _, reason := safeTarget(filepath.Join(dir, "looks.txt")); reason == "" {
+		t.Error("opened a .txt link to a program")
 	}
 	a, opened, at := linksApp(t, &linkedView{rows: []string{"click"}, linked: "file://" + filepath.Join(dir, "run.sh")})
 	ctrlClick(a, at(1, 0))

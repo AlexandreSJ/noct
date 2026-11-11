@@ -43,41 +43,61 @@ func (a *App) openLinkAt(t *tab, id layout.PaneID, point image.Point) bool {
 	if !ok {
 		return false
 	}
-	if reason := unsafeTarget(target); reason != "" {
+	safe, reason := safeTarget(target)
+	if reason != "" {
 		a.statusMessage = "not opened: " + reason
 		return true
 	}
-	a.openTarget(target)
+	a.openTarget(safe)
 	return true
 }
 
-// unsafeTarget is why the opener must not get target, or "": any program can print a link, and
-// opening a program or a launcher would run it.
-func unsafeTarget(target string) string {
+// inertFiles are the kinds of file the opener only shows: text, documents, images and media.
+// Anything else may be a program or a launcher, which opening would run, even without the
+// executable bit or an extension the system reads it by.
+var inertFiles = map[string]bool{}
+
+func init() {
+	for _, ext := range strings.Fields(`.txt .md .markdown .rst .log .csv .tsv .json .yaml .yml .toml .ini .conf .xml
+		.html .htm .css .pdf .png .jpg .jpeg .gif .svg .webp .bmp .ico .mp3 .wav .ogg .flac .mp4 .webm .mkv .mov
+		.go .mod .sum .py .rb .rs .c .h .cc .cpp .hpp .java .kt .ts .tsx .jsx .lua .sql .diff .patch .proto`) {
+		inertFiles[ext] = true
+	}
+}
+
+// safeTarget is what the opener may get for target, with links of files followed, or why not:
+// any program can print a link, and opening a program or a launcher would run it.
+func safeTarget(target string) (string, string) {
 	if strings.HasPrefix(target, "-") {
-		return "it starts with -"
+		return "", "it starts with -"
 	}
 	path := target
 	if u, err := url.Parse(target); err == nil && u.Scheme != "" && !filepath.IsAbs(target) {
 		switch u.Scheme {
 		case "http", "https", "ftp", "mailto":
-			return ""
+			return target, ""
 		case "file":
 			path = u.Path
 		default:
-			return u.Scheme + " links are not opened"
+			return "", u.Scheme + " links are not opened"
 		}
 	}
-	info, err := os.Stat(path)
-	switch ext := strings.ToLower(filepath.Ext(path)); {
-	case err != nil:
-		return path + " does not exist"
-	case ext == ".desktop" || ext == ".app" || ext == ".command":
-		return path + " is a launcher"
-	case info.Mode().IsRegular() && info.Mode()&0o111 != 0:
-		return path + " is a program"
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return "", path + " does not exist"
 	}
-	return ""
+	info, err := os.Stat(resolved)
+	switch {
+	case err != nil:
+		return "", path + " does not exist"
+	case info.IsDir():
+		return resolved, ""
+	case !info.Mode().IsRegular() || info.Mode()&0o111 != 0:
+		return "", path + " is a program"
+	case !inertFiles[strings.ToLower(filepath.Ext(resolved))]:
+		return "", path + " is not a kind of file noct opens: it could be a program"
+	}
+	return resolved, ""
 }
 
 // paneDir is the folder a pane's relative paths start from.
