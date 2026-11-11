@@ -19,6 +19,8 @@ terminal's own background stays untouched.
 
 ### Added
 
+- Template prompts in the inspect complete the variables in scope as `{{.` is typed: up and down
+  pick one, tab puts it in.
 - Flow params can be `bool`, `choice` (with its `choices`) or `path`, besides `text` and `number`.
   The inspect's params card, above the start, adds one offering every type and asks what the
   type needs, and changes or removes one.
@@ -75,6 +77,11 @@ terminal's own background stays untouched.
 
 ### Changed
 
+- Flow variables are scoped as in a language: an if or a repeat changes a variable made before it,
+  and one it makes goes when it ends unless the block exports it (`export: {count: passes}`, or
+  `x` in the inspect). Script and run steps also set `{{.output}}`, `{{.exit}}`, `{{.ok}}` and
+  their captures as short variables. A flow that read after an if a variable made inside it now
+  gets a warning; export the variable to keep it.
 - The inspect's flowchart has round cards joined by longer arrows drawn with box lines (`│`,
   `↓`), no longer `▼`. The `+` gaps between cards are gone: `a` adds below the selected step,
   and the head of a list (the start, an if's yes or no, a repeat's way in) adds above its first

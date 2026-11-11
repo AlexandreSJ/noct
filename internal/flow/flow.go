@@ -91,6 +91,10 @@ type Step struct {
 	Set map[string]string `yaml:"set,omitempty"`
 	// Unset clears variables (name) and steps' results (steps.<id>).
 	Unset []string `yaml:"unset,omitempty"`
+
+	// Export keeps variables an if or repeat made, which go when it ends, for the steps after it:
+	// each inner name to the name it has outside, or "" to keep its name.
+	Export map[string]string `yaml:"export,omitempty"`
 }
 
 // Expect is what makes a script or command step a success; without it, exit code 0.

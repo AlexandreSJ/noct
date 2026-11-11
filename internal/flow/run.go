@@ -2,12 +2,14 @@ package flow
 
 import (
 	"bytes"
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
 	"maps"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -63,6 +65,9 @@ type running struct {
 	// steps holds, by step id, output, exit, ok and the captures, for the templates.
 	steps  map[string]map[string]string
 	result Result
+	// blocks are, for each if and repeat running, the variables made inside it, which go when it
+	// ends.
+	blocks []map[string]bool
 	// deadline is when the flow's timeout, as written in timeout, ends the run; zero without one.
 	deadline time.Time
 	timeout  string
@@ -160,6 +165,8 @@ func (x *running) runIf(s Step, path string) bool {
 	}
 	x.header("◇", "if "+s.If, "→ "+answer)
 	x.result.Steps[path] = StepResult{Status: StatusOK, Message: answer}
+	x.openBlock()
+	defer x.closeBlock(s.Export)
 	return x.runSteps(steps, path, branch)
 }
 
@@ -170,6 +177,8 @@ func (x *running) runRepeat(s Step, path string) bool {
 	passes := r.passes()
 	every, _ := time.ParseDuration(r.Every) // checked by Validate; "" is no wait
 	start := time.Now()
+	x.openBlock()
+	defer x.closeBlock(s.Export)
 	for pass := 1; pass <= passes; pass++ {
 		if pass > 1 && every > 0 {
 			x.sleep(every)
@@ -262,11 +271,51 @@ func (x *running) launch(s Step, command, dir string, deadline time.Time) (strin
 
 // keepStepValues makes a step's output, exit, ok and captures readable by the templates after
 // it.
+// keepStepValues keeps what a script or run step gave: as {{.steps.<id>.<name>}}, and as the
+// variables of the same names, {{.output}}, {{.exit}}, {{.ok}} and its captures, which the next
+// such step gives again.
 func (x *running) keepStepValues(id string, result StepResult, output string, ok bool) {
-	if id == "" {
-		return
+	values := stepValues(output, result.Exit, ok, result.Captures)
+	for _, name := range slices.Sorted(maps.Keys(values)) {
+		if isVariable(name) {
+			x.assign(name, values[name])
+		}
 	}
-	x.steps[id] = stepValues(output, result.Exit, ok, result.Captures)
+	if id != "" {
+		x.steps[id] = values
+	}
+}
+
+// assign gives a variable its value: one that exists keeps its place, wherever it was made, and a
+// new one belongs to the innermost if or repeat running, which takes it away when it ends.
+func (x *running) assign(name, value string) {
+	if _, exists := x.vars[name]; !exists && len(x.blocks) > 0 {
+		x.blocks[len(x.blocks)-1][name] = true
+	}
+	x.vars[name] = value
+}
+
+func (x *running) openBlock() {
+	x.blocks = append(x.blocks, map[string]bool{})
+}
+
+// closeBlock takes away the variables the block made, keeping the ones it exports under their
+// names outside.
+func (x *running) closeBlock(export map[string]string) {
+	made := x.blocks[len(x.blocks)-1]
+	x.blocks = x.blocks[:len(x.blocks)-1]
+	kept := map[string]string{}
+	for inner, outer := range export {
+		if value, ok := x.vars[inner]; ok {
+			kept[cmp.Or(outer, inner)] = value
+		}
+	}
+	for name := range made {
+		delete(x.vars, name)
+	}
+	for _, name := range slices.Sorted(maps.Keys(kept)) {
+		x.assign(name, kept[name])
+	}
 }
 
 // stepValues are what templates read from a script or run step: {{.steps.<id>.<name>}}.

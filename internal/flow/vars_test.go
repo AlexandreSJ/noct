@@ -295,7 +295,7 @@ steps:
 	want := []string{
 		"0: variable sum is not set yet here",
 		"3: variable a was unset before here",
-		"5: variable maybe may not be set here",
+		"5: variable maybe was made inside an if or repeat and went when it ended; export it to read it after",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("warnings:\n got %q\nwant %q", got, want)

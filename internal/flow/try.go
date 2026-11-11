@@ -3,6 +3,7 @@ package flow
 import (
 	"fmt"
 	"maps"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -57,7 +58,7 @@ func (x *running) rememberVariables(f Flow, parent, branch string, index int, r 
 			continue
 		}
 		inScope[v.Field] = true
-		if value, set := r.Steps[v.Path].Captures[v.Field]; v.Path != "" && set {
+		if value, set := resultValue(r.Steps[v.Path], v.Field); v.Path != "" && set {
 			x.vars[v.Field] = value
 		}
 	}
@@ -90,4 +91,18 @@ func merge(previous, tried Result, parent, branch string, from, to int) Result {
 	}
 	maps.Copy(merged.Steps, tried.Steps)
 	return merged
+}
+
+// resultValue is the value a step's field had in a run: its output, exit, ok or a capture.
+func resultValue(r StepResult, field string) (string, bool) {
+	switch field {
+	case "output":
+		return r.Output, r.Status != ""
+	case "exit":
+		return strconv.Itoa(r.Exit), r.Status != ""
+	case "ok":
+		return strconv.FormatBool(r.Status == StatusOK), r.Status != ""
+	}
+	value, ok := r.Captures[field]
+	return value, ok
 }

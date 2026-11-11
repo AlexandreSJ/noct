@@ -100,6 +100,8 @@ func (f Flow) missingVariable(name string, sc *scope) string {
 	switch {
 	case sc.cleared[name]:
 		return "variable " + name + " was unset before here"
+	case sc.ended[name]:
+		return "variable " + name + " was made inside an if or repeat and went when it ended; export it to read it after"
 	case f.setsVariable(f.Steps, name):
 		return "variable " + name + " is not set yet here"
 	}

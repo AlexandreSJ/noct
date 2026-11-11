@@ -353,6 +353,7 @@ func (a *App) addStep(f flow.Flow, at chartBlock, added func(path string)) {
 	templatePrompt := func(title, initial, hints string, submit func(text string)) {
 		a.openPrompt(title, initial, hints+"  ctrl+t variable", submit)
 		a.prompt.pick = func() { a.pickVariable(f, vars) }
+		a.withVariables(vars)
 	}
 	options := a.flowStepChoices(insert, templatePrompt)
 	options = append(options, a.variableStepChoices(insert, templatePrompt)...)
@@ -494,6 +495,37 @@ func (a *App) moveStep(f flow.Flow, path string, down bool, moved func(path stri
 		return
 	}
 	moved(to)
+}
+
+// exportFromBlock asks a variable an if or repeat makes, to keep it after the block, under its
+// name or another: "count", or "count as passes"; the name alone again stops exporting it.
+func (a *App) exportFromBlock(f flow.Flow, path string) {
+	s, ok := f.Step(path)
+	if !ok || s.Kind() != flow.IfStep && s.Kind() != flow.RepeatStep {
+		a.statusMessage = "only an if or a repeat exports variables"
+		return
+	}
+	inside := map[flow.Kind]string{flow.IfStep: "then", flow.RepeatStep: "steps"}[s.Kind()]
+	vars := f.Scope(path, inside, max(len(s.Then), len(s.Steps)), a.scripts.Find)
+	a.openPrompt("export from "+s.Label(), "", "{enter} keep it after the block  esc cancel  name, or name as other; an exported name again stops it", func(text string) {
+		inner, outer, _ := strings.Cut(strings.Join(strings.Fields(text), " "), " as ")
+		err := a.changeFlow(f, func(f *flow.Flow) error {
+			step, _ := f.Step(path)
+			if step.Export == nil {
+				step.Export = map[string]string{}
+			}
+			if previous, exported := step.Export[inner]; exported && previous == outer {
+				delete(step.Export, inner)
+			} else {
+				step.Export[inner] = outer
+			}
+			return f.Replace(path, step)
+		})
+		if err != nil {
+			a.statusMessage = err.Error()
+		}
+	})
+	a.withVariables(vars)
 }
 
 // dropStep moves the step at path to where a block is: below a step, or at the top of a list.

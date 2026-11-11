@@ -16,7 +16,7 @@ import (
 
 const (
 	flowsListHints = "{up}{down} flow  {enter} open  {a} new  {r} run  {T} add trigger  {o} triggers on/off  {P} promote draft  {E} edit file  {delete} delete  {tab} hide list  {ctrl+d} close"
-	flowStepHints  = "{up}{down}{left}{right} select  {shift+up}{shift+down} range  {a} add below  {t} test  {r} run  {s} scope  {enter} about  {e} edit  {delete} remove  {J} {K} move  {m} move with arrows  {z} undo  {y} redo  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
+	flowStepHints  = "{up}{down}{left}{right} select  {shift+up}{shift+down} range  {a} add below  {t} test  {r} run  {s} scope  {enter} about  {e} edit  {delete} remove  {J} {K} move  {m} move with arrows  {x} export  {z} undo  {y} redo  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
 	flowMoveHints  = "{up}{down} move the step, in and out of blocks  {m} {enter} {esc} put it down"
 	flowGapHints   = "{up}{down}{left}{right} select  {a} add at the top  {r} run  {s} scope  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
 	// flowsListWidth is the list of flows beside the chart, in panels wide enough for both.
@@ -308,6 +308,8 @@ func (p *inspectPanel) stepKey(name string, f flow.Flow, path string) {
 		p.app.moveStep(f, path, false, p.selectMoved)
 	case "m":
 		p.moving = true
+	case "x":
+		p.app.exportFromBlock(f, path)
 	}
 }
 

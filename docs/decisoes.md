@@ -893,3 +893,17 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** As teclas `m`, `z` e `y` entram no contexto `flows` do keymap. Desfazer não atravessa um reinício do noct, nem edições feitas fora do inspect.
 
+## ADR-066 — Variáveis com nomes curtos e escopo de bloco
+
+**Contexto.** O mantenedor quer ler `output` em vez de `.steps.build.output`, e que nomes repetidos se comportem como numa linguagem: no contexto global, a variável muda; dentro de um `if`, `repeat` ou função, poder devolvê-la fora com outro nome, ou deixá-la sumir. Até aqui, todo `set` e `prompt` gravava no mesmo espaço, visível do ponto em diante, e os resultados dos passos só existiam como `.steps.<id>.*`.
+
+**Decisão.**
+- **Nomes curtos:** um passo de script ou `run` grava também `output`, `exit`, `ok`, as capturas e os `outputs` do script como variáveis, sobrescritas pelo próximo passo desses. `.steps.<id>.*` continua igual e sem escopo, para ler um passo específico.
+- **Escopo de bloco:** gravar uma variável que já existe muda a existente, onde quer que tenha nascido; uma nova pertence ao `if` ou `repeat` mais interno em execução e some no fim dele. O `repeat` é um bloco só para todas as passadas, então um contador que nasce na primeira passada vale nas seguintes e no `until`.
+- **`export`** num `if` ou `repeat` (`{interna: externa}`, `""` para o mesmo nome) leva a variável para fora com o valor do fim do bloco. No inspect, `x`.
+- **Análise de escopo e avisos** seguem as mesmas regras; ler uma variável que um bloco fez e não exportou avisa que ela sumiu no fim dele, e como exportar.
+- **Autocompletar** nos prompts de template, a partir do mesmo escopo.
+- Um param com o nome de um campo (`output`, `exit`, `ok`, uma captura) é sobrescrito pelo passo, como uma variável qualquer.
+
+**Consequências.** Um fluxo que criava uma variável dentro de um `if` e a lia depois passa a receber um aviso e a ler vazio; o conserto é um `export`. O demo continua sem avisos. As funções (ADR-067) seguem o mesmo escopo: o que fazem dentro some no fim, menos o que devolvem.
+

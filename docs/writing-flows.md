@@ -133,6 +133,13 @@ steps:
   Typed in the form, it goes to the run as `NAME`, never on its command line. `secret: true`
   masks it in the form and never remembers it. Scripts have the same `from` (ADR-063).
 - Params, `set` and `prompt` share one namespace: `{{.name}}`. `steps` is not a valid name.
+- Each script or run step also sets its results as variables of their own names: `{{.output}}`,
+  `{{.exit}}`, `{{.ok}}`, its captures and its script's outputs, which the next such step sets
+  again. `{{.steps.<id>.<field>}}` still reads one step's.
+- Ifs and repeats scope variables as blocks do in a language: setting a variable that exists
+  before the block changes it; one the block makes goes when it ends, unless the block exports it:
+  `export: {count: passes}` keeps `count` after the block as `{{.passes}}` (`{count: ""}` keeps
+  its name). `steps.<id>` results are not scoped.
 - `set` renders all its values first, then sets them, so `set: {a: '{{.b}}', b: '{{.a}}'}` swaps.
 - A `prompt` needs someone at the terminal. In noct's workspace it brings the run's pane to the
   screen before asking; a run nobody watches (a trigger) fails at the prompt instead of waiting.

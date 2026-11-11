@@ -262,7 +262,7 @@ func (x *running) runPrompt(s Step, path string) bool {
 			fmt.Fprintf(x.Out, "\x1b[2m%q is not a number\x1b[0m\n", answer)
 			continue
 		}
-		x.vars[s.Var] = answer
+		x.assign(s.Var, answer)
 		x.result.Steps[path] = StepResult{Status: StatusOK, Duration: time.Since(start), Captures: map[string]string{s.Var: answer}, Message: s.Var + " = " + answer}
 		return true
 	}
@@ -284,7 +284,7 @@ func (x *running) runSet(s Step, path string) bool {
 	x.header("=", s.Label(), strings.Join(names, ", "))
 	var shown []string
 	for _, name := range names {
-		x.vars[name] = values[name]
+		x.assign(name, values[name])
 		shown = append(shown, name+" = "+values[name])
 		fmt.Fprintf(x.Out, "\x1b[2m  %s = %s\x1b[0m\n", name, values[name])
 	}

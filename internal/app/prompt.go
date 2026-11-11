@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
+
+	"github.com/AlexandreSJ/noct/internal/flow"
 )
 
 // textPrompt asks for one line of text, such as a tab's or a new script's name.
@@ -17,6 +19,10 @@ type textPrompt struct {
 	cancel func()
 	// pick, when set, lets ctrl+t search for text to type, such as a flow's variables.
 	pick func()
+	// variables are what a template typed here can read, offered as {{. is typed; suggested is
+	// the one picked.
+	variables []flow.Variable
+	suggested int
 }
 
 // confirmation asks before doing something that cannot be undone.
@@ -73,7 +79,12 @@ func (a *App) handlePromptKey(key uv.KeyPressEvent) {
 		if a.prompt.pick != nil {
 			a.prompt.pick()
 		}
+	case "tab":
+		a.prompt.complete()
+	case "up", "down":
+		a.prompt.moveSuggestion(map[string]int{"up": -1, "down": 1}[key.String()])
 	default:
+		a.prompt.suggested = 0
 		a.typeKey(key)
 	}
 }
@@ -84,8 +95,17 @@ func isPlainText(key uv.KeyPressEvent) bool {
 
 func (a *App) drawPrompt(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	inner := a.drawPanel(screen, centeredRect(area, 50, panelHeight(3)), a.prompt.title)
+	matches, _ := a.prompt.suggestions()
+	rows := min(len(matches), maxSuggestions)
+	inner := a.drawPanel(screen, centeredRect(area, 50+20*min(rows, 1), panelHeight(3+rows)), a.prompt.title)
 	a.prompt.input.draw(screen, inner.Min.X+1, inner.Min.Y, inner.Dx()-2, false, a.palette.typing(), a.palette.selectedRow)
+	a.drawSuggestions(inner, inner.Min.Y+1, func(x, y, maxX int, text string, selected bool) {
+		style := a.palette.panelMuted
+		if selected {
+			style = a.palette.typing()
+		}
+		drawText(screen, x, y, maxX, text, style)
+	})
 	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("prompt", a.prompt.hints), a.palette.panelMuted)
 }
 

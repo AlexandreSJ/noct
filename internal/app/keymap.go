@@ -133,6 +133,7 @@ var keyContexts = []keyContext{
 		{"move-down", "move the step down", []string{"J", "shift+j"}},
 		{"move-up", "move the step up", []string{"K", "shift+k"}},
 		{"move-mode", "move the step with the arrows", []string{"m"}},
+		{"export", "keep a variable an if or repeat makes after it", []string{"x"}},
 		{"undo", "undo the last change", []string{"z"}},
 		{"redo", "redo what was undone", []string{"y"}},
 		{"scope", "show the scope", []string{"s"}},

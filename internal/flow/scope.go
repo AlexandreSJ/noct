@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"cmp"
 	"maps"
 	"slices"
 	"strings"
@@ -49,7 +50,7 @@ func (f Flow) Scope(parent, branch string, index int, lookup func(id string) (sc
 }
 
 func (f Flow) scope(parent, branch string, index int, lookup func(id string) (script.Script, bool)) *scope {
-	sc := &scope{cleared: map[string]bool{}, lookup: lookup}
+	sc := &scope{cleared: map[string]bool{}, ended: map[string]bool{}, lookup: lookup}
 	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
 		sc.vars = append(sc.vars, Variable{Field: name})
 	}
@@ -76,8 +77,10 @@ func (f Flow) scope(parent, branch string, index int, lookup func(id string) (sc
 // way there.
 type scope struct {
 	vars []Variable
-	// cleared holds the names and steps.<id> unset before the point and not set again.
+	// cleared holds the names and steps.<id> unset before the point and not set again; ended, the
+	// variables an if or repeat made, which went when it ended.
 	cleared map[string]bool
+	ended   map[string]bool
 	lookup  func(id string) (script.Script, bool)
 }
 
@@ -107,10 +110,16 @@ func (f Flow) levelsTo(parent, branch string, index int) []level {
 // add takes in what a step that ran does to the scope, and what the steps inside it do: an if's
 // branches may not have run, and a repeat's steps ran at least once.
 func (sc *scope) add(s Step, path string, certainty Certainty) {
+	fields := s.fields(sc.lookup)
 	if s.ID != "" {
 		delete(sc.cleared, stepsPrefix+s.ID)
-		for _, field := range s.fields(sc.lookup) {
+		for _, field := range fields {
 			sc.vars = append(sc.vars, Variable{Step: s.ID, Path: path, Field: field, Certainty: certainty})
+		}
+	}
+	for _, field := range fields {
+		if isVariable(field) {
+			sc.set(field, path, certainty)
 		}
 	}
 	switch s.Kind() {
@@ -130,9 +139,44 @@ func (sc *scope) add(s Step, path string, certainty Certainty) {
 		steps     []Step
 		certainty Certainty
 	}{{"then", s.Then, Maybe}, {"else", s.Else, Maybe}, {"steps", s.Steps, certainty}}
+	outside := sc.variableNames()
 	for _, list := range inner {
 		for i, child := range list.steps {
 			sc.add(child, Path(path, list.branch, i), list.certainty)
+		}
+	}
+	if s.Kind() == IfStep || s.Kind() == RepeatStep {
+		sc.closeBlock(s, path, outside, map[bool]Certainty{true: Maybe, false: certainty}[s.Kind() == IfStep])
+	}
+}
+
+// variableNames are the names of the variables in the scope now.
+func (sc *scope) variableNames() map[string]bool {
+	names := map[string]bool{}
+	for _, v := range sc.vars {
+		if v.Step == "" {
+			names[v.Field] = true
+		}
+	}
+	return names
+}
+
+// closeBlock takes out the variables an if or repeat made, those not in outside, giving its
+// exports their names outside.
+func (sc *scope) closeBlock(s Step, path string, outside map[string]bool, certainty Certainty) {
+	made := map[string]bool{}
+	for _, v := range sc.vars {
+		if v.Step == "" && !outside[v.Field] {
+			made[v.Field] = true
+		}
+	}
+	sc.vars = slices.DeleteFunc(sc.vars, func(v Variable) bool { return v.Step == "" && made[v.Field] })
+	for name := range made {
+		sc.ended[name] = true
+	}
+	for _, inner := range slices.Sorted(maps.Keys(s.Export)) {
+		if made[inner] || outside[inner] {
+			sc.set(cmp.Or(s.Export[inner], inner), path, certainty)
 		}
 	}
 }
@@ -141,6 +185,7 @@ func (sc *scope) add(s Step, path string, certainty Certainty) {
 // that was surely set as it was.
 func (sc *scope) set(name, path string, certainty Certainty) {
 	delete(sc.cleared, name)
+	delete(sc.ended, name)
 	i := slices.IndexFunc(sc.vars, func(v Variable) bool { return v.Step == "" && v.Field == name })
 	switch {
 	case i < 0:

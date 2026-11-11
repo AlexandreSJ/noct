@@ -132,6 +132,12 @@ O que um template lê num ponto do fluxo é o **escopo** daquele ponto:
 - passos dentro de um `if` anterior entram como **talvez** (`?`): só existem se aquele ramo rodou;
 - dentro de um `repeat`, os passos de dentro só valem da passada atual (`↻`), porque cada passada esquece a anterior; o `until`, avaliado no fim da passada, vê todos eles.
 
+**Nomes curtos.** Cada passo de script ou de linha de comando também grava o que deu como variáveis com o próprio nome: `{{.output}}`, `{{.exit}}`, `{{.ok}}`, cada captura (`{{.passed}}`) e cada `output` do script. O próximo passo desses grava de novo, então `{{.output}}` é sempre a saída do último; `{{.steps.<id>.output}}` continua lendo a de um passo pelo `id`.
+
+**Escopo de bloco**, como numa linguagem: um `if` ou um `repeat` que grava uma variável que já existia antes dele (um param, um `set` de antes, o `output` de um passo anterior) muda essa variável, e a mudança fica depois do bloco. Uma variável que nasce dentro do bloco é dele e some quando ele termina; para lê-la depois, o bloco a **exporta**, com o mesmo nome ou outro: `export: {count: passes}` deixa `{{.passes}}` depois do bloco com o valor de `count`. No inspect, `x` num `if` ou `repeat` pede `count` ou `count as passes` (o mesmo de novo deixa de exportar), e o cartão mostra `export count → passes`. Ler depois do bloco uma variável que ele fez e não exportou dá o aviso `was made inside an if or repeat and went when it ended`. Os `{{.steps.<id>…}}` não têm escopo: valem até o fim do fluxo.
+
+**Autocompletar.** Nos prompts de template do inspect (`if`, `repeat`, linha de comando, `set`), digitar `{{.` lista embaixo as variáveis do escopo que começam com o que foi digitado; `↑`/`↓` escolhem e `Tab` põe a escolhida, fechando as chaves. `Ctrl+T` continua abrindo a busca por todas.
+
 O painel scope (`s` no inspect) lista o escopo do bloco ou do ponto de inserção selecionado, com o valor da última execução ao lado. Referências a variáveis que nada grava, gravadas só depois ou já apagadas, a passos que não existem, que ainda não rodaram naquele ponto, a campos que o passo não tem, ou a passos que talvez não tenham rodado aparecem como **avisos**: `⚠` no bloco, no painel scope e em `noct check`. São avisos e não erros para que o fluxo possa ser montado de cima para baixo (um `until` escrito antes do passo que ele lê).
 
 ## Execução e resultado

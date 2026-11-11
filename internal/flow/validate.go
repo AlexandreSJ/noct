@@ -98,6 +98,14 @@ func (s Step) validateFieldsBelong(kind Kind) error {
 	if len(s.With) > 0 && kind != ScriptStep {
 		return errors.New("with belongs to a script step")
 	}
+	if len(s.Export) > 0 && kind != IfStep && kind != RepeatStep {
+		return errors.New("export belongs to an if or a repeat")
+	}
+	for inner, outer := range s.Export {
+		if !isVariable(inner) || outer != "" && !isVariable(outer) {
+			return fmt.Errorf("export %s: %s are variable names", inner, outer)
+		}
+	}
 	if s.OnFail != "" && s.OnFail != OnFailStop && s.OnFail != OnFailContinue && s.OnFail != OnFailAsk {
 		return fmt.Errorf("on_fail is %s, %s or %s", OnFailStop, OnFailContinue, OnFailAsk)
 	}

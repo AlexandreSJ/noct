@@ -91,9 +91,9 @@ type chartBlock struct {
 }
 
 // Keys of the chart's blocks, which stay the same while the chart is drawn again.
-func stepKey(path string) string    { return "step:" + path }
-func slotKey(slot chartSlot) string { return "slot:" + slot.parent + ":" + slot.branch }
-func headKey(slot chartSlot) string { return "head:" + slot.parent + ":" + slot.branch }
+func stepKey(path string) string                 { return "step:" + path }
+func slotKey(slot chartSlot) string              { return "slot:" + slot.parent + ":" + slot.branch }
+func headKey(slot chartSlot) string              { return "head:" + slot.parent + ":" + slot.branch }
 func (b chartBlock) isInsertion() bool           { return b.path == "" && !b.params }
 func (b chartBlock) contains(p image.Point) bool { return p.In(b.rect) }
 
@@ -238,6 +238,9 @@ func (s chartStyle) repeatTitle(step flow.Step) string {
 	if r.Every != "" && s.zoom == 2 {
 		title += " every " + r.Every
 	}
+	if export := exportText(step.Export); export != nil && s.zoom > 0 {
+		title += " · " + export[0]
+	}
 	return title
 }
 
@@ -260,6 +263,7 @@ func (s chartStyle) boxText(step flow.Step) []string {
 		lines = append(lines, "$ "+strings.Join(strings.Fields(step.Run), " "))
 	case flow.IfStep:
 		lines = append(lines, shortTemplate(step.If))
+		lines = append(lines, exportText(step.Export)...)
 	case flow.WaitStep:
 		lines = append(lines, "wait "+step.Wait)
 	case flow.PromptStep:
@@ -273,6 +277,22 @@ func (s chartStyle) boxText(step flow.Step) []string {
 		lines = append(lines, "capture "+strings.Join(slices.Sorted(maps.Keys(step.Capture)), ", "))
 	}
 	return lines[:min(len(lines), boxLines[s.zoom])]
+}
+
+// exportText tells what a block keeps for the steps after it.
+func exportText(export map[string]string) []string {
+	var parts []string
+	for _, inner := range slices.Sorted(maps.Keys(export)) {
+		if outer := export[inner]; outer != "" && outer != inner {
+			parts = append(parts, inner+" → "+outer)
+		} else {
+			parts = append(parts, inner)
+		}
+	}
+	if len(parts) == 0 {
+		return nil
+	}
+	return []string{"export " + strings.Join(parts, ", ")}
 }
 
 func withText(with map[string]string) []string {
