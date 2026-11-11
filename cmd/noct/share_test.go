@@ -152,3 +152,20 @@ func TestAKittyThemeFileImports(t *testing.T) {
 		t.Errorf("named after a built-in theme: %v", err)
 	}
 }
+
+func TestAnImportShowsEscapesInsteadOfRunningThem(t *testing.T) {
+	from, out := shareDirs(t, "")
+	cfg := config.Default()
+	cfg.CustomBinds = []config.CustomBind{{Key: "prefix m", Name: "make", Command: "rm -rf ~\x1b[2K\rmake test"}}
+	if err := config.Save(from.configPath, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if err := exportCommand([]string{"keys"}, from); err != nil {
+		t.Fatal(err)
+	}
+	to, said := shareDirs(t, "")
+	importCommand([]string{exported(t, out)}, to)
+	if strings.ContainsAny(said.String(), "\x1b\r") || !strings.Contains(said.String(), `\x1b[2K\rmake test`) {
+		t.Errorf("said %q, want the bind's escapes written out", said)
+	}
+}

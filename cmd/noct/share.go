@@ -12,7 +12,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/BurntSushi/toml"
 
@@ -293,7 +295,7 @@ func importSettings(body []byte, sio shareIO, ask func(string) bool) error {
 	var changes []string
 	for _, path := range slices.Sorted(maps.Keys(after)) {
 		if old, now := fmt.Sprint(before[path]), fmt.Sprint(after[path]); old != now {
-			changes = append(changes, fmt.Sprintf("  %s: %s → %s", path, old, now))
+			changes = append(changes, fmt.Sprintf("  %s: %s → %s", shown(path), shown(old), shown(now)))
 		}
 	}
 	if len(changes) == 0 {
@@ -330,10 +332,19 @@ func importKeys(body []byte, sio shareIO, ask func(string) bool) error {
 		if err != nil {
 			return fmt.Errorf("the keys in the code: %w", err)
 		}
-		fmt.Fprintf(sio.out, "  %s  %s %s\n", b.Key, kind, what)
+		fmt.Fprintf(sio.out, "  %s  %s %s\n", shown(b.Key), kind, shown(what))
 	}
 	current.Keys, current.CustomBinds = k.Keys, k.CustomBinds
 	return saveConfig(current, sio, ask("Put them in place of yours?"))
+}
+
+// shown is a value from a code as it is safe to print: quoted, with its escapes written out, when
+// it has a control character that could redraw the terminal and hide what is asked.
+func shown(value string) string {
+	if strings.IndexFunc(value, unicode.IsControl) < 0 {
+		return value
+	}
+	return strconv.QuoteToGraphic(value)
 }
 
 func countActions(keys map[string]map[string][]string) int {
