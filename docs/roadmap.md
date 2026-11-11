@@ -54,7 +54,7 @@ Encadear scripts num editor visual (ver [fluxos.md](fluxos.md)).
 
 **Próximo no inspect (ADR-062):** editar um passo existente num formulário, em vez do YAML; menus para `with`, `capture`, `expect`, `on_fail`, `timeout`, `pane`/`background`, o `id` e o `every`/`max` do `repeat`; definir os params do fluxo (nome, tipo, padrão, obrigatório); editar e remover triggers; renomear e duplicar fluxos; mover um passo para dentro e para fora de `if` e `repeat`; desfazer; e o visual do fluxograma.
 
-**Tela de fluxos (pedido do mantenedor, 2026-11-11).** Em ordem, cada uma com testes, docs e commit:
+**Tela de fluxos (pedido do mantenedor, 2026-11-11; feita, ADR-065 a ADR-068).** Em ordem, cada uma com testes, docs e commit:
 
 1. **Campos de texto:** o item selecionado muda só a cor do texto, sem fundo; o cursor é uma célula com o fundo de destaque, sem caractere inserido no meio do texto. Vale para todo campo.
 2. **Setas e caixas:** linhas mais limpas, que a FiraCode desenha bem (`│`, `╭╮╰╯`, ponta `▾`), e setas para baixo mais longas, com espaço para a animação.
