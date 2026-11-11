@@ -31,6 +31,9 @@ terminal's own background stays untouched.
   by a system notification, or by the terminal's bell, as **Flows → tell when runs end** sets.
   Over ssh, or without `notify-send` or `osascript`, the notification goes through the terminal
   (OSC 9).
+- A repository can keep tab templates in `.noct/templates/`. They show in `prefix` + `T` marked
+  `project`, and every command they hold is asked before it runs.
+- `noct new [session] --template <name>` starts the session with the template's tab.
 - While scrolling a terminal (`prefix` + `g`), `f` filters it: the pane shows only the lines
   that match a regular expression, live as the program goes on, until `f` with nothing typed.
 - `Ctrl` + click on a pane opens what is under the mouse: a link the program set, a URL in the

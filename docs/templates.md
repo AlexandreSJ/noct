@@ -52,7 +52,15 @@ panes:
 
 O layout no arquivo é legível (`columns`/`rows` aninhados), não o `layout.Shape` interno. Um grupo com `stacked: true` é uma pilha, e `shown` diz qual painel dela aparece inteiro (a posição, a partir de 0). Um campo desconhecido é erro, para um erro de digitação não sumir em silêncio; um template que não se lê fica na lista, com o erro, para `e` consertá-lo ou `d` apagá-lo.
 
-Só os templates do usuário, por enquanto. Templates num repositório (`.noct/templates/`) trariam por `git pull` comandos com `start: run` de outra pessoa; ver [roadmap.md](roadmap.md#ideias-para-depois).
+## Templates de projeto
+
+Um repositório pode trazer os seus em `.noct/templates/<nome>.yaml`, no mesmo formato. O noct os acha como acha os scripts de projeto: na pasta em que foi aberto ou numa acima, como o git acha o repositório. Eles aparecem no popup de `T` depois dos do usuário, marcados `project`, e `e`, `r` e `d` mexem no arquivo do repositório.
+
+Um template de projeto chega por `git pull`, escrito por qualquer um com acesso ao repositório, então todo comando dele é perguntado: `start: run` vale como `start: ask`, e o terminal abre com a caixa `run?` sobre ele. Nada roda antes do `Enter`.
+
+## Sessão nova com um template
+
+`noct new [sessão] --template <nome>` cria a sessão já com a tab do template, em vez da tela inicial. Dentro de um projeto, o template de projeto com esse nome vem antes do do usuário. Sem template com o nome, nada é criado e o comando diz por quê; `--template` só vale com `noct new`.
 
 ## Ao implementar
 

@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"image"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 
+	"github.com/AlexandreSJ/noct/internal/ipc"
 	"github.com/AlexandreSJ/noct/internal/layout"
 	"github.com/AlexandreSJ/noct/internal/templates"
 )
@@ -34,6 +36,9 @@ func (a *App) openTemplates() {
 		return
 	}
 	list := templates.List(dir)
+	if project := templates.ProjectDir(a.workDir); project != "" {
+		list = append(list, templates.ListProject(project)...)
+	}
 	a.templates = templatesPopup{list: list, selected: min(a.templates.selected, max(len(list)-1, 0))}
 	a.mode = templatesMode
 }
@@ -54,15 +59,16 @@ func (a *App) handleTemplatesKey(key uv.KeyPressEvent) {
 	if len(p.list) == 0 {
 		return
 	}
-	dir, err := templates.Dir()
+	entry := p.list[p.selected]
+	dir, err := a.templatesDirOf(entry)
 	if err != nil {
 		a.statusMessage = err.Error()
 		return
 	}
-	name := p.list[p.selected].Name
+	name := entry.Name
 	switch key.String() {
 	case "enter":
-		t, err := templates.Load(dir, name) // read again: the file may have changed since the list
+		t, err := loadTemplate(dir, name, entry.Project) // read again: the file may have changed since the list
 		if err != nil {
 			a.statusMessage = err.Error()
 			return
@@ -91,6 +97,53 @@ func (a *App) handleTemplatesKey(key uv.KeyPressEvent) {
 		})
 		a.confirm.cancel = a.openTemplates
 	}
+}
+
+// templatesDirOf is the folder an entry's file is in: the user's templates, or the project's.
+func (a *App) templatesDirOf(e templates.Entry) (string, error) {
+	if e.Project {
+		return templates.ProjectDir(a.workDir), nil
+	}
+	return templates.Dir()
+}
+
+func loadTemplate(dir, name string, project bool) (templates.Template, error) {
+	if project {
+		return templates.LoadProject(dir, name)
+	}
+	return templates.Load(dir, name)
+}
+
+// templateToOpen is the template a new session asks to open with, by name: the project's, which
+// asks every command, before the user's of the same name; nil when none is asked.
+func (a *App) templateToOpen(hello ipc.Hello) (*templates.Template, error) {
+	if hello.Template == "" {
+		return nil, nil
+	}
+	if !hello.NewSession {
+		return nil, errors.New("a template opens only in a new session: noct new --template " + hello.Template)
+	}
+	if project := templates.ProjectDir(cmpOr(hello.Dir, a.workDir)); project != "" {
+		if t, err := templates.LoadProject(project, hello.Template); err == nil {
+			return &t, nil
+		}
+	}
+	dir, err := templates.Dir()
+	if err != nil {
+		return nil, err
+	}
+	t, err := templates.Load(dir, hello.Template)
+	if err != nil {
+		return nil, fmt.Errorf("there is no template %s here: %w", hello.Template, err)
+	}
+	return &t, nil
+}
+
+func cmpOr(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
 
 // openTemplate opens t as a new tab at the end. Its terminals start where a terminal opened from
@@ -197,6 +250,9 @@ func (a *App) drawTemplates(screen uv.Screen) {
 		e := p.list[i]
 		y := list.Min.Y + i - p.first
 		style, value := a.palette.panelText, ""
+		if e.Project {
+			value = "project"
+		}
 		if e.Err != nil {
 			style, value = a.palette.panelMuted, "cannot read"
 		}

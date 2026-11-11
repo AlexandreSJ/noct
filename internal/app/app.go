@@ -396,7 +396,11 @@ func (a *App) handleConnection(c connection) {
 // attach makes c the workspace's terminal, showing the session it asks for. One terminal is
 // attached at a time: a new one takes over from the previous.
 func (a *App) attach(c connection) {
-	target, err := a.sessionToAttach(c.hello)
+	template, err := a.templateToOpen(c.hello)
+	var target *session
+	if err == nil {
+		target, err = a.sessionToAttach(c.hello)
+	}
 	if err != nil {
 		_ = c.conn.SendJSON(ipc.KindExit, ipc.Exit{Reason: err.Error(), Refused: true}) // best effort: it is refused either way
 		_ = c.conn.Close()
@@ -425,6 +429,11 @@ func (a *App) attach(c connection) {
 		a.notice = rebuiltMessage
 	}
 	a.openSetupOnAttach(c.hello.Setup)
+	if template != nil {
+		if err := a.openTemplate(*template); err != nil {
+			a.statusMessage = err.Error()
+		}
+	}
 	a.applyMouseMode()
 }
 

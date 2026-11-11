@@ -22,7 +22,9 @@ Usage:
   noct                              attach to the session used last, starting noct if needed
   noct attach, a, att, -a [session] attach to the session with that name; without one,
                                     list the sessions
-  noct new [session]                start a session, named or numbered, and attach to it
+  noct new [session] [--template name]
+                                    start a session, named or numbered, and attach to it;
+                                    with a tab template, it opens with that tab
   noct setup                        choose the keys, themes and animations, install the demo,
                                     add noct to AI clients and create shortcuts of your own
   noct sessions                     list the sessions: open or closed, tabs, last use

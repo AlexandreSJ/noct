@@ -46,6 +46,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/theme/files.go` | User themes: the themes folder, reading theme files built on a base (with their `[ansi]` colors), and writing only what differs from it |
 | `internal/share/share.go` | The codes `noct export` prints and `noct import` reads: kind, name and TOML, compressed into one word after `noct1.` |
 | `internal/share/qr.go` | A code's line drawn as a QR code with half blocks, dark on light (rsc.io/qr, ADR-064) |
+| `internal/templates/project.go` | A project's templates (`.noct/templates`, found as git finds a repository), with every command asked |
 | `internal/templates/templates.go` | Tab templates: the YAML file (panes, groups, colors, how each command starts), layouts to and from it, and the templates folder |
 | `internal/layout/shape.go` | A tree as plain data (`Shape`) and building it again under new pane IDs |
 | `internal/layout/layout.go` | A tab's i3-like container tree: split (autotiling), stacks of a pane and those below it (one pane shown, the others folded to a row), move by columns, remove, rects, directional focus, draggable dividers |
@@ -128,7 +129,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/colorset.go` | A pane's or a tab's own colors over the session's theme: saved by the theme file's keys, and the palette a pane or a tab draws with |
 | `internal/app/colors_popup.go` | The popup of prefix + P: the focused pane's and its tab's own colors, with the stage and the contrast warning |
 | `internal/app/template_save.go` | The popup of prefix + R: the tab as a template, with how each terminal's command starts |
-| `internal/app/templates_popup.go` | The popup of prefix + T: the templates with the layout of the selected one, opening one as a tab, and edit, rename and delete |
+| `internal/app/templates_popup.go` | The popup of prefix + T: the user's and the project's templates with the layout of the selected one, opening one as a tab, and edit, rename and delete; the template a new session opens with (`noct new --template`) |
 | `internal/app/animation.go` | Animations: what changed since the last frame, the ones running, and drawing them over the frame without touching the programs |
 | `internal/app/hover.go` | Hover: what is under the mouse (a tab's name, a pane's title, a list's row), its animation there and back, and lighting list rows |
 | `internal/app/effects.go` | The animation effects as functions of time: easing, 01 and jitter |

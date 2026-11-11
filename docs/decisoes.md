@@ -700,6 +700,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Templates de um projeto (vindos por `git pull`) e sessões a partir de templates ficam para depois: com `run`, um template de outra pessoa rodaria comandos ao abrir. Os diretórios de cada terminal não são gravados.
 
+**Templates de projeto e sessão com template (2026-11-11).** Um repositório traz templates em `.noct/templates/`, achados como os scripts de projeto, na pasta aberta ou acima. Como chegam por `git pull`, de qualquer um com acesso ao repositório, todo `start: run` deles vale como `ask`: o terminal abre com a caixa `run?` e nada roda antes do `Enter`. `noct new [sessão] --template <nome>` cria a sessão com a tab do template, preferindo o do projeto ao do usuário com o mesmo nome; sem o template, a sessão não é criada.
+
 ## ADR-053 — Animações por momento
 
 **Contexto.** Havia só a intro do título e o `01` ao passar o mouse nele. O mantenedor quer animações ao abrir e fechar painel e tab, no foco, ao mover, na tela inteira, nos popups, no hover e na atividade, com efeitos à escolha (`01`, mola, fade, jitter, flicker), uma prévia ao escolher e um aviso de epilepsia no flicker ([animacoes.md](animacoes.md)). É polimento da fase 5, antecipado pelo mantenedor.

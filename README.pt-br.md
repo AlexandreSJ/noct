@@ -162,7 +162,7 @@ claude mcp add noct -- noct mcp
 |---|---|
 | `noct` | Conecta à última sessão usada, iniciando o noct se preciso |
 | `noct attach [sessão]` (ou `a`, `att`, `-a`) | Conecta a uma sessão pelo nome; sem nome, lista as sessões |
-| `noct new [sessão]` | Cria uma sessão, com nome ou número, e conecta a ela |
+| `noct new [sessão] [--template nome]` | Cria uma sessão, com nome ou número, e conecta a ela; com um template de tab, ela abre com essa tab |
 | `noct setup` | Escolhe as teclas, os temas e as animações, instala a demo, adiciona o noct aos clientes de IA e cria atalhos próprios |
 | `noct sessions` | Lista as sessões: aberta ou fechada, tabs, último uso |
 | `noct kill <sessão>` | Apaga uma sessão: os programas param e o layout é esquecido |

@@ -162,7 +162,7 @@ claude mcp add noct -- noct mcp
 |---|---|
 | `noct` | Attach to the session used last, starting noct if needed |
 | `noct attach [session]` (or `a`, `att`, `-a`) | Attach to a session by name; without one, list the sessions |
-| `noct new [session]` | Start a session, named or numbered, and attach to it |
+| `noct new [session] [--template name]` | Start a session, named or numbered, and attach to it; with a tab template, it opens with that tab |
 | `noct setup` | Choose the keys, themes and animations, install the demo, add noct to AI clients and create shortcuts of your own |
 | `noct sessions` | List the sessions: open or closed, tabs, last use |
 | `noct kill <session>` | Delete a session: its programs stop and its layout is forgotten |
