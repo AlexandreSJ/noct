@@ -38,6 +38,7 @@ type noteImageFile struct {
 	img     image.Image
 	err     error
 	drawn   map[image.Point][][]uv.Cell
+	kitty   kittyImage
 }
 
 // imageIn is the file a notes line shows as an image, from the script's folder when relative.

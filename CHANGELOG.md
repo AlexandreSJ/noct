@@ -34,7 +34,8 @@ terminal's own background stays untouched.
   Over ssh, or without `notify-send` or `osascript`, the notification goes through the terminal
   (OSC 9).
 - A line of a script's notes that is only an image, `![diagram](diagram.png)`, shows the image in
-  the scripts panel, drawn with half blocks so any terminal with colors shows it.
+  the scripts panel: in full resolution in kitty and Ghostty, and drawn with half blocks in other
+  terminals, so any terminal with colors shows it.
 - A repository can keep tab templates in `.noct/templates/`. They show in `prefix` + `T` marked
   `project`, and every command they hold is asked before it runs.
 - `noct new [session] --template <name>` starts the session with the template's tab.

@@ -107,6 +107,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/mouse.go` | Mouse: tab and pane clicks, dragging dividers, wheel scrolling (over the tab bar, changing tab), forwarding to views that take it |
 | `internal/app/editor.go` | Program settings (editor, file manager): choices found on the system or a custom command; opening a folder |
 | `internal/app/note_images.go` | Images in a script's notes (a line `![what](file.png)`): reading PNG, JPEG and GIF within size limits, and drawing them with half blocks, kept per size |
+| `internal/app/note_images_kitty.go` | Note images in full resolution where kitty's placeholders show: sending the PNG once per attached terminal, its virtual placement, the placeholder cells |
 | `internal/app/script_form.go` | Script form: name and program typed in place, command line, description, params and notes each edited alone in the editor |
 | `internal/app/pane_filter.go` | A terminal filtered by a pattern (`f` while scrolling): the last lines that match, drawn live in place of its screen |
 | `internal/app/links.go` | `Ctrl` + click on a pane: the OSC 8 link, URL (joined over wrapped rows) or existing path under the mouse, opened with `xdg-open`/`open`, or copied over ssh |

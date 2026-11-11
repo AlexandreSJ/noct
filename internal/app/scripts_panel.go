@@ -371,7 +371,14 @@ func (p *scriptsPanel) drawNoteImage(screen uv.Screen, area image.Rectangle, pat
 	if p.images == nil {
 		p.images = noteImages{}
 	}
-	rows, err := p.images.blocks(path, area.Dx(), min(maxNoteImageRows, area.Dy()))
+	maxRows := min(maxNoteImageRows, area.Dy())
+	if p.app.imagesEnabled && p.app.screen != nil {
+		rows, err := p.app.drawKittyImage(screen, area, p.images, path, maxRows)
+		if err == nil {
+			return rows
+		}
+	}
+	rows, err := p.images.blocks(path, area.Dx(), maxRows)
 	if err != nil {
 		drawText(screen, area.Min.X, area.Min.Y, area.Max.X, "▣ "+cmpOr(alt, filepath.Base(path))+": "+err.Error(), p.app.palette.panelMuted)
 		return 1
