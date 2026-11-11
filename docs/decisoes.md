@@ -843,3 +843,17 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Animações** (fase 5) entram antes, como no ADR-053: o fade some sem o corte do último quadro, o hover vai da cor normal à de destaque e passa a valer nas linhas das listas, o que fecha some aos poucos em vez de sumir no último quadro, e entram os efeitos `dissolve` e `wipe` ([animacoes.md](animacoes.md)). Cada mudança que altera uma regra do ADR-053 o atualiza quando for feita.
 
 **Consequências.** Numa máquina nova, um script com programa faltando mostra `(not found)` e o usuário instala por fora. O noct não tem lógica de pacotes nem comandos com `sudo` para manter. O ADR-005 e o ADR-010 ficam substituídos.
+
+## ADR-063 — Params do ambiente, perguntados quando a variável falta
+
+**Contexto.** Um script já podia ler um parâmetro do ambiente (`from: env:NOME`), mas sem a variável ele não rodava. O mantenedor quer que o usuário possa deixar seus valores, inclusive os secretos, em variáveis de ambiente e que o noct só as use, sem perguntar; quem não tem a variável deve poder digitar o valor. Os fluxos não tinham isso. A ideia anterior da task 14, passar todos os valores ao comando como variáveis de ambiente em vez de colados no `sh -c`, mudaria o formato de todos os scripts; o `quote` (task 13) já fecha a injeção em quem precisa.
+
+**Decisão.**
+- **`from: env:NOME`**, nos scripts e nos params dos fluxos: com a variável definida e não vazia, o valor é o dela e o formulário não pergunta. Sem ela, o param é perguntado como qualquer outro, a partir do `default`. Um valor dado (`nome=valor`, `with`, o MCP) vence o ambiente.
+- **Nunca lembrados.** Um param `from` não entra em `params.json`, nem quando digitado.
+- **Fora da linha de comando.** O fluxo rodado pelo noct passa o valor digitado de um param `from` como a própria variável (`NOME=valor`) ao `noct flow run`, não como argumento: não aparece no `ps`, no log nem na prévia do formulário.
+- **`secret`** nos params dos fluxos, como nos scripts: mascarado no formulário e nunca lembrado.
+- **Um script de fluxo** (`script:` sem `with` para o param) lê o ambiente do mesmo jeito; sem a variável e sem `default`, o passo falha dizendo qual variável falta, porque um fluxo não abre formulário.
+- Os valores continuam renderizados no `run:` dos scripts; para eles virarem uma palavra só do shell, `{{quote .nome}}`.
+
+**Consequências.** Um script `from` que antes falhava sem a variável agora abre o formulário. O demo da instalação mostra o recurso no `demo-deploy` (`token`, de `DEMO_DEPLOY_TOKEN`). Passar todos os params como variáveis de ambiente, mudando o formato dos scripts, fica fora; se voltar, é um ADR novo.

@@ -187,6 +187,22 @@ func TestStartingValues(t *testing.T) {
 	}
 }
 
+func TestAnEnvParamIsAskedOnlyWhenItsVariableIsUnset(t *testing.T) {
+	p := Param{Name: "token", From: "env:TOKEN", Default: "demo"}
+	set := func(string) string { return "s3cret" }
+	unset := func(string) string { return "" }
+	if p.Asked(set) || !p.Asked(unset) || !(Param{Name: "user"}).Asked(set) {
+		t.Errorf("asked: set %v, unset %v; want only unset, and a plain param always", p.Asked(set), p.Asked(unset))
+	}
+	s := Script{Params: []Param{p}}
+	if got := s.StartingValues(nil, unset)["token"]; got != "demo" {
+		t.Errorf("unset, token starts as %q, want its default", got)
+	}
+	if got := s.StartingValues(map[string]string{"token": "old"}, set)["token"]; got != "s3cret" {
+		t.Errorf("set, token starts as %q, want the environment's", got)
+	}
+}
+
 func TestCheckValues(t *testing.T) {
 	s := Script{Params: []Param{{Name: "env", Choices: []string{"dev"}}, {Name: "pw", From: "env:PW"}}}
 	if err := s.CheckValues(map[string]string{"env": "dev", "pw": "x"}); err != nil {

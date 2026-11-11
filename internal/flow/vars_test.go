@@ -68,6 +68,44 @@ func TestCheckParamsRefusesNonNumbersAndMissingRequired(t *testing.T) {
 	}
 }
 
+func TestAFlowParamComesFromItsVariableWhenSet(t *testing.T) {
+	f := parse(t, "params:\n  token: {from: 'env:DEPLOY_TOKEN', default: demo, secret: true}\n  env: dev\nsteps: [{run: 'true'}]\n")
+	if err := f.Validate(nil); err != nil {
+		t.Fatal(err)
+	}
+	if p := f.Params["token"]; p.From != "env:DEPLOY_TOKEN" || !p.Secret {
+		t.Fatalf("token = %+v", p)
+	}
+	getenv := func(name string) string { return map[string]string{"DEPLOY_TOKEN": "s3cret"}[name] }
+	if v := f.Values(getenv); v["token"] != "s3cret" || v["env"] != "dev" {
+		t.Errorf("values with DEPLOY_TOKEN set = %v", v)
+	}
+	if v := f.Values(func(string) string { return "" }); v["token"] != "demo" {
+		t.Errorf("values with DEPLOY_TOKEN unset = %v, want the default", v)
+	}
+	if name, ok := f.Params["token"].EnvName(); !ok || name != "DEPLOY_TOKEN" {
+		t.Errorf("EnvName = %q %v", name, ok)
+	}
+}
+
+func TestAFlowParamFromSomethingElseIsAProblem(t *testing.T) {
+	f := parse(t, "params:\n  a: {from: 'vault:x'}\nsteps: [{run: 'true'}]\n")
+	if err := f.Validate(nil); err == nil || !strings.Contains(err.Error(), "env:NAME") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestARunReadsAnEnvParamFromItsEnvironment(t *testing.T) {
+	f := parse(t, "params:\n  token: {from: 'env:DEPLOY_TOKEN'}\nsteps: [{run: 'true'}]\n")
+	r := &Runner{Getenv: func(name string) string { return map[string]string{"DEPLOY_TOKEN": "s3cret"}[name] }}
+	if x := r.start(f, nil); x.vars["token"] != "s3cret" {
+		t.Errorf("token = %q, want the environment's", x.vars["token"])
+	}
+	if x := r.start(f, map[string]string{"token": "given"}); x.vars["token"] != "given" {
+		t.Errorf("token = %q, want the given value over the environment", x.vars["token"])
+	}
+}
+
 func TestInvalidParamTypeIsAProblem(t *testing.T) {
 	f := parse(t, "params:\n  a: {type: date}\nsteps: [{run: 'true'}]\n")
 	if err := f.Validate(nil); err == nil || !strings.Contains(err.Error(), "type") {

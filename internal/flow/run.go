@@ -78,11 +78,18 @@ func (r *Runner) Run(f Flow, params map[string]string) Result {
 	return x.result
 }
 
+func (r *Runner) getenv(name string) string {
+	if r.Getenv == nil {
+		return ""
+	}
+	return r.Getenv(name)
+}
+
 // start begins a run of the flow with the parameters given over its defaults.
 func (r *Runner) start(f Flow, params map[string]string) *running {
 	x := &running{
 		Runner: r,
-		vars:   f.Defaults(),
+		vars:   f.Values(r.getenv),
 		steps:  map[string]map[string]string{},
 		result: Result{Flow: f.Name, Start: time.Now(), Steps: map[string]StepResult{}, OK: true},
 	}

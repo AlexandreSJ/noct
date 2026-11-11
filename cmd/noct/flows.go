@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"strconv"
 	"strings"
@@ -171,7 +172,9 @@ func flowParams(f flow.Flow, name string, args []string) (map[string]string, err
 		}
 		params[key] = value
 	}
-	if err := f.CheckParams(params); err != nil {
+	values := f.Values(os.Getenv)
+	maps.Copy(values, params)
+	if err := f.CheckParams(values); err != nil {
 		return nil, fmt.Errorf("flow %s: %w", name, err)
 	}
 	return params, nil

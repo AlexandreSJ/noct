@@ -77,15 +77,33 @@ func (a *App) runFlow(f flow.Flow) {
 	a.startFlow(f, values)
 }
 
-// flowValues are the flow's parameters as its last run from here gave them, or their defaults.
+// flowValues are the flow's parameters from the environment for env parameters whose variable is
+// set, else as its last run from here gave them, or their defaults.
 func (a *App) flowValues(f flow.Flow) map[string]string {
 	values := f.Defaults()
 	for name, value := range a.memory.FlowValues(f.Name) {
-		if _, still := f.Params[name]; still {
+		if p, still := f.Params[name]; still && remembered(p) {
 			values[name] = value
 		}
 	}
+	for name, p := range f.Params {
+		if env, ok := p.EnvName(); ok && a.getenv(env) != "" {
+			values[name] = a.getenv(env)
+		}
+	}
 	return values
+}
+
+// remembered tells whether a flow's parameter is kept for its next run: not a secret, nor read from
+// the environment.
+func remembered(p flow.Param) bool {
+	return !p.Secret && p.From == ""
+}
+
+// fromEnvironment tells whether a parameter's value is its variable's, which is set.
+func (a *App) fromEnvironment(p flow.Param) bool {
+	env, ok := p.EnvName()
+	return ok && a.getenv(env) != ""
 }
 
 // openFlowForm asks for the flow's parameters (p in the inspect); enter checks them, remembers
@@ -98,11 +116,18 @@ func (a *App) openFlowForm(f flow.Flow, values map[string]string) {
 	var fields []script.Param
 	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
 		p := f.Params[name]
+		if a.fromEnvironment(p) {
+			continue
+		}
 		label := p.Label(name)
 		if p.Type == flow.NumberParam {
 			label += " (number)"
 		}
-		fields = append(fields, script.Param{Name: name, Prompt: label})
+		fields = append(fields, script.Param{Name: name, Prompt: label, Secret: p.Secret})
+	}
+	if len(fields) == 0 {
+		a.startFlow(f, values)
+		return
 	}
 	a.form = paramsForm{
 		title: "run " + f.Name, fields: fields, values: maps.Clone(values),
@@ -110,7 +135,8 @@ func (a *App) openFlowForm(f flow.Flow, values map[string]string) {
 			if err := f.CheckParams(values); err != nil {
 				return "⚠ " + err.Error()
 			}
-			return "$ noct flow run " + f.Name + " " + strings.Join(paramArgs(values), " ")
+			args, _ := a.flowArgs(f, values)
+			return "$ noct flow run " + f.Name + " " + strings.Join(args, " ")
 		},
 		submit: func(values map[string]string) error {
 			if err := f.CheckParams(values); err != nil {
@@ -125,13 +151,31 @@ func (a *App) openFlowForm(f flow.Flow, values map[string]string) {
 
 // startFlow runs the flow with noct flow run and the values, which it remembers for the next run.
 func (a *App) startFlow(f flow.Flow, values map[string]string) {
-	if len(values) > 0 {
-		if err := a.memory.RememberFlow(f.Name, values); err != nil {
+	kept := maps.Clone(values)
+	maps.DeleteFunc(kept, func(name string, _ string) bool { return !remembered(f.Params[name]) })
+	if len(kept) > 0 {
+		if err := a.memory.RememberFlow(f.Name, kept); err != nil {
 			a.statusMessage = err.Error() // the run goes on; only the memory is lost
 		}
 	}
-	argv := append([]string{orDefault(a.binary.path, "noct"), "flow", "run", f.Name}, paramArgs(values)...)
-	a.openTrackedRun("flow "+f.Name, script.Run{Flow: f.Name}, program{argv: argv, dir: a.workDir})
+	args, env := a.flowArgs(f, values)
+	argv := append([]string{orDefault(a.binary.path, "noct"), "flow", "run", f.Name}, args...)
+	a.openTrackedRun("flow "+f.Name, script.Run{Flow: f.Name}, program{argv: argv, dir: a.workDir, env: env})
+}
+
+// flowArgs are the values as noct flow run takes them: name=value arguments, but an env
+// parameter's value as its variable, which the run reads, and none when the environment has it.
+func (a *App) flowArgs(f flow.Flow, values map[string]string) (args, env []string) {
+	given := maps.Clone(values)
+	for name, p := range f.Params {
+		if variable, ok := p.EnvName(); ok {
+			if value := given[name]; value != "" && value != a.getenv(variable) {
+				env = append(env, variable+"="+value)
+			}
+			delete(given, name)
+		}
+	}
+	return paramArgs(given), env
 }
 
 func paramArgs(values map[string]string) []string {

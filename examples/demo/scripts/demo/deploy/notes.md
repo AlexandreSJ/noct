@@ -2,16 +2,28 @@
 
 Pretends to push the built `api` to an environment. Prints and sleeps only.
 
-## Two parameters
+## Parameters
 
-`env` and `version` both have defaults, so the script runs on its own without
-asking. In `demo-deploy` the step fills them from the flow:
+`env` and `version` have defaults. In `demo-deploy` the step fills them from the flow:
 
 ```yaml
 with:
   env: '{{.env}}'
   version: '{{.version}}'
 ```
+
+## A token from the environment
+
+`token` has `from: env:DEMO_DEPLOY_TOKEN`. When that variable is set in your
+shell, noct takes the token from it and does not ask:
+
+```sh
+export DEMO_DEPLOY_TOKEN=abc123
+```
+
+Unset, the form asks for it like any other parameter. `secret: true` masks it
+while typed, never remembers it, and shows it as `••••` in the command line under
+the form. The script only prints how long the token is.
 
 ## It runs in its own pane
 

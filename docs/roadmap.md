@@ -75,7 +75,7 @@ A instalação de pacotes saiu do plano (ADR-062): o noct não mostra, não reco
 
 ## Fase 5 — Polimento
 
-Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase. Já antecipados: terminal novo no diretório do painel com foco (ADR-048), temas editáveis e por sessão ([temas.md](temas.md), ADR-049, ADR-050), cores por painel e por tab (ADR-051), templates de tab ([templates.md](templates.md), ADR-052), duplicar o terminal com foco (`prefixo` + `D`), a pasta no título do shell sem título próprio (`zsh · ~/proj`), animações ([animacoes.md](animacoes.md), ADR-053) e o instalador ([instalador.md](instalador.md), ADR-056 a ADR-058).
+Imagens nas views do próprio noct (Kitty/iTerm2/Sixel/meios-blocos), temas, layouts salvos, notificações e os itens de qualidade de vida em [tui.md](tui.md). Itens pequenos de polimento podem entrar antes, em qualquer fase. Já antecipados: terminal novo no diretório do painel com foco (ADR-048), temas editáveis e por sessão ([temas.md](temas.md), ADR-049, ADR-050), cores por painel e por tab (ADR-051), templates de tab ([templates.md](templates.md), ADR-052), duplicar o terminal com foco (`prefixo` + `D`), a pasta no título do shell sem título próprio (`zsh · ~/proj`), o aviso ao fim de uma execução fora de vista (notificação do sistema, OSC 9 ou sino; [fluxos.md](fluxos.md)), animações ([animacoes.md](animacoes.md), ADR-053) e o instalador ([instalador.md](instalador.md), ADR-056 a ADR-058).
 
 **Animações (antecipado, ADR-062).** Feitos: fade só na cor do texto, fechar sumindo aos poucos, sem o corte no último quadro, e os efeitos `dissolve` (ordem aleatória) `wipe` (de um lado ao outro) e `grow` (do centro para fora). O hover leva nomes de tab, títulos de painel e linhas das listas da cor normal à de selecionado. Ver [animacoes.md](animacoes.md).
 
@@ -100,7 +100,7 @@ O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decis�
 
 **Segurança e correção**
 
-1. **Params do `run` como texto no template.** Desde o ADR-060 o `run` com `params` pede aprovação, mas os valores ainda entram no comando renderizado para `sh -c`. Passá-los como variáveis de ambiente (`"$pattern"`) ou argumentos posicionais fecha a injeção sem depender da aprovação; muda o formato dos scripts e pede ADR próprio.
+1. **Params do `run` como texto no template.** Desde o ADR-060 o `run` com `params` pede aprovação, mas os valores ainda entram no comando renderizado para `sh -c`. Passá-los como variáveis de ambiente (`"$pattern"`) ou argumentos posicionais fecha a injeção sem depender da aprovação; muda o formato dos scripts e pede ADR próprio. O ADR-063 tratou só dos params lidos do ambiente (`from: env:`) e deixou essa mudança de formato fora; o `{{quote …}}` cobre quem precisa.
 2. **Saídas de passos em `run:`** (`{{.steps.x.output}}`) também entram cruas no shell quando o fluxo não usa `{{quote …}}`. Com o `quote` nos templates, o que falta é decidir se ele vira o padrão junto com o item 1.
 
 **Dependências**

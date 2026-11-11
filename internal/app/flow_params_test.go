@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/AlexandreSJ/noct/internal/flow"
+	"github.com/AlexandreSJ/noct/internal/script"
 )
 
 const calcFlow = `params:
@@ -109,5 +110,47 @@ func TestInspectAddsVariableSteps(t *testing.T) {
 		if !strings.Contains(screen, want) {
 			t.Errorf("chart lacks %q:\n%s", want, screen)
 		}
+	}
+}
+
+const tokenFlow = `params:
+  token: {from: 'env:DEPLOY_TOKEN', secret: true, prompt: Deploy token}
+  env: dev
+steps:
+  - {run: 'echo {{.env}}'}
+`
+
+// A param whose variable is set is not asked; unset, the form asks it masked, and the value
+// typed goes to the run as that variable, never on its command line nor remembered.
+func TestAFlowParamFromTheEnvironment(t *testing.T) {
+	a := testApp(t)
+	l := recordLaunches(a)
+	saveFlow(t, "ship", tokenFlow)
+	pressDrawn(a, prefixPress, letter('i'))
+	inspect := a.currentTab().focused
+
+	pressDrawn(a, letter('p'))
+	if a.mode != formMode || len(a.form.fields) != 2 || !a.form.fields[slices.IndexFunc(a.form.fields, func(p script.Param) bool { return p.Name == "token" })].Secret {
+		t.Fatalf("p with DEPLOY_TOKEN unset: mode %v, fields %+v; want token asked, masked", a.mode, a.form.fields)
+	}
+	pressDrawn(a, tabPress, clearLine) // env, then token
+	typeDrawn(a, "typed")
+	if strings.Contains(screenText(a), "typed") {
+		t.Errorf("the token shows as typed:\n%s", screenText(a))
+	}
+	pressDrawn(a, enterPress)
+	run := l.last(t)
+	if slices.ContainsFunc(run.argv, func(arg string) bool { return strings.Contains(arg, "typed") }) || !slices.Contains(run.env, "DEPLOY_TOKEN=typed") {
+		t.Fatalf("ran %v with env %v; want the token only in the environment", run.argv, run.env)
+	}
+	if remembered := a.memory.FlowValues("ship"); remembered["token"] != "" {
+		t.Errorf("remembered the token: %v", remembered)
+	}
+
+	a.shellEnv = []string{"DEPLOY_TOKEN=from-env"}
+	a.focusPane(a.currentTab(), inspect)
+	pressDrawn(a, letter('p'))
+	if len(a.form.fields) != 1 || a.form.fields[0].Name != "env" {
+		t.Errorf("p with DEPLOY_TOKEN set asks %+v, want only env", a.form.fields)
 	}
 }

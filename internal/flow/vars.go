@@ -32,6 +32,16 @@ type Param struct {
 	Prompt string `yaml:"prompt,omitempty" json:"prompt,omitempty"`
 	// Required refuses to run with the parameter empty.
 	Required bool `yaml:"required,omitempty" json:"required,omitempty"`
+	// From reads the value from the environment (env:NAME) when the variable is set, without
+	// asking; unset, the parameter is asked like any other.
+	From string `yaml:"from,omitempty" json:"from,omitempty"`
+	// Secret values are masked in the form, never remembered and never on the command line.
+	Secret bool `yaml:"secret,omitempty" json:"secret,omitempty"`
+}
+
+// EnvName is the variable an env parameter reads.
+func (p Param) EnvName() (string, bool) {
+	return strings.CutPrefix(p.From, "env:")
 }
 
 // paramFields is Param without its YAML methods, to decode and encode the mapping form.
@@ -65,6 +75,18 @@ func (f Flow) Defaults() map[string]string {
 	values := make(map[string]string, len(f.Params))
 	for name, p := range f.Params {
 		values[name] = p.Default
+	}
+	return values
+}
+
+// Values are the parameters' values before anything is given: the environment's for env
+// parameters whose variable is set, else their defaults.
+func (f Flow) Values(getenv func(string) string) map[string]string {
+	values := f.Defaults()
+	for name, p := range f.Params {
+		if env, ok := p.EnvName(); ok && getenv(env) != "" {
+			values[name] = getenv(env)
+		}
 	}
 	return values
 }

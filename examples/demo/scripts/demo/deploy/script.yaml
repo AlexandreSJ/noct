@@ -1,5 +1,7 @@
 description: Pretend to deploy the api to an environment.
 run: |
+  token={{quote .token}}
+  printf 'Signed in with a deploy token of %d characters.\n' "${#token}"
   printf 'Deploying api %s to %s...\n' "{{.version}}" "{{.env}}"
   sleep 1
   echo "Deployed api {{.version}} to {{.env}}."
@@ -10,3 +12,8 @@ params:
   - name: version
     prompt: Version
     default: "1.4.2"
+  - name: token
+    prompt: Deploy token
+    from: env:DEMO_DEPLOY_TOKEN
+    secret: true
+    default: demo-token

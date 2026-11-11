@@ -31,6 +31,10 @@ terminal's own background stays untouched.
   by a system notification, or by the terminal's bell, as **Flows → tell when runs end** sets.
   Over ssh, or without `notify-send` or `osascript`, the notification goes through the terminal
   (OSC 9).
+- Flow params can come from the environment, as script params already could: with
+  `from: env:NAME`, the variable's value is used without asking. `secret: true` masks a flow
+  param in the form and never remembers it. The demo's `demo-deploy` reads its `token` from
+  `DEMO_DEPLOY_TOKEN`.
 - A shell's pane title tells the folder it is in, as `zsh · ~/proj`, until a program sets a
   title of its own.
 - Script and flow templates have `quote`: `{{quote .pattern}}` puts a value in single quotes as one
@@ -39,6 +43,9 @@ terminal's own background stays untouched.
 
 ### Changed
 
+- A script or flow param with `from: env:NAME` whose variable is not set is asked in the form,
+  instead of refusing to run. Typed for a flow, it reaches the run as that variable, never on its
+  command line, and it is never remembered.
 - Closing a pane, a tab or a popup no longer flashes away on the last frame. With `fade`, its
   text fades out and what is below fades in; with `01` and `jitter`, its cells go away one by one.
   Fades change only text colors, so a terminal's own background stays as it is.

@@ -24,6 +24,9 @@ func (f Flow) Validate(lookup func(id string) (script.Script, bool)) error {
 		if err := checkType(p.Type); err != nil {
 			return fmt.Errorf("parameter %s: %w", name, err)
 		}
+		if _, ok := p.EnvName(); p.From != "" && !ok {
+			return fmt.Errorf("parameter %s: from must look like env:NAME", name)
+		}
 	}
 	for i, t := range f.Triggers {
 		if err := t.validate(f.Name); err != nil {

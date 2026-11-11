@@ -40,7 +40,7 @@ Um **fluxo** encadeia scripts (ver [scripts.md](scripts.md)) com condições, re
 
 ## Formato
 
-O fluxo `pedido-completo` fica em `~/.local/share/noct/flows/pedido-completo.yaml`; o nome vem do arquivo. Os `params` são valores com padrão, que `noct flow run <fluxo> nome=valor` troca. Cada um é só o padrão (`env: staging`) ou um mapa com `default`, `type` (`text` ou `number`), `prompt` (o rótulo no formulário) e `required`; `noct flow run` e o formulário recusam um `number` que não é número e um obrigatório vazio.
+O fluxo `pedido-completo` fica em `~/.local/share/noct/flows/pedido-completo.yaml`; o nome vem do arquivo. Os `params` são valores com padrão, que `noct flow run <fluxo> nome=valor` troca. Cada um é só o padrão (`env: staging`) ou um mapa com `default`, `type` (`text` ou `number`), `prompt` (o rótulo no formulário), `required`, `from` e `secret`; `noct flow run` e o formulário recusam um `number` que não é número e um obrigatório vazio. Com `from: env:NOME`, o valor vem da variável de ambiente quando ela existe, e o formulário não pergunta; sem ela, o param é perguntado como qualquer outro (ADR-063). `secret: true` mascara no formulário e nunca lembra o valor.
 
 ```yaml
 description: Cria usuário, faz pedido e valida o e-mail
