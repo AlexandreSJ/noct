@@ -54,7 +54,7 @@ outputs: [token, expires]      # opcional: o que o script devolve a um fluxo, em
 
 ## Na TUI
 
-O **scripts panel** (`prefixo` + `s`) lista os scripts com a versão do programa à direita; num painel largo, mostra ao lado a descrição, a linha `run`, a origem (pessoal ou projeto) e as notas.
+O **scripts panel** (`prefixo` + `s`) lista os scripts com a versão do programa à direita; num painel largo, mostra ao lado a descrição, a linha `run`, a origem (pessoal ou projeto) e as notas. Uma linha das notas que seja só uma imagem, `![diagrama](diagrama.png)`, mostra a imagem ali, ajustada à largura e com até 16 linhas, desenhada com meios-blocos (`▀`, a metade de cima na cor do texto e a de baixo na do fundo), então aparece em qualquer terminal com cores. O caminho é relativo à pasta do script, ou absoluto; PNG, JPEG e GIF são lidos, até 8 MB e 4096 × 4096 pixels, e nada é baixado. Uma imagem que não abre vira uma linha `▣ nome: motivo`.
 
 | Tecla | Ação |
 |---|---|

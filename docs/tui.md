@@ -268,7 +268,7 @@ Nada é instalado nem reiniciado sem uma tecla do usuário. Sem reiniciar, a ver
 
 Como a imagem vira texto na grade, ela rola, é recortada pelas bordas do painel e some com `clear` junto com o resto. Em outros terminais os comandos de imagem são descartados, como antes. Não há suporte a animações, nem a apagar imagens por posição.
 
-**As próprias views do noct** (notas com imagens, previews) continuam na fase 5, usando o mesmo mecanismo no kitty e Sixel/iTerm2/meios-blocos nos demais terminais.
+**As próprias views do noct.** As imagens das notas dos scripts aparecem no scripts panel desenhadas com meios-blocos, em qualquer terminal com cores ([scripts.md](scripts.md#na-tui)). Mostrá-las em resolução cheia, pelos placeholders do kitty (o mesmo mecanismo dos painéis) e por Sixel ou iTerm2 nos outros terminais, continua na fase 5; os meios-blocos ficam como o caminho de quem não tem nenhum desses.
 
 ## Qualidade de vida (lista viva)
 

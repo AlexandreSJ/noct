@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -43,6 +44,8 @@ type scriptsPanel struct {
 	notesOf     string
 	notesLoaded int
 	notes       string
+	// images are the pictures the notes show, read again when their files change.
+	images noteImages
 }
 
 // panelRow is a line of the list: a folder (script nil), or a script, inside folder when set.
@@ -343,13 +346,37 @@ func (p *scriptsPanel) drawDetails(screen uv.Screen, area image.Rectangle, s scr
 	if s.Program != "" {
 		lines = append(lines, styledLine{s.Program + " " + p.version(s), pal.panelMuted})
 	}
-	y := drawLines(screen, area, area.Min.Y, lines)
-	for _, line := range strings.Split(ansi.Wrap(p.notesFor(s), area.Dx(), ""), "\n") {
-		if y++; y >= area.Max.Y {
+	y := drawLines(screen, area, area.Min.Y, lines) + 1
+	for _, line := range strings.Split(p.notesFor(s), "\n") {
+		if y >= area.Max.Y {
 			return
 		}
-		drawText(screen, area.Min.X, y, area.Max.X, line, pal.panelText)
+		if path, alt, ok := imageIn(line, s.Dir); ok {
+			y += p.drawNoteImage(screen, image.Rect(area.Min.X, y, area.Max.X, area.Max.Y), path, alt)
+			continue
+		}
+		for _, wrapped := range strings.Split(ansi.Wrap(line, area.Dx(), ""), "\n") {
+			if y >= area.Max.Y {
+				return
+			}
+			drawText(screen, area.Min.X, y, area.Max.X, wrapped, pal.panelText)
+			y++
+		}
 	}
+}
+
+// drawNoteImage draws the image of a notes line in area, or a line saying why it cannot show,
+// and returns the rows it took.
+func (p *scriptsPanel) drawNoteImage(screen uv.Screen, area image.Rectangle, path, alt string) int {
+	if p.images == nil {
+		p.images = noteImages{}
+	}
+	rows, err := p.images.blocks(path, area.Dx(), min(maxNoteImageRows, area.Dy()))
+	if err != nil {
+		drawText(screen, area.Min.X, area.Min.Y, area.Max.X, "▣ "+cmpOr(alt, filepath.Base(path))+": "+err.Error(), p.app.palette.panelMuted)
+		return 1
+	}
+	return drawBlocks(screen, area, rows)
 }
 
 // drawFolder shows where a folder is and what can be done with it.

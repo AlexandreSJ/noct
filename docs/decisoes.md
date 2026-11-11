@@ -173,6 +173,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** A imagem acompanha o texto sem código especial para rolagem, recorte e limpeza. Não há suporte a animações nem a apagar por posição. Imagens de painéis fechados ficam na memória do kitty até a janela fechar ou o limite de armazenamento do kitty descartá-las. Nos painéis, a variável `TERM` continua `xterm-256color`, então programas que detectam o kitty só pelo `TERM` não tentam usar imagens.
 
+**Imagens nas notas (2026-11-11).** As views do próprio noct começam pelas notas dos scripts: uma linha que é só `![texto](arquivo)` vira a imagem, desenhada com meios-blocos, o único jeito que funciona em todo terminal com cores, sem protocolo nem dependência (só os decodificadores PNG, JPEG e GIF da biblioteca padrão). Como as notas vêm também de projetos clonados, o arquivo é lido só até 8 MB e 4096 × 4096 pixels, e nada é baixado. Placeholders do kitty, Sixel e iTerm2 em resolução cheia ficam para depois.
+
 ## ADR-015 — Home, popup de comandos, process panel e fim do zoom
 
 *O fim do zoom foi revisto pela ADR-023, que traz o fullscreen de volta.*

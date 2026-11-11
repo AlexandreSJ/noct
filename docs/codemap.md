@@ -65,7 +65,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/scroll.go` | Scroll mode through a terminal's history: vim's keys and the arrows, shared with the logs preview; any other key leaves |
 | `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), the folder a new terminal opens in (`terminalDir`), tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach (in any session) |
 | `internal/app/view.go` | The `view` interface a pane shows: a terminal or a noct panel |
-| `internal/app/scripts_panel.go` | Scripts panel: list with versions, details and notes, keys to run, edit, create, delete |
+| `internal/app/scripts_panel.go` | Scripts panel: list with versions, details and notes (with their images), keys to run, edit, create, delete |
 | `internal/app/scripts.go` | Script actions: reload the library, run (form or not) as a tracked run with its log and exit code, create, edit in the configured editor, rename, delete |
 | `internal/app/form.go` | Parameters form shown before a script runs, or a flow (`p` in the inspect) |
 | `internal/app/run_view.go` | A script's run: its terminal plus a status line, held open with the exit code |
@@ -106,6 +106,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/shortcut.go` | Direct shortcuts: modifier + noct mode key without the prefix, modifier + shift + arrows to move |
 | `internal/app/mouse.go` | Mouse: tab and pane clicks, dragging dividers, wheel scrolling (over the tab bar, changing tab), forwarding to views that take it |
 | `internal/app/editor.go` | Program settings (editor, file manager): choices found on the system or a custom command; opening a folder |
+| `internal/app/note_images.go` | Images in a script's notes (a line `![what](file.png)`): reading PNG, JPEG and GIF within size limits, and drawing them with half blocks, kept per size |
 | `internal/app/script_form.go` | Script form: name and program typed in place, command line, description, params and notes each edited alone in the editor |
 | `internal/app/pane_filter.go` | A terminal filtered by a pattern (`f` while scrolling): the last lines that match, drawn live in place of its screen |
 | `internal/app/links.go` | `Ctrl` + click on a pane: the OSC 8 link, URL (joined over wrapped rows) or existing path under the mouse, opened with `xdg-open`/`open`, or copied over ssh |
