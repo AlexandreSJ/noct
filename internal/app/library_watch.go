@@ -31,7 +31,7 @@ func (a *App) checkLibrary() bool {
 		a.reloadFlows() // flows are checked against the scripts
 		return true
 	}
-	if dirSignature([]string{flow.Dir()}, 1) != a.flowsSignature {
+	if dirSignature([]string{flow.Dir(), flow.FunctionsDir()}, 1) != a.flowsSignature {
 		a.reloadFlows()
 		return true
 	}

@@ -50,7 +50,7 @@ func (f Flow) Scope(parent, branch string, index int, lookup func(id string) (sc
 }
 
 func (f Flow) scope(parent, branch string, index int, lookup func(id string) (script.Script, bool)) *scope {
-	sc := &scope{cleared: map[string]bool{}, ended: map[string]bool{}, lookup: lookup}
+	sc := &scope{cleared: map[string]bool{}, ended: map[string]bool{}, lookup: lookup, functions: f.functions}
 	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
 		sc.vars = append(sc.vars, Variable{Field: name})
 	}
@@ -81,7 +81,9 @@ type scope struct {
 	// variables an if or repeat made, which went when it ended.
 	cleared map[string]bool
 	ended   map[string]bool
-	lookup  func(id string) (script.Script, bool)
+	// functions finds the functions call steps name, for what they return.
+	functions func(name string) (Flow, bool)
+	lookup    func(id string) (script.Script, bool)
 }
 
 // level is one list of steps on the way from the flow's own steps to a point, and the index the
@@ -110,7 +112,7 @@ func (f Flow) levelsTo(parent, branch string, index int) []level {
 // add takes in what a step that ran does to the scope, and what the steps inside it do: an if's
 // branches may not have run, and a repeat's steps ran at least once.
 func (sc *scope) add(s Step, path string, certainty Certainty) {
-	fields := s.fields(sc.lookup)
+	fields := s.fields(sc.lookup, sc.functions)
 	if s.ID != "" {
 		delete(sc.cleared, stepsPrefix+s.ID)
 		for _, field := range fields {
@@ -219,13 +221,18 @@ func (sc *scope) unset(name string, certainty Certainty) {
 
 // fields are what later templates read from a step: output, exit and ok, the captures, and the
 // outputs its script declares. Only script and run steps have them.
-func (s Step) fields(lookup func(id string) (script.Script, bool)) []string {
+func (s Step) fields(lookup func(id string) (script.Script, bool), functions func(name string) (Flow, bool)) []string {
 	kind := s.Kind()
-	if kind != ScriptStep && kind != CommandStep {
+	if kind != ScriptStep && kind != CommandStep && kind != CallStep {
 		return nil
 	}
 	fields := []string{"output", "exit", "ok"}
 	named := slices.Sorted(maps.Keys(s.Capture))
+	if kind == CallStep && functions != nil {
+		if fn, ok := functions(s.Call); ok {
+			named = append(named, slices.Sorted(maps.Keys(fn.Returns))...)
+		}
+	}
 	if lookup != nil && kind == ScriptStep {
 		if sc, ok := lookup(s.Script); ok {
 			named = append(named, sc.Outputs...)

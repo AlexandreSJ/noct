@@ -175,6 +175,8 @@ type App struct {
 	versions *script.Versions
 	memory   *script.Memory
 	flows    []flow.Flow
+	// functions are the steps flows call by name (flow.FunctionsDir).
+	functions []flow.Flow
 
 	imagesEnabled    bool
 	nextImageID      atomic.Uint32

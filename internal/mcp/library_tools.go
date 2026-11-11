@@ -134,7 +134,7 @@ func describeParam(p script.Param) paramInfo {
 }
 
 func (d Deps) flows() []flow.Flow {
-	flows, _ := flow.LoadAll(flow.Dir(), d.Library().Find) // unreadable flows are listed as none
+	flows, _, _ := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), d.Library().Find) // unreadable flows are listed as none
 	return flows
 }
 

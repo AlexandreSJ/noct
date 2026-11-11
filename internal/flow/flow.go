@@ -47,16 +47,25 @@ type Flow struct {
 	// Timeout bounds the whole run, as a duration like 1h30m; empty is no limit.
 	Timeout string `yaml:"timeout,omitempty"`
 	Steps   []Step `yaml:"steps"`
+	// Returns are what a function gives back to the step that calls it, as templates read at its
+	// end; only functions have them.
+	Returns map[string]string `yaml:"returns,omitempty"`
+	// Function marks steps kept in the functions folder, which flows call.
+	Function bool `yaml:"-"`
+	// functions finds the functions the call steps name.
+	functions func(name string) (Flow, bool)
 }
 
 // Step does one thing: runs a script or a command line, branches, repeats steps, waits, asks the
 // user, or sets or clears variables.
 type Step struct {
 	// ID names the step for the templates of the steps after it: {{.steps.<id>.output}}.
-	ID     string            `yaml:"id,omitempty"`
-	Script string            `yaml:"script,omitempty"`
-	With   map[string]string `yaml:"with,omitempty"`
-	Run    string            `yaml:"run,omitempty"`
+	ID     string `yaml:"id,omitempty"`
+	Script string `yaml:"script,omitempty"`
+	// Call runs a function by its name, with the params With gives.
+	Call string            `yaml:"call,omitempty"`
+	With map[string]string `yaml:"with,omitempty"`
+	Run  string            `yaml:"run,omitempty"`
 	// Capture extracts values from the output: name to a regex whose first group, or whole
 	// match, becomes {{.steps.<id>.<name>}}.
 	Capture map[string]string `yaml:"capture,omitempty"`
@@ -127,6 +136,7 @@ type Kind string
 
 const (
 	ScriptStep  Kind = "script"
+	CallStep    Kind = "call"
 	CommandStep Kind = "run"
 	IfStep      Kind = "if"
 	RepeatStep  Kind = "repeat"
@@ -141,6 +151,9 @@ func (s Step) Kind() Kind {
 	var kinds []Kind
 	if s.Script != "" {
 		kinds = append(kinds, ScriptStep)
+	}
+	if s.Call != "" {
+		kinds = append(kinds, CallStep)
 	}
 	if s.Run != "" {
 		kinds = append(kinds, CommandStep)
@@ -176,6 +189,8 @@ func (s Step) Label() string {
 		return s.ID
 	case s.Script != "":
 		return s.Script
+	case s.Call != "":
+		return s.Call
 	case s.Run != "":
 		return "run"
 	case s.If != "":
@@ -241,7 +256,7 @@ func Find(flows []Flow, name string) (Flow, bool) {
 	return flows[i], true
 }
 
-const exactlyOne = "a step sets exactly one of script, run, if, repeat, wait, prompt, set and unset"
+const exactlyOne = "a step sets exactly one of script, call, run, if, repeat, wait, prompt, set and unset"
 
 // Create writes a new, empty flow called name in dir.
 func Create(dir, name string) (Flow, error) {

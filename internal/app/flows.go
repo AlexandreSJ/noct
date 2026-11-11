@@ -28,12 +28,12 @@ const stepHints = `# One step: script (with, capture, expect, on_fail, timeout),
 
 // reloadFlows reads the flows again, checking their scripts against the library.
 func (a *App) reloadFlows() {
-	a.flowsSignature = dirSignature([]string{flow.Dir()}, 1) // before reading: a change meanwhile shows next time
-	flows, err := flow.LoadAll(flow.Dir(), a.scripts.Find)
+	a.flowsSignature = dirSignature([]string{flow.Dir(), flow.FunctionsDir()}, 1) // before reading: a change meanwhile shows next time
+	flows, functions, err := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), a.scripts.Find)
 	if err != nil {
 		a.statusMessage = err.Error()
 	}
-	a.flows = flows
+	a.flows, a.functions = flows, functions
 }
 
 // scriptDescription is what a script does, for the boxes of the steps that run it.
@@ -336,6 +336,9 @@ func (a *App) changeFlow(f flow.Flow, change func(*flow.Flow) error) error {
 		return err
 	}
 	a.reloadFlows()
+	if f.Function {
+		a.notice = a.changedFunctionNotice(f)
+	}
 	return nil
 }
 
@@ -384,6 +387,7 @@ type stepTemplatePrompt func(title, initial, hints string, submit func(text stri
 func (a *App) flowStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt) []choiceOption {
 	return []choiceOption{
 		{key: "s", label: "script", pick: func() { a.pickScript(insert) }},
+		{key: "f", label: "call a function", pick: func() { a.pickFunction(insert) }},
 		{key: "c", label: "command line", pick: func() {
 			templatePrompt("command line", "", "{enter} add  esc cancel", func(text string) {
 				insert(flow.Step{Run: text})

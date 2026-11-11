@@ -907,3 +907,16 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Um fluxo que criava uma variável dentro de um `if` e a lia depois passa a receber um aviso e a ler vazio; o conserto é um `export`. O demo continua sem avisos. As funções (ADR-067) seguem o mesmo escopo: o que fazem dentro some no fim, menos o que devolvem.
 
+## ADR-067 — Funções
+
+**Contexto.** O mantenedor quer encapsular passos numa função reutilizável, com o próprio fluxo, que ao ser editada valha em todos os fluxos que a chamam, mostrando quais são; um fluxo inteiro chamar outro poderia vir depois.
+
+**Decisão.**
+- **Arquivo próprio** em `~/.local/share/noct/functions/<nome>.yaml`, no formato de um fluxo (`params`, `steps`) mais `returns`. É carregado como um `flow.Flow` marcado `Function`, então o inspect, o fluxograma, o escopo, os avisos e o desfazer valem para ele sem código à parte.
+- **`call: <nome>`** com `with` (templates lidos no chamador). A função roda num escopo próprio: só os params dela, passos e variáveis dela, e tudo some no fim, como um bloco do ADR-066; os `returns`, lidos no fim, viram as capturas do passo e as variáveis curtas no chamador. Os resultados dos passos de dentro ficam no resultado do fluxo sob `<caminho do call>/call/<i>`, e o progresso ao vivo acende o cartão do `call`.
+- **Checagem:** `flow.LoadWithFunctions` carrega fluxos e funções juntos e dá problema a uma chamada para função que não existe, a um `with` sem param correspondente e a um param obrigatório sem valor. Uma função que chama a si mesma é recusada, e chamadas encadeadas param em 16 níveis.
+- **Quem chama:** `flow.Callers` percorre os passos; o inspect mostra `used by …` no fluxograma da função, avisa a cada mudança quais fluxos ela muda e diz quem a chama ao apagá-la.
+- Um fluxo chamar outro fluxo inteiro fica para depois: com triggers e resultado próprio, é outra coisa.
+
+**Consequências.** `noct flow run`, `noct check`, o MCP e o daemon leem a pasta de funções. Uma função não roda sozinha, nem tem resultado próprio.
+

@@ -95,8 +95,8 @@ func (s Step) validateFieldsBelong(kind Kind) error {
 	if (len(s.Capture) > 0 || s.Expect != nil || s.OnFail != "") && kind != ScriptStep && kind != CommandStep {
 		return errors.New("capture, expect and on_fail belong to a script or run step")
 	}
-	if len(s.With) > 0 && kind != ScriptStep {
-		return errors.New("with belongs to a script step")
+	if len(s.With) > 0 && kind != ScriptStep && kind != CallStep {
+		return errors.New("with belongs to a script or call step")
 	}
 	if len(s.Export) > 0 && kind != IfStep && kind != RepeatStep {
 		return errors.New("export belongs to an if or a repeat")
@@ -134,6 +134,16 @@ func (s Step) validateKind(kind Kind, lookup func(id string) (script.Script, boo
 		}
 	case RepeatStep:
 		return s.Repeat.validate()
+	case CallStep:
+		if !naming.IsValid(s.Call) {
+			return fmt.Errorf("call %q is not a function's name", s.Call)
+		}
+		for name := range s.With {
+			if !isVariable(name) {
+				return fmt.Errorf("with %q is not a param's name", name)
+			}
+		}
+		return nil
 	case WaitStep:
 		if _, err := time.ParseDuration(s.Wait); err != nil {
 			return fmt.Errorf("wait %q is not a duration like 5s or 1m30s", s.Wait)

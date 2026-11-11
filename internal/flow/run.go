@@ -55,6 +55,8 @@ type Runner struct {
 	Attention func()
 	// Progress hears of each step as it starts, by its path; nil when nobody follows the run.
 	Progress func(path string)
+	// Function finds a function a call step names.
+	Function func(name string) (Flow, bool)
 }
 
 // running is the state of one run: the values templates read and the results so far.
@@ -68,6 +70,8 @@ type running struct {
 	// blocks are, for each if and repeat running, the variables made inside it, which go when it
 	// ends.
 	blocks []map[string]bool
+	// depth is how many functions call each other down to the step running.
+	depth int
 	// deadline is when the flow's timeout, as written in timeout, ends the run; zero without one.
 	deadline time.Time
 	timeout  string
@@ -126,6 +130,8 @@ func (x *running) runStep(s Step, path string) bool {
 	switch s.Kind() {
 	case ScriptStep, CommandStep:
 		return x.runCommand(s, path)
+	case CallStep:
+		return x.runCall(s, path)
 	case IfStep:
 		return x.runIf(s, path)
 	case RepeatStep:

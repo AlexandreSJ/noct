@@ -123,6 +123,7 @@ var keyContexts = []keyContext{
 		{"about", "about the step", []string{"space"}},
 		{"switch", "list or chart", []string{"tab", "shift+tab"}},
 		{"add", "new flow, or add a step", []string{"a"}},
+		{"new-function", "new function", []string{"F", "shift+f"}},
 		{"run", "run", []string{"r"}},
 		{"params", "run with params", []string{"p"}},
 		{"test", "test the step or range", []string{"t"}},

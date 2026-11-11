@@ -9,6 +9,7 @@ reasons behind it are in [fluxos.md](fluxos.md) and [scripts.md](scripts.md); th
 | What | Path | Name used in YAML |
 |---|---|---|
 | Flow | `~/.local/share/noct/flows/<name>.yaml` | `<name>` (from the file name) |
+| Function | `~/.local/share/noct/functions/<name>.yaml` | `<name>`, in `call:` |
 | Script | `~/.local/share/noct/scripts/<name>/script.yaml` | `<name>` |
 | Script in a folder | `~/.local/share/noct/scripts/<folder>/<name>/script.yaml` | `<folder>/<name>` |
 | Script notes (optional) | `notes.md` beside `script.yaml` | — |
@@ -96,8 +97,9 @@ A step sets exactly one of these:
 |---|---|---|
 | `script: <id>` | Runs a registered script | `with`, `capture`, `expect`, `on_fail`, `timeout`, `pane`, `background` |
 | `run: <shell>` | Runs a shell line (a template) | `capture`, `expect`, `on_fail`, `timeout`, `pane`, `background` |
-| `if: <template>` | Runs `then` or `else` | `then`, `else` |
-| `repeat: {...}` | Runs `steps` in passes | `steps` |
+| `call: <function>` | Runs a function, its params from `with` | `with` |
+| `if: <template>` | Runs `then` or `else` | `then`, `else`, `export` |
+| `repeat: {...}` | Runs `steps` in passes | `steps`, `export` |
 | `wait: <duration>` | Sleeps (`5s`, `1m30s`) | — |
 | `prompt: <template>` | Asks the user on the run's terminal; the answer goes to a variable | `var` (required), `default`, `type` |
 | `set: {name: <template>}` | Gives variables, new or not, a value | — |
@@ -145,6 +147,35 @@ steps:
   screen before asking; a run nobody watches (a trigger) fails at the prompt instead of waiting.
 - In the inspect, `p` opens the params form: enter checks the values, remembers them and runs.
   `r` runs with the values remembered, and opens the form when a required param is empty.
+
+### Functions
+
+A function is steps any flow can call, in a file of its own. It has `params` and `steps` as a flow
+does, and `returns`, templates read at its end:
+
+```yaml
+# ~/.local/share/noct/functions/health.yaml
+params:
+  url: {required: true}
+steps:
+  - {id: probe, run: 'curl -s -o /dev/null -w "%{http_code}" {{quote .url}}'}
+returns:
+  status: '{{.output}}'
+```
+
+```yaml
+# in a flow
+- id: check
+  call: health
+  with: {url: 'https://{{.env}}.example.com'}
+- if: '{{eq .status "200"}}'     # or {{.steps.check.status}}
+```
+
+- The function runs in a scope of its own: it reads its params, not the flow's variables, and
+  what it makes goes when it ends. The returns become the call's captures and short variables.
+- Changing a function changes every flow that calls it; the inspect lists them on the function's
+  chart (`used by …`), and `noct check` reports a call to a missing function, a `with` for a
+  param it has not, or a required param left out. Functions can call functions, 16 deep at most.
 
 ### Repeat
 

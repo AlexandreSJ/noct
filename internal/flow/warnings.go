@@ -88,7 +88,7 @@ func (f Flow) missing(ref reference, lookup func(id string) (script.Script, bool
 	switch {
 	case !found:
 		return "there is no step " + ref.step
-	case !slices.Contains(s.fields(lookup), ref.field):
+	case !slices.Contains(s.fields(lookup, f.functions), ref.field):
 		return fmt.Sprintf("step %s has no %s", ref.step, ref.field)
 	}
 	return "step " + ref.step + " has not run yet here"

@@ -136,7 +136,7 @@ type chartStyle struct {
 const startLabel = "● start"
 
 func buildChart(f flow.Flow, style chartStyle) *flowChart {
-	style.paramLines = paramLines(f)
+	style.paramLines = append(paramLines(f), returnLines(f)...)
 	body := style.sequence(f.Steps, chartSlot{})
 	start := &chartNode{kind: pillNode, label: startLabel}
 	end := &chartNode{kind: pillNode, label: "◉ end"}
@@ -261,6 +261,9 @@ func (s chartStyle) boxText(step flow.Step) []string {
 		}
 	case flow.CommandStep:
 		lines = append(lines, "$ "+strings.Join(strings.Fields(step.Run), " "))
+	case flow.CallStep:
+		lines = append(lines, "ƒ "+step.Call)
+		lines = append(lines, withText(step.With)...)
 	case flow.IfStep:
 		lines = append(lines, shortTemplate(step.If))
 		lines = append(lines, exportText(step.Export)...)

@@ -19,7 +19,14 @@ import (
 )
 
 func loadFlows(lib script.Library) ([]flow.Flow, error) {
-	return flow.LoadAll(flow.Dir(), lib.Find)
+	flows, _, err := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), lib.Find)
+	return flows, err
+}
+
+// loadFunctions reads the functions flows call; unreadable ones are left out, and their calls fail.
+func loadFunctions(lib script.Library) func(name string) (flow.Flow, bool) {
+	_, functions, _ := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), lib.Find)
+	return func(name string) (flow.Flow, bool) { return flow.Find(functions, name) }
 }
 
 const flowUsage = "usage: noct flow run <flow> [--steps <first>..<last>] [name=value ...] | noct flow ls"
@@ -199,6 +206,7 @@ func newFlowRunner(lib script.Library) *flow.Runner {
 		Ask:        terminalAsk(os.Stdin, os.Stdout),
 		OpenPane:   workspacePanes(),
 		Attention:  workspaceAttention(),
+		Function:   loadFunctions(lib),
 	}
 }
 

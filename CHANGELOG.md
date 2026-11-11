@@ -19,6 +19,9 @@ terminal's own background stays untouched.
 
 ### Added
 
+- Functions: steps any flow can call, in a file of their own with params and returns. A `call:` step
+  runs one in a scope of its own and gets back what it returns. The inspect lists functions after
+  the flows (`F` makes one), shows which flows call each, and tells what a change reaches.
 - Template prompts in the inspect complete the variables in scope as `{{.` is typed: up and down
   pick one, tab puts it in.
 - Flow params can be `bool`, `choice` (with its `choices`) or `path`, besides `text` and `number`.

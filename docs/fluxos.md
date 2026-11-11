@@ -123,6 +123,14 @@ Quem dispara é o daemon, então os triggers funcionam com a TUI fechada (`prefi
 - Uma execução por trigger roda sem painel: a saída vai para um log, a execução entra em `runs.json` com o que a disparou (`flow x (cron 0 9 * * 1-5)` na lista de logs), e um aviso aparece na barra de tabs. Enquanto uma execução disparada por trigger roda, o mesmo fluxo não é disparado de novo; por isso uma execução travada segura os triggers do fluxo até terminar, e um `timeout` garante que ela termine.
 - No inspect, `T` adiciona um trigger por menus (cron, arquivos ou outro fluxo) e já habilita os triggers do fluxo; `o` os liga e desliga. A lista marca com `⏰` os fluxos com triggers ligados, e o fluxograma mostra quais são.
 
+## Funções
+
+Uma **função** é um conjunto de passos que qualquer fluxo chama, num arquivo próprio em `~/.local/share/noct/functions/<nome>.yaml`: `params`, `steps` e `returns`, os valores que ela devolve, como templates lidos no fim dela. Um passo `call: <função>` a roda com os params do `with` (templates lidos no fluxo), num escopo próprio: ela lê só os próprios params, e o que ela faz some no fim, menos os `returns`, que viram as capturas do passo (`{{.steps.<id>.<nome>}}`) e variáveis curtas (`{{.<nome>}}`) no fluxo.
+
+No inspect, as funções aparecem na lista depois dos fluxos, marcadas `ƒ`, e `F` cria uma. O fluxograma de uma função é montado como o de um fluxo; a linha de cima diz quem a chama (`used by morning, deploy`), o cartão `$ params` lista também os retornos (`↩ status = .output`), e com ele selecionado `r` cria ou muda um retorno (`nome = {{.template}}`; o nome sozinho o remove). Cada mudança numa função avisa quais fluxos ela muda, e apagar uma que é chamada diz quem a chama. Uma função não roda sozinha: roda quando um fluxo a chama. Em **add step**, `f` (call a function) escolhe a função e pede o valor de cada param dela. Enquanto os passos de uma função rodam, o cartão do `call` fica aceso no fluxo.
+
+Uma função pode chamar outra, até 16 níveis. `noct check` e o inspect apontam uma chamada a uma função que não existe, um `with` para um param que ela não tem e um param obrigatório que ficou de fora.
+
 ## Variáveis e escopo
 
 O que um template lê num ponto do fluxo é o **escopo** daquele ponto:
