@@ -78,7 +78,7 @@ func TestAClosingFadeLeavesNoBackgroundOverATransparentOne(t *testing.T) {
 
 func TestAClosingEffectRemovesCellsBeforeItEnds(t *testing.T) {
 	area := image.Rect(0, 1, 40, 9)
-	for _, e := range []effect{effect01, effectJitter, effectDissolve, effectWipe, effectGrow} {
+	for _, e := range []effect{effect01, effectJitter, effectDissolve, effectWipe, effectGrow, effectShine} {
 		if below := countContent(closingOver(t, e, area, 0.05), area, "y"); below > area.Dx()*area.Dy()/4 {
 			t.Errorf("effect %v: %d cells already gone at the start", e, below)
 		}
@@ -170,14 +170,14 @@ func TestGrowClosesTowardTheCenter(t *testing.T) {
 	}
 }
 
-func TestSlideBringsTheContentInFromTheLeft(t *testing.T) {
+func TestSlideRightBringsTheContentInFromTheLeft(t *testing.T) {
 	a, _ := animatedApp(t)
 	area := image.Rect(0, 1, 40, 3)
 	screen := uv.NewScreenBuffer(a.size.X, a.size.Y)
 	for x := area.Min.X; x < area.Max.X; x++ {
 		screen.SetCell(x, 1, &uv.Cell{Content: string(rune('a' + x%26)), Width: 1})
 	}
-	a.applyEffect(&screen, &animation{moment: momentPanels, effect: effectSlide}, area, 0.5, time.Now(), nil)
+	a.applyEffect(&screen, &animation{moment: momentPanels, effect: effectSlideRight}, area, 0.5, time.Now(), nil)
 	shift := int(math.Round((1 - easeOut(0.5)) * float64(area.Dx())))
 	if c := screen.CellAt(area.Max.X-shift, 1); c == nil || c.Content != " " {
 		t.Errorf("halfway, the right part shows %v, want it still empty", c)
@@ -187,22 +187,78 @@ func TestSlideBringsTheContentInFromTheLeft(t *testing.T) {
 	}
 	done := uv.NewScreenBuffer(a.size.X, a.size.Y)
 	done.SetCell(5, 1, &uv.Cell{Content: "q", Width: 1})
-	a.applyEffect(&done, &animation{moment: momentPanels, effect: effectSlide}, area, 1, time.Now(), nil)
+	a.applyEffect(&done, &animation{moment: momentPanels, effect: effectSlideRight}, area, 1, time.Now(), nil)
 	if c := done.CellAt(5, 1); c == nil || c.Content != "q" {
 		t.Errorf("at the end the content moved: %v", c)
 	}
 }
 
-func TestSlideClosesOutToTheLeft(t *testing.T) {
+func TestSlideRightClosesBackOutToTheLeft(t *testing.T) {
 	area := image.Rect(0, 1, 40, 9)
-	if below := countContent(closingOver(t, effectSlide, area, 0.05), area, "y"); below > area.Dx()*area.Dy()/4 {
+	if below := countContent(closingOver(t, effectSlideRight, area, 0.05), area, "y"); below > area.Dx()*area.Dy()/4 {
 		t.Errorf("%d cells already gone at the start", below)
 	}
-	screen := closingOver(t, effectSlide, area, 0.5)
+	screen := closingOver(t, effectSlideRight, area, 0.5)
 	if c := screen.CellAt(area.Max.X-1, 5); c == nil || c.Content != "y" {
 		t.Errorf("halfway, the right edge shows %v, want what is below", c)
 	}
 	if c := screen.CellAt(area.Min.X, 5); c == nil || c.Content != "x" {
 		t.Errorf("halfway, the left edge shows %v, want the closing pane", c)
+	}
+}
+
+func TestSlideLeftComesInFromTheRightAndGoesBack(t *testing.T) {
+	a, _ := animatedApp(t)
+	area := image.Rect(0, 1, 40, 3)
+	screen := uv.NewScreenBuffer(a.size.X, a.size.Y)
+	for x := area.Min.X; x < area.Max.X; x++ {
+		screen.SetCell(x, 1, &uv.Cell{Content: string(rune('a' + x%26)), Width: 1})
+	}
+	a.applyEffect(&screen, &animation{moment: momentPanels, effect: effectSlideLeft}, area, 0.5, time.Now(), nil)
+	shift := int(math.Round((1 - easeOut(0.5)) * float64(area.Dx())))
+	if c := screen.CellAt(area.Min.X, 1); c == nil || c.Content != " " {
+		t.Errorf("halfway, the left edge shows %v, want it still empty", c)
+	}
+	if c := screen.CellAt(area.Min.X+shift, 1); c == nil || c.Content != "a" {
+		t.Errorf("halfway, the content's first cell is not where it got to: %v", c)
+	}
+	closing := closingOver(t, effectSlideLeft, image.Rect(0, 1, 40, 9), 0.5)
+	if c := closing.CellAt(0, 5); c == nil || c.Content != "y" {
+		t.Errorf("halfway through closing, the left edge shows %v, want what is below", c)
+	}
+	if c := closing.CellAt(39, 5); c == nil || c.Content != "x" {
+		t.Errorf("halfway through closing, the right edge shows %v, want the pane going out", c)
+	}
+}
+
+func TestShineCrossesTheTextAndLeavesItAsItWas(t *testing.T) {
+	a, _ := animatedApp(t)
+	area := image.Rect(0, 1, 40, 2)
+	paint := func() uv.ScreenBuffer {
+		buf := uv.NewScreenBuffer(a.size.X, a.size.Y)
+		for x := area.Min.X; x < area.Max.X; x++ {
+			buf.SetCell(x, 1, &uv.Cell{Content: "t", Width: 1, Style: uv.Style{Fg: closedColor}})
+		}
+		return buf
+	}
+	an := &animation{moment: momentHover, effect: effectShine}
+	halfway := paint()
+	a.applyEffect(&halfway, an, area, 0.5, time.Now(), nil)
+	middle, edge := halfway.CellAt(20, 1).Style.Fg, halfway.CellAt(0, 1).Style.Fg
+	if colorsEqual(middle, closedColor) || !colorsEqual(edge, closedColor) {
+		t.Errorf("halfway the middle is %v and the edge %v, want only the middle lit", middle, edge)
+	}
+	done := paint()
+	a.applyEffect(&done, an, area, 1, time.Now(), nil)
+	for x := area.Min.X; x < area.Max.X; x++ {
+		if !colorsEqual(done.CellAt(x, 1).Style.Fg, closedColor) {
+			t.Fatalf("after the shine, cell %d is %v, want its own color", x, done.CellAt(x, 1).Style.Fg)
+		}
+	}
+}
+
+func TestShineGoesTowardTheColorThatStandsOut(t *testing.T) {
+	if towardContrast(color.RGBA{0x1a, 0x1b, 0x26, 0xff}) != color.White || towardContrast(color.RGBA{0xf5, 0xf5, 0xf0, 0xff}) != color.Black {
+		t.Error("a dark background does not shine white, or a light one black")
 	}
 }

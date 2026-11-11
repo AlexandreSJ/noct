@@ -133,6 +133,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/templates_popup.go` | The popup of prefix + T: the user's and the project's templates with the layout of the selected one, opening one as a tab, and edit, rename and delete; the template a new session opens with (`noct new --template`) |
 | `internal/app/animation.go` | Animations: what changed since the last frame, the ones running, and drawing them over the frame without touching the programs |
 | `internal/app/hover.go` | Hover: what is under the mouse (a tab's name, a pane's title, a list's row), its animation there and back, and lighting list rows |
+| `internal/app/effects_sweep.go` | The effects that move or sweep: `slide-left` and `slide-right` in and back out, the `shine` band toward the color that stands out |
 | `internal/app/effects.go` | The animation effects as functions of time: easing, 01 and jitter |
 | `internal/app/stage_preview.go` | The config's rows of the animations (each moment's effect and time) and the stage under them playing the selected moment's effect |
 | `internal/app/stage.go` | The stage: a small made-up workspace with a bit of everything a theme colors, to preview themes in place |

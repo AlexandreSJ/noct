@@ -51,11 +51,13 @@ const (
 	effectDissolve
 	effectWipe
 	effectGrow
-	effectSlide
+	effectSlideLeft
+	effectSlideRight
+	effectShine
 )
 
 // effects name each effect as the config file does.
-var effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe", "grow", "slide"}
+var effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe", "grow", "slide-left", "slide-right", "shine"}
 
 // blendsColors tells an effect that moves a cell from one color to another.
 func (e effect) blendsColors() bool {
@@ -537,59 +539,12 @@ func (a *App) drawClosing(screen uv.Screen, an *animation, p float64, at time.Ti
 			}
 		}
 	}
-	if an.effect == effectSlide {
-		slideOut(screen, an, p)
+	if dir, ok := an.effect.slideDirection(); ok {
+		slideOut(screen, an, p, dir)
 		return
 	}
 	if an.effect != effectFade {
 		a.applyEffect(screen, an, an.area, left, at, kept)
-	}
-}
-
-// slideShift is how many columns slide moves area's content off its place at progress p.
-func slideShift(area image.Rectangle, p float64) int {
-	return int(math.Round((1 - p) * float64(area.Dx())))
-}
-
-// slide draws each row of area shift columns to the left of its place, its end first, as content
-// coming in from the left edge like a drawer; where it has not come yet, a cell is what beyond
-// gives.
-func slide(screen uv.Screen, area image.Rectangle, shift int, beyond func(here *uv.Cell) *uv.Cell) {
-	if shift <= 0 {
-		return
-	}
-	row := make([]uv.Cell, area.Dx())
-	for y := area.Min.Y; y < area.Max.Y; y++ {
-		for x := area.Min.X; x < area.Max.X; x++ {
-			if c := screen.CellAt(x, y); c != nil {
-				row[x-area.Min.X] = *c
-			} else {
-				row[x-area.Min.X] = uv.Cell{Content: " ", Width: 1}
-			}
-		}
-		for x := area.Min.X; x < area.Max.X; x++ {
-			from := x - area.Min.X + shift
-			if from >= area.Dx() {
-				screen.SetCell(x, y, beyond(screen.CellAt(x, y)))
-				continue
-			}
-			cell := row[from]
-			screen.SetCell(x, y, &cell)
-		}
-	}
-}
-
-// slideOut draws a closing pane's cells moving out to the left as p goes on, what is below
-// showing where they were.
-func slideOut(screen uv.Screen, an *animation, p float64) {
-	shift := int(math.Round(p * p * float64(an.area.Dx()))) // slow to start, as a pane let go
-	for y := an.area.Min.Y; y < an.area.Max.Y; y++ {
-		for x := an.area.Min.X; x+shift < an.area.Max.X; x++ {
-			if old := an.cells.CellAt(x+shift, y); old != nil {
-				cell := *old
-				screen.SetCell(x, y, &cell)
-			}
-		}
 	}
 }
 
@@ -626,7 +581,7 @@ func settleAt(an *animation, area image.Rectangle, x, y int) float64 {
 		return 0.7*across + 0.3*noise(x, y, an.seed)
 	case effectDissolve:
 		return noise(x, y, an.seed)
-	case effectWipe:
+	case effectWipe, effectShine:
 		return across
 	case effectGrow:
 		return fromCenter(area, x, y)
@@ -679,9 +634,12 @@ func (a *App) backgroundColor() color.Color {
 // applyEffect changes the cells of area that only lets through (nil for all) as the effect looks
 // at progress p.
 func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle, p float64, at time.Time, only func(x, y int) bool) {
-	if an.effect == effectSlide {
-		blank := uv.Cell{Content: " ", Width: 1, Style: uv.Style{Bg: a.palette.background}}
-		slide(screen, area, slideShift(area, easeOut(p)), func(*uv.Cell) *uv.Cell { return &blank })
+	if dir, ok := an.effect.slideDirection(); ok {
+		slideIn(screen, area, easeOut(p), dir, uv.Cell{Content: " ", Width: 1, Style: uv.Style{Bg: a.palette.background}})
+		return
+	}
+	if an.effect == effectShine {
+		a.shine(screen, area, p, only)
 		return
 	}
 	from := orColor(an.fromColor, a.backgroundColor())
