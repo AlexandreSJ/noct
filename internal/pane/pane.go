@@ -350,6 +350,32 @@ func (p *Pane) DrawScrolled(target uv.Screen, area uv.Rectangle, offset int) {
 	}
 }
 
+// LineCount is how many lines history and screen have, as DrawScrolled orders them.
+func (p *Pane) LineCount() int {
+	p.screenLock.RLock()
+	defer p.screenLock.RUnlock()
+	return p.historyLen() + p.screen.Height()
+}
+
+// LineText is the text of a line of history and screen, oldest first, without the spaces after it.
+func (p *Pane) LineText(line int) string {
+	p.screenLock.RLock()
+	defer p.screenLock.RUnlock()
+	history := p.historyLen()
+	var text strings.Builder
+	for x := 0; x < p.screen.Width(); {
+		cell := p.lineCell(x, line, history)
+		if cell == nil || cell.Content == "" {
+			text.WriteByte(' ')
+			x++
+			continue
+		}
+		text.WriteString(cell.Content)
+		x += max(cell.Width, 1)
+	}
+	return strings.TrimRight(text.String(), " ")
+}
+
 // drawLine copies the first width cells of a history-and-screen line to target at origin.
 func (p *Pane) drawLine(target uv.Screen, origin image.Point, line, history, width int) {
 	for x := 0; x < width; {
