@@ -19,6 +19,8 @@ terminal's own background stays untouched.
 
 ### Added
 
+- While a flow runs, the inspect lights the step running, marked `▶`, and three dots of different
+  sizes and colors keep going down the arrow out of it toward the next step.
 - In the inspect, `J` and `K` move a step through the flow as a line moves through code, into and
   out of ifs and repeats; `m` moves it with the arrows, and dragging a card with the mouse drops
   it below another. `z` undoes the last change to the flow and `y` does it again.

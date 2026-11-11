@@ -122,7 +122,12 @@ func runFlow(name, steps string, args []string) error {
 			fmt.Fprintln(os.Stderr, "noct:", err)
 		}
 	}
-	result, err := runSteps(newFlowRunner(lib), f, params, steps)
+	runner := newFlowRunner(lib)
+	runner.Progress = func(path string) {
+		_ = flow.SaveProgress(flow.ResultsDir(), name, path) // only the inspect's live view misses it
+	}
+	result, err := runSteps(runner, f, params, steps)
+	flow.ClearProgress(flow.ResultsDir(), name)
 	if err != nil {
 		result.Exit = 1 // the record ends like a stop that was not a program's
 	}

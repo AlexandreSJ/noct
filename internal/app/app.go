@@ -137,6 +137,8 @@ type App struct {
 	stageTick <-chan time.Time
 	// noteTick is the next frame of a config note that scrolls, nil when none shows.
 	noteTick <-chan time.Time
+	// flowTick is the next frame of a flow's run in the inspect, nil when none shows.
+	flowTick <-chan time.Time
 
 	homeHintShown   bool
 	homeHintExpired <-chan time.Time
@@ -337,6 +339,8 @@ func (a *App) loop() error {
 			a.advanceAnimations(a.now())
 		case <-a.noteTick:
 			a.noteTick = nil // drawing a note that still scrolls asks for the next
+		case <-a.flowTick:
+			a.flowTick = nil // drawing a run that still goes on asks for the next
 		case <-a.resetExpired:
 			a.resetExpired = nil
 		case <-a.homeHintExpired:

@@ -631,7 +631,8 @@ func (p *inspectPanel) chartInfoText(f flow.Flow, last *flow.Result) string {
 
 // layoutFlowChart builds the chart, moving a selection that no longer exists to the first step.
 func (p *inspectPanel) layoutFlowChart(f flow.Flow, last *flow.Result) {
-	style := chartStyle{pal: &p.app.palette, zoom: p.zoom, selected: p.selected, describe: p.app.scriptDescription, result: last, ranged: p.ranged(), moving: p.moving, dropOn: p.dropTarget()}
+	progress, running := flow.ReadProgress(flow.ResultsDir(), f.Name)
+	style := chartStyle{pal: &p.app.palette, zoom: p.zoom, selected: p.selected, describe: p.app.scriptDescription, result: last, ranged: p.ranged(), moving: p.moving, dropOn: p.dropTarget(), running: progress.Path}
 	style.warned = map[string]bool{}
 	for _, w := range p.warnings {
 		style.warned[w.Path] = true
@@ -641,6 +642,10 @@ func (p *inspectPanel) layoutFlowChart(f flow.Flow, last *flow.Result) {
 		p.selected = p.chart.firstStep().key
 		style.selected = p.selected
 		p.chart = buildChart(f, style)
+	}
+	if running {
+		p.chart.drawFlowing(&p.app.palette, progress.Path, progress.Since, p.app.now())
+		p.app.keepFlowing()
 	}
 }
 

@@ -28,6 +28,7 @@ Um **fluxo** encadeia scripts (ver [scripts.md](scripts.md)) com condições, re
 ```
 
 - Cada passo é um cartão de cantos arredondados com o `id` no título e, abaixo, o que ele roda, ligado ao seguinte por uma seta de três linhas (`│`, `│`, `↓`), com os traços de caixa e as setas que fontes como a Fira Code desenham inteiros; o `if` se divide em `yes` (then) e `no` (else) lado a lado e se junta de novo; o `repeat` emoldura os passos que repete, com a condição no título e a seta de volta na lateral. Uma lista vazia aparece como `∅ a adds`, onde `a` coloca o primeiro passo.
+- **Ao vivo:** enquanto o fluxo roda (pelo inspect, pelo `noct flow run` ou por um trigger), o cartão do passo em execução fica na cor de sucesso, com `▶` no título, e três pontos de tamanhos e cores diferentes (`●`, `•`, `∙`) descem em laço pela seta que sai dele até o próximo cartão. O `noct flow run` guarda o passo atual em `~/.local/state/noct/flows/<fluxo>.running.json`, apagado quando a execução termina; um arquivo deixado por uma execução que morreu é ignorado, pelo PID.
 - Depois de rodar, cada bloco mostra como foi na última execução: `✓`, `✗` (com a moldura na cor de atenção) ou `–` quando não rodou.
 - A lista de fluxos e o fluxograma ficam cada um numa moldura, a que tem o foco na cor de destaque. `Tab` esconde a lista, dando a largura toda ao fluxograma, e a mostra de novo.
 - Lista: `↑↓`/`jk` escolhe o fluxo, `Enter` (ou `→`/`l`) vai para o fluxograma, `a` cria um fluxo, `Delete` apaga.

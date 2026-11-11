@@ -51,6 +51,8 @@ type Runner struct {
 	// Attention asks noct's workspace to show the run, before a prompt waits for the user; nil
 	// outside noct.
 	Attention func()
+	// Progress hears of each step as it starts, by its path; nil when nobody follows the run.
+	Progress func(path string)
 }
 
 // running is the state of one run: the values templates read and the results so far.
@@ -113,6 +115,9 @@ func (x *running) runSteps(steps []Step, parent, branch string) bool {
 }
 
 func (x *running) runStep(s Step, path string) bool {
+	if x.Progress != nil {
+		x.Progress(path)
+	}
 	switch s.Kind() {
 	case ScriptStep, CommandStep:
 		return x.runCommand(s, path)

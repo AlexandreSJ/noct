@@ -117,6 +117,8 @@ type chartStyle struct {
 	// by the mouse would land on.
 	moving bool
 	dropOn string
+	// running is the path of the step a run is on, lit on the chart.
+	running string
 }
 
 const startLabel = "● start"
@@ -342,11 +344,19 @@ func (s chartStyle) drawBox(c *flowChart, n *chartNode, x, y int) {
 // boxTitle is a step's name, with how it went in the last run.
 func (s chartStyle) boxTitle(step flow.Step, path string) string {
 	symbol := map[flow.Kind]string{flow.IfStep: "◇ ", flow.WaitStep: "◷ ", flow.PromptStep: "? ", flow.SetStep: "= ", flow.UnsetStep: "∅ "}[step.Kind()]
+	return s.boxMarks(path) + symbol + step.Label()
+}
+
+// boxMarks go before a card's title: running, being moved, warned of, how it went.
+func (s chartStyle) boxMarks(path string) string {
 	moved := ""
 	if s.moving && stepKey(path) == s.selected {
 		moved = "↕ "
 	}
-	return moved + s.warning(path) + s.mark(path) + symbol + step.Label()
+	if path == s.running {
+		moved = "▶ " + moved
+	}
+	return moved + s.warning(path) + s.mark(path)
 }
 
 func (s chartStyle) warning(path string) string {
@@ -376,6 +386,10 @@ func (s chartStyle) frameStyles(key, path string) (uv.Style, uv.Style) {
 	switch {
 	case key == s.dropOn:
 		return s.pal.status, s.pal.status
+	case path != "" && path == s.running:
+		running := s.pal.success
+		running.Attrs |= uv.AttrBold
+		return running, running
 	case key == s.selected || s.ranged[key]:
 		return s.pal.focusedFrame, s.pal.focusedTitle
 	case s.result != nil && s.result.Steps[path].Status == flow.StatusFailed:
@@ -459,7 +473,7 @@ func (s chartStyle) drawRepeat(c *flowChart, n *chartNode, x, y int) {
 	// Only the frame's title row selects the repeat: inside it are its own steps.
 	c.blocks = append(c.blocks, chartBlock{key: key, path: n.path, rect: image.Rect(x, y, x+n.w, y+1)})
 	line, title := s.frameStyles(key, n.path)
-	drawCard(c.canvas, rect, s.warning(n.path)+s.mark(n.path)+s.repeatTitle(n.step), line, title)
+	drawCard(c.canvas, rect, s.boxMarks(n.path)+s.repeatTitle(n.step), line, title)
 	setRune(c.canvas, x+n.w-1, y+1, arrowUp, line) // the way back, up the frame's side
 	body := n.children[0]
 	in := image.Rect(x+n.center-1, y+1, x+n.center+2, y+3)
