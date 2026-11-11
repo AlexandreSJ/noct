@@ -3,6 +3,7 @@ package app
 import (
 	"image"
 	"image/color"
+	"math"
 	"testing"
 	"time"
 
@@ -166,5 +167,42 @@ func TestGrowClosesTowardTheCenter(t *testing.T) {
 	}
 	if c := screen.CellAt(area.Min.X, area.Min.Y); c == nil || c.Content != "y" {
 		t.Error("halfway through closing a corner is still there, want it gone first")
+	}
+}
+
+func TestSlideBringsTheContentInFromTheLeft(t *testing.T) {
+	a, _ := animatedApp(t)
+	area := image.Rect(0, 1, 40, 3)
+	screen := uv.NewScreenBuffer(a.size.X, a.size.Y)
+	for x := area.Min.X; x < area.Max.X; x++ {
+		screen.SetCell(x, 1, &uv.Cell{Content: string(rune('a' + x%26)), Width: 1})
+	}
+	a.applyEffect(&screen, &animation{moment: momentPanels, effect: effectSlide}, area, 0.5, time.Now(), nil)
+	shift := int(math.Round((1 - easeOut(0.5)) * float64(area.Dx())))
+	if c := screen.CellAt(area.Max.X-shift, 1); c == nil || c.Content != " " {
+		t.Errorf("halfway, the right part shows %v, want it still empty", c)
+	}
+	if c := screen.CellAt(area.Max.X-shift-1, 1); c == nil || c.Content != string(rune('a'+(area.Max.X-1)%26)) {
+		t.Errorf("halfway, the content's last cell is not where it got to: %v", c)
+	}
+	done := uv.NewScreenBuffer(a.size.X, a.size.Y)
+	done.SetCell(5, 1, &uv.Cell{Content: "q", Width: 1})
+	a.applyEffect(&done, &animation{moment: momentPanels, effect: effectSlide}, area, 1, time.Now(), nil)
+	if c := done.CellAt(5, 1); c == nil || c.Content != "q" {
+		t.Errorf("at the end the content moved: %v", c)
+	}
+}
+
+func TestSlideClosesOutToTheLeft(t *testing.T) {
+	area := image.Rect(0, 1, 40, 9)
+	if below := countContent(closingOver(t, effectSlide, area, 0.05), area, "y"); below > area.Dx()*area.Dy()/4 {
+		t.Errorf("%d cells already gone at the start", below)
+	}
+	screen := closingOver(t, effectSlide, area, 0.5)
+	if c := screen.CellAt(area.Max.X-1, 5); c == nil || c.Content != "y" {
+		t.Errorf("halfway, the right edge shows %v, want what is below", c)
+	}
+	if c := screen.CellAt(area.Min.X, 5); c == nil || c.Content != "x" {
+		t.Errorf("halfway, the left edge shows %v, want the closing pane", c)
 	}
 }

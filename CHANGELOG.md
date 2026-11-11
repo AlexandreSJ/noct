@@ -12,16 +12,17 @@ the shortcut is `Alt` by default. How to write an entry is in
 ## Unreleased
 
 Animations got a lot smoother. Panes, tabs and popups now go away as gently as they appear,
-instead of vanishing on the last frame; three new effects, `dissolve`, `wipe` and `grow`, join
+instead of vanishing on the last frame; four new effects, `dissolve`, `wipe`, `grow` and `slide`, join
 `01`, `fade` and `jitter`; and hovering a tab, a pane's title or a list's row lights it in the
 selected color and blends it back as the mouse leaves. Fades touch only text colors, so a
 terminal's own background stays untouched.
 
 ### Added
 
-- Three animation effects for any moment in **Appearance → animations**: `dissolve` shows or
-  hides each cell at once in a random order, `wipe` sweeps across from left to right, and `grow`
-  spreads out from the center and shrinks back into it.
+- Four animation effects for any moment in **Appearance → animations**: `dissolve` shows or
+  hides each cell at once in a random order, `wipe` sweeps across from left to right, `grow`
+  spreads out from the center and shrinks back into it, and `slide` brings the content in from
+  the left edge like a drawer and takes it back out.
 - `prefix` + `D` duplicates the focused terminal: a new one opens beside it in the same folder and,
   when its shell runs a program, offers to run the same command.
 - In a log in the logs view, `/` searches up from the end, `n` and `N` go to the next match up and

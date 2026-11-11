@@ -30,6 +30,7 @@ A atividade depende do indicador de "atividade não vista", previsto em [tui.md]
 | `dissolve` | Cada célula passa da cor de partida à sua de uma vez, numa ordem aleatória |
 | `wipe` | Uma frente atravessa a área da esquerda para a direita, com a borda misturando as cores |
 | `grow` | Como o `wipe`, mas a frente cresce do centro da área para os cantos |
+| `slide` | O conteúdo entra pela borda esquerda, como uma gaveta, e ao fechar sai por ela, mostrando o que está embaixo; nunca redimensiona o programa, só desenha as células deslocadas |
 
 Ao fechar, `01` e `jitter` tocam ao contrário e cada célula sai na metade do caminho dela até virar ruído, mostrando o que está embaixo; `dissolve`, `wipe` e `grow` tiram cada célula quando o efeito passa por ela (o `grow` encolhe para o centro), na ordem inversa; nada fica inteiro até o último quadro.
 
@@ -85,8 +86,7 @@ Efeitos de outras bibliotecas que servem aos momentos do noct, para entrar no re
 | Evolve | tachyonfx | Cada célula passa por uma série de símbolos (`░▒▓█`) até o caractere | Variante do `jitter` |
 | Crumble | TTE | O texto vira pó e cai | Fechar painel ou tab |
 | Highlight | TTE | Um brilho especular passa pelo texto | Hover, foco |
-| Slide / Slice | ambos | Entra de fora, ou duas metades de lados opostos | Popup, mover |
-| Expand / MiddleOut | ambos | Cresce do centro para fora | Tela inteira, popup |
+| Slice | ambos | Duas metades entram de lados opostos | Popup, mover (o Slide já é o `slide`) |
 | Stretch | tachyonfx | Estica com caracteres de bloco | Resize |
 | HSL shift / ColorShift | ambos | Ciclo de matiz | Atividade, execução rodando |
 | Unstable / VHSTape | TTE | Tremor e glitch de fita | Execução que falhou |
