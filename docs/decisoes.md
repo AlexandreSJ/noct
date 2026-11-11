@@ -880,3 +880,16 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Um novo módulo no `go.mod`. O config importado vale quando o noct começa de novo, porque o daemon só lê o config ao iniciar; temas novos aparecem na hora, porque a pasta de temas é vigiada. Painéis web para montar e ler esses códigos ficam como ideia.
 
+## ADR-065 — Tela de fluxos: cartões, cabeças de lista, mover como código e desfazer
+
+**Contexto.** O mantenedor achou feias as setas `▼` e os vãos `+` entre os cartões, um passo a mais para atravessar ao navegar; quer trocar passos de lugar sem arrastar livremente pelo canvas, desfazer e refazer, e campos de texto que não mudem o fundo da linha inteira nem ponham uma marca no meio do texto.
+
+**Decisão.**
+- **Campos de texto:** o texto digitado vai na cor de destaque, sem fundo; o cursor é a célula sob ele com o fundo de destaque. Vale para todo campo do noct.
+- **Desenho:** cartões com cantos arredondados, setas de três linhas (`│`, `│`, `↓`) e junções arredondadas, com glifos que a Fira Code desenha inteiros. O fluxograma guarda a seta de saída de cada passo, para a execução ao vivo.
+- **Sem vãos:** `a` adiciona abaixo do selecionado. A cabeça de cada lista (o `● start`, o `yes` e o `no` de um `if`, a entrada de um `repeat`) é um bloco selecionável que adiciona acima do primeiro passo; uma lista vazia continua um slot.
+- **Mover como código:** `J`/`K` e o modo `m` levam um passo pelo fluxo como uma linha se move num editor: passam pelo vizinho, entram num bloco vizinho, vão do `then` ao `else` e saem do bloco no fim. Arrastar um cartão com o mouse o solta abaixo do bloco onde cai, ou no topo de uma lista; o canvas não é livre, os blocos só se encaixam em sequência.
+- **Desfazer:** cada mudança do inspect guarda antes o arquivo do fluxo; `z` volta e `y` refaz, até 100 por fluxo, só na memória do noct em execução.
+
+**Consequências.** As teclas `m`, `z` e `y` entram no contexto `flows` do keymap. Desfazer não atravessa um reinício do noct, nem edições feitas fora do inspect.
+

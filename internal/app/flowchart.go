@@ -113,6 +113,10 @@ type chartStyle struct {
 	// whose templates read a step that may not be there.
 	ranged map[string]bool
 	warned map[string]bool
+	// moving marks the selected step as moved by the arrows; dropOn is the block a card carried
+	// by the mouse would land on.
+	moving bool
+	dropOn string
 }
 
 const startLabel = "● start"
@@ -310,6 +314,9 @@ func (s chartStyle) drawArrow(c *flowChart, from string, x, top, rows int) {
 
 // headStyle is a list head's: the accent when selected, muted otherwise.
 func (s chartStyle) headStyle(key string) uv.Style {
+	if key == s.dropOn {
+		return s.pal.status
+	}
 	if key == s.selected {
 		return s.pal.focusedTitle
 	}
@@ -335,7 +342,11 @@ func (s chartStyle) drawBox(c *flowChart, n *chartNode, x, y int) {
 // boxTitle is a step's name, with how it went in the last run.
 func (s chartStyle) boxTitle(step flow.Step, path string) string {
 	symbol := map[flow.Kind]string{flow.IfStep: "◇ ", flow.WaitStep: "◷ ", flow.PromptStep: "? ", flow.SetStep: "= ", flow.UnsetStep: "∅ "}[step.Kind()]
-	return s.warning(path) + s.mark(path) + symbol + step.Label()
+	moved := ""
+	if s.moving && stepKey(path) == s.selected {
+		moved = "↕ "
+	}
+	return moved + s.warning(path) + s.mark(path) + symbol + step.Label()
 }
 
 func (s chartStyle) warning(path string) string {
@@ -363,6 +374,8 @@ func (s chartStyle) mark(path string) string {
 // color when it failed in the last run.
 func (s chartStyle) frameStyles(key, path string) (uv.Style, uv.Style) {
 	switch {
+	case key == s.dropOn:
+		return s.pal.status, s.pal.status
 	case key == s.selected || s.ranged[key]:
 		return s.pal.focusedFrame, s.pal.focusedTitle
 	case s.result != nil && s.result.Steps[path].Status == flow.StatusFailed:

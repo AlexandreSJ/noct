@@ -19,6 +19,9 @@ terminal's own background stays untouched.
 
 ### Added
 
+- In the inspect, `J` and `K` move a step through the flow as a line moves through code, into and
+  out of ifs and repeats; `m` moves it with the arrows, and dragging a card with the mouse drops
+  it below another. `z` undoes the last change to the flow and `y` does it again.
 - Animation effects for any moment in **Appearance → animations**: `dissolve` shows or hides
   each cell at once in a random order, `wipe` sweeps across from left to right, `grow` spreads
   out from the center and shrinks back into it, `slide-right` and `slide-left` bring the content

@@ -160,7 +160,7 @@ func saveFlow(t *testing.T, name, content string) {
 	}
 }
 
-// A double click on a step tells what it does; dragging the chart moves it.
+// A double click on a step tells what it does; dragging the chart off its cards moves it.
 func TestChartDoubleClickAndDrag(t *testing.T) {
 	a := testApp(t)
 	saveScript(t, "where", "description: Prints the folder\nrun: pwd\n")
@@ -179,9 +179,10 @@ func TestChartDoubleClickAndDrag(t *testing.T) {
 	}
 	press(a, escPress)
 	pan := p.pan
-	a.handleEvent(uv.MouseClickEvent{X: at.X, Y: at.Y, Button: uv.MouseLeft})
-	a.handleEvent(uv.MouseMotionEvent{X: at.X - 5, Y: at.Y - 2, Button: uv.MouseLeft})
-	a.handleEvent(uv.MouseReleaseEvent{X: at.X - 5, Y: at.Y - 2, Button: uv.MouseLeft})
+	empty := contentRect(frame).Min.Add(p.chartArea.Min).Add(image.Pt(8, 4)) // beside the chart, not on a card
+	a.handleEvent(uv.MouseClickEvent{X: empty.X, Y: empty.Y, Button: uv.MouseLeft})
+	a.handleEvent(uv.MouseMotionEvent{X: empty.X - 5, Y: empty.Y - 2, Button: uv.MouseLeft})
+	a.handleEvent(uv.MouseReleaseEvent{X: empty.X - 5, Y: empty.Y - 2, Button: uv.MouseLeft})
 	if p.pan != pan.Add(image.Pt(5, 2)) || a.mode == infoMode {
 		t.Errorf("drag moved the chart from %v to %v, want 5 right and 2 down", pan, p.pan)
 	}

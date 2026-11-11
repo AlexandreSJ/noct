@@ -16,7 +16,8 @@ import (
 
 const (
 	flowsListHints = "{up}{down} flow  {enter} open  {a} new  {r} run  {T} add trigger  {o} triggers on/off  {P} promote draft  {E} edit file  {delete} delete  {tab} hide list  {ctrl+d} close"
-	flowStepHints  = "{up}{down}{left}{right} select  {shift+up}{shift+down} range  {a} add below  {t} test  {r} run  {s} scope  {enter} about  {e} edit  {delete} remove  {J} {K} move  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
+	flowStepHints  = "{up}{down}{left}{right} select  {shift+up}{shift+down} range  {a} add below  {t} test  {r} run  {s} scope  {enter} about  {e} edit  {delete} remove  {J} {K} move  {m} move with arrows  {z} undo  {y} redo  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
+	flowMoveHints  = "{up}{down} move the step, in and out of blocks  {m} {enter} {esc} put it down"
 	flowGapHints   = "{up}{down}{left}{right} select  {a} add at the top  {r} run  {s} scope  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
 	// flowsListWidth is the list of flows beside the chart, in panels wide enough for both.
 	flowsListWidth = 24
@@ -36,6 +37,8 @@ type inspectPanel struct {
 	// anchor is the step a range started at with shift, or "" for the selected step alone.
 	anchor    string
 	showScope bool
+	// moving moves the selected step with the arrows, until m, enter or esc.
+	moving bool
 	// warnings are the flow's, found when it is drawn.
 	warnings []flow.Warning
 	// run is a run opened from the logs, shown instead of the flow's last one.
@@ -55,10 +58,14 @@ type inspectPanel struct {
 	clickedKey string
 }
 
+// chartDrag is the mouse held down on the chart: it pans the chart, or carries a step's card when
+// it was pressed on one, to drop it on another block.
 type chartDrag struct {
 	from  image.Point
 	pan   image.Point
 	moved bool
+	card  string
+	over  image.Point
 }
 
 func (a *App) startInspect(id layout.PaneID, _ image.Rectangle) (view, error) {
@@ -205,8 +212,16 @@ func (p *inspectPanel) listKey(name string, f flow.Flow) {
 }
 
 func (p *inspectPanel) chartKey(name string, f flow.Flow) {
+	if p.moving {
+		p.moveKey(name, f)
+		return
+	}
 	block, selected := p.selectedBlock()
 	switch name {
+	case "z":
+		p.app.undoFlow(f, false)
+	case "y":
+		p.app.undoFlow(f, true)
 	case "esc":
 		p.escapeChart()
 	case "shift+up", "shift+down":
@@ -278,9 +293,32 @@ func (p *inspectPanel) stepKey(name string, f flow.Flow, path string) {
 	case "delete":
 		p.app.removeStep(f, path)
 	case "J", "shift+j":
-		p.app.moveStep(f, path, 1, func(moved string) { p.selected = stepKey(moved) })
+		p.app.moveStep(f, path, true, p.selectMoved)
 	case "K", "shift+k":
-		p.app.moveStep(f, path, -1, func(moved string) { p.selected = stepKey(moved) })
+		p.app.moveStep(f, path, false, p.selectMoved)
+	case "m":
+		p.moving = true
+	}
+}
+
+func (p *inspectPanel) selectMoved(path string) {
+	p.selected = stepKey(path)
+}
+
+// moveKey moves the step being moved with the arrows; m, enter or esc puts it down.
+func (p *inspectPanel) moveKey(name string, f flow.Flow) {
+	block, ok := p.selectedBlock()
+	switch name {
+	case "up", "k", "K", "shift+k":
+		if ok && !block.isInsertion() {
+			p.app.moveStep(f, block.path, false, p.selectMoved)
+		}
+	case "down", "j", "J", "shift+j":
+		if ok && !block.isInsertion() {
+			p.app.moveStep(f, block.path, true, p.selectMoved)
+		}
+	case "m", "enter", "esc", "space":
+		p.moving = false
 	}
 }
 
@@ -480,6 +518,9 @@ func (p *inspectPanel) hints() string {
 	if !p.focusChart {
 		return p.app.hint("flows", flowsListHints)
 	}
+	if p.moving {
+		return p.app.hint("flows", flowMoveHints)
+	}
 	if block, ok := p.selectedBlock(); ok && block.isInsertion() {
 		return p.app.hint("flows", flowGapHints)
 	}
@@ -590,7 +631,7 @@ func (p *inspectPanel) chartInfoText(f flow.Flow, last *flow.Result) string {
 
 // layoutFlowChart builds the chart, moving a selection that no longer exists to the first step.
 func (p *inspectPanel) layoutFlowChart(f flow.Flow, last *flow.Result) {
-	style := chartStyle{pal: &p.app.palette, zoom: p.zoom, selected: p.selected, describe: p.app.scriptDescription, result: last, ranged: p.ranged()}
+	style := chartStyle{pal: &p.app.palette, zoom: p.zoom, selected: p.selected, describe: p.app.scriptDescription, result: last, ranged: p.ranged(), moving: p.moving, dropOn: p.dropTarget()}
 	style.warned = map[string]bool{}
 	for _, w := range p.warnings {
 		style.warned[w.Path] = true
@@ -643,15 +684,25 @@ func (p *inspectPanel) SendMouse(event uv.MouseEvent) {
 			p.clickFlow(point.Y - p.list.Min.Y)
 			return
 		}
-		p.drag = &chartDrag{from: point, pan: p.pan}
+		p.drag = &chartDrag{from: point, pan: p.pan, over: point}
+		if block, ok := p.blockAt(point); ok && !block.isInsertion() {
+			p.drag.card = block.path
+		}
 	case uv.MouseMotionEvent:
-		if p.drag != nil {
-			p.drag.moved = true
+		if p.drag == nil {
+			return
+		}
+		p.drag.moved, p.drag.over = true, point
+		if p.drag.card == "" {
 			p.pan, p.centered = p.clampPan(p.drag.pan.Sub(point.Sub(p.drag.from))), false
 		}
 	case uv.MouseReleaseEvent:
-		if p.drag != nil && !p.drag.moved {
+		switch {
+		case p.drag == nil:
+		case !p.drag.moved:
 			p.clickChart(point)
+		case p.drag.card != "":
+			p.dropCard(p.drag.card, point)
 		}
 		p.drag = nil
 	case uv.MouseWheelEvent:
@@ -676,6 +727,36 @@ func (p *inspectPanel) clickFlow(index int) {
 		return
 	}
 	p.flowName, p.focusChart, p.selected, p.centered, p.anchor, p.run = p.app.flows[index].Name, false, "", true, "", nil
+}
+
+// blockAt is the chart's block under point of the panel.
+func (p *inspectPanel) blockAt(point image.Point) (chartBlock, bool) {
+	if p.chart == nil || !point.In(p.chartArea) {
+		return chartBlock{}, false
+	}
+	return p.chart.blockAt(point.Sub(p.chartArea.Min).Add(p.pan))
+}
+
+// dropTarget is the key of the block a carried card would drop on, or "".
+func (p *inspectPanel) dropTarget() string {
+	if p.drag == nil || p.drag.card == "" || !p.drag.moved {
+		return ""
+	}
+	if block, ok := p.blockAt(p.drag.over); ok && block.path != p.drag.card {
+		return block.key
+	}
+	return ""
+}
+
+// dropCard puts the step carried from path below the step it is let go on, or at the top of the
+// list whose head or slot it is let go on.
+func (p *inspectPanel) dropCard(path string, point image.Point) {
+	f, _, ok := p.current()
+	block, on := p.blockAt(point)
+	if !ok || !on || block.path == path {
+		return
+	}
+	p.app.dropStep(f, path, block, p.selectMoved)
 }
 
 func (p *inspectPanel) clickChart(point image.Point) {

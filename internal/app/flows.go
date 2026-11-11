@@ -331,6 +331,7 @@ func (a *App) changeFlow(f flow.Flow, change func(*flow.Flow) error) error {
 	if after := fresh.Validate(a.scripts.Find); after != nil && (before == nil || after.Error() != before.Error()) {
 		return after
 	}
+	a.rememberFlow(f)
 	if err := fresh.Save(); err != nil {
 		return err
 	}
@@ -480,11 +481,33 @@ func countSteps(steps []flow.Step) int {
 	return n
 }
 
-func (a *App) moveStep(f flow.Flow, path string, step int, moved func(path string)) {
+// moveStep moves the step at path a place down or up the flow, into and out of blocks as a line
+// of code moves.
+func (a *App) moveStep(f flow.Flow, path string, down bool, moved func(path string)) {
 	var to string
 	err := a.changeFlow(f, func(f *flow.Flow) error {
-		to = f.Move(path, step)
+		to = f.Shift(path, down)
 		return nil
+	})
+	if err != nil {
+		a.statusMessage = err.Error()
+		return
+	}
+	moved(to)
+}
+
+// dropStep moves the step at path to where a block is: below a step, or at the top of a list.
+func (a *App) dropStep(f flow.Flow, path string, on chartBlock, moved func(path string)) {
+	parent, branch, index := on.slot.parent, on.slot.branch, on.index
+	if !on.isInsertion() {
+		parent, branch, index = flow.SplitPath(on.path)
+		index++
+	}
+	var to string
+	err := a.changeFlow(f, func(f *flow.Flow) error {
+		var err error
+		to, err = f.MoveTo(path, parent, branch, index)
+		return err
 	})
 	if err != nil {
 		a.statusMessage = err.Error()
