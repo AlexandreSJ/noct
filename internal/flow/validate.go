@@ -92,8 +92,8 @@ func (s Step) validateFieldsBelong(kind Kind) error {
 	if len(s.Steps) > 0 && kind != RepeatStep {
 		return errors.New("steps belong to a repeat")
 	}
-	if (len(s.Capture) > 0 || s.Expect != nil || s.OnFail != "") && kind != ScriptStep && kind != CommandStep {
-		return errors.New("capture, expect and on_fail belong to a script or run step")
+	if (len(s.Capture) > 0 || s.Expect != nil || s.OnFail != "") && kind != ScriptStep && kind != CommandStep && kind != AgentStep {
+		return errors.New("capture, expect and on_fail belong to a script, run or agent step")
 	}
 	if len(s.With) > 0 && kind != ScriptStep && kind != CallStep {
 		return errors.New("with belongs to a script or call step")
@@ -134,6 +134,14 @@ func (s Step) validateKind(kind Kind, lookup func(id string) (script.Script, boo
 		}
 	case RepeatStep:
 		return s.Repeat.validate()
+	case AgentStep:
+		if strings.TrimSpace(s.Agent.Ask) == "" {
+			return errors.New("an agent step asks something: ask is empty")
+		}
+		if s.Pane != "" || s.Background {
+			return errors.New("an agent step runs in the flow's own terminal: no pane or background")
+		}
+		return s.validatePatterns()
 	case CallStep:
 		if !naming.IsValid(s.Call) {
 			return fmt.Errorf("call %q is not a function's name", s.Call)

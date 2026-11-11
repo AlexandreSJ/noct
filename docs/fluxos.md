@@ -131,6 +131,16 @@ No inspect, as funções aparecem na lista depois dos fluxos, marcadas `ƒ`, e `
 
 Uma função pode chamar outra, até 16 níveis. `noct check` e o inspect apontam uma chamada a uma função que não existe, um `with` para um param que ela não tem e um param obrigatório que ficou de fora.
 
+## Agentes
+
+Um passo `agent:` pergunta a um agente de IA de linha de comando do usuário e guarda a resposta para os passos seguintes, como um nó de agente do n8n: `ask` é a pergunta (um template), `use` o agente (sem ele, o `agent` do config) e `choices`, quando há, as respostas que ele pode dar. `{{.answer}}` (ou `{{.steps.<id>.answer}}`) é a resposta; com `choices`, a primeira delas que a resposta diz como palavra, e uma resposta sem nenhuma falha o passo, então um `if` pode decidir pelo que o agente respondeu. A pergunta pede "exactly one of" as escolhas.
+
+O noct conhece três agentes, sem instalar nenhum: `claude` (`claude -p --model haiku --tools ""`, sem ferramentas, para a resposta não agir sobre o que a pergunta trouxe), `ollama` (`ollama run llama3.2`, que só responde) e `opencode` (`opencode run --agent plan {prompt}`, o agente de só leitura dele). Um agente próprio do config também não deve poder agir (rodar comandos, editar arquivos): a pergunta leva texto de programas e de outras pessoas, que poderia pedir isso a ele. `[agents]` no config acrescenta outros ou muda esses (`local = "ollama run qwen3.5:0.8b"`), e `agent = "local"` escolhe o padrão. A pergunta vai para o comando como entrada, ou como um argumento no lugar de `{prompt}`, nunca por um shell. `timeout`, `capture`, `expect` e `on_fail` valem como num `run`.
+
+No inspect, **add step** → `g` (ask an AI agent) pede a pergunta (com o autocompletar das variáveis), as respostas possíveis e o agente, entre os que o noct conhece e os do config. O cartão mostra `◆ <agente> · <pergunta>` e `→ ship | rollback`.
+
+A resposta é texto que uma IA escreveu a partir do que a pergunta levou, que pode incluir a saída de um programa: num `run:`, só por `{{quote .answer}}`.
+
 ## Variáveis e escopo
 
 O que um template lê num ponto do fluxo é o **escopo** daquele ponto:

@@ -98,6 +98,7 @@ A step sets exactly one of these:
 | `script: <id>` | Runs a registered script | `with`, `capture`, `expect`, `on_fail`, `timeout`, `pane`, `background` |
 | `run: <shell>` | Runs a shell line (a template) | `capture`, `expect`, `on_fail`, `timeout`, `pane`, `background` |
 | `call: <function>` | Runs a function, its params from `with` | `with` |
+| `agent: {ask: <template>}` | Asks an AI agent; the answer goes to `{{.answer}}` | `use`, `choices` in `agent`; `capture`, `expect`, `on_fail`, `timeout` |
 | `if: <template>` | Runs `then` or `else` | `then`, `else`, `export` |
 | `repeat: {...}` | Runs `steps` in passes | `steps`, `export` |
 | `wait: <duration>` | Sleeps (`5s`, `1m30s`) | — |
@@ -176,6 +177,30 @@ returns:
 - Changing a function changes every flow that calls it; the inspect lists them on the function's
   chart (`used by …`), and `noct check` reports a call to a missing function, a `with` for a
   param it has not, or a required param left out. Functions can call functions, 16 deep at most.
+
+### Agent steps
+
+```yaml
+- id: review
+  agent:
+    ask: 'The deploy health check printed {{quote .output}}. Ship or roll back?'
+    use: claude               # optional: the config's agent (claude by default)
+    choices: [ship, rollback] # optional: the answer must say one of them
+- if: '{{eq .answer "rollback"}}'
+  then: [{script: demo/rollback}]
+```
+
+- The question goes to the agent's command as its input, or as one argument in place of
+  `{prompt}`, never through a shell. noct knows `claude` (`claude -p --model haiku --tools ""`,
+  with no tools), `ollama` (`ollama run llama3.2`) and `opencode` (`opencode run --agent plan {prompt}`, its
+  read-only agent); the config's `[agents]` adds others or changes these, and `agent` picks the
+  default. noct does not install them. An agent of your own should not be able to act either: a
+  question carries text from programs and other people, which could ask it to.
+- `{{.answer}}` is the answer trimmed; with `choices`, the first choice it says as a word, in any
+  case, and an answer that says none fails the step (`on_fail` applies). `{{.output}}` is all it
+  printed.
+- An answer is text an AI wrote from what the question carried: put it in a `run:` only through
+  `{{quote .answer}}`.
 
 ### Repeat
 

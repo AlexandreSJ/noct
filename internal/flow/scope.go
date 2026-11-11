@@ -223,10 +223,13 @@ func (sc *scope) unset(name string, certainty Certainty) {
 // outputs its script declares. Only script and run steps have them.
 func (s Step) fields(lookup func(id string) (script.Script, bool), functions func(name string) (Flow, bool)) []string {
 	kind := s.Kind()
-	if kind != ScriptStep && kind != CommandStep && kind != CallStep {
+	if kind != ScriptStep && kind != CommandStep && kind != CallStep && kind != AgentStep {
 		return nil
 	}
 	fields := []string{"output", "exit", "ok"}
+	if kind == AgentStep {
+		fields = append(fields, "answer")
+	}
 	named := slices.Sorted(maps.Keys(s.Capture))
 	if kind == CallStep && functions != nil {
 		if fn, ok := functions(s.Call); ok {

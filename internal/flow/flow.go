@@ -63,9 +63,11 @@ type Step struct {
 	ID     string `yaml:"id,omitempty"`
 	Script string `yaml:"script,omitempty"`
 	// Call runs a function by its name, with the params With gives.
-	Call string            `yaml:"call,omitempty"`
-	With map[string]string `yaml:"with,omitempty"`
-	Run  string            `yaml:"run,omitempty"`
+	Call string `yaml:"call,omitempty"`
+	// Agent asks an AI agent and keeps its answer.
+	Agent *Agent            `yaml:"agent,omitempty"`
+	With  map[string]string `yaml:"with,omitempty"`
+	Run   string            `yaml:"run,omitempty"`
 	// Capture extracts values from the output: name to a regex whose first group, or whole
 	// match, becomes {{.steps.<id>.<name>}}.
 	Capture map[string]string `yaml:"capture,omitempty"`
@@ -137,6 +139,7 @@ type Kind string
 const (
 	ScriptStep  Kind = "script"
 	CallStep    Kind = "call"
+	AgentStep   Kind = "agent"
 	CommandStep Kind = "run"
 	IfStep      Kind = "if"
 	RepeatStep  Kind = "repeat"
@@ -154,6 +157,9 @@ func (s Step) Kind() Kind {
 	}
 	if s.Call != "" {
 		kinds = append(kinds, CallStep)
+	}
+	if s.Agent != nil {
+		kinds = append(kinds, AgentStep)
 	}
 	if s.Run != "" {
 		kinds = append(kinds, CommandStep)
@@ -191,6 +197,8 @@ func (s Step) Label() string {
 		return s.Script
 	case s.Call != "":
 		return s.Call
+	case s.Agent != nil:
+		return "agent"
 	case s.Run != "":
 		return "run"
 	case s.If != "":
@@ -256,7 +264,7 @@ func Find(flows []Flow, name string) (Flow, bool) {
 	return flows[i], true
 }
 
-const exactlyOne = "a step sets exactly one of script, call, run, if, repeat, wait, prompt, set and unset"
+const exactlyOne = "a step sets exactly one of script, call, agent, run, if, repeat, wait, prompt, set and unset"
 
 // Create writes a new, empty flow called name in dir.
 func Create(dir, name string) (Flow, error) {

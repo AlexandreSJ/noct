@@ -193,6 +193,7 @@ func flowParams(f flow.Flow, name string, args []string) (map[string]string, err
 }
 
 func newFlowRunner(lib script.Library) *flow.Runner {
+	cfg := loadConfig()
 	return &flow.Runner{
 		Lookup: lib.Find,
 		Shell:  shell(),
@@ -202,11 +203,16 @@ func newFlowRunner(lib script.Library) *flow.Runner {
 		Out:    os.Stdout,
 		Sleep:  time.Sleep,
 		// The config keeps kilobytes; 0, all of the output, stays 0.
-		KeepOutput: loadConfig().Flows.OutputKB << 10,
+		KeepOutput: cfg.Flows.OutputKB << 10,
 		Ask:        terminalAsk(os.Stdin, os.Stdout),
 		OpenPane:   workspacePanes(),
 		Attention:  workspaceAttention(),
 		Function:   loadFunctions(lib),
+		Agents: func(name string) (string, bool) {
+			command, ok := cfg.Agents[name]
+			return command, ok
+		},
+		DefaultAgent: cfg.Agent,
 	}
 }
 

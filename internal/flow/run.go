@@ -57,6 +57,10 @@ type Runner struct {
 	Progress func(path string)
 	// Function finds a function a call step names.
 	Function func(name string) (Flow, bool)
+	// Agents finds the command of an agent by name, over AgentPresets; DefaultAgent is the one a
+	// step without use asks, or "" for flow.DefaultAgent.
+	Agents       func(name string) (string, bool)
+	DefaultAgent string
 }
 
 // running is the state of one run: the values templates read and the results so far.
@@ -132,6 +136,8 @@ func (x *running) runStep(s Step, path string) bool {
 		return x.runCommand(s, path)
 	case CallStep:
 		return x.runCall(s, path)
+	case AgentStep:
+		return x.runAgent(s, path)
 	case IfStep:
 		return x.runIf(s, path)
 	case RepeatStep:
@@ -338,7 +344,7 @@ func (x *running) afterFailure(s Step, path, reason string, exit int) bool {
 		fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; going on\x1b[0m\n", s.Label(), reason)
 		return true
 	case onFailRetry:
-		return x.runCommand(s, path)
+		return x.runStep(s, path)
 	}
 	return x.stop(path, reason, max(exit, 1))
 }

@@ -920,3 +920,16 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** `noct flow run`, `noct check`, o MCP e o daemon leem a pasta de funções. Uma função não roda sozinha, nem tem resultado próprio.
 
+## ADR-068 — Passo de agente
+
+**Contexto.** O mantenedor quer um passo que pergunte a um agente de IA (um `claude -p` com o haiku, o llama pelo ollama, o opencode) e aja conforme a resposta, para validar resultados e decidir caminhos, no nível de um automatizador de agentes como o n8n ou o paperclip. O ADR-062 tirou do noct instalar ou recomendar programas.
+
+**Decisão.**
+- **`agent: {ask, use, choices}`**: `ask` é um template; `use` nomeia o agente, ou o `agent` do config; `choices` limita a resposta. Ele aceita `capture`, `expect`, `on_fail` e `timeout` como um `run`, e não roda em painel próprio.
+- **Comandos:** três que o noct sabe chamar (`claude -p --model haiku --tools ""`, `ollama run llama3.2`, `opencode run --agent plan {prompt}`) e os do `[agents]` do config, que acrescentam ou trocam. O noct não instala nem verifica nenhum: sem o programa, o passo falha com o erro dele.
+- **Sem shell:** o comando é dividido em palavras (com aspas simples), e a pergunta vai como entrada ou como um único argumento no lugar de `{prompt}`. Uma pergunta montada com a saída de um passo não vira comando.
+- **Resposta:** `answer` é a saída sem espaços nas pontas; com `choices`, a primeira escolha que aparece como palavra, sem diferença de caixa, e a pergunta ganha "Answer with one word, exactly one of: …". Sem nenhuma escolha na resposta, o passo falha e o `on_fail` decide.
+- **Segurança:** nenhum preset pode agir: o do claude desliga as ferramentas (`--tools ""`), o do opencode usa o agente `plan`, de só leitura, e o ollama só responde; a pergunta carrega texto de programas e de outras pessoas, que poderia pedir ações ao agente. A documentação pede o mesmo dos agentes do `[agents]`. A resposta é dado não confiável: a documentação manda usá-la em `run:` só com `quote`. Um fluxo com passo de agente rodado pelo MCP segue as aprovações de sempre, e o rascunho de uma IA continua precisando ser promovido.
+
+**Consequências.** Uma chamada a um agente custa o que o agente cobra, e o tempo dele entra no do fluxo; `timeout` limita. Agentes de outros fornecedores entram pelo config, sem mudar o noct.
+

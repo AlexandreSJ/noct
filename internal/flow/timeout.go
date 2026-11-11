@@ -37,8 +37,8 @@ func (s Step) validateTimeout(kind Kind) error {
 	switch {
 	case s.Timeout == "":
 		return nil
-	case kind != ScriptStep && kind != CommandStep:
-		return errors.New("timeout belongs to a script or run step")
+	case kind != ScriptStep && kind != CommandStep && kind != AgentStep:
+		return errors.New("timeout belongs to a script, run or agent step")
 	case s.Background:
 		return errors.New("a step in the background is not waited for, so it has no timeout")
 	}

@@ -19,6 +19,10 @@ terminal's own background stays untouched.
 
 ### Added
 
+- Agent steps: `agent: {ask: …}` asks an AI agent you have (`claude`, `ollama`, `opencode`, or a
+  command under `[agents]` in the config) and keeps its answer in `{{.answer}}`; with `choices`,
+  the answer is one of them, so an if can branch on it. The question never goes through a shell,
+  and the claude preset runs with no tools.
 - Functions: steps any flow can call, in a file of their own with params and returns. A `call:` step
   runs one in a scope of its own and gets back what it returns. The inspect lists functions after
   the flows (`F` makes one), shows which flows call each, and tells what a change reaches.

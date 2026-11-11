@@ -367,8 +367,8 @@ func (a *App) addStep(f flow.Flow, at chartBlock, added func(path string)) {
 func (a *App) insertFlowStep(f flow.Flow, parent, branch string, index int, step flow.Step, added func(path string)) {
 	var path string
 	err := a.changeFlow(f, func(f *flow.Flow) error {
-		if step.ID == "" && (step.Script != "" || step.Run != "") {
-			step.ID = f.UniqueID(orDefault(step.Script, "step"))
+		if step.ID == "" && (step.Script != "" || step.Run != "" || step.Call != "" || step.Agent != nil) {
+			step.ID = f.UniqueID(orDefault(step.Script, orDefault(step.Call, map[bool]string{true: "agent", false: "step"}[step.Agent != nil])))
 		}
 		var err error
 		path, err = f.Insert(parent, branch, index, step)
@@ -388,6 +388,11 @@ func (a *App) flowStepChoices(insert func(flow.Step), templatePrompt stepTemplat
 	return []choiceOption{
 		{key: "s", label: "script", pick: func() { a.pickScript(insert) }},
 		{key: "f", label: "call a function", pick: func() { a.pickFunction(insert) }},
+		{key: "g", label: "ask an AI agent", pick: func() {
+			templatePrompt("ask the agent", "", "{enter} next  esc cancel  what to ask, a template", func(ask string) {
+				a.askAgentStep(ask, insert)
+			})
+		}},
 		{key: "c", label: "command line", pick: func() {
 			templatePrompt("command line", "", "{enter} add  esc cancel", func(text string) {
 				insert(flow.Step{Run: text})
