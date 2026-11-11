@@ -65,6 +65,20 @@ func init() {
 	}
 }
 
+// isBundle tells a folder that macOS opens as a program, like an .app: one with an extension, or
+// with the insides of one.
+func isBundle(dir string) bool {
+	if filepath.Ext(dir) != "" {
+		return true
+	}
+	for _, inside := range []string{"Contents/Info.plist", "Contents/MacOS"} {
+		if _, err := os.Stat(filepath.Join(dir, inside)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // safeTarget is what the opener may get for target, with links of files followed, or why not:
 // any program can print a link, and opening a program or a launcher would run it.
 func safeTarget(target string) (string, string) {
@@ -90,6 +104,8 @@ func safeTarget(target string) (string, string) {
 	switch {
 	case err != nil:
 		return "", path + " does not exist"
+	case info.IsDir() && isBundle(resolved):
+		return "", path + " is a bundle: it could be a program"
 	case info.IsDir():
 		return resolved, ""
 	case !info.Mode().IsRegular() || info.Mode()&0o111 != 0:

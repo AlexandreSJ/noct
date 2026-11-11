@@ -159,6 +159,16 @@ func TestCtrlClickNeverOpensAProgram(t *testing.T) {
 			t.Errorf("%s: opens %v, want %v (%s)", c.target, reason == "", c.opens, reason)
 		}
 	}
+	for _, bundle := range []string{"Tool.app", "plain/Contents/MacOS"} {
+		if err := os.MkdirAll(filepath.Join(dir, bundle), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, bundle := range []string{"Tool.app", "plain"} {
+		if _, reason := safeTarget(filepath.Join(dir, bundle)); reason == "" {
+			t.Errorf("opened the bundle %s", bundle)
+		}
+	}
 	if err := os.Symlink(filepath.Join(dir, "run.sh"), filepath.Join(dir, "looks.txt")); err != nil {
 		t.Fatal(err)
 	}
