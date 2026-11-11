@@ -1,6 +1,8 @@
 package app
 
 import (
+	"encoding/binary"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/png"
@@ -100,9 +102,18 @@ func TestANotesImageShowsInTheDetails(t *testing.T) {
 	}
 }
 
+// TestATooBigImageIsNotDecoded gives a PNG whose header says 5000 by 4000: only the header is read.
 func TestATooBigImageIsNotDecoded(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "huge.png")
-	writePNG(t, path, 5000, 4000)
+	writePNG(t, path, 1, 1)
+	content, _ := os.ReadFile(path)
+	ihdr := content[12:29] // the chunk type and its 13 bytes of data
+	binary.BigEndian.PutUint32(ihdr[4:], 5000)
+	binary.BigEndian.PutUint32(ihdr[8:], 4000)
+	binary.BigEndian.PutUint32(content[29:], crc32.ChecksumIEEE(ihdr))
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := (noteImages{}).load(path); err == nil || !strings.Contains(err.Error(), "too big") {
 		t.Errorf("err = %v", err)
 	}
