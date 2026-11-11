@@ -87,6 +87,7 @@ var keyContexts = []keyContext{
 		{"page-down", "a page down", []string{"pgdown", "ctrl+f"}},
 		{"top", "the oldest line", []string{"home", "g"}},
 		{"bottom", "back to live", []string{"end", "G", "shift+g"}},
+		{"filter", "show only the lines matching a pattern, as the program goes on", []string{"f"}},
 		{"done", "done (any other key too)", []string{"q", "enter"}},
 	}},
 	{id: "scripts", label: "scripts panel", actions: []keyAction{

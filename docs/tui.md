@@ -32,7 +32,7 @@
 - Em todo lugar onde o noct move algo sem que se esteja digitando texto, `hjkl` valem como as setas: foco, mover, resize, rolagem, painéis e o inspect.
 - As listas que rolam (scripts panel, logs, busca e config) mantêm até 4 itens visíveis acima e abaixo da seleção, como o `scrolloff` do vim: a seleção anda dentro da vista e a lista só rola quando chega a 4 da borda, então dá para ver o que vem antes de chegar lá.
 - Cada painel tem título (definido pelo programa, ou o nome do shell e a pasta em que ele está, `zsh · ~/proj`, com a home como `~`; o nome da tab e a busca ficam só com o do shell) e, no futuro, indicador de estado: rodando, terminou ok, falhou, atividade não vista. Painéis de script já mostram `●`, `✓` ou `✗ <código>`.
-- Rolagem do histórico com `prefixo` + `g` (ou `Alt+G`) ou com a roda do mouse; a posição aparece à direita na borda do painel (`↑ 120/2000`), e rolar de volta até o fim com a roda volta ao vivo. Rolando, valem as teclas do vim e as setas; qualquer outra tecla volta ao vivo sem chegar ao programa. Busca e cópia no histórico ficam para depois.
+- Rolagem do histórico com `prefixo` + `g` (ou `Alt+G`) ou com a roda do mouse; a posição aparece à direita na borda do painel (`↑ 120/2000`), e rolar de volta até o fim com a roda volta ao vivo. Rolando, valem as teclas do vim e as setas; qualquer outra tecla volta ao vivo sem chegar ao programa. Rolando, `f` filtra o painel: pede uma expressão regular (em minúsculas acha qualquer caixa; com uma maiúscula, só a dela) e o painel passa a mostrar só as últimas linhas do histórico e da tela que casam, ao vivo, enquanto o programa continua rodando, com `filter: …` na borda; `f` de novo, vazio, mostra tudo. O programa não para nem fica sabendo; com o filtro, o cursor dele some. Rolar o histórico com o filtro mostra tudo, para ver uma linha no lugar dela.
 - Durante a rolagem, o prefixo, os atalhos diretos e um clique em outro painel encerram a rolagem e funcionam como sempre: dá para trocar de painel sem voltar ao fim antes.
 - **Templates** (ADR-052, [templates.md](templates.md)): `prefixo` + `R` grava a tab como template (layout, tipos e nomes dos painéis, cores, e em cada terminal o comando com `run`, `ask` ou `none`), e `prefixo` + `T` abre um template como tab nova, escolhido numa lista com a miniatura do layout; os terminais abrem no diretório que um terminal novo teria.
 
@@ -92,7 +92,7 @@ No modo noct:
 | `q` | quit | Pergunta `quit noct?`: `Enter` ou `q` de novo saem, `Esc` cancela | pergunta | 0a |
 | `b` | lock shortcuts | Trava os atalhos, ou destrava: ver [Trava](#trava) | termina | 5 |
 | `Esc` | cancel | Cancelar o modo noct | termina | 0 |
-| `g` | scroll history | Rolar o histórico do terminal com foco (antes `u`), com as teclas do vim e as setas: `↑↓`/`jk`/`Ctrl+Y`/`Ctrl+E` linha, `Ctrl+U`/`Ctrl+D` meia página, `PgUp`/`PgDn`/`Ctrl+B`/`Ctrl+F` página, `g`/`Home` topo, `Shift+G`/`End` fim; qualquer outra tecla, ou o atalho de novo, volta ao vivo sem chegar ao programa | rolagem | 0b |
+| `g` | scroll history | Rolar o histórico do terminal com foco (antes `u`), com as teclas do vim e as setas: `↑↓`/`jk`/`Ctrl+Y`/`Ctrl+E` linha, `Ctrl+U`/`Ctrl+D` meia página, `PgUp`/`PgDn`/`Ctrl+B`/`Ctrl+F` página, `g`/`Home` topo, `Shift+G`/`End` fim, `f` filtro; qualquer outra tecla, ou o atalho de novo, volta ao vivo sem chegar ao programa | rolagem | 0b |
 | `d` | detach | Desconectar: o terminal volta ao shell e os programas continuam; `noct` reconecta à mesma sessão | — | 0b |
 | `o` | sessions | Popup das sessões, da mais recente à mais antiga: aberta (`●`) ou fechada (`○`), tabs e último uso. `Enter` troca de sessão, `n` cria (vazio dá um número), `r` renomeia, `x` fecha (para os programas e guarda o layout), `d` apaga, `f` filtra pelo nome (sem diferenciar maiúsculas; `Esc` limpa o filtro antes de fechar o popup); ver [Sessões](#sessões) | sessões | 5 |
 | `?` | program help | Ajuda do programa em primeiro plano no terminal com foco; só com o shell, avisa e mantém o popup | termina | 1 |
@@ -272,6 +272,5 @@ Como a imagem vira texto na grade, ela rola, é recortada pelas bordas do painel
 
 ## Qualidade de vida (lista viva)
 
-- Feitos: aviso ao fim de uma execução fora de vista ([fluxos.md](fluxos.md)), `Ctrl` + clique em URLs e caminhos ([Mouse](#mouse)), horário por linha nos logs (`t`) e busca e filtro no log (`/`, `n`, `N`, `f`).
+- Feitos: aviso ao fim de uma execução fora de vista ([fluxos.md](fluxos.md)), `Ctrl` + clique em URLs e caminhos ([Mouse](#mouse)), horário por linha nos logs (`t`), busca e filtro no log (`/`, `n`, `N`, `f`) e filtro por regex num painel (`f` rolando).
 - Re-executar o último fluxo com os mesmos parâmetros em uma tecla: fechado, `r` no inspect e na execução já fazem.
-- Filtrar a saída de um painel por regex sem parar o processo.

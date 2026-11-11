@@ -120,6 +120,8 @@ type App struct {
 	drawingPopup bool
 	// paneTitles are where the frame being drawn put each pane's title, which hovering animates.
 	paneTitles map[layout.PaneID]image.Rectangle
+	// paneFilters are the terminals showing only the lines that match a pattern.
+	paneFilters map[layout.PaneID]paneFilter
 	// activity marks, per pane, that output out of sight was told; unseen are the panes that
 	// pulsed and were not seen since.
 	activity map[layout.PaneID]*atomic.Bool

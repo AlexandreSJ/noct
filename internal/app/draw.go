@@ -130,9 +130,14 @@ func (a *App) drawPlacedPane(screen uv.Screen, t *tab, placed placedPane) {
 		a.highlightSelection(screen, t, id)
 		return
 	}
+	if f, filtered := a.paneFilters[id]; filtered {
+		status = append(status, "filter: "+f.text)
+	}
 	a.paneTitles[id] = drawFrameStatus(screen, frame, title, strings.Join(status, "  "), lineStyle, titleStyle)
 	a.drawExits(screen, t, frame, lineStyle)
-	t.views[id].Draw(viewScreen, contentRect(frame))
+	if !a.drawFiltered(viewScreen, t.views[id], id, contentRect(frame)) {
+		t.views[id].Draw(viewScreen, contentRect(frame))
+	}
 	if command := a.pendingRerun(id); command != "" {
 		a.drawRerun(screen, contentRect(frame), command)
 	}
@@ -183,6 +188,10 @@ func (a *App) placeCursor() {
 	t := a.currentTab()
 	if t == nil || t.isEmpty() || a.mode != normalMode && a.mode != commandMode && a.mode != moveMode {
 		a.hideCursor()
+		return
+	}
+	if _, filtered := a.paneFilters[t.focused]; filtered {
+		a.hideCursor() // the program's cursor is on a line the filter may not show
 		return
 	}
 	position, visible := t.focusedView().Cursor()

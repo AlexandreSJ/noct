@@ -31,6 +31,8 @@ terminal's own background stays untouched.
   by a system notification, or by the terminal's bell, as **Flows → tell when runs end** sets.
   Over ssh, or without `notify-send` or `osascript`, the notification goes through the terminal
   (OSC 9).
+- While scrolling a terminal (`prefix` + `g`), `f` filters it: the pane shows only the lines
+  that match a regular expression, live as the program goes on, until `f` with nothing typed.
 - `Ctrl` + click on a pane opens what is under the mouse: a link the program set, a URL in the
   text, even one a long line wrapped, or the path of a file or folder that exists. Over ssh it is
   copied instead.

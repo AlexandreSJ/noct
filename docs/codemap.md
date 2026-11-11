@@ -34,7 +34,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/logstore/times.go` | When each line of a log started: the `.times` file beside it (a record per second with output), and printing lines after their times, following the last file (`noct log-times`) |
 | `internal/logstore/entries.go` | Logs by day, each with when it started and was last written, the days it had output on and a flow run's result beside it: listing, line counts, removing, pruning by last write and total size, terminal logs numbered within the day, readable sizes |
 | `internal/pty/pty.go` | Start programs in pseudo-terminals, resize, hang up, stop (SIGTERM then SIGKILL to the group), exit code, foreground program and its command line, current directory |
-| `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing and its history (the main screen under a full-screen program, for the logs preview) |
+| `internal/pane/pane.go` | One terminal: process + VT emulator, input/output goroutines, drawing and its history (the main screen under a full-screen program, for the logs preview), its lines as text and the lines matching a filter drawn alone |
 | `internal/pane/mouse.go` | Mouse modes a program asked for, and forwarding mouse events to it |
 | `internal/pane/history.go` | An earlier program's output drawn on a screen of its own and replayed as text and colors above a new one |
 | `internal/pane/sync.go` | Holds back a synchronized-output frame (mode 2026) until it ends, so it never shows half drawn |
@@ -106,6 +106,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/mouse.go` | Mouse: tab and pane clicks, dragging dividers, wheel scrolling (over the tab bar, changing tab), forwarding to views that take it |
 | `internal/app/editor.go` | Program settings (editor, file manager): choices found on the system or a custom command; opening a folder |
 | `internal/app/script_form.go` | Script form: name and program typed in place, command line, description, params and notes each edited alone in the editor |
+| `internal/app/pane_filter.go` | A terminal filtered by a pattern (`f` while scrolling): the last lines that match, drawn live in place of its screen |
 | `internal/app/links.go` | `Ctrl` + click on a pane: the OSC 8 link, URL (joined over wrapped rows) or existing path under the mouse, opened with `xdg-open`/`open`, or copied over ssh |
 | `internal/app/selection.go` | Selecting text with the mouse in one pane, across scrolling, highlighting and copying it (OSC 52) |
 | `internal/app/rebuild.go` | Notices on attach that the noct binary was rebuilt after the daemon started |

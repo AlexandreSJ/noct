@@ -90,6 +90,10 @@ func (a *App) handleScrollKey(key uv.KeyPressEvent) {
 	if isModifierKey(key) {
 		return
 	}
+	if key.String() == "f" {
+		a.filterPane()
+		return
+	}
 	page := max(a.workspaceArea().Dy()-3, 1) // the frame takes two rows; one line of overlap
 	offset, ok := scrollStep(key.String(), a.scrollOffset, page, s.ScrollbackLen())
 	if !ok {
