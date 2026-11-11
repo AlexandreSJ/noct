@@ -128,3 +128,37 @@ func mustPaneFrame(t *testing.T, a *App, id int) image.Rectangle {
 	}
 	return frame
 }
+
+func TestCtrlClickNeverOpensAProgram(t *testing.T) {
+	dir := t.TempDir()
+	for name, mode := range map[string]os.FileMode{"run.sh": 0o755, "app.desktop": 0o644, "notes.txt": 0o644} {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, c := range []struct {
+		target string
+		opens  bool
+	}{
+		{"https://example.com", true},
+		{"mailto:me@example.com", true},
+		{"javascript:alert(1)", false},
+		{"ssh://host", false},
+		{"-x", false},
+		{filepath.Join(dir, "notes.txt"), true},
+		{"file://" + filepath.Join(dir, "notes.txt"), true},
+		{filepath.Join(dir, "run.sh"), false},
+		{"file://" + filepath.Join(dir, "run.sh"), false},
+		{filepath.Join(dir, "app.desktop"), false},
+		{dir, true},
+	} {
+		if opens := unsafeTarget(c.target) == ""; opens != c.opens {
+			t.Errorf("%s: opens %v, want %v (%s)", c.target, opens, c.opens, unsafeTarget(c.target))
+		}
+	}
+	a, opened, at := linksApp(t, &linkedView{rows: []string{"click"}, linked: "file://" + filepath.Join(dir, "run.sh")})
+	ctrlClick(a, at(1, 0))
+	if len(*opened) != 0 || !strings.Contains(a.statusMessage, "is a program") {
+		t.Errorf("opened %q, status %q; want a program's link refused", *opened, a.statusMessage)
+	}
+}

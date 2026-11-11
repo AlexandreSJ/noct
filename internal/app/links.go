@@ -2,6 +2,7 @@ package app
 
 import (
 	"image"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,8 +43,41 @@ func (a *App) openLinkAt(t *tab, id layout.PaneID, point image.Point) bool {
 	if !ok {
 		return false
 	}
+	if reason := unsafeTarget(target); reason != "" {
+		a.statusMessage = "not opened: " + reason
+		return true
+	}
 	a.openTarget(target)
 	return true
+}
+
+// unsafeTarget is why the opener must not get target, or "": any program can print a link, and
+// opening a program or a launcher would run it.
+func unsafeTarget(target string) string {
+	if strings.HasPrefix(target, "-") {
+		return "it starts with -"
+	}
+	path := target
+	if u, err := url.Parse(target); err == nil && u.Scheme != "" && !filepath.IsAbs(target) {
+		switch u.Scheme {
+		case "http", "https", "ftp", "mailto":
+			return ""
+		case "file":
+			path = u.Path
+		default:
+			return u.Scheme + " links are not opened"
+		}
+	}
+	info, err := os.Stat(path)
+	switch ext := strings.ToLower(filepath.Ext(path)); {
+	case err != nil:
+		return path + " does not exist"
+	case ext == ".desktop" || ext == ".app" || ext == ".command":
+		return path + " is a launcher"
+	case info.Mode().IsRegular() && info.Mode()&0o111 != 0:
+		return path + " is a program"
+	}
+	return ""
 }
 
 // paneDir is the folder a pane's relative paths start from.
