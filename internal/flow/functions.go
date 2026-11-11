@@ -68,6 +68,9 @@ func (f Flow) CheckCalls(functions []Flow) error {
 		case fn.Name == f.Name && f.Function:
 			problem = fmt.Errorf("function %s calls itself", f.Name)
 			return
+		case fn.Draft:
+			problem = fmt.Errorf("step %s calls function %s, a draft to review and promote first", s.Label(), fn.Name)
+			return
 		}
 		for name := range s.With {
 			if _, known := fn.Params[name]; !known {
@@ -118,6 +121,8 @@ func (x *running) runCall(s Step, path string) bool {
 	switch {
 	case !ok:
 		return x.stop(path, "there is no function "+s.Call, 1)
+	case fn.Draft:
+		return x.stop(path, "function "+fn.Name+" is a draft: review it in the inspect and promote it (P), or run noct promote "+fn.Name, 1)
 	case x.depth >= maxCallDepth:
 		return x.stop(path, fmt.Sprintf("functions call each other more than %d deep", maxCallDepth), 1)
 	}

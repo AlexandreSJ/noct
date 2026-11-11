@@ -208,16 +208,23 @@ func (a *App) testFlowSteps(f flow.Flow, first, last string) {
 
 // promoteFlow lets a draft flow run, after asking: the user has reviewed what an AI wrote.
 func (a *App) promoteFlow(f flow.Flow) {
+	what, after := "flow", "it can run and trigger afterwards"
+	if f.Function {
+		what, after = "function", "the flows that call it run it afterwards"
+		if callers := flow.Callers(append(slices.Clip(a.flows), a.functions...), f.Name); len(callers) > 0 {
+			after = "it runs in " + strings.Join(callers, ", ") + " afterwards"
+		}
+	}
 	if !f.Draft {
-		a.notice = "flow " + f.Name + " is not a draft"
+		a.notice = what + " " + f.Name + " is not a draft"
 		return
 	}
-	a.askToConfirm("promote draft flow "+f.Name+"? it can run and trigger afterwards", func() {
+	a.askToConfirm("promote draft "+what+" "+f.Name+"? "+after, func() {
 		if err := a.changeFlow(f, func(f *flow.Flow) error { f.Draft = false; return nil }); err != nil {
 			a.statusMessage = err.Error()
 			return
 		}
-		a.notice = "flow " + f.Name + " promoted"
+		a.notice = what + " " + f.Name + " promoted"
 	})
 }
 

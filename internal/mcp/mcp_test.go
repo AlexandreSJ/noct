@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -136,7 +137,7 @@ func TestInitializeAndListTools(t *testing.T) {
 	for _, tool := range s.request("tools/list", nil)["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, tool.(map[string]any)["name"].(string))
 	}
-	want := []string{"list_scripts", "list_flows", "get_item", "check", "flow_scope", "draft_flow", "draft_script", "set_triggers",
+	want := []string{"list_scripts", "list_flows", "get_item", "check", "flow_scope", "draft_flow", "draft_function", "draft_script", "set_triggers",
 		"list_runs", "get_run", "search_logs", "read_log", "list_panes", "read_pane", "run", "run_command", "send_input"}
 	if !slices.Equal(names, want) {
 		t.Errorf("tools = %q", names)
@@ -410,5 +411,38 @@ func TestSummaryShowsHiddenLinesOnOneLine(t *testing.T) {
 	}
 	if summary := argText(json.RawMessage(`{"command":"echo \u202esafe"}`), "command"); !strings.Contains(summary, `\u202e`) {
 		t.Errorf("summary %q shows a direction override as is", summary)
+	}
+}
+
+// A drafted function does not run until promoted, and the flows that call it say so; list_flows
+// and get_item tell who calls it, and the agents a step can ask.
+func TestADraftedFunctionWaitsForItsPromotion(t *testing.T) {
+	s := newTestServer(t)
+	write(t, filepath.Join(flow.FunctionsDir(), "health.yaml"), "params: {url: {required: true}}\nsteps: [{run: 'echo 200'}]\nreturns: {status: '{{.output}}'}\n")
+	write(t, filepath.Join(flow.Dir(), "ship.yaml"), "steps:\n  - {id: check, call: health, with: {url: x}}\n  - {run: 'echo {{.status}}'}\n")
+	listed, _ := s.call("list_flows", map[string]any{}, false)
+	fn := listed["functions"].([]any)[0].(map[string]any)
+	if fn["name"] != "health" || fn["called_by"].([]any)[0] != "ship" || fn["returns"].(map[string]any)["status"] == nil {
+		t.Fatalf("function = %v", fn)
+	}
+	if agents := listed["agents"].(map[string]any); agents["default"] != "claude" || len(agents["names"].([]any)) < 3 {
+		t.Errorf("agents = %v", agents)
+	}
+	scope, _ := s.call("flow_scope", map[string]any{"flow": "ship", "step": "1"}, false)
+	if !strings.Contains(fmt.Sprint(scope["variables"]), "{{.status}}") {
+		t.Errorf("the scope after the call lacks its return: %v", scope["variables"])
+	}
+
+	answer, _ := s.call("draft_function", map[string]any{"name": "health", "yaml": "params: {url: {required: true}}\nsteps: [{run: 'echo 500'}]\nreturns: {status: '{{.output}}'}\n"}, false)
+	if answer["backup"] == nil || answer["called_by"].([]any)[0] != "ship" {
+		t.Errorf("answer = %v", answer)
+	}
+	checked, _ := s.call("check", map[string]any{}, false)
+	if !strings.Contains(fmt.Sprint(checked["problems"]), "a draft to review and promote first") {
+		t.Errorf("check = %v, want ship's call to the draft told", checked["problems"])
+	}
+	got, _ := s.call("get_item", map[string]any{"function": "health"}, false)
+	if got["draft"] != true || !strings.Contains(got["yaml"].(string), "echo 500") {
+		t.Errorf("get_item = %v", got)
 	}
 }

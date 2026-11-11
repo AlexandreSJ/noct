@@ -154,7 +154,7 @@ func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
 		p.listKey(name, f)
 		return
 	}
-	if f.Function && slices.Contains([]string{"r", "p", "T", "shift+t", "P", "shift+p"}, name) && !(name == "r" && p.paramsSelected()) {
+	if f.Function && slices.Contains([]string{"r", "p", "T", "shift+t"}, name) && !(name == "r" && p.paramsSelected()) {
 		p.app.notice = "function " + f.Name + " runs when a flow calls it; a call step in a flow does"
 		return
 	}

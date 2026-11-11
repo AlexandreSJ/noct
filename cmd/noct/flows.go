@@ -84,7 +84,12 @@ func promote(name string) error {
 	if err != nil {
 		return err
 	}
-	if f, ok := flow.Find(flows, name); ok {
+	_, functions, _ := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), lib.Find)
+	f, ok := flow.Find(flows, name)
+	if !ok {
+		f, ok = flow.Find(functions, name)
+	}
+	if ok {
 		fresh, err := flow.Load(f.File)
 		if err != nil {
 			return err
@@ -95,7 +100,7 @@ func promote(name string) error {
 	if s, ok := lib.Find(name); ok {
 		return script.Promote(s)
 	}
-	return fmt.Errorf("no flow or script called %s", name)
+	return fmt.Errorf("no flow, function or script called %s", name)
 }
 
 // enableTriggers turns a flow's triggers on or off on this machine.

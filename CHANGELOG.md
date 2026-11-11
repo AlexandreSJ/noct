@@ -19,6 +19,9 @@ terminal's own background stays untouched.
 
 ### Added
 
+- The MCP server lists functions (with who calls each) and the agents an agent step can ask, reads
+  a function with `get_item`, and drafts one with `draft_function`. A draft function does not run,
+  and the flows that call it wait for its promotion.
 - Agent steps: `agent: {ask: …}` asks an AI agent you have (`claude`, `ollama`, `opencode`, or a
   command under `[agents]` in the config) and keeps its answer in `{{.answer}}`; with `choices`,
   the answer is one of them, so an if can branch on it. The question never goes through a shell,

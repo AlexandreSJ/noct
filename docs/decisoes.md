@@ -918,7 +918,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Quem chama:** `flow.Callers` percorre os passos; o inspect mostra `used by …` no fluxograma da função, avisa a cada mudança quais fluxos ela muda e diz quem a chama ao apagá-la.
 - Um fluxo chamar outro fluxo inteiro fica para depois: com triggers e resultado próprio, é outra coisa.
 
-**Consequências.** `noct flow run`, `noct check`, o MCP e o daemon leem a pasta de funções. Uma função não roda sozinha, nem tem resultado próprio.
+**Consequências.** `noct flow run`, `noct check`, o MCP e o daemon leem a pasta de funções. Uma função não roda sozinha, nem tem resultado próprio. Uma função em rascunho (do `draft_function` do MCP) não roda, e quem a chama tem problema até a promoção: senão, uma IA mudaria em silêncio o que fluxos já aprovados fazem.
 
 ## ADR-068 — Passo de agente
 
