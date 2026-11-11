@@ -221,8 +221,17 @@ func (a *App) trackedProgram(p program, id layout.PaneID, run script.Run, onExit
 			a.statusMessage = err.Error()
 		}
 		onExit(code)
+		a.runEnded(id, runName(run), code)
 	}
 	return p
+}
+
+// runName is how a notification names the run: its script, or its flow.
+func runName(run script.Run) string {
+	if run.Flow != "" {
+		return "flow " + run.Flow
+	}
+	return run.Script
 }
 
 // logNameOf names a run's log after its script, or after its flow.

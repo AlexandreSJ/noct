@@ -148,6 +148,8 @@ type App struct {
 	workDir string
 	// launch starts a program in a new pane; tests replace it to run without processes.
 	launch func(p program, size pty.Size) (view, error)
+	// desktopNotify shows a notification of the desktop's, telling whether it could.
+	desktopNotify func(title, body string) bool
 
 	scripts script.Library
 	// scriptsLoaded counts library loads, so panels know when what they cached is stale.
@@ -219,6 +221,7 @@ func New(version string) *App {
 	}
 	a.workDir, _ = os.Getwd() // until a terminal attaches and reports its own
 	a.launch = a.startProgram
+	a.desktopNotify = desktopNotification
 	a.binary = currentBinary()
 	a.updateTarget, _ = update.Executable() // without it, updates can only be checked
 	a.updateCachePath = filepath.Join(logstore.Dir(), update.CacheFile)

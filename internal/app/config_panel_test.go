@@ -403,11 +403,13 @@ func TestConfigLinesStayInPlace(t *testing.T) {
 		"heading Flows = ",
 		"row step output kept = < all (up to 1 MB) > @27",
 		"note in each flow's last result; tests keep 4 KB = ",
+		"row tell when runs end = < system > @28",
+		"note runs out of sight: system notification, the terminal's bell, or off = ",
 		"heading Updates = ",
-		"row check for new versions = on @28",
+		"row check for new versions = on @29",
 		"note only checks; install with ctrl+space+c = ",
 		"heading Defaults = ",
-		"row reset all to defaults =  @29",
+		"row reset all to defaults =  @30",
 	}
 	var got []string
 	for _, line := range a.configLines() {

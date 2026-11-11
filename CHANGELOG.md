@@ -27,6 +27,10 @@ terminal's own background stays untouched.
 - In a log in the logs view, `/` searches up from the end, `n` and `N` go to the next match up and
   down, and `f` shows only the lines with a text. Matches show in reverse, lower case matches any
   case, and `esc` clears the search or filter before going back to the list.
+- A script or flow that ends out of sight, in a pane off screen or started by a trigger, is told
+  by a system notification, or by the terminal's bell, as **Flows → tell when runs end** sets.
+  Over ssh, or without `notify-send` or `osascript`, the notification goes through the terminal
+  (OSC 9).
 - A shell's pane title tells the folder it is in, as `zsh · ~/proj`, until a program sets a
   title of its own.
 - Script and flow templates have `quote`: `{{quote .pattern}}` puts a value in single quotes as one

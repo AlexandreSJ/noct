@@ -134,6 +134,12 @@ O painel scope (`s` no inspect) lista o escopo do bloco ou do ponto de inserçã
 
 `noct flow run <fluxo> [nome=valor ...]` roda o fluxo no terminal atual; `r` no inspect roda o mesmo comando num painel ao lado. O código de saída é o do passo que parou o fluxo (ou 1). O resultado da última execução, passo a passo (status, exit code, duração, capturas, a saída e o motivo da falha), fica em `~/.local/state/noct/flows/<fluxo>.json`, e é o que o inspect mostra nos blocos e no painel scope. A saída guardada é a mesma que os templates leem (até 1 MiB por passo); no config (`prefixo` + `,`, **Flows → step output kept**) dá para guardar menos: 256, 64, 16 ou 4 KB.
 
+**Aviso ao fim de uma execução.** Quando um script ou fluxo termina fora de vista, o noct avisa: execuções num painel que não aparece na tela (outra tab, painel dobrado, terminal desconectado) e fluxos disparados por trigger, que nunca têm painel. O texto diz o nome e como terminou (`deploy finished`, `flow nightly (cron) failed with exit 1`). O config (**Flows → tell when runs end**, `notify` no arquivo) escolhe como:
+
+- `system` (padrão): a notificação do sistema, com `notify-send` no Linux e `osascript` no macOS. Sem essa ferramenta, ou com o terminal conectado por ssh (`SSH_CONNECTION`), vai como OSC 9 para o terminal, que kitty, WezTerm, Ghostty, foot, iTerm2 e Windows Terminal mostram como notificação do sistema. Terminais sem OSC 9 ignoram.
+- `bell`: o sino do terminal (`BEL`). Cada terminal decide o que faz com ele: som, piscar ou marcar a janela, e alguns não fazem nada.
+- `off`: nenhum aviso.
+
 `noct flow run <fluxo> --steps <de>..<até>` testa uma faixa de passos da mesma lista (`--steps 0/steps/1..0/steps/3`, ou um só: `--steps 2`). Os passos leem `.steps` da última execução, como se o fluxo tivesse rodado até ali, e o resultado substitui só esses passos no último resultado, marcados como testados e com a saída **truncada em 4 KB**.
 
 ## Logs e calendário

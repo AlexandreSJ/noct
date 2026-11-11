@@ -80,6 +80,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks |
 | `internal/app/flowchart.go` | Laying out and drawing a flow as a flowchart on its own canvas, and which block is where: steps, empty lists and the gaps where steps are added; ranges and warnings marked |
 | `internal/app/triggers.go` | The daemon's trigger ticks, flows started by triggers (headless, logged, recorded), adding triggers from the inspect |
+| `internal/app/notify.go` | Telling a run that ended out of sight: the system's notification (`notify-send`, `osascript`), OSC 9 to the terminal, or its bell |
 | `internal/app/requests.go` | What the MCP server asks of the workspace: list and read panes, type into one, run a command, script or flow where the user sees it; reading a request's connection until it ends (`receiveUntilEnd`) |
 | `internal/app/mcp_panel.go` | MCP popup (prefix+y): approvals waiting for the user and their timeout, AI clients connected now (the `client` request), setups to copy |
 | `internal/app/mcp_setup.go` | The command or config JSON that adds noct to each known AI client, with this binary's path |

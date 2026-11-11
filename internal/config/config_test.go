@@ -39,6 +39,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 		Logs:          Logs{KeepDays: 30, MaxSizeKB: 20000, Terminals: true, Columns: []string{"name", "edited", "size"}, Preview: "right", PreviewPercent: 30},
 		Flows:         Flows{OutputKB: 64},
 		MCP:           MCP{Policy: map[string]string{"run_command": PolicyDeny}, ApprovalSeconds: 60},
+		Notify:        NotifyBell,
 	}
 	if err := Save(path, want); err != nil {
 		t.Fatal(err)
