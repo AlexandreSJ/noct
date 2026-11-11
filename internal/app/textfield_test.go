@@ -1,9 +1,13 @@
 package app
 
 import (
+	"image/color"
+	"strings"
 	"testing"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
+
+	"github.com/AlexandreSJ/noct/internal/theme"
 )
 
 func namedKey(t *testing.T, name string) uv.KeyPressEvent {
@@ -76,17 +80,37 @@ func TestTextFieldPastesOneLine(t *testing.T) {
 	}
 }
 
-func TestTextFieldViewKeepsTheCursorInSight(t *testing.T) {
+// drawnField draws field in width cells and gives the text drawn and where the cursor is.
+func drawnField(field *textField, width int, secret bool) (string, int) {
+	screen := uv.NewScreenBuffer(width+2, 1)
+	cursorStyle := uv.Style{Bg: color.RGBA{0xff, 0, 0, 0xff}}
+	field.draw(&screen, 0, 0, width, secret, uv.Style{}, cursorStyle)
+	var text strings.Builder
+	at := -1
+	for x := range width + 1 {
+		c := screen.CellAt(x, 0)
+		if c == nil {
+			continue
+		}
+		if c.Style.Bg != nil {
+			at = x
+		}
+		text.WriteString(c.Content)
+	}
+	return strings.TrimRight(text.String(), " "), at
+}
+
+func TestTextFieldDrawsTheCursorOverItsTextWithoutAMark(t *testing.T) {
 	field := newTextField("abcdefghij")
-	if got := field.view(6, false); got != "…ghij▏" {
-		t.Errorf("at the end: %q", got)
+	if text, at := drawnField(&field, 6, false); text != "fghij" || at != 5 {
+		t.Errorf("at the end: %q, cursor at %d; want the end in view and the cursor after it", text, at)
 	}
-	field.cursor = 0
-	if got := field.view(6, false); got != "▏abcd…" {
-		t.Errorf("at the start: %q", got)
+	field.cursor = 2
+	if text, at := drawnField(&field, 6, false); text != "abcde…" || at != 2 {
+		t.Errorf("in the middle: %q, cursor at %d; want the cursor on c, nothing added", text, at)
 	}
-	if got := field.view(0, true); got != "▏••••••••••" {
-		t.Errorf("secret: %q", got)
+	if text, _ := drawnField(&field, 20, true); text != "••••••••••" {
+		t.Errorf("secret: %q", text)
 	}
 }
 
@@ -148,5 +172,38 @@ func TestCtrlCCopiesTheField(t *testing.T) {
 	press(a, namedKey(t, "ctrl+c"))
 	if a.mode != promptMode || a.prompt.input.String() != "api" || a.notice != "copied to the clipboard" {
 		t.Errorf("mode %v, text %q, notice %q", a.mode, a.prompt.input.String(), a.notice)
+	}
+}
+
+func TestATypedFieldLightsOnlyItsTextAndTheCursor(t *testing.T) {
+	a := testApp(t, sideBySideTab(1, 2))
+	a.palette = newPalette(theme.Builtins()[0], true)
+	press(a, prefixPress, letter('r'), clearLine)
+	typeText(a, "staging")
+	press(a, namedKey(t, "left"), namedKey(t, "left"))
+	screen := drawnApp(a)
+	text, lit := "", 0
+	for y := range a.size.Y {
+		row, rowLit, on := "", 0, ""
+		for x := range a.size.X {
+			c := screen.CellAt(x, y)
+			if c == nil {
+				continue
+			}
+			row += c.Content
+			if colorsEqual(c.Style.Bg, a.palette.selectedRow.Bg) {
+				rowLit++
+				on = c.Content
+			}
+		}
+		if strings.Contains(row, "stagi") {
+			text, lit = row, rowLit
+			if on != "n" {
+				t.Errorf("the cursor is on %q, want n, two left of the end", on)
+			}
+		}
+	}
+	if !strings.Contains(text, "staging") || strings.Contains(text, "▏") || lit != 1 {
+		t.Errorf("row %q with %d cells on the selection's background; want the text whole and only the cursor lit", text, lit)
 	}
 }

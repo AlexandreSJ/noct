@@ -67,6 +67,9 @@ terminal's own background stays untouched.
 
 ### Changed
 
+- Typing in a field no longer paints the whole row: the text shows in the selected color and the
+  cursor is the cell under it on the selected color's background, so no mark shifts the text
+  while the cursor moves.
 - A script or flow param with `from: env:NAME` whose variable is not set is asked in the form,
   instead of refusing to run. Typed for a flow, it reaches the run as that variable, never on its
   command line, and it is never remembered.

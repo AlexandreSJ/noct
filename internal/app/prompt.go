@@ -85,7 +85,7 @@ func isPlainText(key uv.KeyPressEvent) bool {
 func (a *App) drawPrompt(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	inner := a.drawPanel(screen, centeredRect(area, 50, panelHeight(3)), a.prompt.title)
-	drawRow(screen, inner, inner.Min.Y, a.prompt.input.view(inner.Dx()-2, false), "", a.palette.selectedRow)
+	a.prompt.input.draw(screen, inner.Min.X+1, inner.Min.Y, inner.Dx()-2, false, a.palette.typing(), a.palette.selectedRow)
 	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("prompt", a.prompt.hints), a.palette.panelMuted)
 }
 

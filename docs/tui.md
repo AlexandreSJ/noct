@@ -128,6 +128,8 @@ Um segundo modificador, por padrão `Alt` (ADR-024), roda os comandos do modo no
 
 Todo lugar onde se digita (prompts de renomear e criar, formulário de parâmetros, busca, nome e programa do formulário do script, linhas de texto do config) é o mesmo campo, com as teclas de uma linha do shell (ADR-042):
 
+O campo em que se digita mostra o texto na cor de destaque, sem mudar o fundo da linha, e o cursor é a célula sob ele com o fundo de destaque. Nada entra no meio do texto para marcar o cursor, então andar com ele não desloca o que se lê.
+
 | Tecla | Faz |
 |---|---|
 | `←` `→` (`Ctrl+B` `Ctrl+F`) | move o cursor |

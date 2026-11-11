@@ -259,14 +259,14 @@ func (a *App) drawScriptForm(screen uv.Screen) {
 }
 
 func (a *App) drawTypedField(screen uv.Screen, inner image.Rectangle, y int, label string, field int) {
-	style, value := a.palette.panelText, a.scriptForm.fields[field]
-	if a.scriptForm.selected == field {
-		input, _ := a.scriptForm.typedField()
-		style, value = a.palette.selectedRow, input.view(inner.Dx()-12, false)
+	fillRect(screen, image.Rect(inner.Min.X, y, inner.Max.X, y+1), a.palette.panelText)
+	if input, _ := a.scriptForm.typedField(); a.scriptForm.selected == field && input != nil {
+		drawText(screen, inner.Min.X+1, y, inner.Max.X, label, a.palette.typing())
+		input.draw(screen, inner.Min.X+11, y, inner.Dx()-12, false, a.palette.typing(), a.palette.selectedRow)
+		return
 	}
-	fillRect(screen, image.Rect(inner.Min.X, y, inner.Max.X, y+1), style)
-	drawText(screen, inner.Min.X+1, y, inner.Max.X, label, style)
-	drawText(screen, inner.Min.X+11, y, inner.Max.X-1, value, style)
+	drawText(screen, inner.Min.X+1, y, inner.Max.X, label, a.palette.panelText)
+	drawText(screen, inner.Min.X+11, y, inner.Max.X-1, a.scriptForm.fields[field], a.palette.panelText)
 }
 
 // drawPartBox shows a part in a frame of its own, highlighted while selected.
