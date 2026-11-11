@@ -110,9 +110,10 @@ func TestInspectMovesAndRemovesSteps(t *testing.T) {
 	}
 }
 
-// A flow that is one loop, like the example explore, gets steps before and after the loop by
-// selecting the gaps around it; tab hides the list of flows and gives it back.
-func TestInspectAddsAtTheSelectedGap(t *testing.T) {
+// A flow that is one loop, like the example explore, gets a step before the loop from the start,
+// the head of the flow's steps, and one after it from the loop itself; tab hides the list of flows
+// and gives it back.
+func TestInspectAddsAboveTheFirstStepAndBelowTheSelected(t *testing.T) {
 	a := testApp(t)
 	saveFlow(t, "loop", "steps:\n  - repeat: {times: 2}\n    steps:\n      - {id: inside, run: echo in}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
@@ -121,20 +122,21 @@ func TestInspectAddsAtTheSelectedGap(t *testing.T) {
 		t.Fatalf("tab did not hide the list: chart focused %v, list %v", p.focusChart, p.list)
 	}
 	pressDrawn(a, upPress)
-	if p.selected != gapKey(chartSlot{}, 0) {
-		t.Fatalf("up from the loop selected %q, want the gap before it", p.selected)
+	if p.selected != headKey(chartSlot{}) {
+		t.Fatalf("up from the loop selected %q, want the start", p.selected)
 	}
 	addCommand(a, "echo before")
-	for range 6 { // gap, loop, gap, inside, gap, and the gap after the loop
-		pressDrawn(a, downPress)
-	}
-	if p.selected != gapKey(chartSlot{}, 2) {
-		t.Fatalf("selected %q, want the gap after the loop", p.selected)
+	pressDrawn(a, downPress)
+	if p.selected != stepKey("1") {
+		t.Fatalf("down from the new step selected %q, want the loop", p.selected)
 	}
 	addCommand(a, "echo after")
 	f, _ := flow.Load(filepath.Join(flow.Dir(), "loop"+flow.Ext))
 	if len(f.Steps) != 3 || f.Steps[0].Run != "echo before" || f.Steps[1].Repeat == nil || f.Steps[2].Run != "echo after" {
 		t.Errorf("steps = %+v", f.Steps)
+	}
+	if strings.Contains(screenText(a), "▼") {
+		t.Errorf("the chart still shows the old arrows:\n%s", screenText(a))
 	}
 	pressDrawn(a, tabPress)
 	if p.focusChart || p.list.Empty() {

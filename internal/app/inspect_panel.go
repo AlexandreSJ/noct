@@ -16,8 +16,8 @@ import (
 
 const (
 	flowsListHints = "{up}{down} flow  {enter} open  {a} new  {r} run  {T} add trigger  {o} triggers on/off  {P} promote draft  {E} edit file  {delete} delete  {tab} hide list  {ctrl+d} close"
-	flowStepHints  = "{up}{down}{left}{right} select  {shift+up}{shift+down} range  {a} add after  {t} test  {r} run  {s} scope  {enter} about  {e} edit  {delete} remove  {J} {K} move  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
-	flowGapHints   = "{up}{down}{left}{right} select  {a} add here  {r} run  {s} scope  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
+	flowStepHints  = "{up}{down}{left}{right} select  {shift+up}{shift+down} range  {a} add below  {t} test  {r} run  {s} scope  {enter} about  {e} edit  {delete} remove  {J} {K} move  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
+	flowGapHints   = "{up}{down}{left}{right} select  {a} add at the top  {r} run  {s} scope  {+} {-} zoom  {ctrl+up}{ctrl+down}{ctrl+left}{ctrl+right} pan  {0} center  {tab} list"
 	// flowsListWidth is the list of flows beside the chart, in panels wide enough for both.
 	flowsListWidth = 24
 	// panStep is how far shift+arrows move the chart.

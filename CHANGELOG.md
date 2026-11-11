@@ -67,6 +67,10 @@ terminal's own background stays untouched.
 
 ### Changed
 
+- The inspect's flowchart has round cards joined by longer arrows drawn with box lines (`│`,
+  `↓`), no longer `▼`. The `+` gaps between cards are gone: `a` adds below the selected step,
+  and the head of a list (the start, an if's yes or no, a repeat's way in) adds above its first
+  step.
 - Typing in a field no longer paints the whole row: the text shows in the selected color and the
   cursor is the cell under it on the selected color's background, so no mark shifts the text
   while the cursor moves.
