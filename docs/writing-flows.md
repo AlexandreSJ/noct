@@ -123,7 +123,9 @@ steps:
   - unset: [sum, steps.add]       # reads as empty after this
 ```
 
-- A param is its default alone, or a mapping with `default`, `type` (`text` or `number`),
+- A param is its default alone, or a mapping with `default`, `type` (`text`, `number`, `bool`
+  for true or false, `choice` with its `choices: [a, b]`, or `path`, which tab completes in the
+  form),
   `prompt` (the label in the form), `required`, `from` and `secret`. `noct flow run` and the
   form refuse a `number` that is not one and a `required` param left empty.
 - `from: env:NAME` takes the value from the variable `NAME` when it is set, and the form does not

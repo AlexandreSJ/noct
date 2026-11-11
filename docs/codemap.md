@@ -95,6 +95,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/logs_heatmap.go` | The logs calendar's activity colors: each day's step by its logs, the style over it, and the legend |
 | `internal/app/logs_filter.go` | The logs filter line: words over name, date, time and status; size and line comparisons |
 | `internal/app/scope.go` | The inspect's scope pane (variables of the selected block with their last values) and the variable picker of template prompts (ctrl+t) |
+| `internal/app/flow_params.go` | A flow's params in the inspect: adding one with every type a param can have, changing its default, label and required, removing it |
 | `internal/app/flowchart_live.go` | A flow's run on its chart as it goes: the dots going down the arrow out of the step running, and the frames that move them |
 | `internal/app/flow_history.go` | Undo and redo of the inspect's changes to a flow: its file before each change, kept while noct runs |
 | `internal/app/flows.go` | Flow actions: create, run and test steps (as tracked runs), add, edit in the editor, move and remove steps, what a step does and its kept output |

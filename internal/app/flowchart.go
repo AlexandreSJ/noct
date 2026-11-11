@@ -50,6 +50,14 @@ const (
 	slotNode                   // an empty list of steps, where one can be added
 	seqNode                    // steps one below the other
 	pillNode                   // start or end of the flow
+	paramsNode                 // the flow's params, above its start
+)
+
+// paramsKey is the params card's key; maxParamLines bounds the params it lists.
+const (
+	paramsKey      = "params"
+	maxParamLines  = 8
+	maxParamsWidth = 60
 )
 
 // chartNode is one part of the chart, measured: w by h cells, with the column arrows enter and
@@ -78,13 +86,15 @@ type chartBlock struct {
 	slot  chartSlot
 	index int
 	rect  image.Rectangle
+	// params marks the params card, which is neither a step nor a place to add one.
+	params bool
 }
 
 // Keys of the chart's blocks, which stay the same while the chart is drawn again.
 func stepKey(path string) string    { return "step:" + path }
 func slotKey(slot chartSlot) string { return "slot:" + slot.parent + ":" + slot.branch }
 func headKey(slot chartSlot) string { return "head:" + slot.parent + ":" + slot.branch }
-func (b chartBlock) isInsertion() bool           { return b.path == "" }
+func (b chartBlock) isInsertion() bool           { return b.path == "" && !b.params }
 func (b chartBlock) contains(p image.Point) bool { return p.In(b.rect) }
 
 // flowChart is a flow drawn at a zoom, with where each block is and the arrow out of each step.
@@ -119,11 +129,14 @@ type chartStyle struct {
 	dropOn string
 	// running is the path of the step a run is on, lit on the chart.
 	running string
+	// paramLines are the flow's params as its card lists them.
+	paramLines []string
 }
 
 const startLabel = "● start"
 
 func buildChart(f flow.Flow, style chartStyle) *flowChart {
+	style.paramLines = paramLines(f)
 	body := style.sequence(f.Steps, chartSlot{})
 	start := &chartNode{kind: pillNode, label: startLabel}
 	end := &chartNode{kind: pillNode, label: "◉ end"}
@@ -131,8 +144,12 @@ func buildChart(f flow.Flow, style chartStyle) *flowChart {
 		pill.w, pill.h = ansi.StringWidth(pill.label), 1
 		pill.center = pill.w / 2
 	}
-	start.slot = chartSlot{}
-	root := measureSeq(append(append([]*chartNode{start}, body.children...), end))
+	params := &chartNode{kind: paramsNode, label: "params", w: boxWidths[style.zoom]}
+	for _, line := range style.paramLines {
+		params.w = max(params.w, min(ansi.StringWidth(line)+4, maxParamsWidth))
+	}
+	params.h, params.center = len(style.paramLines)+2, params.w/2
+	root := measureSeq(append(append([]*chartNode{params, start}, body.children...), end))
 	c := &flowChart{size: image.Pt(root.w+4, root.h+2), arrows: map[string]chartArrow{}}
 	c.canvas = uv.NewScreenBuffer(c.size.X, c.size.Y)
 	style.draw(c, root, 2, 1)
@@ -279,6 +296,8 @@ func (s chartStyle) draw(c *flowChart, n *chartNode, x, y int) {
 		s.drawRepeat(c, n, x, y)
 	case slotNode:
 		s.drawSlot(c, n, x, y)
+	case paramsNode:
+		s.drawParams(c, n, x, y)
 	case pillNode:
 		style := s.pal.panelMuted
 		if n.label == startLabel {
@@ -442,6 +461,37 @@ func (s chartStyle) drawBranchEnd(c *flowChart, steps []flow.Step, branch *chart
 	}
 }
 
+// paramLines are what the params card lists: each param with its type and default.
+func paramLines(f flow.Flow) []string {
+	names := slices.Sorted(maps.Keys(f.Params))
+	if len(names) == 0 {
+		return []string{"none · a adds one"}
+	}
+	var lines []string
+	for i, name := range names {
+		if i == maxParamLines-1 && len(names) > maxParamLines {
+			lines = append(lines, fmt.Sprintf("… %d more", len(names)-i))
+			break
+		}
+		lines = append(lines, name+"  "+paramText(f.Params[name]))
+	}
+	return lines
+}
+
+func (s chartStyle) drawParams(c *flowChart, n *chartNode, x, y int) {
+	rect := image.Rect(x, y, x+n.w, y+n.h)
+	c.blocks = append(c.blocks, chartBlock{key: paramsKey, rect: rect, params: true})
+	line, title := s.pal.unfocusedFrame, s.pal.panelHeading
+	if s.selected == paramsKey {
+		line, title = s.pal.focusedFrame, s.pal.focusedTitle
+	}
+	fillRect(c.canvas, rect, s.pal.panelText)
+	drawCard(c.canvas, rect, "$ params", line, title)
+	for i, text := range s.paramLines {
+		drawText(c.canvas, x+2, y+1+i, x+n.w-2, text, s.pal.panelMuted)
+	}
+}
+
 // drawCard frames a card with round corners.
 func drawCard(screen uv.Screen, rect image.Rectangle, title string, line, titleStyle uv.Style) {
 	drawFrame(screen, rect, title, line, titleStyle)
@@ -517,8 +567,15 @@ func (c *flowChart) blockAt(p image.Point) (chartBlock, bool) {
 
 // firstStep is the chart's first step, or its first block when it has no steps.
 func (c *flowChart) firstStep() chartBlock {
-	i := max(slices.IndexFunc(c.blocks, func(b chartBlock) bool { return !b.isInsertion() }), 0)
-	return c.blocks[i]
+	for _, first := range []func(chartBlock) bool{
+		func(b chartBlock) bool { return b.path != "" },
+		chartBlock.isInsertion,
+	} {
+		if i := slices.IndexFunc(c.blocks, first); i >= 0 {
+			return c.blocks[i]
+		}
+	}
+	return c.blocks[0]
 }
 
 func (c *flowChart) block(key string) (chartBlock, bool) {

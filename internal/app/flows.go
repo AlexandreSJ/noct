@@ -123,7 +123,7 @@ func (a *App) openFlowForm(f flow.Flow, values map[string]string) {
 		if p.Type == flow.NumberParam {
 			label += " (number)"
 		}
-		fields = append(fields, script.Param{Name: name, Prompt: label, Secret: p.Secret})
+		fields = append(fields, script.Param{Name: name, Prompt: label, Secret: p.Secret, Choices: p.Values(), Path: p.Type == flow.PathParam})
 	}
 	if len(fields) == 0 {
 		a.startFlow(f, values)

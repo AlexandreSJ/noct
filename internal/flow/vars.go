@@ -14,11 +14,21 @@ import (
 	"github.com/AlexandreSJ/noct/internal/naming"
 )
 
-// Types a parameter or a prompt's answer can have.
+// Types a parameter or a prompt's answer can have; a parameter can also be yes or no, one of its
+// choices, or a path.
 const (
 	TextParam   = "text"
 	NumberParam = "number"
+	BoolParam   = "bool"
+	ChoiceParam = "choice"
+	PathParam   = "path"
 )
+
+// ParamTypes are the types a parameter can have, in the order the inspect offers them.
+var ParamTypes = []string{TextParam, NumberParam, BoolParam, ChoiceParam, PathParam}
+
+// BoolValues are what a yes or no parameter holds.
+var BoolValues = []string{"true", "false"}
 
 const maxPromptTries = 3
 
@@ -26,8 +36,10 @@ const maxPromptTries = 3
 // rest (a: {default: "3", type: number, prompt: First number, required: true}).
 type Param struct {
 	Default string `yaml:"default,omitempty" json:"default,omitempty"`
-	// Type is TextParam (when empty) or NumberParam.
+	// Type is one of ParamTypes; empty is TextParam.
 	Type string `yaml:"type,omitempty" json:"type,omitempty"`
+	// Choices are the values a ChoiceParam can take.
+	Choices []string `yaml:"choices,omitempty" json:"choices,omitempty"`
 	// Prompt is what the params form shows instead of the name.
 	Prompt string `yaml:"prompt,omitempty" json:"prompt,omitempty"`
 	// Required refuses to run with the parameter empty.
@@ -56,7 +68,7 @@ func (p *Param) UnmarshalYAML(node *yaml.Node) error {
 }
 
 func (p Param) MarshalYAML() (any, error) {
-	if p == (Param{Default: p.Default}) {
+	if p.onlyDefault() {
 		return p.Default, nil
 	}
 	return paramFields(p), nil
@@ -106,14 +118,43 @@ func (f Flow) CheckParams(values map[string]string) error {
 		if !given {
 			value = p.Default
 		}
-		switch {
-		case p.Required && strings.TrimSpace(value) == "":
+		if p.Required && strings.TrimSpace(value) == "" {
 			return fmt.Errorf("%s is required", name)
-		case value != "" && !fitsType(p.Type, value):
-			return fmt.Errorf("%s must be a number, not %q", name, value)
+		}
+		if problem := p.fits(value); problem != "" {
+			return fmt.Errorf("%s %s", name, problem)
 		}
 	}
 	return nil
+}
+
+// onlyDefault tells a parameter that is its default alone, which saves as plain text.
+func (p Param) onlyDefault() bool {
+	return p.Type == "" && p.Prompt == "" && !p.Required && p.From == "" && !p.Secret && len(p.Choices) == 0
+}
+
+// Values are what the parameter can take, for the types that have a few; nil for any.
+func (p Param) Values() []string {
+	switch p.Type {
+	case BoolParam:
+		return BoolValues
+	case ChoiceParam:
+		return p.Choices
+	}
+	return nil
+}
+
+// fits tells why value is not one the parameter takes, or "".
+func (p Param) fits(value string) string {
+	switch {
+	case value == "":
+		return ""
+	case p.Type == NumberParam && !fitsType(NumberParam, value):
+		return fmt.Sprintf("must be a number, not %q", value)
+	case p.Values() != nil && !slices.Contains(p.Values(), value):
+		return fmt.Sprintf("must be one of %s, not %q", strings.Join(p.Values(), ", "), value)
+	}
+	return ""
 }
 
 // fitsType tells whether value is of the type: any text, or a number (like 3, -2 or 1.5).
@@ -123,6 +164,21 @@ func fitsType(kind, value string) bool {
 	}
 	_, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
 	return err == nil
+}
+
+// checkParam reports a parameter that cannot work: an unknown type, a choice without choices,
+// or a default it would refuse.
+func checkParam(p Param) error {
+	if p.Type != "" && !slices.Contains(ParamTypes, p.Type) {
+		return fmt.Errorf("type %q is one of %s", p.Type, strings.Join(ParamTypes, ", "))
+	}
+	if p.Type == ChoiceParam && len(p.Choices) == 0 {
+		return errors.New("a choice needs its choices")
+	}
+	if problem := p.fits(p.Default); problem != "" {
+		return errors.New("the default " + problem)
+	}
+	return nil
 }
 
 func checkType(kind string) error {

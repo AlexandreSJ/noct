@@ -19,6 +19,9 @@ terminal's own background stays untouched.
 
 ### Added
 
+- Flow params can be `bool`, `choice` (with its `choices`) or `path`, besides `text` and `number`.
+  The inspect's params card, above the start, adds one offering every type and asks what the
+  type needs, and changes or removes one.
 - While a flow runs, the inspect lights the step running, marked `▶`, and three dots of different
   sizes and colors keep going down the arrow out of it toward the next step.
 - In the inspect, `J` and `K` move a step through the flow as a line moves through code, into and

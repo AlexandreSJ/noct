@@ -2,6 +2,7 @@ package flow
 
 import (
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -24,7 +25,7 @@ steps: [{run: 'true'}]
 		"b":   {Type: NumberParam, Required: true},
 	}
 	for name, p := range want {
-		if f.Params[name] != p {
+		if !reflect.DeepEqual(f.Params[name], p) {
 			t.Errorf("param %s = %+v, want %+v", name, f.Params[name], p)
 		}
 	}
@@ -40,7 +41,7 @@ func TestParamsSaveBackPlainWhenTheyOnlyHaveADefault(t *testing.T) {
 		t.Fatal(err)
 	}
 	again := parse(t, readFile(t, f.File))
-	if again.Params["env"] != (Param{Default: "dev"}) || again.Params["a"] != (Param{Default: "1", Type: NumberParam}) {
+	if !reflect.DeepEqual(again.Params["env"], Param{Default: "dev"}) || !reflect.DeepEqual(again.Params["a"], Param{Default: "1", Type: NumberParam}) {
 		t.Errorf("reloaded params = %+v", again.Params)
 	}
 	if !strings.Contains(readFile(t, f.File), "env: dev") {
@@ -331,4 +332,39 @@ func readFile(t *testing.T, file string) string {
 		t.Fatal(err)
 	}
 	return string(content)
+}
+
+func TestEveryParamTypeChecksItsValues(t *testing.T) {
+	f := parse(t, `params:
+  deploy: {type: bool, default: "true"}
+  env: {type: choice, choices: [dev, prod], default: dev}
+  dir: {type: path}
+steps: [{run: 'true'}]
+`)
+	if err := f.Validate(nil); err != nil {
+		t.Fatal(err)
+	}
+	for values, problem := range map[string]string{
+		"deploy=false":  "",
+		"deploy=maybe":  "deploy must be one of true, false",
+		"env=prod":      "",
+		"env=staging":   "env must be one of dev, prod",
+		"dir=/anything": "",
+	} {
+		name, value, _ := strings.Cut(values, "=")
+		err := f.CheckParams(map[string]string{name: value})
+		if (problem == "") != (err == nil) || err != nil && !strings.Contains(err.Error(), problem) {
+			t.Errorf("%s: %v, want %q", values, err, problem)
+		}
+	}
+	for content, problem := range map[string]string{
+		"params:\n  a: {type: choice}\nsteps: [{run: 'true'}]\n":                           "needs its choices",
+		"params:\n  a: {type: bool, default: yes}\nsteps: [{run: 'true'}]\n":               "the default must be one of",
+		"params:\n  a: {type: date}\nsteps: [{run: 'true'}]\n":                             "one of text, number, bool, choice, path",
+		"params:\n  a: {type: choice, choices: [x], default: y}\nsteps: [{run: 'true'}]\n": "the default must be one of x",
+	} {
+		if err := parse(t, content).Validate(nil); err == nil || !strings.Contains(err.Error(), problem) {
+			t.Errorf("%q: %v, want %q", content, err, problem)
+		}
+	}
 }

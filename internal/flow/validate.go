@@ -21,7 +21,7 @@ func (f Flow) Validate(lookup func(id string) (script.Script, bool)) error {
 		if !isVariable(name) {
 			return fmt.Errorf("parameter name %q must be letters, digits and _ only, and not steps", name)
 		}
-		if err := checkType(p.Type); err != nil {
+		if err := checkParam(p); err != nil {
 			return fmt.Errorf("parameter %s: %w", name, err)
 		}
 		if _, ok := p.EnvName(); p.From != "" && !ok {

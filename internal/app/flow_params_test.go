@@ -1,6 +1,7 @@
 package app
 
 import (
+	"image"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -153,4 +154,61 @@ func TestAFlowParamFromTheEnvironment(t *testing.T) {
 	if len(a.form.fields) != 1 || a.form.fields[0].Name != "env" {
 		t.Errorf("p with DEPLOY_TOKEN set asks %+v, want only env", a.form.fields)
 	}
+}
+
+func TestAddingAParamOffersEveryType(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 50)
+	saveFlow(t, "typed", "steps:\n  - {id: one, run: 'true'}\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, upPress)
+	p := a.currentTab().focusedView().(*inspectPanel)
+	if p.selected != paramsKey || !strings.Contains(screenText(a), "$ params") {
+		t.Fatalf("up twice from the first step selected %q:\n%s", p.selected, screenText(a))
+	}
+	pressDrawn(a, letter('a'))
+	typeDrawn(a, "env")
+	pressDrawn(a, enterPress)
+	screen := screenText(a)
+	for _, kind := range paramKinds {
+		if !strings.Contains(screen, kind.label) {
+			t.Errorf("the types offered lack %q:\n%s", kind.label, screen)
+		}
+	}
+	pressDrawn(a, letter('c'))
+	typeDrawn(a, "dev prod")
+	pressDrawn(a, enterPress, letter('2'))
+	got := loadFlowParams(t, "typed")["env"]
+	if got.Type != flow.ChoiceParam || !slices.Equal(got.Choices, []string{"dev", "prod"}) || got.Default != "prod" {
+		t.Fatalf("saved %+v, want a choice of dev and prod, prod by default", got)
+	}
+	if !strings.Contains(screenText(a), "env  choice dev|prod = prod") {
+		t.Errorf("the params card does not list env:\n%s", screenText(a))
+	}
+
+	pressDrawn(a, letter('a'))
+	typeDrawn(a, "token")
+	pressDrawn(a, enterPress, letter('e'))
+	if !strings.Contains(screenText(a), "TOKEN") {
+		t.Fatalf("the variable is not offered as TOKEN:\n%s", screenText(a))
+	}
+	pressDrawn(a, enterPress) // TOKEN, as offered
+	pressDrawn(a, enterPress) // no default
+	if got := loadFlowParams(t, "typed")["token"]; got.From != "env:TOKEN" {
+		t.Errorf("saved %+v, want it read from $TOKEN", got)
+	}
+
+	pressDrawn(a, letter('p'))
+	field := a.form.fields[slices.IndexFunc(a.form.fields, func(p script.Param) bool { return p.Name == "env" })]
+	if !slices.Equal(field.Choices, []string{"dev", "prod"}) {
+		t.Errorf("the form's env is %+v, want its choices", field)
+	}
+}
+
+func loadFlowParams(t *testing.T, name string) map[string]flow.Param {
+	t.Helper()
+	f, err := flow.Load(filepath.Join(flow.Dir(), name+flow.Ext))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return f.Params
 }

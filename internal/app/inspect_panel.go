@@ -232,19 +232,29 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 		p.testSelection(f, block, selected)
 	case "s":
 		p.showScope = !p.showScope
-	case "enter", "space":
-		if selected && !block.isInsertion() {
+	case "enter", "space", "e":
+		switch {
+		case selected && block.params:
+			p.app.editFlowParams(f)
+		case name == "e":
+			if selected && !block.isInsertion() {
+				p.stepKey(name, f, block.path)
+			}
+		case selected && !block.isInsertion():
 			p.app.aboutStep(f, block.path, p.result(f))
 		}
 	case "a":
-		if selected {
+		switch {
+		case selected && block.params:
+			p.app.addFlowParam(f)
+		case selected:
 			p.app.addStep(f, block, func(path string) { p.selected = stepKey(path) })
 		}
 	default:
 		if p.chartViewKey(name) {
 			return
 		}
-		if selected && !block.isInsertion() {
+		if selected && !block.isInsertion() && !block.params {
 			p.stepKey(name, f, block.path)
 		}
 	}
