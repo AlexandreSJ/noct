@@ -38,15 +38,21 @@ type paramsForm struct {
 func (a *App) openForm(s script.Script, values map[string]string, closeOnSuccess bool) {
 	var fields []script.Param
 	for _, p := range s.Params {
-		if p.Asked() {
+		if p.Asked(a.getenv) {
 			fields = append(fields, p)
 		}
 	}
 	a.form = paramsForm{
 		title: "run " + s.Name, fields: fields, values: maps.Clone(values),
 		preview: func(values map[string]string) string { return commandPreview(s, values) },
-		submit:  func(values map[string]string) error { a.startRun(s, values, closeOnSuccess); return nil },
-		dir:     s.WorkingDir(a.workDir),
+		submit: func(values map[string]string) error {
+			if err := s.CheckValues(values); err != nil {
+				return err
+			}
+			a.startRun(s, values, closeOnSuccess)
+			return nil
+		},
+		dir: s.WorkingDir(a.workDir),
 	}
 	a.mode = formMode
 }
@@ -138,7 +144,7 @@ func (f *paramsForm) formValue(p script.Param, selected bool, width int) string 
 func commandPreview(s script.Script, values map[string]string) string {
 	shown := maps.Clone(values)
 	for _, p := range s.Params {
-		if p.Secret || !p.Asked() {
+		if p.Secret || p.From != "" {
 			shown[p.Name] = "••••"
 		}
 	}

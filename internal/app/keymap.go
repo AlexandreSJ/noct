@@ -87,6 +87,7 @@ var keyContexts = []keyContext{
 		{"page-down", "a page down", []string{"pgdown", "ctrl+f"}},
 		{"top", "the oldest line", []string{"home", "g"}},
 		{"bottom", "back to live", []string{"end", "G", "shift+g"}},
+		{"filter", "show only the lines matching a pattern, as the program goes on", []string{"f"}},
 		{"done", "done (any other key too)", []string{"q", "enter"}},
 	}},
 	{id: "scripts", label: "scripts panel", actions: []keyAction{
@@ -153,7 +154,7 @@ var keyContexts = []keyContext{
 		{"enter", "the day's logs, the log, or back to the list", []string{"enter"}},
 		{"toggle-log", "the day's logs, the log, or back to the list", []string{"space"}},
 		{"scroll-log", "the log, a page up", []string{"u"}},
-		{"today", "today", []string{"t"}},
+		{"today", "today, or when each line of the log started", []string{"t"}},
 		{"home", "today, the first log, or the top of the log", []string{"home"}},
 		{"first", "the first log, or the top of the log", []string{"g"}},
 		{"last", "the last log, or the live end of the log", []string{"end", "G", "shift+g"}},

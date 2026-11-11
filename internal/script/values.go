@@ -13,9 +13,10 @@ import (
 	"github.com/AlexandreSJ/noct/internal/atomicfile"
 )
 
-// Asked tells whether the user fills the parameter in, rather than the environment.
-func (p Param) Asked() bool {
-	return p.From == ""
+// Asked tells whether the user fills the parameter in: always, or for an env parameter, when
+// its variable is not set.
+func (p Param) Asked(getenv func(string) string) bool {
+	return p.From == "" || getenv(p.envName()) == ""
 }
 
 func (p Param) envName() string {
@@ -23,14 +24,15 @@ func (p Param) envName() string {
 }
 
 // StartingValues is what each parameter holds before the user changes anything: the environment
-// for env parameters, then the last value used when the parameter is remembered, then its default.
+// for env parameters whose variable is set, then the last value used when the parameter is
+// remembered, then its default.
 func (s Script) StartingValues(remembered map[string]string, getenv func(string) string) map[string]string {
 	values := make(map[string]string, len(s.Params))
 	for _, p := range s.Params {
 		switch last, ok := remembered[p.Name]; {
-		case !p.Asked():
+		case !p.Asked(getenv):
 			values[p.Name] = getenv(p.envName())
-		case p.Remember && !p.Secret && ok:
+		case p.Remember && !p.Secret && p.From == "" && ok:
 			values[p.Name] = last
 		case p.Default == "" && len(p.Choices) > 0:
 			values[p.Name] = p.Choices[0]
@@ -45,8 +47,8 @@ func (s Script) StartingValues(remembered map[string]string, getenv func(string)
 func (s Script) CheckValues(values map[string]string) error {
 	for _, p := range s.Params {
 		value := values[p.Name]
-		if !p.Asked() && value == "" {
-			return fmt.Errorf("%s is not set in the environment (parameter %s)", p.envName(), p.Name)
+		if p.From != "" && value == "" {
+			return fmt.Errorf("%s is not set in the environment and parameter %s is empty", p.envName(), p.Name)
 		}
 		if len(p.Choices) > 0 && !slices.Contains(p.Choices, value) {
 			return fmt.Errorf("%s must be one of %s", p.Name, strings.Join(p.Choices, ", "))
@@ -104,7 +106,7 @@ const flowKey = "flow:"
 func (m *Memory) Remember(s Script, values map[string]string) error {
 	kept := map[string]string{}
 	for _, p := range s.Params {
-		if p.Remember && !p.Secret && p.Asked() {
+		if p.Remember && !p.Secret && p.From == "" {
 			kept[p.Name] = values[p.Name]
 		}
 	}

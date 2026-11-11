@@ -116,6 +116,8 @@ type Hello struct {
 	NewSession bool `json:"new_session,omitempty"`
 	// Setup opens noct's setup once attached, as noct setup asks.
 	Setup bool `json:"setup,omitempty"`
+	// Template opens the tab template of that name in a new session, as noct new --template asks.
+	Template string `json:"template,omitempty"`
 }
 
 type Exit struct {

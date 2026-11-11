@@ -12,21 +12,53 @@ the shortcut is `Alt` by default. How to write an entry is in
 ## Unreleased
 
 Animations got a lot smoother. Panes, tabs and popups now go away as gently as they appear,
-instead of vanishing on the last frame; three new effects, `dissolve`, `wipe` and `grow`, join
+instead of vanishing on the last frame; new effects, `dissolve`, `wipe`, `grow`, `slide-left`, `slide-right` and `shine`, join
 `01`, `fade` and `jitter`; and hovering a tab, a pane's title or a list's row lights it in the
 selected color and blends it back as the mouse leaves. Fades touch only text colors, so a
 terminal's own background stays untouched.
 
 ### Added
 
-- Three animation effects for any moment in **Appearance → animations**: `dissolve` shows or
-  hides each cell at once in a random order, `wipe` sweeps across from left to right, and `grow`
-  spreads out from the center and shrinks back into it.
+- Animation effects for any moment in **Appearance → animations**: `dissolve` shows or hides
+  each cell at once in a random order, `wipe` sweeps across from left to right, `grow` spreads
+  out from the center and shrinks back into it, `slide-right` and `slide-left` bring the content
+  in from the left or the right edge like a drawer and take it back out, and `shine` sweeps a
+  bright band across the text, darker on light themes.
 - `prefix` + `D` duplicates the focused terminal: a new one opens beside it in the same folder and,
   when its shell runs a program, offers to run the same command.
 - In a log in the logs view, `/` searches up from the end, `n` and `N` go to the next match up and
   down, and `f` shows only the lines with a text. Matches show in reverse, lower case matches any
   case, and `esc` clears the search or filter before going back to the list.
+- A script or flow that ends out of sight, in a pane off screen or started by a trigger, is told
+  by a system notification, or by the terminal's bell, as **Flows → tell when runs end** sets.
+  Over ssh, or without `notify-send` or `osascript`, the notification goes through the terminal
+  (OSC 9).
+- A line of a script's notes that is only an image, `![diagram](diagram.png)`, shows the image in
+  the scripts panel: in full resolution in kitty and Ghostty, and drawn with half blocks in other
+  terminals, so any terminal with colors shows it.
+- A repository can keep tab templates in `.noct/templates/`. They show in `prefix` + `T` marked
+  `project`, and every command they hold is asked before it runs.
+- `noct new [session] --template <name>` starts the session with the template's tab.
+- While scrolling a terminal (`prefix` + `g`), `f` filters it: the pane shows only the lines
+  that match a regular expression, live as the program goes on, until `f` with nothing typed.
+- `Ctrl` + click on a pane opens what is under the mouse: a link the program set, a URL in the
+  text, even one a long line wrapped, or the path of a file or folder that exists. Over ssh it is
+  copied instead.
+- `noct export theme`, `noct export config` and `noct export keys` print a theme, the settings
+  you changed, or your keys and binds as one `noct import …` line, with a QR code of it on a
+  terminal, to run on another machine. `noct import` shows what it changes, each bind's command
+  included, and asks before applying it.
+- `noct import theme <file>` turns a kitty, Ghostty or base16 theme into a noct theme, with its
+  16 colors.
+- A theme file can give the terminal's 16 colors in an `[ansi]` table (`color0` to `color15`).
+  With **Appearance → background** on `theme`, programs in panes draw with them, so the whole
+  workspace follows the theme.
+- In a log in the logs view, `t` shows when each line started (`2026-11-11 09-30-00`) before it.
+  Logs written before this version show the lines without times.
+- Flow params can come from the environment, as script params already could: with
+  `from: env:NAME`, the variable's value is used without asking. `secret: true` masks a flow
+  param in the form and never remembers it. The demo's `demo-deploy` reads its `token` from
+  `DEMO_DEPLOY_TOKEN`.
 - A shell's pane title tells the folder it is in, as `zsh · ~/proj`, until a program sets a
   title of its own.
 - Script and flow templates have `quote`: `{{quote .pattern}}` puts a value in single quotes as one
@@ -35,6 +67,9 @@ terminal's own background stays untouched.
 
 ### Changed
 
+- A script or flow param with `from: env:NAME` whose variable is not set is asked in the form,
+  instead of refusing to run. Typed for a flow, it reaches the run as that variable, never on its
+  command line, and it is never remembered.
 - Closing a pane, a tab or a popup no longer flashes away on the last frame. With `fade`, its
   text fades out and what is below fades in; with `01` and `jitter`, its cells go away one by one.
   Fades change only text colors, so a terminal's own background stays as it is.

@@ -101,6 +101,7 @@ func (a *App) finishTriggered(run script.Run, code int) {
 	if code != 0 {
 		a.statusMessage = fmt.Sprintf("flow %s (%s) failed with exit %d", run.Flow, run.Trigger, code)
 	}
+	a.notify(runEndedText(fmt.Sprintf("flow %s (%s)", run.Flow, run.Trigger), code))
 }
 
 // addTrigger asks what should start the flow by itself, adds it to the flow's file and turns the

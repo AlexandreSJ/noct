@@ -209,7 +209,7 @@ func hasParam(s script.Script, name string) bool {
 func askValues(s script.Script, values map[string]string, given map[string]bool) error {
 	input := bufio.NewReader(os.Stdin)
 	for _, p := range s.Params {
-		if given[p.Name] || !p.Asked() {
+		if given[p.Name] || !p.Asked(os.Getenv) {
 			continue
 		}
 		answer, err := ask(input, p, values[p.Name])

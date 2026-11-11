@@ -70,3 +70,31 @@ func TestLinesReadAsTextThroughTheHistory(t *testing.T) {
 		t.Errorf("line 12 reads %q", got)
 	}
 }
+
+func TestTheLastLinesMatchingDrawAlone(t *testing.T) {
+	exited := make(chan struct{})
+	p, err := Start(Options{
+		Argv:   []string{"sh", "-c", `i=1; while [ $i -le 12 ]; do printf 'line %d\n' $i; i=$((i+1)); done`},
+		Env:    []string{"TERM=xterm-256color", "PATH=/usr/bin:/bin"},
+		Size:   pty.Size{Cols: 20, Rows: 4},
+		OnExit: func(int) { close(exited) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(p.Close)
+	waitFor(t, exited)
+	lines := p.LastLinesMatching(func(text string) bool { return strings.HasPrefix(text, "line 1") }, 3)
+	var got []string
+	for _, line := range lines {
+		got = append(got, p.LineText(line))
+	}
+	if strings.Join(got, ",") != "line 10,line 11,line 12" {
+		t.Fatalf("matched %q, want the last 3 lines starting with line 1, oldest first", got)
+	}
+	screen := uv.NewScreenBuffer(20, 3)
+	p.DrawLines(screen, uv.Rect(0, 0, 20, 3), lines)
+	if c := screen.CellAt(6, 2); c == nil || c.Content != "2" {
+		t.Errorf("the last row drew %v, want line 12", c)
+	}
+}

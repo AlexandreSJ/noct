@@ -124,7 +124,7 @@ func (e Entry) LogFiles() []string {
 // log.
 func (e Entry) Files() []string {
 	files := e.LogFiles()
-	for _, beside := range []string{DaysPath(e.Path), ResultPath(e.Path)} {
+	for _, beside := range []string{DaysPath(e.Path), ResultPath(e.Path), TimesPath(e.Path), TimesPath(e.Path + ".1")} {
 		if _, err := os.Stat(beside); err == nil {
 			files = append(files, beside)
 		}

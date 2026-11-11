@@ -29,14 +29,23 @@ func Dir() (string, error) {
 type file struct {
 	base   string
 	colors map[Component]Color
+	ansi   map[int]Color
 }
 
 func readFile(path string) (file, error) {
-	var raw map[string]any
-	if _, err := toml.DecodeFile(path, &raw); err != nil {
+	content, err := os.ReadFile(path)
+	if err != nil {
 		return file{}, err
 	}
-	f := file{base: "noct", colors: map[Component]Color{}}
+	return parseFile(content)
+}
+
+func parseFile(content []byte) (file, error) {
+	var raw map[string]any
+	if _, err := toml.Decode(string(content), &raw); err != nil {
+		return file{}, err
+	}
+	f := file{base: "noct", colors: map[Component]Color{}, ansi: map[int]Color{}}
 	for key, value := range raw {
 		if key == "base" {
 			base, ok := value.(string)
@@ -52,7 +61,8 @@ func readFile(path string) (file, error) {
 		}
 		for name, v := range table {
 			c, ok := component(key, name)
-			if !ok {
+			n, isANSI := ansiIndex(key, name)
+			if !ok && !isANSI {
 				return file{}, fmt.Errorf("%s.%s is not something a theme colors", key, name)
 			}
 			var text string
@@ -68,6 +78,10 @@ func readFile(path string) (file, error) {
 			if err != nil {
 				return file{}, fmt.Errorf("%s.%s: %w", key, name, err)
 			}
+			if isANSI {
+				f.ansi[n] = color
+				continue
+			}
 			if color == "" && !FollowsBackground(c) {
 				return file{}, fmt.Errorf("%s.%s needs a color: only backgrounds can be empty", key, name)
 			}
@@ -75,6 +89,16 @@ func readFile(path string) (file, error) {
 		}
 	}
 	return f, nil
+}
+
+// ansiIndex is the terminal color a key of the ansi table names.
+func ansiIndex(group, key string) (int, bool) {
+	for n := range ANSICount {
+		if group == ANSIGroup && key == ANSIKey(n) {
+			return n, true
+		}
+	}
+	return 0, false
 }
 
 func component(group, key string) (Component, bool) {
@@ -127,9 +151,12 @@ func LoadDir(dir string, builtins []Theme) ([]Theme, []error) {
 		if err != nil {
 			return Theme{}, err
 		}
-		t := Theme{Name: name, Base: f.base, Colors: base.Colors}
+		t := Theme{Name: name, Base: f.base, Colors: base.Colors, ANSI: base.ANSI}
 		for c, color := range f.colors {
 			t.Colors[c] = color
+		}
+		for n, color := range f.ansi {
+			t.ANSI[n] = color
 		}
 		return t, nil
 	}
@@ -145,9 +172,41 @@ func LoadDir(dir string, builtins []Theme) ([]Theme, []error) {
 	return themes, errs
 }
 
+// Parse reads a theme file's content as the theme name, built on one of themes.
+func Parse(name string, content []byte, themes []Theme) (Theme, error) {
+	f, err := parseFile(content)
+	if err != nil {
+		return Theme{}, err
+	}
+	base, ok := Find(themes, f.base)
+	if !ok {
+		return Theme{}, fmt.Errorf("its base %s is not a theme here", f.base)
+	}
+	t := Theme{Name: name, Base: f.base, Colors: base.Colors, ANSI: base.ANSI}
+	for c, color := range f.colors {
+		t.Colors[c] = color
+	}
+	for n, color := range f.ansi {
+		t.ANSI[n] = color
+	}
+	return t, nil
+}
+
 // Save writes t to dir with only the colors that differ from base, through a temporary file so
 // a theme being read is never half written.
 func Save(dir string, t Theme, base Theme) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(dir, t.Name+".toml")
+	if target, err := filepath.EvalSymlinks(path); err == nil {
+		path = target // a theme linked from dotfiles stays a link, with the change in its target
+	}
+	return atomicfile.Write(path, Encode(t, base), 0o644)
+}
+
+// Encode is t's file, with only the colors that differ from base.
+func Encode(t Theme, base Theme) []byte {
 	var out strings.Builder
 	fmt.Fprintf(&out, "base = %s\n", strconv.Quote(t.Base))
 	group := ""
@@ -161,12 +220,13 @@ func Save(dir string, t Theme, base Theme) error {
 		}
 		fmt.Fprintf(&out, "%s = %s\n", info.Key, strconv.Quote(string(t.Colors[c])))
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
+	if t.ANSI != base.ANSI {
+		fmt.Fprintf(&out, "\n[%s]\n", ANSIGroup)
+		for n, color := range t.ANSI {
+			if color != base.ANSI[n] {
+				fmt.Fprintf(&out, "%s = %s\n", ANSIKey(n), strconv.Quote(string(color)))
+			}
+		}
 	}
-	path := filepath.Join(dir, t.Name+".toml")
-	if target, err := filepath.EvalSymlinks(path); err == nil {
-		path = target // a theme linked from dotfiles stays a link, with the change in its target
-	}
-	return atomicfile.Write(path, []byte(out.String()), 0o644)
+	return []byte(out.String())
 }

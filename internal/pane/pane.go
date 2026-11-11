@@ -4,6 +4,7 @@ package pane
 import (
 	"image"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -361,7 +362,37 @@ func (p *Pane) LineCount() int {
 func (p *Pane) LineText(line int) string {
 	p.screenLock.RLock()
 	defer p.screenLock.RUnlock()
+	return p.lineText(line, p.historyLen())
+}
+
+// LastLinesMatching are up to n of the last lines of history and screen whose text match takes,
+// oldest first, for a view of only them.
+func (p *Pane) LastLinesMatching(match func(text string) bool, n int) []int {
+	p.screenLock.RLock()
+	defer p.screenLock.RUnlock()
 	history := p.historyLen()
+	var lines []int
+	for line := history + p.screen.Height() - 1; line >= 0 && len(lines) < n; line-- {
+		if match(p.lineText(line, history)) {
+			lines = append(lines, line)
+		}
+	}
+	slices.Reverse(lines)
+	return lines
+}
+
+// DrawLines draws the lines of history and screen given, a row each from the top of area.
+func (p *Pane) DrawLines(target uv.Screen, area uv.Rectangle, lines []int) {
+	p.screenLock.RLock()
+	defer p.screenLock.RUnlock()
+	history := p.historyLen()
+	width := min(area.Dx(), p.screen.Width())
+	for y, line := range lines[:min(len(lines), area.Dy())] {
+		p.drawLine(target, area.Min.Add(image.Pt(0, y)), line, history, width)
+	}
+}
+
+func (p *Pane) lineText(line, history int) string {
 	var text strings.Builder
 	for x := 0; x < p.screen.Width(); {
 		cell := p.lineCell(x, line, history)

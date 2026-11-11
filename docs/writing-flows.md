@@ -111,6 +111,7 @@ A step sets exactly one of these:
 params:
   env: staging                    # a default alone
   a: {type: number, required: true, prompt: First number}
+  token: {from: 'env:DEPLOY_TOKEN', secret: true}   # the variable's value when set; asked when not
 steps:
   - id: add
     run: awk 'BEGIN { print {{.a}} + 1 }'
@@ -123,8 +124,12 @@ steps:
 ```
 
 - A param is its default alone, or a mapping with `default`, `type` (`text` or `number`),
-  `prompt` (the label in the form) and `required`. `noct flow run` and the form refuse a
-  `number` that is not one and a `required` param left empty.
+  `prompt` (the label in the form), `required`, `from` and `secret`. `noct flow run` and the
+  form refuse a `number` that is not one and a `required` param left empty.
+- `from: env:NAME` takes the value from the variable `NAME` when it is set, and the form does not
+  ask for it; unset, the param is asked like any other. A value given as `name=value` wins.
+  Typed in the form, it goes to the run as `NAME`, never on its command line. `secret: true`
+  masks it in the form and never remembers it. Scripts have the same `from` (ADR-063).
 - Params, `set` and `prompt` share one namespace: `{{.name}}`. `steps` is not a valid name.
 - `set` renders all its values first, then sets them, so `set: {a: '{{.b}}', b: '{{.a}}'}` swaps.
 - A `prompt` needs someone at the terminal. In noct's workspace it brings the run's pane to the

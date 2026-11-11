@@ -156,7 +156,7 @@ func (a *App) askAndRun(s script.Script, closeOnSuccess bool) {
 	}
 	values := s.StartingValues(a.memory.Values(s), a.getenv)
 	for _, p := range s.Params {
-		if p.Asked() {
+		if p.Asked(a.getenv) {
 			a.openForm(s, values, closeOnSuccess)
 			return
 		}
@@ -214,15 +214,24 @@ func (a *App) trackedProgram(p program, id layout.PaneID, run script.Run, onExit
 	p.logPath = run.Log
 	if run.Flow != "" {
 		// The flow runner leaves the record to noct, and keeps its result beside the log.
-		p.env = []string{flow.TrackedEnv + "=1", flow.ResultEnv + "=" + logstore.ResultPath(run.Log), paneEnvFor(id)}
+		p.env = append(slices.Clone(p.env), flow.TrackedEnv+"=1", flow.ResultEnv+"="+logstore.ResultPath(run.Log), paneEnvFor(id))
 	}
 	p.onExit = func(code int) {
 		if err := script.FinishRun(runsPath(), run, code); err != nil {
 			a.statusMessage = err.Error()
 		}
 		onExit(code)
+		a.runEnded(id, runName(run), code)
 	}
 	return p
+}
+
+// runName is how a notification names the run: its script, or its flow.
+func runName(run script.Run) string {
+	if run.Flow != "" {
+		return "flow " + run.Flow
+	}
+	return run.Script
 }
 
 // logNameOf names a run's log after its script, or after its flow.

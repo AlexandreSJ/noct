@@ -167,3 +167,31 @@ func TestSaveKeepsALinkedThemeALink(t *testing.T) {
 		t.Errorf("the link's target has %q", content)
 	}
 }
+
+func TestAThemeFileGivesTheTerminalsSixteenColors(t *testing.T) {
+	dir := t.TempDir()
+	writeTheme(t, dir, "base16", "base = \"noct\"\n\n[ansi]\ncolor1 = \"#ff0000\"\ncolor15 = \"#ffffff\"\n")
+	writeTheme(t, dir, "child", "base = \"base16\"\n\n[ansi]\ncolor1 = \"#aa0000\"\n")
+	writeTheme(t, dir, "broken", "[ansi]\ncolor16 = \"#000000\"\n")
+	themes, errs := LoadDir(dir, Builtins())
+	if len(errs) != 1 || !strings.Contains(errs[0].Error(), "color16") {
+		t.Errorf("errors %v, want broken's color16 refused", errs)
+	}
+	base16, _ := Find(themes, "base16")
+	child, _ := Find(themes, "child")
+	if base16.ANSI[1] != "#ff0000" || base16.ANSI[15] != "#ffffff" || base16.ANSI[0] != "" {
+		t.Errorf("base16's colors %q", base16.ANSI)
+	}
+	if child.ANSI[1] != "#aa0000" || child.ANSI[15] != "#ffffff" {
+		t.Errorf("child's colors %q, want its own red over base16's", child.ANSI)
+	}
+
+	out := t.TempDir()
+	if err := Save(out, child, base16); err != nil {
+		t.Fatal(err)
+	}
+	saved, _ := os.ReadFile(filepath.Join(out, "child.toml"))
+	if !strings.Contains(string(saved), "[ansi]\ncolor1 = \"#aa0000\"\n") || strings.Contains(string(saved), "color15") {
+		t.Errorf("saved:\n%s\nwant only the color that differs from the base", saved)
+	}
+}

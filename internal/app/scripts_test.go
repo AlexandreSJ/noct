@@ -172,20 +172,31 @@ func TestScriptWithoutParametersRunsRightAway(t *testing.T) {
 	}
 }
 
-func TestEnvParameterMustBeSet(t *testing.T) {
+func TestAnEnvParameterIsAskedOnlyWhenUnset(t *testing.T) {
 	a := testApp(t)
 	l := recordLaunches(a)
 	saveScript(t, "login", "run: login {{.pw}}\nparams: [{name: pw, from: 'env:NOCT_TEST_PW'}]\n")
 	openScriptsPanel(t, a)
+	panel := a.currentTab().focused
+	press(a, enterPress)
+	if len(l.programs) != 0 || a.mode != formMode {
+		t.Fatalf("NOCT_TEST_PW unset: ran %d programs, mode %v; want the form asking pw", len(l.programs), a.mode)
+	}
 	press(a, enterPress)
 	if len(l.programs) != 0 || !strings.Contains(a.statusMessage, "NOCT_TEST_PW") {
-		t.Fatalf("ran %d programs, status %q", len(l.programs), a.statusMessage)
+		t.Fatalf("pw left empty: ran %d programs, status %q", len(l.programs), a.statusMessage)
+	}
+	typeText(a, "typed")
+	press(a, enterPress)
+	if run := l.last(t); run.argv[2] != "login typed" {
+		t.Fatalf("ran %q, want the value typed", run.argv)
 	}
 
 	a.shellEnv = []string{"NOCT_TEST_PW=hunter2"}
+	a.focusPane(a.currentTab(), panel)
 	press(a, enterPress)
-	if run := l.last(t); run.argv[2] != "login hunter2" {
-		t.Errorf("ran %q", run.argv)
+	if run := l.last(t); a.mode == formMode || run.argv[2] != "login hunter2" {
+		t.Errorf("NOCT_TEST_PW set: mode %v, ran %q; want it run at once with the variable", a.mode, run.argv)
 	}
 }
 

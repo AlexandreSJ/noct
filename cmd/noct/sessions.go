@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"slices"
 	"text/tabwriter"
 	"time"
 
@@ -26,10 +27,17 @@ func attachCommand(socket string, args []string, out io.Writer) error {
 
 // newSessionCommand creates a session, named or numbered, and attaches to it.
 func newSessionCommand(socket string, args []string) error {
-	if len(args) > 1 {
-		return errors.New("usage: noct new [session]")
-	}
 	target := client.Target{New: true}
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--template" && i+1 < len(args) {
+			target.Template = args[i+1]
+			args = append(args[:i:i], args[i+2:]...)
+			break
+		}
+	}
+	if len(args) > 1 || target.Template == "" && slices.Contains(args, "--template") {
+		return errors.New("usage: noct new [session] [--template name]")
+	}
 	if len(args) == 1 {
 		if err := saved.CheckName(args[0]); err != nil {
 			return err

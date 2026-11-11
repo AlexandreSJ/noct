@@ -48,6 +48,7 @@ const (
 	logsPreviewRow
 	logsPreviewPercentRow
 	flowsOutputRow
+	notifyRow
 	updateCheckRow
 	resetRow
 	resetBindsRow
@@ -462,6 +463,9 @@ func (a *App) stepSetting(next *config.Config, row configRow, step int) (after f
 	case flowsOutputRow:
 		i := max(slices.Index(flowOutputChoices, next.Flows.OutputKB), 0)
 		next.Flows.OutputKB = flowOutputChoices[min(max(i+step, 0), len(flowOutputChoices)-1)]
+	case notifyRow:
+		i := slices.Index(config.NotifyChoices, next.Notify)
+		next.Notify = config.NotifyChoices[min(max(i+step, 0), len(config.NotifyChoices)-1)]
 	case updateCheckRow:
 		next.Update.Check = !next.Update.Check
 		if next.Update.Check && !a.updates.checked {
@@ -681,6 +685,8 @@ func (a *App) flowsLines() []configLine {
 		{label: "Flows", heading: true},
 		{label: "step output kept", value: choiceValue(flowOutputLabel(a.config.Flows.OutputKB)), row: flowsOutputRow},
 		{label: "in each flow's last result; tests keep 4 KB", note: true},
+		{label: "tell when runs end", value: choiceValue(a.config.Notify), row: notifyRow},
+		{label: "runs out of sight: system notification, the terminal's bell, or off", note: true},
 	}
 }
 

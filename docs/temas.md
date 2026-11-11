@@ -47,6 +47,9 @@ Cores são `#rrggbb` ou um índice de 0 a 255 (com ou sem aspas). Só os fundos 
 | `[noct]` | `text`, `muted`, `heading`, `selected_text`, `selected_background`, `popup_background` |
 | `[state]` | `attention`, `success`, `error` |
 | `[other]` | `logo`, `calendar` |
+| `[ansi]` | `color0` a `color15`: as 16 cores do terminal (preto, vermelho, verde, amarelo, azul, magenta, ciano, branco e as versões claras) |
+
+**Paleta ANSI.** Com `background = theme`, as 16 cores que os programas dos painéis pedem por índice (`ls --color`, `git diff`, prompts) são desenhadas com as do `[ansi]` do tema, então o workspace inteiro segue o tema. Uma cor que o tema não dá, ou `""`, continua a do terminal de fora; as cores de 16 a 255 e as `#rrggbb` dos programas não mudam. Com `background = terminal`, o fundo e as cores são do terminal, e o `[ansi]` não vale. Os temas embutidos não têm `[ansi]`; ele vem de um tema do usuário ou importado (`noct import theme`). Um tema de outro terminal vira tema do noct com `noct import theme <arquivo>`, e um tema vai para outra máquina com `noct export theme` ([tui.md](tui.md#levar-o-config-para-outra-máquina)). O editor de temas ainda não edita essas cores: ficam no arquivo e passam para os temas feitos a partir dele.
 
 ## Editor de temas
 

@@ -5,6 +5,7 @@ import (
 	"image"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -203,4 +204,44 @@ func mustFrame(t *testing.T, a *App) image.Rectangle {
 		t.Fatal("the logs panel is not on screen")
 	}
 	return frame
+}
+
+func TestTShowsWhenEachLineOfTheLogStarted(t *testing.T) {
+	a, p, launched := searchedLog(t)
+	pressDrawn(a, letter('t'))
+	if !p.preview.times || len(*launched) != 2 || !strings.Contains((*launched)[1], " log-times --from 1 --follow -- ") {
+		t.Fatalf("t: times %v, commands %q; want the log started over through noct log-times", p.preview.times, *launched)
+	}
+	if !strings.Contains(screenText(a), "times") {
+		t.Errorf("the log's title does not tell the times:\n%s", screenText(a))
+	}
+	pressDrawn(a, letter('f'))
+	typeText(a, "error")
+	pressDrawn(a, enterPress)
+	if last := (*launched)[len(*launched)-1]; !strings.Contains(last, "log-times") || !strings.Contains(last, "grep") {
+		t.Errorf("filtered with times: %q, want both", last)
+	}
+	pressDrawn(a, escPress, letter('t'))
+	if last := (*launched)[len(*launched)-1]; p.preview.times || strings.Contains(last, "log-times") {
+		t.Errorf("t again: times %v, command %q; want the plain log", p.preview.times, last)
+	}
+}
+
+func TestAFilterWithTimesKeepsTheLinesWithItsText(t *testing.T) {
+	noct := filepath.Join(t.TempDir(), "noct")
+	if out, err := exec.Command("go", "build", "-o", noct, "../../cmd/noct").CombinedOutput(); err != nil {
+		t.Fatalf("building noct: %v\n%s", err, out)
+	}
+	testApp(t)
+	e := writeNumberedLog(t, 30, 12)
+	v := logPreview{lines: 30, filter: "line 3", times: true, noct: noct}
+	argv := slices.Clone(v.partCommand(e))
+	argv[2] = strings.ReplaceAll(argv[2], " --follow ", " ")
+	out, err := exec.Command(argv[0], argv[1:]...).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n"); len(lines) != 2 || !strings.HasSuffix(lines[0], " line 3") || !strings.HasSuffix(lines[1], " line 30") {
+		t.Errorf("filter with times kept %q", out)
+	}
 }

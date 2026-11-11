@@ -133,3 +133,30 @@ func TestDuplicateOffersWhatTheTerminalRuns(t *testing.T) {
 		return strings.Contains(screen, "run again?") && strings.Contains(screen, "sleep 300")
 	})
 }
+
+func TestANewSessionOpensATemplate(t *testing.T) {
+	s := newSession(t)
+	var home string
+	for _, entry := range s.env {
+		if dir, ok := strings.CutPrefix(entry, "HOME="); ok {
+			home = dir
+		}
+	}
+	dir := filepath.Join(home, ".config", "noct", "templates")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	template := "layout: columns\npanes:\n  - terminal: { name: from-template }\n  - terminal: { name: beside-it }\n"
+	if err := os.WriteFile(filepath.Join(dir, "pair.yaml"), []byte(template), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	noct, _ := s.attach(t, "new", "work", "--template", "pair")
+	waitForScreen(t, noct, "the template's panes", func(screen string) bool {
+		return strings.Contains(screen, "from-template") && strings.Contains(screen, "beside-it")
+	})
+	missing, exited := s.attach(t, "new", "other", "--template", "nope")
+	waitForExit(t, exited, "a missing template did not end noct new")
+	if screen := screenText(missing); !strings.Contains(screen, "no template nope") {
+		t.Errorf("noct new --template nope did not say why:\n%s", screen)
+	}
+}

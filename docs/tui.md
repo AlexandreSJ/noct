@@ -32,7 +32,7 @@
 - Em todo lugar onde o noct move algo sem que se esteja digitando texto, `hjkl` valem como as setas: foco, mover, resize, rolagem, painéis e o inspect.
 - As listas que rolam (scripts panel, logs, busca e config) mantêm até 4 itens visíveis acima e abaixo da seleção, como o `scrolloff` do vim: a seleção anda dentro da vista e a lista só rola quando chega a 4 da borda, então dá para ver o que vem antes de chegar lá.
 - Cada painel tem título (definido pelo programa, ou o nome do shell e a pasta em que ele está, `zsh · ~/proj`, com a home como `~`; o nome da tab e a busca ficam só com o do shell) e, no futuro, indicador de estado: rodando, terminou ok, falhou, atividade não vista. Painéis de script já mostram `●`, `✓` ou `✗ <código>`.
-- Rolagem do histórico com `prefixo` + `g` (ou `Alt+G`) ou com a roda do mouse; a posição aparece à direita na borda do painel (`↑ 120/2000`), e rolar de volta até o fim com a roda volta ao vivo. Rolando, valem as teclas do vim e as setas; qualquer outra tecla volta ao vivo sem chegar ao programa. Busca e cópia no histórico ficam para depois.
+- Rolagem do histórico com `prefixo` + `g` (ou `Alt+G`) ou com a roda do mouse; a posição aparece à direita na borda do painel (`↑ 120/2000`), e rolar de volta até o fim com a roda volta ao vivo. Rolando, valem as teclas do vim e as setas; qualquer outra tecla volta ao vivo sem chegar ao programa. Rolando, `f` filtra o painel: pede uma expressão regular (em minúsculas acha qualquer caixa; com uma maiúscula, só a dela) e o painel passa a mostrar só as últimas linhas do histórico e da tela que casam, ao vivo, enquanto o programa continua rodando, com `filter: …` na borda; `f` de novo, vazio, mostra tudo. O programa não para nem fica sabendo; com o filtro, o cursor dele some. Rolar o histórico com o filtro mostra tudo, para ver uma linha no lugar dela.
 - Durante a rolagem, o prefixo, os atalhos diretos e um clique em outro painel encerram a rolagem e funcionam como sempre: dá para trocar de painel sem voltar ao fim antes.
 - **Templates** (ADR-052, [templates.md](templates.md)): `prefixo` + `R` grava a tab como template (layout, tipos e nomes dos painéis, cores, e em cada terminal o comando com `run`, `ask` ou `none`), e `prefixo` + `T` abre um template como tab nova, escolhido numa lista com a miniatura do layout; os terminais abrem no diretório que um terminal novo teria.
 
@@ -92,7 +92,7 @@ No modo noct:
 | `q` | quit | Pergunta `quit noct?`: `Enter` ou `q` de novo saem, `Esc` cancela | pergunta | 0a |
 | `b` | lock shortcuts | Trava os atalhos, ou destrava: ver [Trava](#trava) | termina | 5 |
 | `Esc` | cancel | Cancelar o modo noct | termina | 0 |
-| `g` | scroll history | Rolar o histórico do terminal com foco (antes `u`), com as teclas do vim e as setas: `↑↓`/`jk`/`Ctrl+Y`/`Ctrl+E` linha, `Ctrl+U`/`Ctrl+D` meia página, `PgUp`/`PgDn`/`Ctrl+B`/`Ctrl+F` página, `g`/`Home` topo, `Shift+G`/`End` fim; qualquer outra tecla, ou o atalho de novo, volta ao vivo sem chegar ao programa | rolagem | 0b |
+| `g` | scroll history | Rolar o histórico do terminal com foco (antes `u`), com as teclas do vim e as setas: `↑↓`/`jk`/`Ctrl+Y`/`Ctrl+E` linha, `Ctrl+U`/`Ctrl+D` meia página, `PgUp`/`PgDn`/`Ctrl+B`/`Ctrl+F` página, `g`/`Home` topo, `Shift+G`/`End` fim, `f` filtro; qualquer outra tecla, ou o atalho de novo, volta ao vivo sem chegar ao programa | rolagem | 0b |
 | `d` | detach | Desconectar: o terminal volta ao shell e os programas continuam; `noct` reconecta à mesma sessão | — | 0b |
 | `o` | sessions | Popup das sessões, da mais recente à mais antiga: aberta (`●`) ou fechada (`○`), tabs e último uso. `Enter` troca de sessão, `n` cria (vazio dá um número), `r` renomeia, `x` fecha (para os programas e guarda o layout), `d` apaga, `f` filtra pelo nome (sem diferenciar maiúsculas; `Esc` limpa o filtro antes de fechar o popup); ver [Sessões](#sessões) | sessões | 5 |
 | `?` | program help | Ajuda do programa em primeiro plano no terminal com foco; só com o shell, avisa e mantém o popup | termina | 1 |
@@ -172,6 +172,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 - Arrastar sobre o texto de um painel (terminal ou painel do noct) seleciona, e soltar copia para a área de transferência (OSC 52; kitty e Ghostty aceitam). A seleção nunca passa para outro painel: arrastar para fora a prende na borda do painel onde começou. Um clique ou uma tecla limpa a seleção. Só bordas, tabs, divisórias e itens clicáveis, como a lista do scripts panel, recebem cliques.
 - A seleção acompanha a rolagem, como num terminal: com o botão segurado, a roda rola o histórico e a seleção continua de onde começou, e arrastar para cima ou para baixo do painel rola uma linha por vez. O texto copiado inclui as linhas que saíram da tela.
 - No painel de uma execução de script, a linha de estado (`✓ done  r run again  enter close`) não entra na seleção: só a saída do script é copiada.
+- `Ctrl` + clique num painel abre o que está sob o mouse com `xdg-open` (ou `open` no macOS): o link que o programa marcou (OSC 8, como `ls --hyperlink` e o `gcc`), uma URL no texto (`http`, `https`, `ftp`, `file`), também quando a linha longa quebrou em várias, ou o caminho de um arquivo ou pasta que existe, a partir da pasta do terminal, sem o `:linha:coluna` que compiladores e `grep -n` põem depois. A pontuação no fim de uma frase e um parêntese que a URL não abriu ficam de fora. Como qualquer programa pode imprimir um link, o noct só abre `http`, `https`, `ftp` e `mailto`; `file://` e caminhos só para pastas (menos as que o macOS abre como programa, como um `.app`: com extensão ou com `Contents/MacOS`) e arquivos de tipos que só se mostram (texto, código, documentos, imagens, áudio e vídeo, pela extensão, depois de seguir links simbólicos) e sem o bit de executável, e nada que comece com `-`; o resto mostra por que não abriu. Um arquivo sem extensão ou de outro tipo pode ser um programa ou um lançador, que abrir rodaria. Conectado por ssh, ou sem o programa que abre, o noct copia em vez de abrir (abrir aconteceria na máquina de lá). Vale também com programas que ligam o mouse; alguns terminais de fora tomam `Ctrl` + clique para si, e aí o `Shift` + `Ctrl` + clique do próprio terminal abre a URL.
 - `Shift` + arrastar ainda usa a seleção do próprio terminal de fora. Quem prefere só ela desliga o mouse no config.
 
 ## Config
@@ -189,7 +190,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 | | `mode` | `dark` (padrão) ou `light`: cada tema embutido tem cores para fundo escuro e para fundo claro, e o modo escolhe quais a tela mostra, em todas as sessões. Os temas do usuário têm um jogo de cores só, que vale nos dois modos (ADR-055). |
 | | `background` | `terminal` mantém o fundo do terminal; `theme` pinta o fundo e o texto padrão com as cores do tema, inclusive dentro dos painéis. |
 | | `animate intro` | Quando a intro do título roda ao abrir o noct: `empty` (padrão) só quando a home está à vista (sessão sem tabs ou tab vazia); `always` sempre, cobrindo os painéis durante a intro e mais 1000 ms antes de mostrar a sessão (uma tecla ou um clique pula); `never` nunca. |
-| | `animations` | Liga (padrão) ou desliga todas as animações. Embaixo, uma linha por momento (`hover`, `open and close panels`, `open and close tabs`, `focus`, `move a panel`, `fullscreen`, `popups`, `activity`) com o efeito em `< >`: `none`, `01`, `fade`, `jitter`, `dissolve`, `wipe`, `grow`; embaixo de cada uma, `time`, em ms (de 50 a 2000, de 50 em 50 com `←`/`→`, ou digitado). Com uma dessas linhas selecionada, o palco embaixo da lista (30% da altura, com o subtítulo `example · space repeats it`) toca o efeito uma vez, com o tempo dela; `space` toca de novo (ADR-053). |
+| | `animations` | Liga (padrão) ou desliga todas as animações. Embaixo, uma linha por momento (`hover`, `open and close panels`, `open and close tabs`, `focus`, `move a panel`, `fullscreen`, `popups`, `activity`) com o efeito em `< >`: `none`, `01`, `fade`, `jitter`, `dissolve`, `wipe`, `grow`, `slide-left`, `slide-right` e `shine`; embaixo de cada uma, `time`, em ms (de 50 a 2000, de 50 em 50 com `←`/`→`, ou digitado). Com uma dessas linhas selecionada, o palco embaixo da lista (30% da altura, com o subtítulo `example · space repeats it`) toca o efeito uma vez, com o tempo dela; `space` toca de novo (ADR-053). |
 | **Mouse** | `clicks and drag` (`mouse` no arquivo) | Liga os cliques, o arraste das divisórias e a roda; padrão ligado. |
 | **Tabs** | `new tab opens` (`new_tab` no arquivo) | O painel com que `t` abre uma tab: `empty`, `terminal` (padrão), `scripts`, `flows` ou `logs`, cada um mostrado com as teclas que o abrem (`terminal (alt+p)`). As opções vêm da lista de tipos de painel (`panelKinds`), então um tipo novo aparece aqui sozinho. Um nome desconhecido no arquivo abre um terminal. (ADR-039) |
 | **Tabs** | `close when empty` (`close_empty_tabs` no arquivo) | Ligado (padrão): a tab fecha quando o último painel fecha. Desligado: a tab fica, vazia, mostrando a home; um painel aberto nela a ocupa, e `x` ou `Ctrl+D` a fecham. Mover o último painel para outra tab fecha a de origem de qualquer jeito. (ADR-039) |
@@ -200,6 +201,7 @@ Com `mouse` ligado no config (padrão), o noct pede ao terminal os relatórios d
 | | `sort` | Ordem da lista de scripts: `alphabetical` (padrão), `last edited` (o `script.yaml` alterado por último primeiro) ou `last run` (o rodado por último primeiro; os nunca rodados vêm depois, em ordem alfabética). A seleção fica no mesmo script quando a ordem muda. |
 | | `hints in new scripts` | Liga (padrão) ou desliga o comentário de 4 linhas no topo de cada script novo, explicando `description`, `program`, `run` e `params`. |
 | **Flows** | `step output kept` (`[flows] output_kb` no arquivo) | Quanto da saída de cada passo o último resultado de um fluxo guarda: `all` (padrão, até 1 MB, o que os templates leem), 256, 64, 16 ou 4 KB. Testes de passos (`t` no inspect) guardam sempre 4 KB (ADR-031). |
+| **Flows** | `tell when runs end` (`notify` no arquivo) | Como o noct avisa que uma execução terminou fora de vista: `system` (padrão), `bell` ou `off`. Ver "Aviso ao fim de uma execução" em [fluxos.md](fluxos.md). |
 | **Logs** | `keep`, `max size` (`[logs] keep_days`, `max_size_kb` no arquivo) | Por quantos dias sem escrita e até que tamanho os logs ficam (90 dias e 200 MB por padrão; ADR-059). `←`/`→` passam pelos valores prontos; `Enter` abre o valor para editar e um dígito começa um valor novo: dias (`99`) ou tamanho em KB, MB ou GB (`222 MB`, `20000 KB`, `2 GB`; sem unidade, MB). `Enter` salva, `Esc` descarta, e um valor que não se lê fica aberto com o problema embaixo. Sair da linha também descarta. Um limite novo que apagaria logs pergunta antes (`delete 12 logs (34.5 MB)?`); `Esc` ou `n` mantém o valor anterior e, se estava digitando, o texto. Embaixo, a mesma barra da view de logs mostra quanto os logs ocupam do tamanho máximo (`37% · 74 MB of 200 MB · 312 logs`). (ADR-044) |
 | | `list columns`, `log`, `log size` (`[logs] columns`, `preview`, `preview_percent`) | As colunas da lista de logs, em ordem, digitadas como `edited started status name session bar size lines` (o padrão); `Enter` edita e salva, palavras que não são colunas aparecem como deixadas de fora. Onde fica o log selecionado (`below`, `right`, `above`, `left`) e quanto ocupa (20 a 80%, 50% por padrão), que `p` e `+`/`-` também mudam na view. (ADR-059) |
 | | `terminals` (`[logs] terminals`) | Desligado (padrão): o que os painéis de terminal mostram não é gravado, para os logs não se encherem com o histórico do shell. Ligado: cada terminal novo grava a saída, como antes. Scripts, fluxos e comandos da IA são sempre gravados. (ADR-044) |
@@ -216,6 +218,18 @@ Atalhos do próprio terminal têm prioridade: se o kitty usa `Ctrl+L` para limpa
 # kitty.conf: dentro do noct, Ctrl+L vai para o painel
 map --when-focus-on var:in_noct ctrl+l
 ```
+
+## Levar o config para outra máquina
+
+`noct export` imprime uma linha só, `noct import <código>`, que traz para outra máquina o que foi exportado; num terminal, imprime antes um QR code dessa linha, para ler com o celular (`--no-qr` tira o QR). O código é o TOML comprimido (deflate) em base64 de URL depois de `noct1.`, então cabe numa linha e sobrevive a quebras de linha numa cópia.
+
+- `noct export theme [nome]`: o tema (sem nome, o que está em uso), sobre a base dele quando ela vem com o noct, senão sobre `noct`, com as cores `[ansi]`.
+- `noct export config`: só as configurações diferentes do padrão, sem as teclas. Importar muda só essas; as outras ficam como estão.
+- `noct export keys` (ou `shortcuts`): as teclas trocadas (`[keys]`) e as binds próprias (`[[custom_binds]]`). Importar põe as do código no lugar das suas.
+
+`noct import` mostra antes o que muda: cada configuração com o valor de agora e o novo (avisando quando muda o editor ou o gerenciador de arquivos, que são comandos), ou cada bind com o comando, script ou fluxo que ela roda. Só aplica com `y`; sem um terminal para perguntar, só com `--yes`. Um tema com o nome de um que já existe pergunta antes de substituir; com o nome de um embutido, pede outro com `--name`. O noct em execução lê o config novo quando começa de novo (`noct quit`, depois `noct`); temas novos aparecem na hora.
+
+`noct import theme <arquivo>` lê um tema do kitty (`color0 #…`), do Ghostty (`palette = 0=#…`) ou do base16 (`base00: "…"`), e também um arquivo de tema do noct. O nome vem do arquivo (`Tokyo Night.conf` vira `tokyo-night`) ou de `--name`. As 16 cores vão para o `[ansi]`; o fundo e o texto, para `[background]`; o azul vira o destaque, o preto claro o texto apagado, o amarelo as mensagens, o magenta o corvo, o verde e o vermelho sucesso e erro ([temas.md](temas.md)). O ADR-064 tem os motivos.
 
 ## Atualizações
 
@@ -241,7 +255,7 @@ Nada é instalado nem reiniciado sem uma tecla do usuário. Sem reiniciar, a ver
 - Suporte a truecolor com fallback para 256 cores.
 - Em toda lista (config e binds, busca, scripts, logs, fluxos do inspect, sessões, MCP, escolhas), `PgUp`/`PgDn` andam uma página, deixando a última linha da página anterior à vista, e `Home`/`End` vão ao primeiro e ao último item (`listJump`); no popup de um passo, rolam o texto. Nos logs, com o calendário em foco, `PgUp`/`PgDn` mudam o mês.
 - Listas que não cabem (config e binds, busca, scripts, logs) rolam deixando linhas visíveis em volta da seleção, acima e abaixo: 30% da altura da lista, pelo menos 4 e no máximo metade, para o próximo item aparecer antes de ser alcançado (`scrollMargin`).
-- Animações por momento (abrir e fechar painel e tab, foco, mover, tela inteira, popup, hover, atividade), cada uma com um efeito (`01`, `fade`, `jitter`, `dissolve`, `wipe`, `grow`) e um tempo, escolhidos em `Appearance → animations`; nunca redimensionam os programas e uma tecla as termina, menos as do foco ([animacoes.md](animacoes.md), ADR-053).
+- Animações por momento (abrir e fechar painel e tab, foco, mover, tela inteira, popup, hover, atividade), cada uma com um efeito (`01`, `fade`, `jitter`, `dissolve`, `wipe`, `grow`, `slide-left`, `slide-right`, `shine`) e um tempo, escolhidos em `Appearance → animations`; nunca redimensionam os programas e uma tecla as termina, menos as do foco ([animacoes.md](animacoes.md), ADR-053).
 
 ## Imagens
 
@@ -254,13 +268,9 @@ Nada é instalado nem reiniciado sem uma tecla do usuário. Sem reiniciar, a ver
 
 Como a imagem vira texto na grade, ela rola, é recortada pelas bordas do painel e some com `clear` junto com o resto. Em outros terminais os comandos de imagem são descartados, como antes. Não há suporte a animações, nem a apagar imagens por posição.
 
-**As próprias views do noct** (notas com imagens, previews) continuam na fase 5, usando o mesmo mecanismo no kitty e Sixel/iTerm2/meios-blocos nos demais terminais.
+**As próprias views do noct.** As imagens das notas dos scripts aparecem no scripts panel ([scripts.md](scripts.md#na-tui)). No kitty e no Ghostty, em resolução cheia, pelo mesmo mecanismo dos painéis: a imagem vai uma vez para cada terminal conectado, como PNG, com um posicionamento virtual, e as células da nota levam os placeholders, então ela rola e é cortada como texto. Nos outros terminais, meios-blocos. Sixel e iTerm2 desenham na posição do cursor e não se encaixam no redesenho por células; ficam de fora, e os meios-blocos cobrem esses terminais.
 
 ## Qualidade de vida (lista viva)
 
-- Notificação (sino do terminal e/ou notificação do sistema) quando uma execução em segundo plano termina.
-- Re-executar o último fluxo com os mesmos parâmetros em uma tecla (scripts já têm: `r`).
-- Clicar/abrir URLs e caminhos de arquivo na saída.
-- Timestamps opcionais por linha nos logs.
-- Buscar texto no log selecionado da view de logs e ir à parte de 5 000 linhas que o tem.
-- Filtrar a saída de um painel por regex sem parar o processo.
+- Feitos: aviso ao fim de uma execução fora de vista ([fluxos.md](fluxos.md)), `Ctrl` + clique em URLs e caminhos ([Mouse](#mouse)), horário por linha nos logs (`t`), busca e filtro no log (`/`, `n`, `N`, `f`) e filtro por regex num painel (`f` rolando).
+- Re-executar o último fluxo com os mesmos parâmetros em uma tecla: fechado, `r` no inspect e na execução já fazem.

@@ -140,6 +140,9 @@ type palette struct {
 
 	// heat colors the calendar's days by their logs, from a few to the most.
 	heat [heatLevels]color.Color
+	// ansi are the theme's colors for the terminal's 16, which programs in panes get in their
+	// place; nil keeps the terminal's own, and all are nil with the terminal's background.
+	ansi *[theme.ANSICount]color.Color
 }
 
 // heatLevels are the steps of the calendar's colors, up to the busiest day.
@@ -161,7 +164,15 @@ func newPalette(t theme.Theme, paintBackground bool) palette {
 		return uv.Style{Fg: t.Colors[c].Resolve(), Bg: background, Attrs: attrs}
 	}
 	themeBackground, calendar := t.Colors[theme.Background].Resolve(), t.Colors[theme.Calendar].Resolve()
+	var ansiColors *[theme.ANSICount]color.Color
+	if paintBackground && t.ANSI != ([theme.ANSICount]theme.Color{}) {
+		ansiColors = &[theme.ANSICount]color.Color{}
+		for n, c := range t.ANSI {
+			ansiColors[n] = c.Resolve()
+		}
+	}
 	return palette{
+		ansi:            ansiColors,
 		background:      background,
 		text:            text,
 		popupBackground: orBackground(theme.PopupBackground),

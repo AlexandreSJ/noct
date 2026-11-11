@@ -70,6 +70,8 @@ type Config struct {
 	Logs        Logs         `toml:"logs"`
 	Flows       Flows        `toml:"flows"`
 	MCP         MCP          `toml:"mcp"`
+	// Notify is how noct tells that a run ended out of sight: NotifySystem, NotifyBell or NotifyOff.
+	Notify string `toml:"notify"`
 	// Update says whether noct looks for new releases on its own.
 	Update Update `toml:"update"`
 }
@@ -111,6 +113,16 @@ func (b CustomBind) Target() (kind, what string, err error) {
 	}
 	return targets[0][0], targets[0][1], nil
 }
+
+// How noct tells that a run ended out of sight: as the system's notification (or, without one,
+// the terminal's), with the terminal's bell, or not at all.
+const (
+	NotifySystem = "system"
+	NotifyBell   = "bell"
+	NotifyOff    = "off"
+)
+
+var NotifyChoices = []string{NotifySystem, NotifyBell, NotifyOff}
 
 // Update has noct look for new releases on GitHub when it starts and once a day while it runs.
 // Installing one always waits for the user.
@@ -273,7 +285,7 @@ const (
 )
 
 // Effects are the names of the animation effects, in the order the config offers them.
-var Effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe", "grow"}
+var Effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe", "grow", "slide-left", "slide-right", "shine"}
 
 // AnimationMoments are the moments that animate, by their key in the config file.
 var AnimationMoments = []string{"hover", "panels", "tabs", "focus", "move", "fullscreen", "popup", "activity"}
@@ -422,6 +434,7 @@ func Default() Config {
 		Logs:           Logs{KeepDays: DefaultKeepDays, MaxSizeKB: DefaultMaxSizeKB, Columns: slices.Clone(DefaultLogColumns), Preview: LogPreviewSides[0], PreviewPercent: DefaultPreviewPercent},
 		MCP:            MCP{ApprovalSeconds: DefaultApprovalSeconds},
 		Update:         Update{Check: true},
+		Notify:         NotifySystem,
 	}
 }
 
@@ -473,6 +486,9 @@ func (c Config) normalized() Config {
 	c.Logs.PreviewPercent = min(max(c.Logs.PreviewPercent, MinPreviewPercent), MaxPreviewPercent)
 	c.Flows.OutputKB = max(c.Flows.OutputKB, 0)
 	c.MCP = c.MCP.normalized()
+	if !slices.Contains(NotifyChoices, c.Notify) {
+		c.Notify = NotifySystem
+	}
 	return c
 }
 
@@ -505,6 +521,15 @@ func Path() (string, error) {
 		return "", fmt.Errorf("finding the config directory: %w", err)
 	}
 	return filepath.Join(dir, "noct", "config.toml"), nil
+}
+
+// Overlay is base with the settings text gives over it, read as Load reads a file.
+func Overlay(base Config, text []byte) (Config, error) {
+	cfg := base
+	if _, err := toml.Decode(string(text), &cfg); err != nil {
+		return base, err
+	}
+	return cfg.normalized(), nil
 }
 
 // Load reads the settings file. Missing settings keep their defaults; a missing file is not an

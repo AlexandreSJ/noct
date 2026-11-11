@@ -33,6 +33,8 @@ type Target struct {
 	New     bool
 	// Setup opens noct's setup once attached.
 	Setup bool
+	// Template is the tab template a new session opens with.
+	Template string
 }
 
 // Attach connects this terminal to a session of the daemon until it detaches or quits, and returns why.
@@ -90,6 +92,7 @@ func attachHello(stdout *os.File, target Target) ipc.Hello {
 		Session:      target.Session,
 		NewSession:   target.New,
 		Setup:        target.Setup,
+		Template:     target.Template,
 	}
 }
 

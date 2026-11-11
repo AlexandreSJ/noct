@@ -118,7 +118,7 @@ The mouse works too: click a tab or a pane to select it, click a command in the 
 
 - **Keys.** Set the prefix by pressing it: any modifiers with a key, shown as your terminal sends it, with a warning when it would take a key from noct or from programs (`ctrl+c`, `ctrl+r`, tmux's `ctrl+b`). **Binds of every screen** lists each action of noct's modes, panels and popups with its keys: `Enter` changes one (with several, `←→` choose which first), `a` adds another, `Delete` gives the default back. Hints, popups and labels follow your keys.
 - **Tabs.** Choose what a new tab opens (empty, a terminal, scripts, flows or logs) and whether a tab closes with its last pane. `prefix` + `R` saves a tab as a template (layout, names, colors and each terminal's command) and `prefix` + `T` opens one as a new tab.
-- **Looks.** Eighteen themes, each in a dark and a light version (**mode** switches them), with the terminal's background or the theme's; the logs calendar colors each day by how much ran on it. **New theme** and **edit theme** make your own: every part (tab names, borders, titles, lists, messages) gets a color from the terminal's 256 or a `#rrggbb`, with a small workspace beside the list showing the result. Themes are files in `~/.config/noct/themes/`, so they can also be written by hand (see `docs/temas.md` for the keys). Each session keeps its own theme, and choosing a session shows it in its colors first. `prefix` + `P` gives the focused pane and its tab colors of their own. **Animations** sets an effect (`01`, `fade`, `jitter`, `dissolve`, `wipe`, `grow` or none) and a time for each moment: panes and tabs opening, focus, popups and more.
+- **Looks.** Eighteen themes, each in a dark and a light version (**mode** switches them), with the terminal's background or the theme's; the logs calendar colors each day by how much ran on it. **New theme** and **edit theme** make your own: every part (tab names, borders, titles, lists, messages) gets a color from the terminal's 256 or a `#rrggbb`, with a small workspace beside the list showing the result. Themes are files in `~/.config/noct/themes/`, so they can also be written by hand (see `docs/temas.md` for the keys). Each session keeps its own theme, and choosing a session shows it in its colors first. `prefix` + `P` gives the focused pane and its tab colors of their own. **Animations** sets an effect (`01`, `fade`, `jitter`, `dissolve`, `wipe`, `grow`, `slide-left`, `slide-right`, `shine` or none) and a time for each moment: panes and tabs opening, focus, popups and more.
 - **Reset.** The last row of the config, and of the binds, puts everything back to its default, after a second `Enter`.
 
 ## Scripts
@@ -162,7 +162,7 @@ claude mcp add noct -- noct mcp
 |---|---|
 | `noct` | Attach to the session used last, starting noct if needed |
 | `noct attach [session]` (or `a`, `att`, `-a`) | Attach to a session by name; without one, list the sessions |
-| `noct new [session]` | Start a session, named or numbered, and attach to it |
+| `noct new [session] [--template name]` | Start a session, named or numbered, and attach to it; with a tab template, it opens with that tab |
 | `noct setup` | Choose the keys, themes and animations, install the demo, add noct to AI clients and create shortcuts of your own |
 | `noct sessions` | List the sessions: open or closed, tabs, last use |
 | `noct kill <session>` | Delete a session: its programs stop and its layout is forgotten |
@@ -174,6 +174,9 @@ claude mcp add noct -- noct mcp
 | `noct promote <flow or script>` | Let a draft an AI wrote run, once reviewed |
 | `noct mcp` | Serve noct to an AI client over stdin and stdout |
 | `noct check` | Report the scripts and flows that cannot be loaded |
+| `noct export theme [name]`, `config`, `keys` | Print a theme, the settings you changed, or your keys and binds as one `noct import …` line, with a QR code of it, to run on another machine |
+| `noct import <code>` | Bring in what `noct export` printed, showing what changes and asking first |
+| `noct import theme <file>` | Turn a kitty, Ghostty or base16 theme into a noct theme, with its 16 colors |
 | `noct quit` | Close every pane and stop the workspace; sessions open again as they were |
 | `noct update` | Show what is new in the releases after this one and, if you agree, install the newest |
 | `noct version` | Print noct's version |

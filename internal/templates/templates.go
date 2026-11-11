@@ -392,6 +392,8 @@ type Entry struct {
 	Name     string
 	Template Template
 	Err      error
+	// Project marks a template of the project's, in its .noct/templates.
+	Project bool
 }
 
 // List reads every template file in dir, by name, the ones that cannot be read too, so they

@@ -173,6 +173,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** A imagem acompanha o texto sem código especial para rolagem, recorte e limpeza. Não há suporte a animações nem a apagar por posição. Imagens de painéis fechados ficam na memória do kitty até a janela fechar ou o limite de armazenamento do kitty descartá-las. Nos painéis, a variável `TERM` continua `xterm-256color`, então programas que detectam o kitty só pelo `TERM` não tentam usar imagens.
 
+**Imagens nas notas (2026-11-11).** As views do próprio noct começam pelas notas dos scripts: uma linha que é só `![texto](arquivo)` vira a imagem, desenhada com meios-blocos, o único jeito que funciona em todo terminal com cores, sem protocolo nem dependência (só os decodificadores PNG, JPEG e GIF da biblioteca padrão). Como as notas vêm também de projetos clonados, o arquivo é lido só até 8 MB e 4096 × 4096 pixels, e nada é baixado. No kitty e no Ghostty, onde os placeholders funcionam, a imagem vai em resolução cheia: um upload PNG por terminal conectado (`a=t`), um posicionamento virtual (`a=p,U=1`) trocado quando o tamanho muda, e as células da nota com os placeholders. Sixel e iTerm2 desenham na posição do cursor, fora da grade que o noct redesenha, e ficam de fora; o Alacritty e os que não têm protocolo de imagem ficam com os meios-blocos.
+
 ## ADR-015 — Home, popup de comandos, process panel e fim do zoom
 
 *O fim do zoom foi revisto pela ADR-023, que traz o fullscreen de volta.*
@@ -700,6 +702,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Templates de um projeto (vindos por `git pull`) e sessões a partir de templates ficam para depois: com `run`, um template de outra pessoa rodaria comandos ao abrir. Os diretórios de cada terminal não são gravados.
 
+**Templates de projeto e sessão com template (2026-11-11).** Um repositório traz templates em `.noct/templates/`, achados como os scripts de projeto, na pasta aberta ou acima. Como chegam por `git pull`, de qualquer um com acesso ao repositório, todo `start: run` deles vale como `ask`: o terminal abre com a caixa `run?` e nada roda antes do `Enter`. `noct new [sessão] --template <nome>` cria a sessão com a tab do template, preferindo o do projeto ao do usuário com o mesmo nome; sem o template, a sessão não é criada.
+
 ## ADR-053 — Animações por momento
 
 **Contexto.** Havia só a intro do título e o `01` ao passar o mouse nele. O mantenedor quer animações ao abrir e fechar painel e tab, no foco, ao mover, na tela inteira, nos popups, no hover e na atividade, com efeitos à escolha (`01`, mola, fade, jitter, flicker), uma prévia ao escolher e um aviso de epilepsia no flicker ([animacoes.md](animacoes.md)). É polimento da fase 5, antecipado pelo mantenedor.
@@ -726,6 +730,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 **`dissolve` e `wipe` (2026-11-09, ADR-062).** Dois efeitos novos no registro, para todos os momentos: `dissolve` passa cada célula da cor de partida à dela de uma vez, numa ordem sorteada por célula; `wipe` passa da esquerda para a direita, com uma borda de 20% da área misturando as cores. Ao fechar, cada célula sai quando o efeito passa por ela. **`grow` (2026-11-10):** o mesmo do `wipe`, com a frente saindo do centro (a distância de cada célula a ele, medida em metades da largura e da altura, para seguir a forma da área); ao fechar, encolhe para o centro. É o "crescer do centro" do catálogo.
 
 **Hover por cor (2026-11-09, ADR-062).** O hover partia do fundo para as cores que o nome ou o título já tinham, sem mudar nada. Agora o que está sob o mouse fica como selecionado, só no texto: o nome de tab na cor de destaque da tab ativa (o fundo dela), sobre o próprio fundo, e o título de painel na cor do painel com foco; o efeito parte da cor de antes e toca só no texto do título, que o desenho registra a cada quadro (`paneTitles`), e não na linha de cima inteira, que fazia a borda piscar na cor de destaque ao sair. Numa tab vazia, que mostra a home, o hover das tabs também vale; com um efeito de cor (`fade`, `dissolve`, `wipe`, `grow`), sair volta pelo mesmo caminho. **Nas listas (2026-11-10):** a view que tem lista diz qual linha está sob o mouse (`rowLister.RowAt`), e o app acende o texto dela na cor do fundo da seleção, cada célula da própria cor até essa, como no nome da tab; a volta usa a mesma animação de trás para frente. Fica de fora a linha selecionada, cujo texto sumiria sobre o próprio fundo, e uma que é selecionada durante o fade aparece como selecionada na hora. Só as listas que um clique seleciona têm hover: scripts, logs e fluxos; as dos popups, não. Uma animação nova só substitui a do mesmo momento, painel e alvo, para que a volta de uma tab não seja cortada pela ida da vizinha.
+
+**`slide-left`, `slide-right` e `shine` (2026-11-11).** `slide-right` entra pela borda esquerda e `slide-left` pela direita, como uma gaveta, e ao fechar cada um volta por onde veio, mostrando o que está embaixo. Só as horizontais: o hover de uma tab ou de uma linha tem uma linha só, onde subir ou descer não se veria. O `shine` passa um brilho pelo texto, para o branco num fundo escuro e para o preto num claro, pela luminância do fundo; ao fechar, as células somem atrás dele. As células são desenhadas deslocadas; o programa nunca é redimensionado.
 
 ## ADR-054 — Lip Gloss no seletor de cores
 
@@ -806,6 +812,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Dias com saída (2026-11-09).** Um log aparecia só no dia em que começou e no da última escrita, então um terminal usado em dias seguidos sumia dos dias do meio. O `logstore.File` anota num arquivo ao lado (`.days`) cada dia, depois do primeiro, em que o log escreve, uma linha por dia; ele conta no tamanho e sai junto com o log. Os dias do log são o do começo, os anotados e o da última escrita; um dia sem saída fica de fora, em vez de marcar todos os dias entre o começo e o fim. Logs anteriores a esta versão não têm o arquivo e continuam nos dois dias.
 
+**Horário por linha (2026-11-11).** O mantenedor quer ver quando cada linha foi escrita, no formato `YYYY-MM-dd HH-mm-ss`. Escrever o horário dentro do log mudaria a saída que o preview reproduz e quebraria programas de tela cheia, então o `logstore.File` anota num arquivo ao lado (`.log.times`, e `.log.1.times` para a parte girada) um registro `linha época` quando uma linha começa num segundo depois do último registro: uma rajada de saída custa um registro. Ele vai junto com o log (tamanho, remoção, rotação). `t` no preview liga os horários, impressos antes de cada linha por `noct log-times`, um comando interno que também segue o fim do log; o filtro e a busca valem sobre o texto com os horários.
+
 ## ADR-060 — `run` com params pede aprovação, e o pedido some quando a IA sai
 
 **Contexto.** A revisão de novembro de 2026 (o que ficou dela está em [roadmap.md](roadmap.md#dívida-técnica)) achou dois jeitos de uma IA rodar um comando sem a aprovação do usuário. O `run` é `allow` por rodar um script do próprio usuário, mas os `params` que a IA passa entram no template do comando, renderizado para `sh -c`: num script com `{{.pattern}}`, o valor `x"; curl … | sh; echo "` vira comando, o que contorna o `ask` do `run_command`. E um pedido de aprovação continuava na fila depois que o cliente de IA saía: o `noct mcp` esperava as chamadas pendentes antes de terminar, e aprovar depois rodava uma ação que ninguém esperava mais.
@@ -843,3 +851,32 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Animações** (fase 5) entram antes, como no ADR-053: o fade some sem o corte do último quadro, o hover vai da cor normal à de destaque e passa a valer nas linhas das listas, o que fecha some aos poucos em vez de sumir no último quadro, e entram os efeitos `dissolve` e `wipe` ([animacoes.md](animacoes.md)). Cada mudança que altera uma regra do ADR-053 o atualiza quando for feita.
 
 **Consequências.** Numa máquina nova, um script com programa faltando mostra `(not found)` e o usuário instala por fora. O noct não tem lógica de pacotes nem comandos com `sudo` para manter. O ADR-005 e o ADR-010 ficam substituídos.
+
+## ADR-063 — Params do ambiente, perguntados quando a variável falta
+
+**Contexto.** Um script já podia ler um parâmetro do ambiente (`from: env:NOME`), mas sem a variável ele não rodava. O mantenedor quer que o usuário possa deixar seus valores, inclusive os secretos, em variáveis de ambiente e que o noct só as use, sem perguntar; quem não tem a variável deve poder digitar o valor. Os fluxos não tinham isso. A ideia anterior da task 14, passar todos os valores ao comando como variáveis de ambiente em vez de colados no `sh -c`, mudaria o formato de todos os scripts; o `quote` (task 13) já fecha a injeção em quem precisa.
+
+**Decisão.**
+- **`from: env:NOME`**, nos scripts e nos params dos fluxos: com a variável definida e não vazia, o valor é o dela e o formulário não pergunta. Sem ela, o param é perguntado como qualquer outro, a partir do `default`. Um valor dado (`nome=valor`, `with`, o MCP) vence o ambiente.
+- **Nunca lembrados.** Um param `from` não entra em `params.json`, nem quando digitado.
+- **Fora da linha de comando.** O fluxo rodado pelo noct passa o valor digitado de um param `from` como a própria variável (`NOME=valor`) ao `noct flow run`, não como argumento: não aparece no `ps`, no log nem na prévia do formulário.
+- **`secret`** nos params dos fluxos, como nos scripts: mascarado no formulário e nunca lembrado.
+- **Um script de fluxo** (`script:` sem `with` para o param) lê o ambiente do mesmo jeito; sem a variável e sem `default`, o passo falha dizendo qual variável falta, porque um fluxo não abre formulário.
+- Os valores continuam renderizados no `run:` dos scripts; para eles virarem uma palavra só do shell, `{{quote .nome}}`.
+
+**Consequências.** Um script `from` que antes falhava sem a variável agora abre o formulário. O demo da instalação mostra o recurso no `demo-deploy` (`token`, de `DEMO_DEPLOY_TOKEN`). Passar todos os params como variáveis de ambiente, mudando o formato dos scripts, fica fora; se voltar, é um ADR novo.
+
+## ADR-064 — Exportar e importar por código e QR code; `rsc.io/qr`
+
+**Contexto.** O mantenedor quer levar tema, config e teclas para outra máquina de um jeito prático, de preferência uma linha do noct para copiar ou um QR code, e depois rodar `noct import`. A task de importar temas do kitty, Ghostty e base16 entra junto, porque passa pelo mesmo comando.
+
+**Decisão.**
+- **Código.** `noct1.` seguido do tipo, do nome e do TOML, comprimidos com deflate e em base64 de URL: uma palavra só, que sobrevive a quebras de linha numa cópia e cabe num QR code. O `1` deixa mudar o formato depois.
+- **O que vai.** Um tema sobre uma base embutida (ou sobre `noct`), então o código não depende de outro tema do usuário; do config, só o que difere do padrão e sem as teclas; as teclas e as binds próprias num código à parte (`keys`, também `shortcuts`).
+- **Importar pergunta.** Antes de gravar, o `noct import` lista cada configuração que muda (o editor e o gerenciador de arquivos com aviso, porque são comandos), cada bind com o que ela roda, ou o tema que substitui. Só `y` aplica; sem terminal, só `--yes`. Um código é texto de outra pessoa, e uma bind roda comandos.
+- **QR code.** Desenhado com meios-blocos, escuro sobre claro com cores fixas (preto sobre branco claro), qualquer que seja o tema do terminal, com borda de 2 módulos; nível M de correção, e L quando não cabe. Só num terminal; `--no-qr` tira.
+- **Dependência: `rsc.io/qr` v0.2.0.** Codificador de QR do Russ Cox (licença BSD, a mesma do Go), só a biblioteca padrão, sem cgo no pacote usado, pequeno o bastante para ler inteiro. Escrever um codificador próprio pede as tabelas de blocos de Reed–Solomon das 40 versões e os padrões de alinhamento; um erro nelas gera um código que não lê, e o teste só pegaria com um leitor. O teste do noct lê o QR desenhado com o `zbarimg` quando ele está instalado.
+- **Temas de fora.** `noct import theme <arquivo>` lê kitty, Ghostty e base16 (o mapeamento das 16 cores do base16-shell): o fundo e o texto do tema, as 16 cores no `[ansi]`, e os componentes a partir delas (azul destaque, preto claro apagado, amarelo mensagens, magenta o corvo, verde e vermelho).
+
+**Consequências.** Um novo módulo no `go.mod`. O config importado vale quando o noct começa de novo, porque o daemon só lê o config ao iniciar; temas novos aparecem na hora, porque a pasta de temas é vigiada. Painéis web para montar e ler esses códigos ficam como ideia.
+

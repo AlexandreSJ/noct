@@ -105,7 +105,7 @@ A busca ganha `'` como segunda tecla padrão: `prefixo` + `'` e `shortcut` + `'`
 
 Tudo fictício, só `printf` e `sleep`, para rodar em qualquer máquina.
 
-- **`demo-deploy`** (o overview): deploy de um serviço `api` com params `env` (`staging`/`production`), `version` e `fail_health` (`no`/`yes`). Confirma com `prompt` quando é produção (`if`); `demo/build` e `demo/test` com captura por regex (testes que passaram) e `expect`; `demo/deploy` com `pane: new`; checagem de saúde com `repeat` `until` e `max`; rollback por `if` quando a saúde falha, terminando com `on_fail`; resumo com `set`.
+- **`demo-deploy`** (o overview): deploy de um serviço `api` com params `env` (`staging`/`production`), `version`, `fail_health` (`no`/`yes`) e `token`, um param `from: env:DEMO_DEPLOY_TOKEN` com `secret: true`: com a variável no shell, o noct a usa sem perguntar; sem ela, o formulário pergunta mascarado. Confirma com `prompt` quando é produção (`if`); `demo/build` e `demo/test` com captura por regex (testes que passaram) e `expect`; `demo/deploy` com `pane: new`; checagem de saúde com `repeat` `until` e `max`; rollback por `if` quando a saúde falha, terminando com `on_fail`; resumo com `set`.
 - **`demo-loops`**: cada recurso sozinho: `times`, `every`, `until`, `set`, `unset`, `wait`.
 - **Scripts `demo/*`** com `notes.md` que ensinam: onde mudar um param, como abrir o flow no inspect (`prefixo` + `i`), rodar com `p`, testar um passo com `t`, ver o log no calendário (`prefixo` + `v`), trocar uma tecla no config. `demo/start-here` diz a ordem.
 

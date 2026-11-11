@@ -120,6 +120,8 @@ type App struct {
 	drawingPopup bool
 	// paneTitles are where the frame being drawn put each pane's title, which hovering animates.
 	paneTitles map[layout.PaneID]image.Rectangle
+	// paneFilters are the terminals showing only the lines that match a pattern.
+	paneFilters map[layout.PaneID]paneFilter
 	// activity marks, per pane, that output out of sight was told; unseen are the panes that
 	// pulsed and were not seen since.
 	activity map[layout.PaneID]*atomic.Bool
@@ -148,6 +150,10 @@ type App struct {
 	workDir string
 	// launch starts a program in a new pane; tests replace it to run without processes.
 	launch func(p program, size pty.Size) (view, error)
+	// desktopNotify shows a notification of the desktop's, telling whether it could.
+	desktopNotify func(title, body string) bool
+	// openURL opens a link or path with the system's opener, telling whether it could.
+	openURL func(target string) bool
 
 	scripts script.Library
 	// scriptsLoaded counts library loads, so panels know when what they cached is stale.
@@ -219,6 +225,8 @@ func New(version string) *App {
 	}
 	a.workDir, _ = os.Getwd() // until a terminal attaches and reports its own
 	a.launch = a.startProgram
+	a.desktopNotify = desktopNotification
+	a.openURL = systemOpen
 	a.binary = currentBinary()
 	a.updateTarget, _ = update.Executable() // without it, updates can only be checked
 	a.updateCachePath = filepath.Join(logstore.Dir(), update.CacheFile)
@@ -388,7 +396,11 @@ func (a *App) handleConnection(c connection) {
 // attach makes c the workspace's terminal, showing the session it asks for. One terminal is
 // attached at a time: a new one takes over from the previous.
 func (a *App) attach(c connection) {
-	target, err := a.sessionToAttach(c.hello)
+	template, err := a.templateToOpen(c.hello)
+	var target *session
+	if err == nil {
+		target, err = a.sessionToAttach(c.hello)
+	}
 	if err != nil {
 		_ = c.conn.SendJSON(ipc.KindExit, ipc.Exit{Reason: err.Error(), Refused: true}) // best effort: it is refused either way
 		_ = c.conn.Close()
@@ -417,6 +429,11 @@ func (a *App) attach(c connection) {
 		a.notice = rebuiltMessage
 	}
 	a.openSetupOnAttach(c.hello.Setup)
+	if template != nil {
+		if err := a.openTemplate(*template); err != nil {
+			a.statusMessage = err.Error()
+		}
+	}
 	a.applyMouseMode()
 }
 

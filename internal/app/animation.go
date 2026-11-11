@@ -51,10 +51,13 @@ const (
 	effectDissolve
 	effectWipe
 	effectGrow
+	effectSlideLeft
+	effectSlideRight
+	effectShine
 )
 
 // effects name each effect as the config file does.
-var effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe", "grow"}
+var effects = []string{"none", "01", "fade", "jitter", "dissolve", "wipe", "grow", "slide-left", "slide-right", "shine"}
 
 // blendsColors tells an effect that moves a cell from one color to another.
 func (e effect) blendsColors() bool {
@@ -536,6 +539,10 @@ func (a *App) drawClosing(screen uv.Screen, an *animation, p float64, at time.Ti
 			}
 		}
 	}
+	if dir, ok := an.effect.slideDirection(); ok {
+		slideOut(screen, an, p, dir)
+		return
+	}
 	if an.effect != effectFade {
 		a.applyEffect(screen, an, an.area, left, at, kept)
 	}
@@ -574,7 +581,7 @@ func settleAt(an *animation, area image.Rectangle, x, y int) float64 {
 		return 0.7*across + 0.3*noise(x, y, an.seed)
 	case effectDissolve:
 		return noise(x, y, an.seed)
-	case effectWipe:
+	case effectWipe, effectShine:
 		return across
 	case effectGrow:
 		return fromCenter(area, x, y)
@@ -627,6 +634,14 @@ func (a *App) backgroundColor() color.Color {
 // applyEffect changes the cells of area that only lets through (nil for all) as the effect looks
 // at progress p.
 func (a *App) applyEffect(screen uv.Screen, an *animation, area image.Rectangle, p float64, at time.Time, only func(x, y int) bool) {
+	if dir, ok := an.effect.slideDirection(); ok {
+		slideIn(screen, area, easeOut(p), dir, uv.Cell{Content: " ", Width: 1, Style: uv.Style{Bg: a.palette.background}})
+		return
+	}
+	if an.effect == effectShine {
+		a.shine(screen, area, p, only)
+		return
+	}
 	from := orColor(an.fromColor, a.backgroundColor())
 	frame := int64(at.Sub(an.start) / frameInterval) // characters change from frame to frame
 	for y := area.Min.Y; y < area.Max.Y; y++ {

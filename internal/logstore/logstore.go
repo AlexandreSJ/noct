@@ -34,6 +34,7 @@ type File struct {
 	// lastDay is the last day the log has output on, as DayLayout writes it, or "" for a log
 	// outside the day folders, which keeps no days.
 	lastDay string
+	clock   lineClock
 }
 
 func Create(path string, maxSize int64) (*File, error) {
@@ -45,6 +46,8 @@ func Create(path string, maxSize int64) (*File, error) {
 	if err := f.open(os.O_TRUNC); err != nil {
 		return nil, err
 	}
+	_ = os.Remove(TimesPath(path))
+	f.clock.reset(0)
 	return f, nil
 }
 
@@ -61,6 +64,12 @@ func Append(path string, maxSize int64) (*File, error) {
 	if info, err := f.file.Stat(); err == nil {
 		f.size = info.Size()
 	}
+	lines, midLine := CountFileLines(path), endsMidLine(path)
+	if midLine {
+		lines++ // its last line started, though it has no newline yet
+	}
+	f.clock.reset(lines)
+	f.clock.atStart = !midLine
 	return f, nil
 }
 
@@ -108,6 +117,7 @@ func (f *File) Write(p []byte) (int, error) {
 	}
 	n, err := f.file.Write(p)
 	f.size += int64(n)
+	f.clock.written(f.path, p[:n], f.now())
 	return n, err
 }
 
@@ -147,7 +157,17 @@ func (f *File) rotate() error {
 	if err := os.Rename(f.path, f.path+".1"); err != nil {
 		return fmt.Errorf("rotating log %s: %w", f.path, err)
 	}
+	if err := os.Rename(TimesPath(f.path), TimesPath(f.path+".1")); err != nil {
+		_ = os.Remove(TimesPath(f.path + ".1")) // the older part's lines only lose their times
+	}
+	f.clock.reset(0)
 	return f.open(os.O_TRUNC)
+}
+
+// endsMidLine tells whether the file's last line has no newline yet.
+func endsMidLine(path string) bool {
+	tail := Tail(path, 1)
+	return len(tail) > 0 && tail[len(tail)-1] != '\n'
 }
 
 func (f *File) Close() error {

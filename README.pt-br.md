@@ -118,7 +118,7 @@ O mouse também funciona: clique numa tab ou num painel para selecioná-lo, cliq
 
 - **Teclas.** Defina o prefixo apertando-o: quantos modificadores quiser com uma tecla, mostrada como o seu terminal a manda, com um aviso quando ela tomaria uma tecla do noct ou de programas (`ctrl+c`, `ctrl+r`, o `ctrl+b` do tmux). **Binds of every screen** lista cada ação dos modos, painéis e popups do noct com suas teclas: `Enter` troca uma (com várias, `←→` escolhem qual antes), `a` acrescenta outra, `Delete` volta ao padrão. Dicas, popups e rótulos seguem as suas teclas.
 - **Tabs.** Escolha o que uma tab nova abre (vazia, um terminal, scripts, fluxos ou logs) e se uma tab fecha junto com o último painel. `prefixo` + `R` grava uma tab como template (layout, nomes, cores e o comando de cada terminal) e `prefixo` + `T` abre um como tab nova.
-- **Aparência.** Dezoito temas, cada um numa versão escura e numa clara (**mode** troca entre elas), com o fundo do terminal ou o do tema; o calendário dos logs colore cada dia pelo quanto rodou nele. **New theme** e **edit theme** criam os seus: cada parte (nomes das tabs, bordas, títulos, listas, mensagens) ganha uma cor das 256 do terminal ou um `#rrggbb`, com uma pequena workspace ao lado da lista mostrando o resultado. Os temas são arquivos em `~/.config/noct/themes/`, então também podem ser escritos à mão (as chaves estão em `docs/temas.md`). Cada sessão guarda o próprio tema, e escolher uma sessão já a mostra nas cores dela. `prefixo` + `P` dá ao painel com foco e à tab dele cores próprias. **Animations** escolhe um efeito (`01`, `fade`, `jitter`, `dissolve`, `wipe`, `grow` ou nenhum) e um tempo para cada momento: painéis e tabs abrindo, foco, popups e outros.
+- **Aparência.** Dezoito temas, cada um numa versão escura e numa clara (**mode** troca entre elas), com o fundo do terminal ou o do tema; o calendário dos logs colore cada dia pelo quanto rodou nele. **New theme** e **edit theme** criam os seus: cada parte (nomes das tabs, bordas, títulos, listas, mensagens) ganha uma cor das 256 do terminal ou um `#rrggbb`, com uma pequena workspace ao lado da lista mostrando o resultado. Os temas são arquivos em `~/.config/noct/themes/`, então também podem ser escritos à mão (as chaves estão em `docs/temas.md`). Cada sessão guarda o próprio tema, e escolher uma sessão já a mostra nas cores dela. `prefixo` + `P` dá ao painel com foco e à tab dele cores próprias. **Animations** escolhe um efeito (`01`, `fade`, `jitter`, `dissolve`, `wipe`, `grow`, `slide-left`, `slide-right`, `shine` ou nenhum) e um tempo para cada momento: painéis e tabs abrindo, foco, popups e outros.
 - **Voltar ao padrão.** A última linha do config, e a das binds, volta tudo ao padrão, depois de um segundo `Enter`.
 
 ## Scripts
@@ -162,7 +162,7 @@ claude mcp add noct -- noct mcp
 |---|---|
 | `noct` | Conecta à última sessão usada, iniciando o noct se preciso |
 | `noct attach [sessão]` (ou `a`, `att`, `-a`) | Conecta a uma sessão pelo nome; sem nome, lista as sessões |
-| `noct new [sessão]` | Cria uma sessão, com nome ou número, e conecta a ela |
+| `noct new [sessão] [--template nome]` | Cria uma sessão, com nome ou número, e conecta a ela; com um template de tab, ela abre com essa tab |
 | `noct setup` | Escolhe as teclas, os temas e as animações, instala a demo, adiciona o noct aos clientes de IA e cria atalhos próprios |
 | `noct sessions` | Lista as sessões: aberta ou fechada, tabs, último uso |
 | `noct kill <sessão>` | Apaga uma sessão: os programas param e o layout é esquecido |
@@ -175,6 +175,9 @@ claude mcp add noct -- noct mcp
 | `noct mcp` | Serve o noct a um cliente de IA por stdin e stdout |
 | `noct check` | Aponta os scripts e fluxos que não carregam |
 | `noct quit` | Fecha todos os painéis e encerra o workspace; as sessões reabrem como estavam |
+| `noct export theme [nome]`, `config`, `keys` | Imprime um tema, as configurações que você mudou, ou suas teclas e binds como uma linha `noct import …`, com o QR code dela, para rodar em outra máquina |
+| `noct import <código>` | Traz o que o `noct export` imprimiu, mostrando o que muda e perguntando antes |
+| `noct import theme <arquivo>` | Transforma um tema do kitty, Ghostty ou base16 num tema do noct, com as 16 cores |
 | `noct update` | Mostra o que há de novo nas releases depois desta e, se você concordar, instala a mais nova |
 | `noct version` | Imprime a versão do noct |
 
