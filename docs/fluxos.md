@@ -20,14 +20,14 @@ Um **fluxo** encadeia scripts (ver [scripts.md](scripts.md)) com condições, re
  │             └──────────────────────────┘            ▲
  │               ┌─yes───────┴────────no─┐             ▲
  │               ▼                       ▼             ▲
- │ ┌─ ✓ dice ─────────────────┐   ┌────────────┐       ▲
- │ │ tests-noct/dice          │   │  ∅ a adds  │       ▲
- │ └──────────────────────────┘   └────────────┘       ▲
+ │ ┌─ ✓ dice ─────────────────┐          ∅              ▲
+ │ │ tests-noct/dice          │          │              ▲
+ │ └──────────────────────────┘          │              ▲
  │                └──────────┬──────────┘              │
  └─────────────────────────────────────────────────────┘
 ```
 
-- Cada passo é um cartão de cantos arredondados com a marca do tipo e o `id` no título (`▸` script, `$` comando, `◆` agente de IA, `ƒ` função, `◇` if, `↻` repeat, `◷` wait, `?` pergunta, `=` set, `∅` unset), o nome do tipo à direita da linha de cima (a partir do zoom 2) e, abaixo, o que ele roda; o texto que não cabe termina em `…`. Ele se liga ao seguinte por uma seta de três linhas (`│`, `│`, `↓`), com os traços de caixa e as setas que fontes como a Fira Code desenham inteiros; o `if` se divide em `yes` (then) e `no` (else) lado a lado e se junta de novo; o `repeat` emoldura os passos que repete, com a condição no título e a seta de volta na lateral. Uma lista vazia aparece como `∅ a adds`, onde `a` coloca o primeiro passo.
+- Cada passo é um cartão de cantos arredondados com a marca do tipo e o `id` no título (`▸` script, `$` comando, `◆` agente de IA, `ƒ` função, `◇` if, `↻` repeat, `◷` wait, `?` pergunta, `=` set, `∅` unset), o nome do tipo à direita da linha de cima (a partir do zoom 2) e, abaixo, o que ele roda; o texto que não cabe termina em `…`. Ele se liga ao seguinte por uma seta de três linhas (`│`, `│`, `↓`), com os traços de caixa e as setas que fontes como a Fira Code desenham inteiros; o `if` se divide em `yes` (then) e `no` (else) lado a lado e se junta de novo; o `repeat` emoldura os passos que repete, com a condição no título e a seta de volta na lateral. Uma lista vazia aparece só como `∅` na linha; a cabeça dela (o `● start`, o `yes` ou o `no` do `if`, a seta de entrada do `repeat`) se seleciona mesmo vazia, e `a` ali coloca o primeiro passo.
 - **Params:** acima do `● start`, o cartão `$ params` lista cada param com o tipo e o padrão. Selecionado, `a` cria um: o nome, depois o tipo entre todos os que um param pode ter (texto, número, sim ou não, uma entre algumas escolhas, caminho, segredo, do ambiente), o que o tipo pede (as escolhas, a variável de ambiente) e o padrão, escolhido entre os valores quando o tipo os tem. `Enter` escolhe um param para mudar o padrão, o rótulo no formulário, se é obrigatório, ou removê-lo. O formulário de `p` mostra cada um como o tipo pede: escolhas com `◂ ▸`, segredo mascarado, caminho completado.
 - **Ao vivo:** enquanto o fluxo roda (pelo inspect, pelo `noct flow run` ou por um trigger), o cartão do passo em execução fica na cor de sucesso, com `▶` no título, e três pontos de tamanhos e cores diferentes (`●`, `•`, `∙`) descem em laço pela seta que sai dele até o próximo cartão. O `noct flow run` guarda o passo atual em `~/.local/state/noct/flows/<fluxo>.running.json`, apagado quando a execução termina; um arquivo deixado por uma execução que morreu é ignorado, pelo PID.
 - Depois de rodar, cada bloco mostra como foi na última execução: `✓`, `✗` (com a moldura na cor de atenção) ou `–` quando não rodou.

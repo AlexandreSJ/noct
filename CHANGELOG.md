@@ -113,6 +113,9 @@ terminal's own background stays untouched.
 - Each card in the inspect starts its title with a mark of its kind (`▸` script, `$` command, `◆`
   AI agent, `ƒ` function, `◇` if, `↻` repeat, `◷` wait, `?` asks you, `=` set, `∅` unset) and
   names the kind on its right; text that does not fit ends in `…`.
+- An empty list in the inspect's flowchart, as an if's `no` with no steps, shows only `∅` on its
+  line instead of a `∅ a adds` card. Its head (the start, `yes` or `no`, a repeat's way in) is
+  selectable even when the list is empty, and `a` there adds its first step.
 - A card moves with the mouse only with `alt` (or `ctrl`) held; dragged without either, the chart
   pans. While it is carried, a dashed outline shows exactly where it lands: before or after any
   card, at the top of an if's branch or a repeat, or in an empty list.

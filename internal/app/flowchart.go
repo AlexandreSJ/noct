@@ -96,7 +96,6 @@ type chartBlock struct {
 
 // Keys of the chart's blocks, which stay the same while the chart is drawn again.
 func stepKey(path string) string                 { return "step:" + path }
-func slotKey(slot chartSlot) string              { return "slot:" + slot.parent + ":" + slot.branch }
 func headKey(slot chartSlot) string              { return "head:" + slot.parent + ":" + slot.branch }
 func (b chartBlock) isInsertion() bool           { return b.path == "" && !b.params }
 func (b chartBlock) contains(p image.Point) bool { return p.In(b.rect) }
@@ -170,11 +169,14 @@ func buildChart(f flow.Flow, style chartStyle) *flowChart {
 	return c
 }
 
-// sequence lays out a list of steps; an empty list is a slot to add steps into.
+// sequence lays out a list of steps; an empty list is a slot, one row with ∅ on the line, as
+// wide as a small card so a carried one has room to land there.
 func (s chartStyle) sequence(steps []flow.Step, slot chartSlot) *chartNode {
 	if len(steps) == 0 {
 		width := min(boxWidths[s.zoom], 14)
-		return measureSeq([]*chartNode{{kind: slotNode, slot: slot, w: width, h: 3, center: width / 2}})
+		seq := measureSeq([]*chartNode{{kind: slotNode, slot: slot, w: width, h: 1, center: width / 2}})
+		seq.slot = slot
+		return seq
 	}
 	var items []*chartNode
 	for i, step := range steps {
@@ -518,8 +520,8 @@ func (s chartStyle) drawIf(c *flowChart, n *chartNode, x, y int) {
 	thenCenter, elseCenter := thenX+then.center, elseX+otherwise.center
 	split := y + header.h
 	s.drawJoin(c, thenCenter, elseCenter, x+n.center, split, "╭", "┴", "╮")
-	s.drawBranchHead(c, n.step.Then, then.slot, "yes", thenCenter+2, split)
-	s.drawBranchHead(c, n.step.Else, otherwise.slot, "no", elseCenter-3, split)
+	s.drawBranchHead(c, then.slot, "yes", thenCenter+2, split)
+	s.drawBranchHead(c, otherwise.slot, "no", elseCenter-3, split)
 	top := split + ifSplitRows
 	for _, branch := range []struct {
 		center int
@@ -538,15 +540,11 @@ func (s chartStyle) drawIf(c *flowChart, n *chartNode, x, y int) {
 	s.drawJoin(c, thenCenter, elseCenter, x+n.center, join, "╰", "┬", "╯")
 }
 
-// drawBranchHead labels a branch; the label of one with steps is its head, to add above them.
-func (s chartStyle) drawBranchHead(c *flowChart, steps []flow.Step, slot chartSlot, label string, x, y int) {
-	style := s.pal.panelMuted
-	if len(steps) > 0 {
-		key := headKey(slot)
-		c.blocks = append(c.blocks, chartBlock{key: key, slot: slot, rect: image.Rect(x, y, x+len(label), y+1)})
-		style = s.headStyle(key)
-	}
-	drawText(c.canvas, x, y, x+len(label), label, style)
+// drawBranchHead labels a branch; the label is its head, to add a step first in it, empty or not.
+func (s chartStyle) drawBranchHead(c *flowChart, slot chartSlot, label string, x, y int) {
+	key := headKey(slot)
+	c.blocks = append(c.blocks, chartBlock{key: key, slot: slot, rect: image.Rect(x, y, x+len(label), y+1)})
+	drawText(c.canvas, x, y, x+len(label), label, s.headStyle(key))
 }
 
 // drawBranchEnd draws the line from a branch's end down to the join, the way out of its last step.
@@ -564,7 +562,7 @@ func (s chartStyle) drawBranchEnd(c *flowChart, steps []flow.Step, branch *chart
 func paramLines(f flow.Flow) []string {
 	names := slices.Sorted(maps.Keys(f.Params))
 	if len(names) == 0 {
-		return []string{"none · a adds one"}
+		return []string{"none"}
 	}
 	var lines []string
 	for i, name := range names {
@@ -627,12 +625,12 @@ func (s chartStyle) drawRepeat(c *flowChart, n *chartNode, x, y int) {
 	setRune(c.canvas, x+n.w-1, y+1, arrowUp, line) // the way back, up the frame's side
 	body := n.children[0]
 	in := image.Rect(x+n.center-1, y+1, x+n.center+2, y+1+arrowRows)
+	head := headKey(body.slot)
+	c.blocks = append(c.blocks, chartBlock{key: head, slot: body.slot, rect: in})
+	if head == s.selected {
+		line = s.pal.focusedTitle
+	}
 	if len(n.step.Steps) > 0 {
-		head := headKey(body.slot)
-		c.blocks = append(c.blocks, chartBlock{key: head, slot: body.slot, rect: in})
-		if head == s.selected {
-			line = s.pal.focusedTitle
-		}
 		s.addGap(c, body.slot, 0, x+n.center, y+1)
 	}
 	for row := y + 1; row < y+arrowRows; row++ {
@@ -650,17 +648,15 @@ func (s chartStyle) drawRepeat(c *flowChart, n *chartNode, x, y int) {
 	}
 }
 
+// drawSlot marks an empty list with ∅ on its line. Its head (the start, an if's yes or no, a
+// repeat's arrow in) is what selects it; a carried card lands on the rows around it.
 func (s chartStyle) drawSlot(c *flowChart, n *chartNode, x, y int) {
-	rect := image.Rect(x, y, x+n.w, y+n.h)
-	key := slotKey(n.slot)
-	c.blocks = append(c.blocks, chartBlock{key: key, slot: n.slot, rect: rect})
-	c.gaps = append(c.gaps, chartGap{slot: n.slot, rect: rect})
-	line, text := s.pal.unfocusedFrame, s.pal.panelMuted
-	if key == s.selected {
-		line, text = s.pal.focusedFrame, s.pal.focusedTitle
+	c.gaps = append(c.gaps, chartGap{slot: n.slot, rect: image.Rect(x, y-1, x+n.w, y+2)})
+	style := s.pal.panelMuted
+	if headKey(n.slot) == s.selected {
+		style = s.pal.focusedTitle
 	}
-	drawCard(c.canvas, rect, "", line, line)
-	drawCentered(c.canvas, rect, y+1, "∅ a adds", text)
+	setRune(c.canvas, x+n.center, y, "∅", style)
 }
 
 // addGap keeps the place at index of the list at slot, the arrowRows rows from top on the line at
