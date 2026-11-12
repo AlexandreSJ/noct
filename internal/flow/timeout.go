@@ -60,8 +60,8 @@ func anyStepTimeout(steps []Step) bool {
 		if s.Timeout != "" {
 			return true
 		}
-		for _, inner := range [][]Step{s.Then, s.Else, s.Steps} {
-			if anyStepTimeout(inner) {
+		for _, inner := range s.Branches() {
+			if anyStepTimeout(inner.Steps) {
 				return true
 			}
 		}

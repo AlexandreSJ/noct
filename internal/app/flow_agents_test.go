@@ -16,9 +16,9 @@ func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 	a.config.Agents = map[string]string{"local": "ollama run qwen"}
 	saveFlow(t, "review", "steps:\n  - {id: test, run: 'echo 3 failed'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
-	pressDrawn(a, letter('a'), letter('g'))
+	pressDrawn(a, letter('a'), letter('a'))
 	if a.mode != formMode {
-		t.Fatalf("g opened mode %v, want the agent form", a.mode)
+		t.Fatalf("a, a opened mode %v, want the agent form", a.mode)
 	}
 	typeDrawn(a, "Did ")
 	pressDrawn(a, uv.KeyPressEvent{Code: 't', Mod: uv.ModCtrl})

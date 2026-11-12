@@ -164,7 +164,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/script/edit.go` | Creating a script (with optional hints) and updating it from the form's fields, keeping the rest of the YAML; params as YAML text |
 | `internal/script/values.go` | Starting values of parameters, checking them, remembered values file |
 | `internal/script/history.go` | The list of recent runs of scripts and flows (the last 1000), with exit code, log and session, and sorting scripts by name, edit or last run |
-| `internal/flow/flow.go` | A flow: steps (script, run, if, repeat, wait, prompt, set, unset), loading, saving, creating, template functions |
+| `internal/flow/flow.go` | A flow: steps (script, run, call, agent, if, switch, repeat with each, wait, prompt, set, unset, retry), the lists inside a step (`Branches`), loading, saving, creating, template functions |
 | `internal/flow/timeout.go` | Flow and step timeouts: parsing and validation, the `noct check` warning, run and step deadlines, stopping a step's processes |
 | `internal/flow/validate.go` | Checking a flow and its steps: ids, fields that belong to each kind, patterns |
 | `internal/flow/agent.go` | Agent steps: a command split into words with the question as its input or in place of `{prompt}`, the answer without the model's thinking, and its choices |
@@ -187,5 +187,5 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/schedule/schedule.go` | Deciding when enabled flows start: cron minutes (each wall-clock minute once, across daylight saving), watched files settling, another flow's run ending |
 | `internal/flow/scope.go` | What templates can read at each point of a flow (parameters, variables set and unset, earlier steps' fields, how sure) |
 | `internal/flow/warnings.go` | Warnings for what templates read that may not be there |
-| `internal/flow/edit.go` | Editing a flow by step path: insert, replace, remove, move, unique ids |
+| `internal/flow/edit.go` | Editing a flow by step path: insert, replace, remove, move (through any block's lists), unique ids |
 | `internal/script/version.go` | Program version detection, in the background and cached |

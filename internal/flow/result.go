@@ -29,7 +29,7 @@ type StepResult struct {
 	Output string `json:"output,omitempty"`
 	// Tried marks a step run alone, as a test, after the flow's last run.
 	Tried bool `json:"tried,omitempty"`
-	// Message says why the step failed, or what an if or repeat decided.
+	// Message says why the step failed, or what an if, a switch or a repeat decided.
 	Message string `json:"message,omitempty"`
 }
 

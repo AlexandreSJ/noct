@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -80,6 +81,12 @@ type Step struct {
 	// Timeout bounds a script or run step, as a duration like 10m; past it the step is stopped
 	// and fails. Empty is no limit.
 	Timeout string `yaml:"timeout,omitempty"`
+	// Retry runs a script, run or agent step that failed again, before its on_fail.
+	Retry *Retry `yaml:"retry,omitempty"`
+
+	// Switch is a template; the first of Cases whose is holds its value runs, or Else with none.
+	Switch string `yaml:"switch,omitempty"`
+	Cases  []Case `yaml:"cases,omitempty"`
 
 	If   string `yaml:"if,omitempty"`
 	Then []Step `yaml:"then,omitempty"`
@@ -103,7 +110,7 @@ type Step struct {
 	// Unset clears variables (name) and steps' results (steps.<id>).
 	Unset []string `yaml:"unset,omitempty"`
 
-	// Export keeps variables an if or repeat made, which go when it ends, for the steps after it:
+	// Export keeps variables an if, a switch or a repeat made, which go when it ends, for the steps after it:
 	// each inner name to the name it has outside, or "" to keep its name.
 	Export map[string]string `yaml:"export,omitempty"`
 }
@@ -115,12 +122,141 @@ type Expect struct {
 }
 
 // Repeat runs its steps Times times, or until Until is true, at most Max times, waiting Every
-// between passes.
+// between passes. With Each, it runs them once for each line of Each's text, the line in the
+// variable As (item without it), stopping early when Until is true or after Max passes.
 type Repeat struct {
 	Times int    `yaml:"times,omitempty"`
+	Each  string `yaml:"each,omitempty"`
+	As    string `yaml:"as,omitempty"`
 	Until string `yaml:"until,omitempty"`
 	Max   int    `yaml:"max,omitempty"`
 	Every string `yaml:"every,omitempty"`
+}
+
+// DefaultEachVar is the variable a repeat each gives each line in, without as.
+const DefaultEachVar = "item"
+
+// EachVar is the variable each line of a repeat each is in.
+func (r *Repeat) EachVar() string {
+	if r.As == "" {
+		return DefaultEachVar
+	}
+	return r.As
+}
+
+// Retry runs a failed step again, at most Max times, waiting Every before each try. In YAML it is
+// also a number alone: retry: 3.
+type Retry struct {
+	Max   int    `yaml:"max"`
+	Every string `yaml:"every,omitempty"`
+}
+
+func (r *Retry) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		return node.Decode(&r.Max)
+	}
+	type plain Retry
+	return node.Decode((*plain)(r))
+}
+
+func (r Retry) MarshalYAML() (any, error) {
+	if r.Every == "" {
+		return r.Max, nil
+	}
+	type plain Retry
+	return plain(r), nil
+}
+
+// Case is one way of a switch: its steps run when the switch's value is one of Is.
+type Case struct {
+	Is    Values `yaml:"is"`
+	Steps []Step `yaml:"steps,omitempty"`
+}
+
+// Values are one value or more; in YAML a single one is written alone: is: bug.
+type Values []string
+
+func (v *Values) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		*v = Values{node.Value}
+		return nil
+	}
+	var list []string
+	if err := node.Decode(&list); err != nil {
+		return err
+	}
+	*v = list
+	return nil
+}
+
+func (v Values) MarshalYAML() (any, error) {
+	if len(v) == 1 {
+		return v[0], nil
+	}
+	return []string(v), nil
+}
+
+// CaseBranch names the list of steps of a switch's case at index, in a path: "2/case0/1" is the
+// second step of the first case of the third step.
+func CaseBranch(index int) string {
+	return "case" + strconv.Itoa(index)
+}
+
+// caseIndex is the index of a case in its branch's name, or false for another branch.
+func caseIndex(branch string) (int, bool) {
+	digits, ok := strings.CutPrefix(branch, "case")
+	if !ok {
+		return 0, false
+	}
+	index, err := strconv.Atoi(digits)
+	return index, err == nil && index >= 0
+}
+
+// Branch is a list of steps inside a step, by the name its paths use: an if's then and else, a
+// switch's cases and else, a repeat's steps.
+type Branch struct {
+	Name  string
+	Steps []Step
+}
+
+// Branches are the lists of steps inside the step, in the order they are drawn and moved through.
+func (s Step) Branches() []Branch {
+	switch s.Kind() {
+	case IfStep:
+		return []Branch{{"then", s.Then}, {"else", s.Else}}
+	case SwitchStep:
+		var branches []Branch
+		for i, c := range s.Cases {
+			branches = append(branches, Branch{CaseBranch(i), c.Steps})
+		}
+		return append(branches, Branch{"else", s.Else})
+	case RepeatStep:
+		return []Branch{{"steps", s.Steps}}
+	}
+	return nil
+}
+
+// branch is the list of steps named branch inside the step, or nil when it has none of that name.
+func (s *Step) branch(name string) *[]Step {
+	switch name {
+	case "then":
+		return &s.Then
+	case "else":
+		return &s.Else
+	case "steps":
+		return &s.Steps
+	}
+	if i, ok := caseIndex(name); ok && i < len(s.Cases) {
+		return &s.Cases[i].Steps
+	}
+	return nil
+}
+
+// IsBlock tells whether the step holds steps of its own: an if, a switch or a repeat, which
+// takes away the variables made inside it when it ends, unless it exports them.
+func (s Step) IsBlock() bool {
+	kind := s.Kind()
+	return kind == IfStep || kind == SwitchStep || kind == RepeatStep
 }
 
 // What a failing step does to the flow.
@@ -142,6 +278,7 @@ const (
 	AgentStep   Kind = "agent"
 	CommandStep Kind = "run"
 	IfStep      Kind = "if"
+	SwitchStep  Kind = "switch"
 	RepeatStep  Kind = "repeat"
 	WaitStep    Kind = "wait"
 	PromptStep  Kind = "prompt"
@@ -166,6 +303,9 @@ func (s Step) Kind() Kind {
 	}
 	if s.If != "" {
 		kinds = append(kinds, IfStep)
+	}
+	if s.Switch != "" {
+		kinds = append(kinds, SwitchStep)
 	}
 	if s.Repeat != nil {
 		kinds = append(kinds, RepeatStep)
@@ -203,6 +343,8 @@ func (s Step) Label() string {
 		return "run"
 	case s.If != "":
 		return "if"
+	case s.Switch != "":
+		return "switch"
 	case s.Repeat != nil:
 		return "repeat"
 	case s.Wait != "":

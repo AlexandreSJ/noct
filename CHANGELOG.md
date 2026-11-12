@@ -34,8 +34,15 @@ terminal's own background stays untouched.
   can branch on it. The question never goes through a shell, and no preset can change anything.
   By default (`agent = "auto"`) a step asks the first agent this machine has, and `use:` can come
   from a param. `noct agents` lists them and, when there is none, says how to start with ollama.
-  In the inspect, `a` then `g` sets one up in a single form (the question, its answers, the agent
+  In the inspect, `a` then `a` sets one up in a single form (the question, its answers, the agent
   and a timeout) that `enter` adds from any field.
+- Flows have a `switch`: `switch: '{{.answer}}'` runs the first of its `cases` whose `is` holds the
+  value (`is: bug` or `is: [bug, regression]`), or its `else`. The inspect draws a column for each
+  case with its values on top; in **add step**, `o` asks for the value and the cases.
+- `repeat: {each: '{{.steps.ls.output}}', as: file}` runs its steps once for each line, the line in
+  `{{.file}}` (`{{.item}}` without `as`); in **add step**, `e` (for each line).
+- `retry: 3`, or `retry: {max: 3, every: 10s}`, runs a failed script, run or agent step again
+  before its `on_fail`. In the inspect, `R` sets it, and the card shows `retry 3× every 10s`.
 - The inspect tells about the selected block below the chart: what its kind of step does, its
   whole text and how it went in the run shown. Select it with the keys or a click; the wheel
   scrolls it. `?` lists every key of the inspect.

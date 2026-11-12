@@ -2,6 +2,7 @@ package flow
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -31,15 +32,7 @@ func (f *Flow) list(parent, branch string) *[]Step {
 	if s == nil {
 		return nil
 	}
-	switch branch {
-	case "then":
-		return &s.Then
-	case "else":
-		return &s.Else
-	case "steps":
-		return &s.Steps
-	}
-	return nil
+	return s.branch(branch)
 }
 
 func (f *Flow) step(path string) *Step {
@@ -111,9 +104,9 @@ func (f *Flow) UniqueID(base string) string {
 	collect = func(steps []Step) {
 		for _, s := range steps {
 			used[s.ID] = true
-			collect(s.Then)
-			collect(s.Else)
-			collect(s.Steps)
+			for _, b := range s.Branches() {
+				collect(b.Steps)
+			}
 		}
 	}
 	collect(f.Steps)
@@ -146,8 +139,9 @@ func idFrom(name string) string {
 }
 
 // Shift moves the step at path one place down (or up) the flow as a line moves through code: past
-// a step next to it, into an if or repeat next to it, from an if's yes branch to its no branch,
-// and out of the block at its end. It returns the step's new path; at an end of the flow it stays.
+// a step next to it, into a block next to it (an if, a switch or a repeat), from one of a block's
+// lists to the next (an if's yes to its no, a case to the next), and out of the block at its end.
+// It returns the step's new path; at an end of the flow it stays.
 func (f *Flow) Shift(path string, down bool) string {
 	parent, branch, index := SplitPath(path)
 	list := f.list(parent, branch)
@@ -159,19 +153,15 @@ func (f *Flow) Shift(path string, down bool) string {
 		step = -1
 	}
 	if next := index + step; next >= 0 && next < len(*list) {
-		neighbor := (*list)[next]
-		into, intoBranch := Path(parent, branch, next), ""
-		switch neighbor.Kind() {
-		case IfStep:
-			intoBranch = map[bool]string{true: "then", false: "else"}[down]
-		case RepeatStep:
-			intoBranch = "steps"
-		default:
+		branches := (*list)[next].Branches()
+		if len(branches) == 0 {
 			return f.Move(path, step)
 		}
-		at := 0
+		into, at := Path(parent, branch, next), 0
+		intoBranch := branches[0].Name
 		if !down {
-			at = len(*f.list(into, intoBranch))
+			last := branches[len(branches)-1]
+			intoBranch, at = last.Name, len(last.Steps)
 		}
 		to, _ := f.MoveTo(path, into, intoBranch, at)
 		return to
@@ -180,11 +170,14 @@ func (f *Flow) Shift(path string, down bool) string {
 		return path
 	}
 	outer, outerBranch, at := SplitPath(parent)
+	block, _ := f.Step(parent)
+	branches := block.Branches()
+	k := slices.IndexFunc(branches, func(b Branch) bool { return b.Name == branch })
 	switch {
-	case branch == "then" && down:
-		outer, outerBranch, at = parent, "else", 0
-	case branch == "else" && !down:
-		outer, outerBranch, at = parent, "then", len(*f.list(parent, "then"))
+	case down && k >= 0 && k+1 < len(branches):
+		outer, outerBranch, at = parent, branches[k+1].Name, 0
+	case !down && k > 0:
+		outer, outerBranch, at = parent, branches[k-1].Name, len(branches[k-1].Steps)
 	case down:
 		at++
 	}

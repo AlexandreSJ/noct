@@ -142,7 +142,7 @@ No scripts panel, `Enter` pergunta os parâmetros e roda o script num terminal a
 
 ## Fluxos
 
-Um fluxo encadeia scripts numa rotina de teste, salva em `~/.local/share/noct/flows/<nome>.yaml`. `Ctrl+Space` `i` abre o inspect, onde cada fluxo é um fluxograma montado passo a passo: rodar um script, `if`/`else`, `repeat` até uma condição, esperar, definir uma variável ou pedir um valor no meio da execução. Toda execução fica guardada com a saída de cada passo, e `Ctrl+Space` `v` as mostra num calendário.
+Um fluxo encadeia scripts numa rotina de teste, salva em `~/.local/share/noct/flows/<nome>.yaml`. `Ctrl+Space` `i` abre o inspect, onde cada fluxo é um fluxograma montado passo a passo: rodar um script, `if`/`else`, `switch` por um valor, `repeat` até uma condição ou para cada linha, `retry` de um passo que falha, esperar, definir uma variável ou pedir um valor no meio da execução. Toda execução fica guardada com a saída de cada passo, e `Ctrl+Space` `v` as mostra num calendário.
 
 Triggers disparam um fluxo sozinhos enquanto o workspace roda: num horário cron, quando arquivos mudam ou quando outro fluxo termina. `noct enable <fluxo>` os liga. Escrever um fluxo à mão está em [docs/writing-flows.md](docs/writing-flows.md) (em inglês).
 

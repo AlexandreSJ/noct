@@ -48,7 +48,7 @@ func libraryTools(d Deps) []Tool {
 		},
 		{
 			Name: "flow_scope", Title: "Variables a step can read", ReadOnly: true, Policy: config.PolicyAllow,
-			Description: "Lists what templates can read at a step of a flow or function ({{.param}}, short names like {{.output}} and captures, {{.steps.<id>.<field>}}), how sure each is to be set there (set, this_pass, maybe) and its value in the last run. Variables an if or repeat makes go when it ends unless it exports them. Without a step, the end.",
+			Description: "Lists what templates can read at a step of a flow or function ({{.param}}, short names like {{.output}} and captures, {{.steps.<id>.<field>}}), how sure each is to be set there (set, this_pass, maybe) and its value in the last run. Variables an if, switch or repeat makes go when it ends unless it exports them. Without a step, the end.",
 			Params: []Param{
 				{Name: "flow", Type: "string", Description: "The flow's name, or the function's with function."},
 				{Name: "function", Type: "string", Description: "A function's name, in place of flow."},

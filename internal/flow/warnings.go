@@ -34,11 +34,8 @@ func (f Flow) listWarnings(steps []Step, parent, branch string, lookup func(id s
 		if s.Repeat != nil {
 			warnings = append(warnings, f.check(path, s.Repeat.Until, f.scope(path, "steps", len(s.Steps), lookup))...)
 		}
-		for _, inner := range []struct {
-			branch string
-			steps  []Step
-		}{{"then", s.Then}, {"else", s.Else}, {"steps", s.Steps}} {
-			warnings = append(warnings, f.listWarnings(inner.steps, path, inner.branch, lookup)...)
+		for _, inner := range s.Branches() {
+			warnings = append(warnings, f.listWarnings(inner.Steps, path, inner.Name, lookup)...)
 		}
 	}
 	return warnings
@@ -47,7 +44,10 @@ func (f Flow) listWarnings(steps []Step, parent, branch string, lookup func(id s
 // orderedTemplates are the texts of the step rendered before it runs, in a stable order, without
 // the repeat's until, which reads the scope at the end of a pass.
 func (s Step) orderedTemplates() []string {
-	texts := []string{s.Run, s.If, s.Prompt, s.Default}
+	texts := []string{s.Run, s.If, s.Switch, s.Prompt, s.Default}
+	if s.Repeat != nil {
+		texts = append(texts, s.Repeat.Each)
+	}
 	if s.Agent != nil {
 		texts = append(texts, s.Agent.Ask, s.Agent.Use)
 	}
@@ -104,7 +104,7 @@ func (f Flow) missingVariable(name string, sc *scope) string {
 	case sc.cleared[name]:
 		return "variable " + name + " was unset before here"
 	case sc.ended[name]:
-		return "variable " + name + " was made inside an if or repeat and went when it ended; export it to read it after"
+		return "variable " + name + " was made inside an if, switch or repeat and went when it ended; export it to read it after"
 	case f.setsVariable(f.Steps, name):
 		return "variable " + name + " is not set yet here"
 	}
@@ -117,8 +117,8 @@ func (f Flow) setsVariable(steps []Step, name string) bool {
 		if _, set := s.Set[name]; set || s.Kind() == PromptStep && s.Var == name {
 			return true
 		}
-		for _, inner := range [][]Step{s.Then, s.Else, s.Steps} {
-			if f.setsVariable(inner, name) {
+		for _, inner := range s.Branches() {
+			if f.setsVariable(inner.Steps, name) {
 				return true
 			}
 		}
@@ -131,8 +131,8 @@ func (f Flow) stepWithID(steps []Step, id string) (Step, bool) {
 		if s.ID == id {
 			return s, true
 		}
-		for _, inner := range [][]Step{s.Then, s.Else, s.Steps} {
-			if found, ok := f.stepWithID(inner, id); ok {
+		for _, inner := range s.Branches() {
+			if found, ok := f.stepWithID(inner.Steps, id); ok {
 				return found, true
 			}
 		}

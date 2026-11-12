@@ -69,34 +69,38 @@ steps:
       choices: [flaky, bug, env]
     timeout: 3m
 
-  # The if branches on the agent's answer. note is made inside the blocks, so
-  # it would go when they end; export keeps it: the inner if keeps its name
-  # ({note: ""}) and this one hands it on as {{.summary}}.
-  - if: '{{eq .answer "flaky"}}'
-    then:
-      # Run the real tests again, at most 3 times, until they pass.
-      - repeat: {until: '{{.steps.again.ok}}', max: 3, every: 1s}
+  # switch runs the case that holds the agent's answer. note is made inside
+  # the cases, so it would go when the switch ends; export keeps it, as
+  # {{.summary}}. The agent's choices make else unreachable, but a switch
+  # can always end in one.
+  - switch: '{{.answer}}'
+    cases:
+      # Run the real tests again; retry runs them up to 2 more times, 1s
+      # apart, while they fail.
+      - is: flaky
         steps:
           - id: again
             script: demo/test
             capture: {passed: '([0-9]+ passed)'}
-      - set: {note: 'Ran the tests again: {{.steps.again.passed}}.'}
-    else:
-      - if: '{{eq .answer "bug"}}'
-        then:
-          # call: run the demo-explain function with these params; its
-          # returns come back as {{.cause}} and {{.hint}}.
+            retry: {max: 2, every: 1s}
+          - set: {note: 'Ran the tests again: {{.steps.again.passed}}.'}
+      # call: run the demo-explain function with these params; its returns
+      # come back as {{.cause}} and {{.hint}}.
+      - is: bug
+        steps:
           - id: explain
             call: demo-explain
             with: {log: '{{.steps.test.output}}', agent: '{{.agent}}'}
           - set: {note: "Cause: {{.cause}}\nLook at: {{.hint}}"}
-        else:
+      - is: env
+        steps:
           - id: region
             prompt: The test needs PAYMENTS_REGION. Which region should it use?
             var: region
             default: us-east-1
           - set: {note: 'Run the test again with PAYMENTS_REGION={{.region}}.'}
-        export: {note: ""}
+    else:
+      - set: {note: 'The agent answered something else.'}
     export: {note: summary}
 
   # An answer is text an AI wrote: demo/report reads it only through quote.

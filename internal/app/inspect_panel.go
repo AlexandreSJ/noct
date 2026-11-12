@@ -355,6 +355,8 @@ func (p *inspectPanel) stepKey(name string, f flow.Flow, path string) {
 		p.moving = true
 	case "x":
 		p.app.exportFromBlock(f, path)
+	case "R", "shift+r":
+		p.app.retryStep(f, path)
 	}
 }
 

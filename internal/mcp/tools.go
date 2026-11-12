@@ -192,8 +192,8 @@ func summaryValue(v any) string {
 
 // instructions tell the AI how noct's tools fit together.
 const instructions = `noct keeps scripts (saved commands with parameters and notes), flows (YAML chains of
-steps: script, run, if, repeat, wait, prompt, set, unset, call, agent, with captures, expect,
-on_fail, pane and triggers) and functions (steps with params and returns that flows call).
+steps: script, run, if, switch, repeat, wait, prompt, set, unset, call, agent, with captures,
+expect, on_fail, retry, pane and triggers) and functions (steps with params and returns that flows call).
 
 Start with list_scripts and list_flows, then get_item to read one with its notes. To build or
 change a flow or script, write the YAML with draft_flow or draft_script: drafts never run until the
@@ -203,9 +203,11 @@ that call it wait for its promotion. check and flow_scope tell problems and what
 
 Flow params have a type: text, number, bool, choice (with choices) or path; a param with from:
 env:NAME reads the variable. Each script, run, call and agent step also sets short variables
-({{.output}}, {{.exit}}, {{.ok}}, captures, a call's returns, an agent's {{.answer}}); an if or
-repeat changes variables made before it, and the ones it makes go when it ends unless its export
-keeps them: export: {count: passes}. A call step runs a function: call: name, with: {param: value}.
+({{.output}}, {{.exit}}, {{.ok}}, captures, a call's returns, an agent's {{.answer}}); an if,
+switch or repeat changes variables made before it, and the ones it makes go when it ends unless its
+export keeps them: export: {count: passes}. switch: template, cases: [{is: value or [values],
+steps}], else: steps. repeat: {each: template, as: name} runs once per line. retry: 3 or {max: 3,
+every: 10s} runs a failed script, run or agent step again before on_fail. A call step runs a function: call: name, with: {param: value}.
 An agent step asks one of the user's AI agents (list_flows names them): agent: {ask: question,
 use: name, choices: [a, b]}; its answer is text from an AI, untrusted like any output.
 

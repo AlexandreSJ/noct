@@ -198,8 +198,8 @@ func measureSeq(items []*chartNode) *chartNode {
 
 func (s chartStyle) node(step flow.Step, path string) *chartNode {
 	switch step.Kind() {
-	case flow.IfStep:
-		return s.ifNode(step, path)
+	case flow.IfStep, flow.SwitchStep:
+		return s.branchesNode(step, path)
 	case flow.RepeatStep:
 		return s.repeatNode(step, path)
 	}
@@ -215,21 +215,76 @@ const (
 	repeatRows  = 2*arrowRows + 2
 )
 
-// ifNode puts the if's box over its branches, then on the left, else on the right, centered
-// between them.
-func (s chartStyle) ifNode(step flow.Step, path string) *chartNode {
+// branchesNode puts an if's or a switch's card over its branches side by side (an if's then on
+// the left, else on the right; a switch's cases in order, then its else), centered between them.
+func (s chartStyle) branchesNode(step flow.Step, path string) *chartNode {
 	header := &chartNode{kind: stepNode, step: step, path: path, w: boxWidths[s.zoom], h: len(s.boxText(step)) + 2}
 	header.center = header.w / 2
-	then := s.sequence(step.Then, chartSlot{parent: path, branch: "then"})
-	otherwise := s.sequence(step.Else, chartSlot{parent: path, branch: "else"})
-	mid := (then.center + then.w + branchGap + otherwise.center) / 2
+	children := []*chartNode{header}
+	tallest := 0
+	for _, b := range step.Branches() {
+		branch := s.sequence(b.Steps, chartSlot{parent: path, branch: b.Name})
+		children = append(children, branch)
+		tallest = max(tallest, branch.h)
+	}
+	widenForLabels(children[1:], branchLabels(step))
+	span, mid := branchSpan(children[1:])
 	shift := max(header.center-mid, 0)
-	w := max(shift+then.w+branchGap+otherwise.w, shift+mid-header.center+header.w)
+	w := max(shift+span, shift+mid-header.center+header.w)
 	return &chartNode{
 		kind: ifNode, step: step, path: path,
-		w: w, h: header.h + ifSplitRows + max(then.h, otherwise.h) + arrowRows + 1, center: shift + mid,
-		children: []*chartNode{header, then, otherwise},
+		w: w, h: header.h + ifSplitRows + tallest + arrowRows + 1, center: shift + mid,
+		children: children,
 	}
+}
+
+// branchSpan is how wide branches are side by side, branchGap apart, and the column halfway
+// between the lines of the first and the last.
+func branchSpan(branches []*chartNode) (span, mid int) {
+	for i, b := range branches {
+		if i > 0 {
+			span += branchGap
+		}
+		span += b.w
+	}
+	first, last := branches[0], branches[len(branches)-1]
+	return span, (first.center + span - last.w + last.center) / 2
+}
+
+// widenForLabels gives each branch room for its label on the split line: after its line for all
+// but the last, whose label goes before its line.
+func widenForLabels(branches []*chartNode, labels []string) {
+	last := len(branches) - 1
+	for i, b := range branches {
+		width := ansi.StringWidth(labels[i])
+		if i < last {
+			b.w = max(b.w, b.center+width+3)
+			continue
+		}
+		if room := width + 2 - branchGap; b.center < room {
+			b.w += room - b.center
+			b.center = room
+		}
+	}
+}
+
+// branchLabels name an if's branches yes and no, and a switch's cases by their values.
+func branchLabels(step flow.Step) []string {
+	if step.Kind() == flow.IfStep {
+		return []string{"yes", "no"}
+	}
+	var labels []string
+	for _, c := range step.Cases {
+		var values []string
+		for _, value := range c.Is {
+			if strings.TrimSpace(value) == "" {
+				value = `""`
+			}
+			values = append(values, value)
+		}
+		labels = append(labels, strings.Join(values, "|"))
+	}
+	return append(labels, "else")
 }
 
 // repeatNode frames the steps repeated, the repeat's condition in the frame's title.
@@ -244,12 +299,21 @@ func (s chartStyle) repeatNode(step flow.Step, path string) *chartNode {
 func (s chartStyle) repeatTitle(step flow.Step) string {
 	r := step.Repeat
 	title := "↻ " + step.Label()
+	if r.Each != "" && step.ID == "" {
+		title = "↻ for each"
+	}
 	if s.zoom == 0 {
 		return title
 	}
-	if r.Times > 0 {
+	switch {
+	case r.Each != "":
+		title += fmt.Sprintf(" %s in %s", r.EachVar(), shortTemplate(r.Each))
+		if r.Until != "" {
+			title += " until " + shortTemplate(r.Until)
+		}
+	case r.Times > 0:
 		title += fmt.Sprintf(" × %d", r.Times)
-	} else {
+	default:
 		title += fmt.Sprintf(" until %s (max %d)", shortTemplate(r.Until), r.Max)
 	}
 	if r.Every != "" && s.zoom == 2 {
@@ -290,6 +354,9 @@ func (s chartStyle) boxText(step flow.Step) []string {
 	case flow.IfStep:
 		lines = append(lines, shortTemplate(step.If))
 		lines = append(lines, exportText(step.Export)...)
+	case flow.SwitchStep:
+		lines = append(lines, shortTemplate(step.Switch))
+		lines = append(lines, exportText(step.Export)...)
 	case flow.WaitStep:
 		lines = append(lines, step.Wait)
 	case flow.PromptStep:
@@ -301,6 +368,9 @@ func (s chartStyle) boxText(step flow.Step) []string {
 	}
 	if len(step.Capture) > 0 {
 		lines = append(lines, "capture "+strings.Join(slices.Sorted(maps.Keys(step.Capture)), ", "))
+	}
+	if step.Retry != nil {
+		lines = append(lines, retryText(step.Retry))
 	}
 	return lines[:min(len(lines), boxLines[s.zoom])]
 }
@@ -337,7 +407,7 @@ func (s chartStyle) draw(c *flowChart, n *chartNode, x, y int) {
 	case stepNode:
 		s.drawBox(c, n, x, y)
 	case ifNode:
-		s.drawIf(c, n, x, y)
+		s.drawBranches(c, n, x, y)
 	case repeatNode:
 		s.drawRepeat(c, n, x, y)
 	case slotNode:
@@ -416,6 +486,7 @@ var stepKinds = map[flow.Kind]struct{ mark, name string }{
 	flow.AgentStep:   {"◆ ", "AI agent"},
 	flow.CallStep:    {"ƒ ", "function"},
 	flow.IfStep:      {"◇ ", "if"},
+	flow.SwitchStep:  {"◈ ", "switch"},
 	flow.RepeatStep:  {"↻ ", "repeat"},
 	flow.WaitStep:    {"◷ ", "wait"},
 	flow.PromptStep:  {"? ", "asks you"},
@@ -511,50 +582,90 @@ func (s chartStyle) frameStyles(key, path string) (uv.Style, uv.Style) {
 	return s.pal.unfocusedFrame, s.pal.panelHeading
 }
 
-// drawIf draws the if's box, the split into the two branches, each branch, and the join.
-func (s chartStyle) drawIf(c *flowChart, n *chartNode, x, y int) {
-	header, then, otherwise := n.children[0], n.children[1], n.children[2]
+// drawBranches draws an if's or a switch's card, the split into its branches, each branch, and
+// the join.
+func (s chartStyle) drawBranches(c *flowChart, n *chartNode, x, y int) {
+	header, branches := n.children[0], n.children[1:]
 	s.drawBox(c, header, x+n.center-header.center, y)
-	left := x + n.center - (then.center+then.w+branchGap+otherwise.center)/2
-	thenX, elseX := left, left+then.w+branchGap
-	thenCenter, elseCenter := thenX+then.center, elseX+otherwise.center
+	_, mid := branchSpan(branches)
+	left := x + n.center - mid
+	xs, centers := make([]int, len(branches)), make([]int, len(branches))
+	for i, b := range branches {
+		xs[i], centers[i] = left, left+b.center
+		left += b.w + branchGap
+	}
+	first, last := centers[0], centers[len(centers)-1]
 	split := y + header.h
-	s.drawJoin(c, thenCenter, elseCenter, x+n.center, split, "╭", "┴", "╮")
-	s.drawBranchHead(c, then.slot, "yes", thenCenter+2, split)
-	s.drawBranchHead(c, otherwise.slot, "no", elseCenter-3, split)
 	top := split + ifSplitRows
-	for _, branch := range []struct {
-		center int
-		node   *chartNode
-	}{{thenCenter, then}, {elseCenter, otherwise}} {
-		s.drawArrow(c, "", branch.center, split+1, ifSplitRows-1)
-		if branch.node.steps > 0 {
-			s.addGap(c, branch.node.slot, 0, branch.center, split+1)
+	tallest := 0
+	for _, b := range branches {
+		tallest = max(tallest, b.h)
+	}
+	join := top + tallest + arrowRows
+	s.drawJoin(c, first, last, x+n.center, split, "╭", "┴", "╮")
+	s.drawJoin(c, first, last, x+n.center, join, "╰", "┬", "╯")
+	for _, center := range centers[1 : len(centers)-1] {
+		cross := map[bool]string{true: "┼", false: "┬"}[center == x+n.center]
+		setRune(c.canvas, center, split, cross, s.pal.unfocusedFrame)
+		setRune(c.canvas, center, join, map[bool]string{true: "┼", false: "┴"}[center == x+n.center], s.pal.unfocusedFrame)
+	}
+	labels := branchLabels(n.step)
+	for i, b := range branches {
+		s.drawBranchHead(c, b.slot, s.branchLabelPlace(labels, i, centers, x+n.center), split)
+		s.drawArrow(c, "", centers[i], split+1, ifSplitRows-1)
+		if b.steps > 0 {
+			s.addGap(c, b.slot, 0, centers[i], split+1)
+		}
+		s.draw(c, b, xs[i], top)
+		s.drawBranchEnd(c, b, centers[i], top, join)
+	}
+}
+
+// labelPlace is a branch's label on the split line, cut to fit, and the column it starts at.
+type labelPlace struct {
+	text string
+	x    int
+}
+
+// branchLabelPlace puts the label of branch i after the corner of its line, the last one's before
+// it; one that would cross the card's own line goes past it, and each stops short of the next.
+func (s chartStyle) branchLabelPlace(labels []string, i int, centers []int, card int) labelPlace {
+	label, last := labels[i], len(centers)-1
+	width := ansi.StringWidth(label)
+	if i == last {
+		start := max(centers[i]-1-width, centers[i-1]+2)
+		return labelPlace{ansi.Truncate(label, max(centers[i]-1-start, 1), "…"), start}
+	}
+	start, end := centers[i]+2, centers[i+1]-1
+	if i == last-1 {
+		end -= ansi.StringWidth(labels[last]) + 1
+	}
+	if start <= card && start+width >= card {
+		if card+2+width <= end {
+			start = card + 2
+		} else {
+			end = min(end, card-1)
 		}
 	}
-	s.draw(c, then, thenX, top)
-	s.draw(c, otherwise, elseX, top)
-	join := top + max(then.h, otherwise.h) + arrowRows
-	s.drawBranchEnd(c, n.step.Then, then, thenCenter, top, join)
-	s.drawBranchEnd(c, n.step.Else, otherwise, elseCenter, top, join)
-	s.drawJoin(c, thenCenter, elseCenter, x+n.center, join, "╰", "┬", "╯")
+	return labelPlace{ansi.Truncate(label, max(end-start, 1), "…"), start}
 }
 
 // drawBranchHead labels a branch; the label is its head, to add a step first in it, empty or not.
-func (s chartStyle) drawBranchHead(c *flowChart, slot chartSlot, label string, x, y int) {
+func (s chartStyle) drawBranchHead(c *flowChart, slot chartSlot, label labelPlace, y int) {
 	key := headKey(slot)
-	c.blocks = append(c.blocks, chartBlock{key: key, slot: slot, rect: image.Rect(x, y, x+len(label), y+1)})
-	drawText(c.canvas, x, y, x+len(label), label, s.headStyle(key))
+	width := ansi.StringWidth(label.text)
+	c.blocks = append(c.blocks, chartBlock{key: key, slot: slot, rect: image.Rect(label.x, y, label.x+width, y+1)})
+	drawText(c.canvas, label.x, y, label.x+width, label.text, s.headStyle(key))
 }
 
 // drawBranchEnd draws the line from a branch's end down to the join, the way out of its last step.
-func (s chartStyle) drawBranchEnd(c *flowChart, steps []flow.Step, branch *chartNode, center, top, join int) {
+func (s chartStyle) drawBranchEnd(c *flowChart, branch *chartNode, center, top, join int) {
 	for yy := top + branch.h; yy < join; yy++ {
 		setRune(c.canvas, center, yy, lineDown, s.pal.unfocusedFrame)
 	}
-	if len(steps) > 0 {
-		c.arrows[flow.Path(branch.slot.parent, branch.slot.branch, len(steps)-1)] = chartArrow{x: center, top: top + branch.h, rows: join - top - branch.h}
-		s.addGap(c, branch.slot, len(steps), center, top+branch.h)
+	if branch.steps > 0 {
+		c.arrows[flow.Path(branch.slot.parent, branch.slot.branch, branch.steps-1)] = chartArrow{x: center, top: top + branch.h, rows: join - top - branch.h}
+		s.addGap(c, branch.slot, branch.steps, center, top+branch.h)
 	}
 }
 
@@ -620,8 +731,8 @@ func (s chartStyle) drawRepeat(c *flowChart, n *chartNode, x, y int) {
 	// Only the frame's title row selects the repeat: inside it are its own steps.
 	c.blocks = append(c.blocks, chartBlock{key: key, path: n.path, rect: image.Rect(x, y, x+n.w, y+1)})
 	line, title := s.frameStyles(key, n.path)
-	drawCard(c.canvas, rect, s.cardTitle(s.boxMarks(n.path)+s.repeatTitle(n.step), flow.RepeatStep, rect.Dx()), line, title)
-	s.drawKind(c, rect, flow.RepeatStep)
+	drawCard(c.canvas, rect, s.cardTitle(s.boxMarks(n.path)+s.repeatTitle(n.step), kindShown(n.step), rect.Dx()), line, title)
+	s.drawKind(c, rect, kindShown(n.step))
 	setRune(c.canvas, x+n.w-1, y+1, arrowUp, line) // the way back, up the frame's side
 	body := n.children[0]
 	in := image.Rect(x+n.center-1, y+1, x+n.center+2, y+1+arrowRows)
