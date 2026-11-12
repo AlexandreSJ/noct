@@ -789,7 +789,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 **Contexto.** Os flows são a parte mais rica do noct e a mais difícil de descobrir; e as animações vinham desligadas em quase todos os momentos.
 
 **Decisão.**
-- Os scripts `demo/*` e os flows `demo-deploy` e `demo-loops` ficam em `examples/demo/`, embutidos no binário (`examples.InstallDemo`) e copiados pelo instalador sem sobrescrever o que já existe. Só usam `printf` e `sleep`.
+- Os scripts `demo/*` e os flows `demo-deploy` e `demo-loops` ficam em `examples/demo/`, embutidos no binário (`examples.InstallDemo`) e copiados pelo instalador sem sobrescrever o que já existe. Só usam `printf` e `sleep`. Depois do ADR-068, a `demo-triage` e a função `demo-explain` (em `examples/demo/functions/`) perguntam ao agente de verdade que o config nomeia; o teste que ela classifica continua fictício.
 - Os efeitos e tempos que o mantenedor usa viram o padrão: hover fade 150, panels jitter 300, tabs jitter 300, focus none 100, move fade 200, fullscreen 01 200, popup 01 200, activity fade 600.
 
 **Consequências.** Quem nunca gravou as animações no config passa a ver as novas. Os testes de animação fixam os efeitos para que foram escritos, à parte dos padrões.
@@ -901,7 +901,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Nomes curtos:** um passo de script ou `run` grava também `output`, `exit`, `ok`, as capturas e os `outputs` do script como variáveis, sobrescritas pelo próximo passo desses. `.steps.<id>.*` continua igual e sem escopo, para ler um passo específico.
 - **Escopo de bloco:** gravar uma variável que já existe muda a existente, onde quer que tenha nascido; uma nova pertence ao `if` ou `repeat` mais interno em execução e some no fim dele. O `repeat` é um bloco só para todas as passadas, então um contador que nasce na primeira passada vale nas seguintes e no `until`.
 - **`export`** num `if` ou `repeat` (`{interna: externa}`, `""` para o mesmo nome) leva a variável para fora com o valor do fim do bloco. No inspect, `x`.
-- **Análise de escopo e avisos** seguem as mesmas regras; ler uma variável que um bloco fez e não exportou avisa que ela sumiu no fim dele, e como exportar.
+- **Análise de escopo e avisos** seguem as mesmas regras; ler uma variável que um bloco fez e não exportou avisa que ela sumiu no fim dele, e como exportar. O `export` de um `if` conta como certo quando os dois ramos (`then` e `else`) deixam a variável feita; com um ramo só, conta como talvez.
 - **Autocompletar** nos prompts de template, a partir do mesmo escopo.
 - Um param com o nome de um campo (`output`, `exit`, `ok`, uma captura) é sobrescrito pelo passo, como uma variável qualquer.
 

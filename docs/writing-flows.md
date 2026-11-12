@@ -142,7 +142,8 @@ steps:
 - Ifs and repeats scope variables as blocks do in a language: setting a variable that exists
   before the block changes it; one the block makes goes when it ends, unless the block exports it:
   `export: {count: passes}` keeps `count` after the block as `{{.passes}}` (`{count: ""}` keeps
-  its name). `steps.<id>` results are not scoped.
+  its name). `steps.<id>` results are not scoped. An if's export is surely set when both `then`
+  and `else` make it; with only one of them, `noct check` warns that it may not be set.
 - `set` renders all its values first, then sets them, so `set: {a: '{{.b}}', b: '{{.a}}'}` swaps.
 - A `prompt` needs someone at the terminal. In noct's workspace it brings the run's pane to the
   screen before asking; a run nobody watches (a trigger) fails at the prompt instead of waiting.

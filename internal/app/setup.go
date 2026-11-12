@@ -362,7 +362,7 @@ func (a *App) finishSetup() {
 	}
 	a.saveSetupConfig()
 	if w.demo {
-		if _, err := examples.InstallDemo(a.scriptsDir(), flow.Dir()); err != nil {
+		if _, err := examples.InstallDemo(a.scriptsDir(), flow.Dir(), flow.FunctionsDir()); err != nil {
 			a.statusMessage = err.Error()
 		}
 		a.reloadScripts()

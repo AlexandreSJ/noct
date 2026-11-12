@@ -1,0 +1,27 @@
+# demo-explain: a function, steps any flow can call with call: demo-explain.
+# It runs in a scope of its own: it reads only its params, and what its steps
+# make goes when it ends, except what returns gives back. Change it here and
+# every flow that calls it changes too; the inspect shows them as "used by".
+description: Ask the agent what a failing test shows is wrong and where to look first.
+
+params:
+  log: {required: true, prompt: What the test printed}
+
+steps:
+  # Two agent steps in a row: the second reads the first's answer.
+  - id: cause
+    agent:
+      ask: |
+        In one short sentence, say what this failing test shows is wrong in the code:
+        {{.log}}
+  - id: hint
+    agent:
+      ask: |
+        A test fails because: {{.steps.cause.answer}}
+        In one short sentence, say where in the code to look first.
+
+# returns: what the call gives back, as {{.cause}} and {{.hint}} after it, or
+# {{.steps.<call id>.cause}}.
+returns:
+  cause: '{{.steps.cause.answer}}'
+  hint: '{{.steps.hint.answer}}'

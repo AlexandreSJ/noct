@@ -1,0 +1,72 @@
+# demo-triage: an AI agent reads a failing test and decides what comes next.
+# The test is made up (demo/failing-test only prints), but the agent is real:
+# the one your config's agent names, claude unless you set another. To ask a
+# local model instead, put this in the config and run it again:
+#   agent = "ollama"
+#   [agents]
+#   ollama = "ollama run qwen3.5:0.8b"
+#
+# Try each way the test can fail and see whether the agent tells them apart:
+#   noct flow run demo-triage failure=flaky   # runs the test again
+#   noct flow run demo-triage failure=bug     # explains it, through a function
+#   noct flow run demo-triage failure=env     # asks you for the missing setting
+description: An AI agent reads a failing test and decides whether to run it again, explain it or ask you.
+
+params:
+  failure:
+    type: choice
+    choices: [flaky, bug, env]
+    default: flaky
+    prompt: How the made-up test fails
+
+steps:
+  # on_fail: continue goes on after the test fails, so the agent can read it.
+  - id: test
+    script: demo/failing-test
+    with: {failure: '{{.failure}}'}
+    on_fail: continue
+
+  # agent with choices: the answer must say one of them and lands in
+  # {{.answer}}. One that says none fails the step. No use: here, so it asks
+  # the config's agent; use: ollama would pick one.
+  - id: triage
+    agent:
+      ask: |
+        A test failed. Answer with one word:
+        flaky if it timed out or lost the network and usually passes,
+        bug if the code computed a wrong value,
+        env if a setting or variable is missing.
+        The test printed:
+        {{.steps.test.output}}
+      choices: [flaky, bug, env]
+
+  # The if branches on the agent's answer. note is made inside the blocks, so
+  # it would go when they end; export keeps it: the inner if keeps its name
+  # ({note: ""}) and this one hands it on as {{.summary}}.
+  - if: '{{eq .answer "flaky"}}'
+    then:
+      # Run the real tests again, at most 3 times, until they pass.
+      - repeat: {until: '{{.steps.again.ok}}', max: 3, every: 1s}
+        steps:
+          - {id: again, script: demo/test}
+      - set: {note: 'it passed when run again: {{.steps.again.output}}'}
+    else:
+      - if: '{{eq .answer "bug"}}'
+        then:
+          # call: run the demo-explain function with these params; its
+          # returns come back as {{.cause}} and {{.hint}}.
+          - id: explain
+            call: demo-explain
+            with: {log: '{{.steps.test.output}}'}
+          - set: {note: '{{.cause}} Look at: {{.hint}}'}
+        else:
+          - id: region
+            prompt: The test needs PAYMENTS_REGION. Which region should it use?
+            var: region
+            default: us-east-1
+          - set: {note: 'run it again with PAYMENTS_REGION={{.region}}'}
+        export: {note: ""}
+    export: {note: summary}
+
+  # An answer is text an AI wrote: it reaches a run only through quote.
+  - run: "printf 'the agent said: %s\\n%s\\n' {{quote .steps.triage.answer}} {{quote .summary}}"

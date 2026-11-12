@@ -9,3 +9,7 @@ panel to see the whole thing on one screen.
 
 When you have read the tour, open `demo-deploy` in the inspect (`prefix` + `i`)
 and follow it step by step. The other demo scripts are the steps it runs.
+
+Then try `demo-triage`: an AI agent reads a failing test and picks what to do.
+It asks the agent your config names (`agent`, claude by default), and its
+comments say how to point it at a local model instead.

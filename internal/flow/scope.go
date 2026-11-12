@@ -142,14 +142,53 @@ func (sc *scope) add(s Step, path string, certainty Certainty) {
 		certainty Certainty
 	}{{"then", s.Then, Maybe}, {"else", s.Else, Maybe}, {"steps", s.Steps, certainty}}
 	outside := sc.variableNames()
+	exported := func(string) Certainty { return certainty }
+	if s.Kind() == IfStep {
+		sure := sc.setByBothBranches(s, path, certainty)
+		exported = func(name string) Certainty { return map[bool]Certainty{true: certainty, false: Maybe}[sure[name]] }
+	}
 	for _, list := range inner {
 		for i, child := range list.steps {
 			sc.add(child, Path(path, list.branch, i), list.certainty)
 		}
 	}
 	if s.Kind() == IfStep || s.Kind() == RepeatStep {
-		sc.closeBlock(s, path, outside, map[bool]Certainty{true: Maybe, false: certainty}[s.Kind() == IfStep])
+		sc.closeBlock(s, path, outside, exported)
 	}
+}
+
+// setByBothBranches are the variables an if leaves set whichever of its branches runs.
+func (sc *scope) setByBothBranches(s Step, path string, certainty Certainty) map[string]bool {
+	var sure map[string]bool
+	for _, branch := range []struct {
+		name  string
+		steps []Step
+	}{{"then", s.Then}, {"else", s.Else}} {
+		trial := sc.clone()
+		for i, child := range branch.steps {
+			trial.add(child, Path(path, branch.name, i), certainty)
+		}
+		set := map[string]bool{}
+		for _, v := range trial.vars {
+			if v.Step == "" && v.Certainty != Maybe {
+				set[v.Field] = true
+			}
+		}
+		if sure == nil {
+			sure = set
+		} else {
+			maps.DeleteFunc(sure, func(name string, _ bool) bool { return !set[name] })
+		}
+	}
+	return sure
+}
+
+func (sc *scope) clone() *scope {
+	c := *sc
+	c.vars = slices.Clone(sc.vars)
+	c.cleared = maps.Clone(sc.cleared)
+	c.ended = maps.Clone(sc.ended)
+	return &c
 }
 
 // variableNames are the names of the variables in the scope now.
@@ -164,8 +203,8 @@ func (sc *scope) variableNames() map[string]bool {
 }
 
 // closeBlock takes out the variables an if or repeat made, those not in outside, giving its
-// exports their names outside.
-func (sc *scope) closeBlock(s Step, path string, outside map[string]bool, certainty Certainty) {
+// exports their names outside, as surely set as exported says.
+func (sc *scope) closeBlock(s Step, path string, outside map[string]bool, exported func(name string) Certainty) {
 	made := map[string]bool{}
 	for _, v := range sc.vars {
 		if v.Step == "" && !outside[v.Field] {
@@ -178,7 +217,7 @@ func (sc *scope) closeBlock(s Step, path string, outside map[string]bool, certai
 	}
 	for _, inner := range slices.Sorted(maps.Keys(s.Export)) {
 		if made[inner] || outside[inner] {
-			sc.set(cmp.Or(s.Export[inner], inner), path, certainty)
+			sc.set(cmp.Or(s.Export[inner], inner), path, exported(inner))
 		}
 	}
 }

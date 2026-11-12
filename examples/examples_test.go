@@ -9,13 +9,14 @@ import (
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
-// TestInstalledDemoLoads installs the demo and checks every script and flow loads, with no
+// TestInstalledDemoLoads installs the demo and checks every script, flow and function loads, with no
 // scope warnings, the way `noct check` does.
 func TestInstalledDemoLoads(t *testing.T) {
 	scriptsDir := filepath.Join(t.TempDir(), "scripts")
 	flowsDir := filepath.Join(t.TempDir(), "flows")
+	functionsDir := filepath.Join(t.TempDir(), "functions")
 
-	written, err := InstallDemo(scriptsDir, flowsDir)
+	written, err := InstallDemo(scriptsDir, flowsDir, functionsDir)
 	if err != nil {
 		t.Fatalf("InstallDemo: %v", err)
 	}
@@ -34,14 +35,14 @@ func TestInstalledDemoLoads(t *testing.T) {
 		t.Fatal("no scripts loaded")
 	}
 
-	flows, err := flow.LoadAll(flowsDir, lib.Find)
+	flows, functions, err := flow.LoadWithFunctions(flowsDir, functionsDir, lib.Find)
 	if err != nil {
-		t.Fatalf("LoadAll: %v", err)
+		t.Fatalf("LoadWithFunctions: %v", err)
 	}
-	if len(flows) == 0 {
-		t.Fatal("no flows loaded")
+	if len(flows) == 0 || len(functions) == 0 {
+		t.Fatalf("loaded %d flows and %d functions", len(flows), len(functions))
 	}
-	for _, f := range flows {
+	for _, f := range append(flows, functions...) {
 		if f.Problem != nil {
 			t.Errorf("flow %s: %v", f.Name, f.Problem)
 		}
@@ -56,8 +57,9 @@ func TestInstalledDemoLoads(t *testing.T) {
 func TestSecondInstallKeepsEdits(t *testing.T) {
 	scriptsDir := filepath.Join(t.TempDir(), "scripts")
 	flowsDir := filepath.Join(t.TempDir(), "flows")
+	functionsDir := filepath.Join(t.TempDir(), "functions")
 
-	written, err := InstallDemo(scriptsDir, flowsDir)
+	written, err := InstallDemo(scriptsDir, flowsDir, functionsDir)
 	if err != nil {
 		t.Fatalf("first InstallDemo: %v", err)
 	}
@@ -72,7 +74,7 @@ func TestSecondInstallKeepsEdits(t *testing.T) {
 		t.Fatalf("editing %s: %v", edited, err)
 	}
 
-	again, err := InstallDemo(scriptsDir, flowsDir)
+	again, err := InstallDemo(scriptsDir, flowsDir, functionsDir)
 	if err != nil {
 		t.Fatalf("second InstallDemo: %v", err)
 	}

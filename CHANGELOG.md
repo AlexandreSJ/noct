@@ -19,6 +19,9 @@ terminal's own background stays untouched.
 
 ### Added
 
+- The demo has `demo-triage`: an AI agent reads a made-up failing test and decides whether to
+  run it again, explain it through the function `demo-explain`, or ask you for a missing
+  setting. It asks the agent your config names. `noct setup` installs it beside the others.
 - The MCP server lists functions (with who calls each) and the agents an agent step can ask, reads
   a function with `get_item`, and drafts one with `draft_function`. A draft function does not run,
   and the flows that call it wait for its promotion.
@@ -91,7 +94,8 @@ terminal's own background stays untouched.
   and one it makes goes when it ends unless the block exports it (`export: {count: passes}`, or
   `x` in the inspect). Script and run steps also set `{{.output}}`, `{{.exit}}`, `{{.ok}}` and
   their captures as short variables. A flow that read after an if a variable made inside it now
-  gets a warning; export the variable to keep it.
+  gets a warning; export the variable to keep it. An if whose `then` and `else` both make the
+  variable exports it without a warning.
 - The inspect's flowchart has round cards joined by longer arrows drawn with box lines (`│`,
   `↓`), no longer `▼`. The `+` gaps between cards are gone: `a` adds below the selected step,
   and the head of a list (the start, an if's yes or no, a repeat's way in) adds above its first
