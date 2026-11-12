@@ -21,14 +21,17 @@ terminal's own background stays untouched.
 
 - The demo has `demo-triage`: an AI agent reads a made-up failing test and decides whether to
   run it again, explain it through the function `demo-explain`, or ask you for a missing
-  setting. It asks the agent your config names. `noct setup` installs it beside the others.
+  setting. It asks the agent you already use, or the one its `agent` param names, and ends with a
+  short report. `noct setup` installs it beside the others.
 - The MCP server lists functions (with who calls each) and the agents an agent step can ask, reads
   a function with `get_item`, and drafts one with `draft_function`. A draft function does not run,
   and the flows that call it wait for its promotion.
-- Agent steps: `agent: {ask: …}` asks an AI agent you have (`claude`, `ollama`, `opencode`, or a
-  command under `[agents]` in the config) and keeps its answer in `{{.answer}}`; with `choices`,
-  the answer is one of them, so an if can branch on it. The question never goes through a shell,
-  and the claude preset runs with no tools.
+- Agent steps: `agent: {ask: …}` asks an AI agent you have (`claude`, `codex`, `opencode`, `llm`,
+  `ollama`, or a command under `[agents]` in the config) and keeps its answer in `{{.answer}}`,
+  without the thinking a model prints first; with `choices`, the answer is one of them, so an if
+  can branch on it. The question never goes through a shell, and no preset can change anything.
+  By default (`agent = "auto"`) a step asks the first agent this machine has, and `use:` can come
+  from a param. `noct agents` lists them and, when there is none, says how to start with ollama.
 - Functions: steps any flow can call, in a file of their own with params and returns. A `call:` step
   runs one in a scope of its own and gets back what it returns. The inspect lists functions after
   the flows (`F` makes one), shows which flows call each, and tells what a change reaches.

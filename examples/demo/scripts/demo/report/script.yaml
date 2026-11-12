@@ -1,0 +1,8 @@
+description: Print what demo-triage found, as a short report.
+run: |
+  printf '\nThe agent sorted the failure as: %s\n\n%s\n' {{quote .kind}} {{quote .summary}}
+params:
+  - name: kind
+    prompt: What the agent sorted the failure as
+  - name: summary
+    prompt: What happened next

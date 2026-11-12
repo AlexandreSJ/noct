@@ -674,6 +674,9 @@ func (p *inspectPanel) drawFlowChart(screen uv.Screen, area image.Rectangle, f f
 // triggers.
 func (p *inspectPanel) chartInfoText(f flow.Flow, last *flow.Result) string {
 	info := p.runText(last) + fmt.Sprintf("  zoom %d/%d", p.zoom+1, len(boxWidths))
+	if _, running := flow.ReadProgress(flow.ResultsDir(), f.Name); running && !f.Function {
+		info = "running now ▶" + fmt.Sprintf("  zoom %d/%d", p.zoom+1, len(boxWidths))
+	}
 	if f.Function {
 		info = p.usedByText(f) + fmt.Sprintf("  zoom %d/%d", p.zoom+1, len(boxWidths))
 	}
@@ -700,6 +703,9 @@ func (p *inspectPanel) layoutFlowChart(f flow.Flow, last *flow.Result) {
 	progress, running := flow.ReadProgress(flow.ResultsDir(), f.Name)
 	if f.Function {
 		running = false
+	}
+	if running {
+		last = nil // the marks of the run before would mix with this one's
 	}
 	if inside := strings.Index(progress.Path, "/call/"); inside >= 0 {
 		progress.Path = progress.Path[:inside] // a function's step runs inside its call's card

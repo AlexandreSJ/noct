@@ -48,6 +48,8 @@ Usage:
                                     MCP server on stdin and stdout; see docs/mcp.md
   noct check                        report the scripts and flows that cannot be loaded,
                                     and warn about steps read where they may not have run
+  noct agents                       list the AI agents a flow's agent step can ask, which
+                                    of them this machine has, and the one it asks by default
   noct export theme [name] | config | keys
                                     print a theme (the one in use without a name), the
                                     settings you changed, or the keys and binds as one line
@@ -105,6 +107,8 @@ func run(args []string) error {
 		return listScripts(os.Stdout)
 	case "check":
 		return checkScripts(os.Stdout)
+	case "agents":
+		return listAgents(os.Stdout, loadConfig())
 	case "run", "-s", "--script":
 		return runScript(args[1:])
 	case "flow":

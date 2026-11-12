@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -167,17 +166,17 @@ type functionInfo struct {
 	Problem     string                `json:"problem,omitempty"`
 }
 
-// agentNames are the agents an agent step can ask, and the default one.
+// agentNames are the agents an agent step can ask, those this machine has, and the default one.
 func (d Deps) agentNames() map[string]any {
-	names := slices.Sorted(maps.Keys(flow.AgentPresets))
 	cfg := d.Config()
-	for name := range cfg.Agents {
-		if !slices.Contains(names, name) {
-			names = append(names, name)
+	var names, ready []string
+	for _, a := range flow.Agents(cfg.Agents) {
+		names = append(names, a.Name)
+		if a.Problem == nil {
+			ready = append(ready, a.Name)
 		}
 	}
-	slices.Sort(names)
-	return map[string]any{"names": names, "default": cfg.Agent}
+	return map[string]any{"names": names, "ready": ready, "default": cfg.Agent}
 }
 
 type flowInfo struct {

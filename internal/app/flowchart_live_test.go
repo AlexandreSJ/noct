@@ -22,7 +22,7 @@ func TestARunningStepShowsLitWithDotsGoingDownItsArrow(t *testing.T) {
 	now = progress.Since
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	p := a.currentTab().focusedView().(*inspectPanel)
-	if !strings.Contains(screenText(a), "▶ build") || a.flowTick == nil {
+	if !strings.Contains(screenText(a), "▶ build") || !strings.Contains(screenText(a), "running now") || a.flowTick == nil {
 		t.Fatalf("running build: tick %v, screen:\n%s", a.flowTick != nil, screenText(a))
 	}
 	dots := func() string {

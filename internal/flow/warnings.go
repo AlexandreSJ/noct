@@ -48,6 +48,9 @@ func (f Flow) listWarnings(steps []Step, parent, branch string, lookup func(id s
 // the repeat's until, which reads the scope at the end of a pass.
 func (s Step) orderedTemplates() []string {
 	texts := []string{s.Run, s.If, s.Prompt, s.Default}
+	if s.Agent != nil {
+		texts = append(texts, s.Agent.Ask, s.Agent.Use)
+	}
 	for _, values := range []map[string]string{s.With, s.Set} {
 		for _, name := range slices.Sorted(maps.Keys(values)) {
 			texts = append(texts, values[name])

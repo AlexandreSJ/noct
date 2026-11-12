@@ -184,20 +184,47 @@ returns:
 ```yaml
 - id: review
   agent:
-    ask: 'The deploy health check printed {{quote .output}}. Ship or roll back?'
-    use: claude               # optional: the config's agent (claude by default)
+    ask: 'The deploy health check printed {{.output}}. Ship or roll back?'
+    use: claude               # optional: a template too, so '{{.agent}}' lets a param pick
     choices: [ship, rollback] # optional: the answer must say one of them
+  timeout: 3m
 - if: '{{eq .answer "rollback"}}'
   then: [{script: demo/rollback}]
 ```
 
 - The question goes to the agent's command as its input, or as one argument in place of
-  `{prompt}`, never through a shell. noct knows `claude` (`claude -p --model haiku --tools ""`,
-  with no tools), `ollama` (`ollama run llama3.2`) and `opencode` (`opencode run --agent plan {prompt}`, its
-  read-only agent); the config's `[agents]` adds others or changes these, and `agent` picks the
-  default. noct does not install them. An agent of your own should not be able to act either: a
-  question carries text from programs and other people, which could ask it to.
-- `{{.answer}}` is the answer trimmed; with `choices`, the first choice it says as a word, in any
+  `{prompt}`, never through a shell.
+- Without `use`, or with it empty, the step asks the config's `agent`. The default, `auto`, asks
+  the first agent that is ready here: the config's `[agents]` first, then claude, codex,
+  opencode, llm and ollama. `noct agents` lists them, the ready ones and the default; with none
+  ready, it says how to start with ollama, which runs on your machine for free.
+- noct knows these, each set up so it cannot change anything:
+
+  | Agent | Command |
+  |---|---|
+  | `claude` | `claude -p --model haiku --tools ""` (no tools) |
+  | `codex` | `codex exec --ephemeral --skip-git-repo-check --sandbox read-only -` |
+  | `opencode` | `opencode run --agent plan {prompt}` (its read-only agent) |
+  | `llm` | `llm` (only answers) |
+  | `ollama` | `ollama run --hidethinking llama3.2`; without llama3.2, a model ollama already has |
+
+- `[agents]` in the config changes one of these or adds yours, by name. To change the model, write
+  the command with it. These are starting points; check each one's flags in its own docs:
+
+  ```toml
+  agent = "ollama"                 # or auto, or any name below
+  [agents]
+  ollama = "ollama run --hidethinking qwen3.5:4b"
+  claude = 'claude -p --model sonnet --tools ""'
+  codex = "codex exec --ephemeral --skip-git-repo-check --sandbox read-only -m <model> -"
+  llm = "llm -m gpt-4o-mini"
+  hermes = "hermes chat --oneshot -Q -t todo -q {prompt}"  # -t todo: no tool that acts
+  ```
+
+  An agent of your own should not be able to act: a question carries text from programs and
+  other people, which could ask it to. noct does not install any of them.
+- `{{.answer}}` is the answer trimmed, without the thinking a model prints first (ollama's
+  `Thinking...` and `<think>` tags); with `choices`, the first choice it says as a word, in any
   case, and an answer that says none fails the step (`on_fail` applies). `{{.output}}` is all it
   printed.
 - An answer is text an AI wrote from what the question carried: put it in a `run:` only through

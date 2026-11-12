@@ -154,7 +154,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/config/config.go` | Settings file: defaults, validation, atomic load and save |
 | `third_party/ultraviolet`, `third_party/vt` | Copies of charmbracelet/ultraviolet and x/vt with throughput and rendering fixes (`noct:` comments); see `third_party/README.md`. `noct_render_test.go` replays the renderer's output into the emulator |
 | `docs/demo/record.sh`, `docs/demo/*.tape` | The README's GIFs (`make demo`): VHS tapes run noct in a home of its own, with the demo scripts and flows of `docs/demo/scripts` and `docs/demo/flows` |
-| `examples/examples.go`, `examples/demo/` | The demo the setup installs: scripts `demo/*` with tutorial notes the flows `demo-deploy` (a deploy with health check and rollback), `demo-loops` (each step kind alone) and `demo-triage` (an AI agent sorts a failing test), and the function `demo-explain`, embedded and copied without overwriting |
+| `examples/examples.go`, `examples/demo/` | The demo the setup installs: scripts `demo/*` with tutorial notes the flows `demo-deploy` (a deploy with health check and rollback), `demo-loops` (each step kind alone) and `demo-triage` (an AI agent sorts a failing test), and the function `demo-explain` (scripts include `demo/failing-test` and `demo/report`), embedded and copied without overwriting |
 | `docs/assets/` | The README's logo (`logo.svg`, the home's art as rectangles) and GIFs |
 | `.github/workflows/ci.yml`, `.githooks/pre-push`, `Makefile` (`hooks`) | Checks before a release: `make check` on GitHub for every pushed branch and pull request, and locally on each pushed commit, which also stops a version tag off the tip of `main` or without its CHANGELOG section |
 | `.github/workflows/release.yml`, `Makefile` (`dist`, `release-notes`), `CHANGELOG.md` | Releases: a pushed `vX.Y.Z` tag runs the checks, builds the archives and checksums, and publishes the GitHub release with the tag's CHANGELOG section, which noct's updates read (ADR-047) |
@@ -166,7 +166,9 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/flow/flow.go` | A flow: steps (script, run, if, repeat, wait, prompt, set, unset), loading, saving, creating, template functions |
 | `internal/flow/timeout.go` | Flow and step timeouts: parsing and validation, the `noct check` warning, run and step deadlines, stopping a step's processes |
 | `internal/flow/validate.go` | Checking a flow and its steps: ids, fields that belong to each kind, patterns |
-| `internal/flow/agent.go` | Agent steps: the agents noct knows, a command split into words with the question as its input or in place of `{prompt}`, the answer and its choices |
+| `internal/flow/agent.go` | Agent steps: a command split into words with the question as its input or in place of `{prompt}`, the answer without the model's thinking, and its choices |
+| `internal/flow/agents.go` | The agents noct knows (presets), the config's over them, which are ready on this machine, `auto` (the first ready one) and the ollama preset falling back to a model the machine has |
+| `cmd/noct/agents.go` | `noct agents`: the agents, which are ready, the default, and one to start from when none is |
 | `internal/flow/functions.go` | Functions: their folder, loading them with the flows (`LoadWithFunctions`), checking calls, who calls each (`Callers`), running a call in a scope of its own |
 | `internal/flow/progress.go` | The step a run is on, kept beside the flow's last result while it runs, for the inspect's live view |
 | `internal/flow/run.go` | Running a flow step by step in a terminal: commands, if, repeat, wait, captures (and scripts' outputs), expect |

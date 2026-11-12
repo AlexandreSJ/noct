@@ -852,6 +852,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Numa máquina nova, um script com programa faltando mostra `(not found)` e o usuário instala por fora. O noct não tem lógica de pacotes nem comandos com `sudo` para manter. O ADR-005 e o ADR-010 ficam substituídos.
 
+**Exceção (ADR-068).** Quando não há nenhum agente de IA pronto, `noct agents` e o passo de agente que falha sugerem um, o ollama, e como baixar um modelo, a pedido do mantenedor. O noct continua sem instalar nada.
+
 ## ADR-063 — Params do ambiente, perguntados quando a variável falta
 
 **Contexto.** Um script já podia ler um parâmetro do ambiente (`from: env:NOME`), mas sem a variável ele não rodava. O mantenedor quer que o usuário possa deixar seus valores, inclusive os secretos, em variáveis de ambiente e que o noct só as use, sem perguntar; quem não tem a variável deve poder digitar o valor. Os fluxos não tinham isso. A ideia anterior da task 14, passar todos os valores ao comando como variáveis de ambiente em vez de colados no `sh -c`, mudaria o formato de todos os scripts; o `quote` (task 13) já fecha a injeção em quem precisa.
@@ -932,4 +934,11 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Segurança:** nenhum preset pode agir: o do claude desliga as ferramentas (`--tools ""`), o do opencode usa o agente `plan`, de só leitura, e o ollama só responde; a pergunta carrega texto de programas e de outras pessoas, que poderia pedir ações ao agente. A documentação pede o mesmo dos agentes do `[agents]`. A resposta é dado não confiável: a documentação manda usá-la em `run:` só com `quote`. Um fluxo com passo de agente rodado pelo MCP segue as aprovações de sempre, e o rascunho de uma IA continua precisando ser promovido.
 
 **Consequências.** Uma chamada a um agente custa o que o agente cobra, e o tempo dele entra no do fluxo; `timeout` limita. Agentes de outros fornecedores entram pelo config, sem mudar o noct.
+
+**Atualização (o agente que o usuário já tem).** O mantenedor quer que a demo e os fluxos rodem com o agente que cada um já usa, trocando só o nome ou o modelo, e que quem não tem nenhum receba uma sugestão.
+- **Presets:** entram `codex` (`codex exec --ephemeral --skip-git-repo-check --sandbox read-only -`, a sandbox de só leitura) e `llm` (`llm`, que só responde); o do ollama vira `ollama run --hidethinking llama3.2`. `hermes` não vira preset: a documentação dele não garante que `-t todo` substitui as ferramentas padrão, e o noct não o testou; o `writing-flows.md` mostra como acrescentá-lo pelo `[agents]`, com o aviso. O `gemini` fica de fora pelo mesmo motivo: num uso sem terminal, sair do modo `plan` passa ao modo que aprova tudo.
+- **`agent = "auto"`** (o padrão novo, no lugar de `claude`): pergunta ao primeiro agente pronto, os do `[agents]` antes e os presets na ordem claude, codex, opencode, llm, ollama. Pronto é ter o programa no PATH; para o ollama, também ter o modelo. O preset do ollama sem o `llama3.2` usa o primeiro modelo que o ollama já tem (o usado por último), em vez de baixar um; um comando do config roda como está escrito.
+- **`use` é um template**, então um param escolhe o agente; vazio pergunta ao padrão. A pergunta e o `use` passam pela análise de escopo e pela validação de templates, que antes deixavam o `ask` de fora.
+- **Raciocínio em voz alta:** o `answer` tira o `Thinking... ...done thinking.` do ollama e os `<think>…</think>` antes de procurar as escolhas, porque o raciocínio cita escolhas que o modelo descarta.
+- **`noct agents`** lista os agentes, os prontos e o padrão. Sem nenhum pronto, ele e o passo que falha sugerem o ollama, que roda local e de graça, com `ollama pull llama3.2`: é a exceção do ADR-062, limitada a quem não tem agente nenhum.
 

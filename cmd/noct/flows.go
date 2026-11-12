@@ -208,15 +208,12 @@ func newFlowRunner(lib script.Library) *flow.Runner {
 		Out:    os.Stdout,
 		Sleep:  time.Sleep,
 		// The config keeps kilobytes; 0, all of the output, stays 0.
-		KeepOutput: cfg.Flows.OutputKB << 10,
-		Ask:        terminalAsk(os.Stdin, os.Stdout),
-		OpenPane:   workspacePanes(),
-		Attention:  workspaceAttention(),
-		Function:   loadFunctions(lib),
-		Agents: func(name string) (string, bool) {
-			command, ok := cfg.Agents[name]
-			return command, ok
-		},
+		KeepOutput:   cfg.Flows.OutputKB << 10,
+		Ask:          terminalAsk(os.Stdin, os.Stdout),
+		OpenPane:     workspacePanes(),
+		Attention:    workspaceAttention(),
+		Function:     loadFunctions(lib),
+		Agents:       cfg.Agents,
 		DefaultAgent: cfg.Agent,
 	}
 }

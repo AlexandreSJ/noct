@@ -174,6 +174,7 @@ claude mcp add noct -- noct mcp
 | `noct promote <fluxo ou script>` | Deixa rodar um rascunho que uma IA escreveu, depois de revisado |
 | `noct mcp` | Serve o noct a um cliente de IA por stdin e stdout |
 | `noct check` | Aponta os scripts e fluxos que não carregam |
+| `noct agents` | Lista os agentes de IA que um fluxo pode perguntar, os que esta máquina tem e o padrão |
 | `noct quit` | Fecha todos os painéis e encerra o workspace; as sessões reabrem como estavam |
 | `noct export theme [nome]`, `config`, `keys` | Imprime um tema, as configurações que você mudou, ou suas teclas e binds como uma linha `noct import …`, com o QR code dela, para rodar em outra máquina |
 | `noct import <código>` | Traz o que o `noct export` imprimiu, mostrando o que muda e perguntando antes |

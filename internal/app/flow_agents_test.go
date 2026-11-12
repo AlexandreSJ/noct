@@ -18,7 +18,7 @@ func TestAnAgentStepIsAddedFromWhatItAsks(t *testing.T) {
 	typeDrawn(a, "pass fail")
 	pressDrawn(a, enterPress)
 	screen := screenText(a)
-	for _, want := range []string{"claude (default)", "local", "ollama", "opencode"} {
+	for _, want := range []string{"auto (default)", "local", "claude", "codex", "ollama", "opencode"} {
 		if !strings.Contains(screen, want) {
 			t.Errorf("the agents offered lack %q:\n%s", want, screen)
 		}

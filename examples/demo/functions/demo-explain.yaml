@@ -6,19 +6,25 @@ description: Ask the agent what a failing test shows is wrong and where to look 
 
 params:
   log: {required: true, prompt: What the test printed}
+  agent: {prompt: Agent to ask (empty for the default)}
 
 steps:
   # Two agent steps in a row: the second reads the first's answer.
   - id: cause
     agent:
       ask: |
-        In one short sentence, say what this failing test shows is wrong in the code:
+        Going only by what this failing test printed, say in one short sentence what is
+        wrong in the code. Plain text, no file names you did not see:
         {{.log}}
+      use: '{{.agent}}'
+    timeout: 3m
   - id: hint
     agent:
       ask: |
         A test fails because: {{.steps.cause.answer}}
-        In one short sentence, say where in the code to look first.
+        In one short sentence of plain text, say what part of the code to check first.
+      use: '{{.agent}}'
+    timeout: 3m
 
 # returns: what the call gives back, as {{.cause}} and {{.hint}} after it, or
 # {{.steps.<call id>.cause}}.

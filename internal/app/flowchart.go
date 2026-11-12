@@ -262,7 +262,7 @@ func (s chartStyle) boxText(step flow.Step) []string {
 	case flow.CommandStep:
 		lines = append(lines, "$ "+strings.Join(strings.Fields(step.Run), " "))
 	case flow.AgentStep:
-		lines = append(lines, "◆ "+orDefault(step.Agent.Use, "agent")+" · "+shortTemplate(step.Agent.Ask))
+		lines = append(lines, "◆ "+orDefault(shortTemplate(step.Agent.Use), "agent")+" · "+shortTemplate(step.Agent.Ask))
 		if len(step.Agent.Choices) > 0 {
 			lines = append(lines, "→ "+strings.Join(step.Agent.Choices, " | "))
 		}
