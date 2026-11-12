@@ -19,6 +19,26 @@ terminal's own background stays untouched.
 
 ### Added
 
+- The MCP server lists functions (with who calls each) and the agents an agent step can ask, reads
+  a function with `get_item`, and drafts one with `draft_function`. A draft function does not run,
+  and the flows that call it wait for its promotion.
+- Agent steps: `agent: {ask: …}` asks an AI agent you have (`claude`, `ollama`, `opencode`, or a
+  command under `[agents]` in the config) and keeps its answer in `{{.answer}}`; with `choices`,
+  the answer is one of them, so an if can branch on it. The question never goes through a shell,
+  and the claude preset runs with no tools.
+- Functions: steps any flow can call, in a file of their own with params and returns. A `call:` step
+  runs one in a scope of its own and gets back what it returns. The inspect lists functions after
+  the flows (`F` makes one), shows which flows call each, and tells what a change reaches.
+- Template prompts in the inspect complete the variables in scope as `{{.` is typed: up and down
+  pick one, tab puts it in.
+- Flow params can be `bool`, `choice` (with its `choices`) or `path`, besides `text` and `number`.
+  The inspect's params card, above the start, adds one offering every type and asks what the
+  type needs, and changes or removes one.
+- While a flow runs, the inspect lights the step running, marked `▶`, and three dots of different
+  sizes and colors keep going down the arrow out of it toward the next step.
+- In the inspect, `J` and `K` move a step through the flow as a line moves through code, into and
+  out of ifs and repeats; `m` moves it with the arrows, and dragging a card with the mouse drops
+  it below another. `z` undoes the last change to the flow and `y` does it again.
 - Animation effects for any moment in **Appearance → animations**: `dissolve` shows or hides
   each cell at once in a random order, `wipe` sweeps across from left to right, `grow` spreads
   out from the center and shrinks back into it, `slide-right` and `slide-left` bring the content
@@ -67,6 +87,18 @@ terminal's own background stays untouched.
 
 ### Changed
 
+- Flow variables are scoped as in a language: an if or a repeat changes a variable made before it,
+  and one it makes goes when it ends unless the block exports it (`export: {count: passes}`, or
+  `x` in the inspect). Script and run steps also set `{{.output}}`, `{{.exit}}`, `{{.ok}}` and
+  their captures as short variables. A flow that read after an if a variable made inside it now
+  gets a warning; export the variable to keep it.
+- The inspect's flowchart has round cards joined by longer arrows drawn with box lines (`│`,
+  `↓`), no longer `▼`. The `+` gaps between cards are gone: `a` adds below the selected step,
+  and the head of a list (the start, an if's yes or no, a repeat's way in) adds above its first
+  step.
+- Typing in a field no longer paints the whole row: the text shows in the selected color and the
+  cursor is the cell under it on the selected color's background, so no mark shifts the text
+  while the cursor moves.
 - A script or flow param with `from: env:NAME` whose variable is not set is asked in the form,
   instead of refusing to run. Typed for a flow, it reaches the run as that variable, never on its
   command line, and it is never remembered.

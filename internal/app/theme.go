@@ -199,6 +199,12 @@ func newPalette(t theme.Theme, paintBackground bool) palette {
 	}
 }
 
+// typing is the text of a field being typed in: the selection's color on the text alone, so the
+// row keeps its background and the cursor stands out.
+func (p *palette) typing() uv.Style {
+	return uv.Style{Fg: orColor(p.selectedRow.Bg, p.panelHeading.Fg), Bg: p.panelText.Bg, Attrs: uv.AttrBold}
+}
+
 // mix is the color at fraction of the way from a to b.
 func mix(a, b color.Color, fraction float64) color.Color {
 	ar, ag, ab, _ := a.RGBA()

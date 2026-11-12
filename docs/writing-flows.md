@@ -9,6 +9,7 @@ reasons behind it are in [fluxos.md](fluxos.md) and [scripts.md](scripts.md); th
 | What | Path | Name used in YAML |
 |---|---|---|
 | Flow | `~/.local/share/noct/flows/<name>.yaml` | `<name>` (from the file name) |
+| Function | `~/.local/share/noct/functions/<name>.yaml` | `<name>`, in `call:` |
 | Script | `~/.local/share/noct/scripts/<name>/script.yaml` | `<name>` |
 | Script in a folder | `~/.local/share/noct/scripts/<folder>/<name>/script.yaml` | `<folder>/<name>` |
 | Script notes (optional) | `notes.md` beside `script.yaml` | — |
@@ -96,8 +97,10 @@ A step sets exactly one of these:
 |---|---|---|
 | `script: <id>` | Runs a registered script | `with`, `capture`, `expect`, `on_fail`, `timeout`, `pane`, `background` |
 | `run: <shell>` | Runs a shell line (a template) | `capture`, `expect`, `on_fail`, `timeout`, `pane`, `background` |
-| `if: <template>` | Runs `then` or `else` | `then`, `else` |
-| `repeat: {...}` | Runs `steps` in passes | `steps` |
+| `call: <function>` | Runs a function, its params from `with` | `with` |
+| `agent: {ask: <template>}` | Asks an AI agent; the answer goes to `{{.answer}}` | `use`, `choices` in `agent`; `capture`, `expect`, `on_fail`, `timeout` |
+| `if: <template>` | Runs `then` or `else` | `then`, `else`, `export` |
+| `repeat: {...}` | Runs `steps` in passes | `steps`, `export` |
 | `wait: <duration>` | Sleeps (`5s`, `1m30s`) | — |
 | `prompt: <template>` | Asks the user on the run's terminal; the answer goes to a variable | `var` (required), `default`, `type` |
 | `set: {name: <template>}` | Gives variables, new or not, a value | — |
@@ -123,7 +126,9 @@ steps:
   - unset: [sum, steps.add]       # reads as empty after this
 ```
 
-- A param is its default alone, or a mapping with `default`, `type` (`text` or `number`),
+- A param is its default alone, or a mapping with `default`, `type` (`text`, `number`, `bool`
+  for true or false, `choice` with its `choices: [a, b]`, or `path`, which tab completes in the
+  form),
   `prompt` (the label in the form), `required`, `from` and `secret`. `noct flow run` and the
   form refuse a `number` that is not one and a `required` param left empty.
 - `from: env:NAME` takes the value from the variable `NAME` when it is set, and the form does not
@@ -131,11 +136,71 @@ steps:
   Typed in the form, it goes to the run as `NAME`, never on its command line. `secret: true`
   masks it in the form and never remembers it. Scripts have the same `from` (ADR-063).
 - Params, `set` and `prompt` share one namespace: `{{.name}}`. `steps` is not a valid name.
+- Each script or run step also sets its results as variables of their own names: `{{.output}}`,
+  `{{.exit}}`, `{{.ok}}`, its captures and its script's outputs, which the next such step sets
+  again. `{{.steps.<id>.<field>}}` still reads one step's.
+- Ifs and repeats scope variables as blocks do in a language: setting a variable that exists
+  before the block changes it; one the block makes goes when it ends, unless the block exports it:
+  `export: {count: passes}` keeps `count` after the block as `{{.passes}}` (`{count: ""}` keeps
+  its name). `steps.<id>` results are not scoped.
 - `set` renders all its values first, then sets them, so `set: {a: '{{.b}}', b: '{{.a}}'}` swaps.
 - A `prompt` needs someone at the terminal. In noct's workspace it brings the run's pane to the
   screen before asking; a run nobody watches (a trigger) fails at the prompt instead of waiting.
 - In the inspect, `p` opens the params form: enter checks the values, remembers them and runs.
   `r` runs with the values remembered, and opens the form when a required param is empty.
+
+### Functions
+
+A function is steps any flow can call, in a file of its own. It has `params` and `steps` as a flow
+does, and `returns`, templates read at its end:
+
+```yaml
+# ~/.local/share/noct/functions/health.yaml
+params:
+  url: {required: true}
+steps:
+  - {id: probe, run: 'curl -s -o /dev/null -w "%{http_code}" {{quote .url}}'}
+returns:
+  status: '{{.output}}'
+```
+
+```yaml
+# in a flow
+- id: check
+  call: health
+  with: {url: 'https://{{.env}}.example.com'}
+- if: '{{eq .status "200"}}'     # or {{.steps.check.status}}
+```
+
+- The function runs in a scope of its own: it reads its params, not the flow's variables, and
+  what it makes goes when it ends. The returns become the call's captures and short variables.
+- Changing a function changes every flow that calls it; the inspect lists them on the function's
+  chart (`used by …`), and `noct check` reports a call to a missing function, a `with` for a
+  param it has not, or a required param left out. Functions can call functions, 16 deep at most.
+
+### Agent steps
+
+```yaml
+- id: review
+  agent:
+    ask: 'The deploy health check printed {{quote .output}}. Ship or roll back?'
+    use: claude               # optional: the config's agent (claude by default)
+    choices: [ship, rollback] # optional: the answer must say one of them
+- if: '{{eq .answer "rollback"}}'
+  then: [{script: demo/rollback}]
+```
+
+- The question goes to the agent's command as its input, or as one argument in place of
+  `{prompt}`, never through a shell. noct knows `claude` (`claude -p --model haiku --tools ""`,
+  with no tools), `ollama` (`ollama run llama3.2`) and `opencode` (`opencode run --agent plan {prompt}`, its
+  read-only agent); the config's `[agents]` adds others or changes these, and `agent` picks the
+  default. noct does not install them. An agent of your own should not be able to act either: a
+  question carries text from programs and other people, which could ask it to.
+- `{{.answer}}` is the answer trimmed; with `choices`, the first choice it says as a word, in any
+  case, and an answer that says none fails the step (`on_fail` applies). `{{.output}}` is all it
+  printed.
+- An answer is text an AI wrote from what the question carried: put it in a `run:` only through
+  `{{quote .answer}}`.
 
 ### Repeat
 

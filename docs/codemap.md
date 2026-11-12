@@ -69,6 +69,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/scripts.go` | Script actions: reload the library, run (form or not) as a tracked run with its log and exit code, create, edit in the configured editor, rename, delete |
 | `internal/app/form.go` | Parameters form shown before a script runs, or a flow (`p` in the inspect) |
 | `internal/app/run_view.go` | A script's run: its terminal plus a status line, held open with the exit code |
+| `internal/app/prompt_complete.go` | Completing the variables in scope as `{{.` is typed in a template prompt |
 | `internal/app/finder.go` | Fuzzy search over scripts, actions and tabs (prefix+space), or over given items (a flow step's script) |
 | `internal/app/help.go` | Help for the focused terminal's foreground program (prefix+?) |
 | `internal/app/home.go` | Home screen (no tabs or an empty tab): title, raven, intro and when it plays (animate intro), per-character flicker on hover, shortcuts reveal and timer |
@@ -95,6 +96,11 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/logs_heatmap.go` | The logs calendar's activity colors: each day's step by its logs, the style over it, and the legend |
 | `internal/app/logs_filter.go` | The logs filter line: words over name, date, time and status; size and line comparisons |
 | `internal/app/scope.go` | The inspect's scope pane (variables of the selected block with their last values) and the variable picker of template prompts (ctrl+t) |
+| `internal/app/flow_agents.go` | Adding an agent step in the inspect: its answers and which agent it asks |
+| `internal/app/flow_functions.go` | Functions in the inspect: making one, the call step's function and values, returns on the params card, which flows a change reaches |
+| `internal/app/flow_params.go` | A flow's params in the inspect: adding one with every type a param can have, changing its default, label and required, removing it |
+| `internal/app/flowchart_live.go` | A flow's run on its chart as it goes: the dots going down the arrow out of the step running, and the frames that move them |
+| `internal/app/flow_history.go` | Undo and redo of the inspect's changes to a flow: its file before each change, kept while noct runs |
 | `internal/app/flows.go` | Flow actions: create, run and test steps (as tracked runs), add, edit in the editor, move and remove steps, what a step does and its kept output |
 | `internal/app/keymap.go` | Changeable keys: the contexts and their actions (`keyContexts`), the keymap built from the config, turning a pressed key into the default one a handler knows, hints written with the keys as they are |
 | `internal/app/binds.go` | The config's binds page: a row per action, taking a key with conflicts, moving keys between actions, reset |
@@ -160,6 +166,9 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/flow/flow.go` | A flow: steps (script, run, if, repeat, wait, prompt, set, unset), loading, saving, creating, template functions |
 | `internal/flow/timeout.go` | Flow and step timeouts: parsing and validation, the `noct check` warning, run and step deadlines, stopping a step's processes |
 | `internal/flow/validate.go` | Checking a flow and its steps: ids, fields that belong to each kind, patterns |
+| `internal/flow/agent.go` | Agent steps: the agents noct knows, a command split into words with the question as its input or in place of `{prompt}`, the answer and its choices |
+| `internal/flow/functions.go` | Functions: their folder, loading them with the flows (`LoadWithFunctions`), checking calls, who calls each (`Callers`), running a call in a scope of its own |
+| `internal/flow/progress.go` | The step a run is on, kept beside the flow's last result while it runs, for the inspect's live view |
 | `internal/flow/run.go` | Running a flow step by step in a terminal: commands, if, repeat, wait, captures (and scripts' outputs), expect |
 | `internal/flow/result.go` | A run's result with each step's output and status; saving and loading the last one |
 | `internal/flow/try.go` | Testing a range of sibling steps over the last result (its steps' fields and variables), and merging what they did into it |

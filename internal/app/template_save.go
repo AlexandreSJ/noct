@@ -164,7 +164,12 @@ func (a *App) drawTemplateSave(screen uv.Screen) {
 		}
 		return a.palette.panelText
 	}
-	drawRow(screen, inner, inner.Min.Y, "name  "+s.name.view(inner.Dx()-10, false), "", style(0))
+	if s.selected == 0 {
+		x := drawText(screen, inner.Min.X+1, inner.Min.Y, inner.Max.X, "name  ", a.palette.typing())
+		s.name.draw(screen, x, inner.Min.Y, inner.Max.X-1-x, false, a.palette.typing(), a.palette.selectedRow)
+	} else {
+		drawRow(screen, inner, inner.Min.Y, "name  "+s.name.String(), "", style(0))
+	}
 	for i := s.first; i < len(s.panes) && i-s.first < rows; i++ {
 		p := s.panes[i]
 		y := inner.Min.Y + 2 + i - s.first

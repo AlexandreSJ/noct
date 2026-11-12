@@ -110,9 +110,10 @@ func TestInspectMovesAndRemovesSteps(t *testing.T) {
 	}
 }
 
-// A flow that is one loop, like the example explore, gets steps before and after the loop by
-// selecting the gaps around it; tab hides the list of flows and gives it back.
-func TestInspectAddsAtTheSelectedGap(t *testing.T) {
+// A flow that is one loop, like the example explore, gets a step before the loop from the start,
+// the head of the flow's steps, and one after it from the loop itself; tab hides the list of flows
+// and gives it back.
+func TestInspectAddsAboveTheFirstStepAndBelowTheSelected(t *testing.T) {
 	a := testApp(t)
 	saveFlow(t, "loop", "steps:\n  - repeat: {times: 2}\n    steps:\n      - {id: inside, run: echo in}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
@@ -121,20 +122,21 @@ func TestInspectAddsAtTheSelectedGap(t *testing.T) {
 		t.Fatalf("tab did not hide the list: chart focused %v, list %v", p.focusChart, p.list)
 	}
 	pressDrawn(a, upPress)
-	if p.selected != gapKey(chartSlot{}, 0) {
-		t.Fatalf("up from the loop selected %q, want the gap before it", p.selected)
+	if p.selected != headKey(chartSlot{}) {
+		t.Fatalf("up from the loop selected %q, want the start", p.selected)
 	}
 	addCommand(a, "echo before")
-	for range 6 { // gap, loop, gap, inside, gap, and the gap after the loop
-		pressDrawn(a, downPress)
-	}
-	if p.selected != gapKey(chartSlot{}, 2) {
-		t.Fatalf("selected %q, want the gap after the loop", p.selected)
+	pressDrawn(a, downPress)
+	if p.selected != stepKey("1") {
+		t.Fatalf("down from the new step selected %q, want the loop", p.selected)
 	}
 	addCommand(a, "echo after")
 	f, _ := flow.Load(filepath.Join(flow.Dir(), "loop"+flow.Ext))
 	if len(f.Steps) != 3 || f.Steps[0].Run != "echo before" || f.Steps[1].Repeat == nil || f.Steps[2].Run != "echo after" {
 		t.Errorf("steps = %+v", f.Steps)
+	}
+	if strings.Contains(screenText(a), "▼") {
+		t.Errorf("the chart still shows the old arrows:\n%s", screenText(a))
 	}
 	pressDrawn(a, tabPress)
 	if p.focusChart || p.list.Empty() {
@@ -158,7 +160,7 @@ func saveFlow(t *testing.T, name, content string) {
 	}
 }
 
-// A double click on a step tells what it does; dragging the chart moves it.
+// A double click on a step tells what it does; dragging the chart off its cards moves it.
 func TestChartDoubleClickAndDrag(t *testing.T) {
 	a := testApp(t)
 	saveScript(t, "where", "description: Prints the folder\nrun: pwd\n")
@@ -177,9 +179,10 @@ func TestChartDoubleClickAndDrag(t *testing.T) {
 	}
 	press(a, escPress)
 	pan := p.pan
-	a.handleEvent(uv.MouseClickEvent{X: at.X, Y: at.Y, Button: uv.MouseLeft})
-	a.handleEvent(uv.MouseMotionEvent{X: at.X - 5, Y: at.Y - 2, Button: uv.MouseLeft})
-	a.handleEvent(uv.MouseReleaseEvent{X: at.X - 5, Y: at.Y - 2, Button: uv.MouseLeft})
+	empty := contentRect(frame).Min.Add(p.chartArea.Min).Add(image.Pt(8, 4)) // beside the chart, not on a card
+	a.handleEvent(uv.MouseClickEvent{X: empty.X, Y: empty.Y, Button: uv.MouseLeft})
+	a.handleEvent(uv.MouseMotionEvent{X: empty.X - 5, Y: empty.Y - 2, Button: uv.MouseLeft})
+	a.handleEvent(uv.MouseReleaseEvent{X: empty.X - 5, Y: empty.Y - 2, Button: uv.MouseLeft})
 	if p.pan != pan.Add(image.Pt(5, 2)) || a.mode == infoMode {
 		t.Errorf("drag moved the chart from %v to %v, want 5 right and 2 down", pan, p.pan)
 	}

@@ -1064,14 +1064,16 @@ func (a *App) drawConfigLine(screen uv.Screen, inner image.Rectangle, y int, lin
 	case line.note:
 		drawText(screen, inner.Min.X+textColumn, y, inner.Max.X-1, line.label, a.noteStyle(line))
 	case line.typed:
+		width := inner.Dx() - textColumn - 1
+		if line.row == a.configPanel.selected && (a.configPanel.typing || isNumberRow(line.row)) {
+			fillRect(screen, image.Rect(inner.Min.X, y, inner.Max.X, y+1), a.palette.panelText)
+			drawText(screen, inner.Min.X+1, y, inner.Max.X, "  "+line.label, a.palette.typing())
+			a.typedText(line.row).draw(screen, inner.Min.X+textColumn, y, width, false, a.palette.typing(), a.palette.selectedRow)
+			break
+		}
 		fillRect(screen, image.Rect(inner.Min.X, y, inner.Max.X, y+1), style)
 		drawText(screen, inner.Min.X+1, y, inner.Max.X, "  "+line.label, style)
-		width := inner.Dx() - textColumn - 1
-		value := tail(line.value, width)
-		if line.row == a.configPanel.selected && (a.configPanel.typing || isNumberRow(line.row)) {
-			value = a.typedText(line.row).view(width, false)
-		}
-		drawText(screen, inner.Min.X+textColumn, y, inner.Max.X-1, value, style)
+		drawText(screen, inner.Min.X+textColumn, y, inner.Max.X-1, tail(line.value, width), style)
 	case line.heading:
 		drawRow(screen, inner, y, line.label, line.value, style)
 	default:

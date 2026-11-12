@@ -124,16 +124,21 @@ func (f *paramsForm) hints() string {
 	return formHints
 }
 
-// formValue is how a field shows its value: choices with arrows, secrets masked, the cursor in
-// the selected one.
-func (f *paramsForm) formValue(p script.Param, selected bool, width int) string {
+// selectedInput is the field being typed in when field i is selected and typed, or nil.
+func (f *paramsForm) selectedInput(i int) *textField {
+	if i != f.selected {
+		return nil
+	}
+	field, _ := f.typedField()
+	return field
+}
+
+// formValue is how a field shows its value: choices with arrows, secrets masked.
+func (f *paramsForm) formValue(p script.Param) string {
 	value := f.values[p.Name]
 	switch {
 	case len(p.Choices) > 0:
 		return choiceValue(value)
-	case selected:
-		field, _ := f.typedField()
-		return field.view(width, p.Secret)
 	case p.Secret:
 		return strings.Repeat("•", len([]rune(value)))
 	}
@@ -173,11 +178,15 @@ func (a *App) drawForm(screen uv.Screen) {
 		y := inner.Min.Y + i
 		style := a.palette.panelText
 		if i == f.selected {
-			style = a.palette.selectedRow
+			style = a.palette.typing()
 		}
-		fillRect(screen, image.Rect(inner.Min.X, y, inner.Max.X, y+1), style)
+		fillRect(screen, image.Rect(inner.Min.X, y, inner.Max.X, y+1), a.palette.panelText)
 		drawText(screen, inner.Min.X+1, y, inner.Max.X, p.Label(), style)
-		drawText(screen, valueX, y, inner.Max.X-1, f.formValue(p, i == f.selected, inner.Max.X-1-valueX), style)
+		if field := f.selectedInput(i); field != nil {
+			field.draw(screen, valueX, y, inner.Max.X-1-valueX, p.Secret, style, a.palette.selectedRow)
+			continue
+		}
+		drawText(screen, valueX, y, inner.Max.X-1, f.formValue(p), style)
 	}
 	previewY := inner.Min.Y + len(f.fields) + 1
 	if f.preview != nil {

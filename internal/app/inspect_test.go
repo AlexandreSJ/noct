@@ -68,7 +68,7 @@ func TestScopePaneAndWarnings(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
 	saveFlow(t, "trio", "steps:\n  - {id: one, run: printf 1, capture: {n: '(\\d)'}}\n  - {id: two, run: 'echo {{.steps.three.output}}'}\n  - {id: three, run: printf 3}\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress, downPress, letter('s'))
+	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress, letter('s'))
 	screen := screenText(a)
 	for _, want := range []string{"scope", ".steps.one.n", "⚠ step three has not run yet here"} {
 		if !strings.Contains(screen, want) {

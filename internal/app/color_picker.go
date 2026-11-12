@@ -406,10 +406,10 @@ func (p *colorPicker) draw(screen uv.Screen, area image.Rectangle, pal *palette)
 	y := area.Min.Y + min(rows, swatchLines)
 	drawText(screen, area.Min.X, y, area.Max.X, fmt.Sprintf("%d  %s", p.cell, theme.Indexed(p.cell)), pal.panelText)
 	x := drawText(screen, area.Min.X, y+1, area.Max.X, "hex  ", pal.panelMuted)
-	field := p.hex.String()
 	if p.typing {
-		field = p.hex.view(area.Max.X-x, false)
+		x = p.hex.draw(screen, x, y+1, area.Max.X-x, false, pal.typing(), pal.selectedRow)
+	} else {
+		x = drawText(screen, x, y+1, area.Max.X, p.hex.String(), pal.panelText)
 	}
-	x = drawText(screen, x, y+1, area.Max.X, field, pal.panelText)
 	drawText(screen, x+1, y+1, area.Max.X, p.problem, pal.status)
 }

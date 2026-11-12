@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -28,14 +29,15 @@ func libraryTools(d Deps) []Tool {
 		},
 		{
 			Name: "list_flows", Title: "List flows", ReadOnly: true, Policy: config.PolicyAllow,
-			Description: "Lists the flows: name, description, params, triggers and whether they are on, draft, problems, how many scope warnings, and the last run.",
+			Description: "Lists the flows (name, description, params with their types, triggers and whether they are on, draft, problems, how many scope warnings, the last run), the functions flows call (params, returns, which flows call each), and the AI agents an agent step can ask.",
 			Run:         func(context.Context, json.RawMessage) (any, error) { return d.listFlows(), nil },
 		},
 		{
-			Name: "get_item", Title: "Read a script or flow", ReadOnly: true, Policy: config.PolicyAllow,
-			Description: "Reads a flow (its YAML, problems and scope warnings) or a script (its YAML and notes.md). Give flow or script.",
+			Name: "get_item", Title: "Read a script, flow or function", ReadOnly: true, Policy: config.PolicyAllow,
+			Description: "Reads a flow or a function (its YAML, problems, scope warnings and, for a function, the flows that call it) or a script (its YAML and notes.md). Give flow, function or script.",
 			Params: []Param{
 				{Name: "flow", Type: "string", Description: "The flow's name."},
+				{Name: "function", Type: "string", Description: "The function's name."},
 				{Name: "script", Type: "string", Description: "The script's id: name, or folder/name."},
 			},
 			Run: noWait(d.getItem),
@@ -47,9 +49,10 @@ func libraryTools(d Deps) []Tool {
 		},
 		{
 			Name: "flow_scope", Title: "Variables a step can read", ReadOnly: true, Policy: config.PolicyAllow,
-			Description: "Lists what templates can read at a step of a flow ({{.param}}, {{.steps.<id>.<field>}}), how sure each is to be set there (set, this_pass, maybe) and its value in the last run. Without a step, the end of the flow.",
+			Description: "Lists what templates can read at a step of a flow or function ({{.param}}, short names like {{.output}} and captures, {{.steps.<id>.<field>}}), how sure each is to be set there (set, this_pass, maybe) and its value in the last run. Variables an if or repeat makes go when it ends unless it exports them. Without a step, the end.",
 			Params: []Param{
-				{Name: "flow", Type: "string", Description: "The flow's name.", Required: true},
+				{Name: "flow", Type: "string", Description: "The flow's name, or the function's with function."},
+				{Name: "function", Type: "string", Description: "A function's name, in place of flow."},
 				{Name: "step", Type: "string", Description: "A step path like 2 or 0/steps/1 (list_flows and get_run show paths); the variables before it runs."},
 			},
 			Run: noWait(d.flowScope),
@@ -63,6 +66,16 @@ func libraryTools(d Deps) []Tool {
 			},
 			Summary: func(args json.RawMessage) string { return argText(args, "name", "yaml") },
 			Run:     noWait(d.draftFlow),
+		},
+		{
+			Name: "draft_function", Title: "Write a function as a draft", Policy: config.PolicyAllow,
+			Description: "Creates or replaces a function (params, steps, returns) from its YAML, marked as a draft: no flow runs it, and flows that call it have a problem, until the user reviews and promotes it in noct. Replacing a function that was not a draft keeps a copy as <name>.yaml.bak; the answer names the flows that call it.",
+			Params: []Param{
+				{Name: "name", Type: "string", Description: "The function's name: letters, digits, . - _", Required: true},
+				{Name: "yaml", Type: "string", Description: "The whole function file: description, params, steps, returns.", Required: true},
+			},
+			Summary: func(args json.RawMessage) string { return argText(args, "name", "yaml") },
+			Run:     noWait(d.draftFunction),
 		},
 		{
 			Name: "draft_script", Title: "Write a script as a draft", Policy: config.PolicyAllow,
@@ -134,8 +147,37 @@ func describeParam(p script.Param) paramInfo {
 }
 
 func (d Deps) flows() []flow.Flow {
-	flows, _ := flow.LoadAll(flow.Dir(), d.Library().Find) // unreadable flows are listed as none
+	flows, _ := d.flowsAndFunctions()
 	return flows
+}
+
+// flowsAndFunctions are the flows and the functions they call; unreadable ones are left out.
+func (d Deps) flowsAndFunctions() ([]flow.Flow, []flow.Flow) {
+	flows, functions, _ := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), d.Library().Find)
+	return flows, functions
+}
+
+type functionInfo struct {
+	Name        string                `json:"name"`
+	Description string                `json:"description,omitempty"`
+	Params      map[string]flow.Param `json:"params,omitempty"`
+	Returns     map[string]string     `json:"returns,omitempty"`
+	CalledBy    []string              `json:"called_by"`
+	Draft       bool                  `json:"draft,omitempty"`
+	Problem     string                `json:"problem,omitempty"`
+}
+
+// agentNames are the agents an agent step can ask, and the default one.
+func (d Deps) agentNames() map[string]any {
+	names := slices.Sorted(maps.Keys(flow.AgentPresets))
+	cfg := d.Config()
+	for name := range cfg.Agents {
+		if !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return map[string]any{"names": names, "default": cfg.Agent}
 }
 
 type flowInfo struct {
@@ -165,21 +207,54 @@ func (d Deps) listFlows() map[string]any {
 		}
 		flows = append(flows, info)
 	}
-	return map[string]any{"flows": flows}
+	all, functions := d.flowsAndFunctions()
+	described := []functionInfo{}
+	for _, fn := range functions {
+		described = append(described, functionInfo{
+			Name: fn.Name, Description: fn.Description, Params: fn.Params, Returns: fn.Returns, Draft: fn.Draft,
+			CalledBy: callers(append(all, functions...), fn.Name), Problem: problemText(fn.Problem),
+		})
+	}
+	return map[string]any{"flows": flows, "functions": described, "agents": d.agentNames()}
+}
+
+func callers(flows []flow.Flow, name string) []string {
+	if names := flow.Callers(flows, name); names != nil {
+		return names
+	}
+	return []string{}
 }
 
 func (d Deps) getItem(args json.RawMessage) (any, error) {
-	var ask struct{ Flow, Script string }
+	var ask struct{ Flow, Function, Script string }
 	if err := decode(args, &ask); err != nil {
 		return nil, err
 	}
 	switch {
+	case ask.Function != "":
+		return d.getFunction(ask.Function)
 	case ask.Flow != "":
 		return d.getFlow(ask.Flow)
 	case ask.Script != "":
 		return d.getScript(ask.Script)
 	}
-	return nil, errors.New("give flow or script")
+	return nil, errors.New("give flow, function or script")
+}
+
+func (d Deps) getFunction(name string) (any, error) {
+	flows, functions := d.flowsAndFunctions()
+	fn, ok := flow.Find(functions, name)
+	if !ok {
+		return nil, fmt.Errorf("there is no function %s; list_flows tells them", name)
+	}
+	content, err := os.ReadFile(fn.File)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"function": fn.Name, "file": fn.File, "yaml": string(content), "draft": fn.Draft, "problem": problemText(fn.Problem),
+		"warnings": warningTexts(fn, d.Library().Find), "called_by": callers(append(flows, functions...), fn.Name),
+	}, nil
 }
 
 func (d Deps) getFlow(name string) (any, error) {
@@ -232,7 +307,8 @@ func (d Deps) check() map[string]any {
 		problems = append(problems, err.Error())
 	}
 	warnings := []string{}
-	for _, f := range d.flows() {
+	flows, functions := d.flowsAndFunctions()
+	for _, f := range append(flows, functions...) {
 		if f.Problem != nil {
 			problems = append(problems, f.Problem.Error())
 			continue
@@ -258,13 +334,17 @@ type variableInfo struct {
 var certaintyNames = map[flow.Certainty]string{flow.Set: "set", flow.ThisPass: "this_pass", flow.Maybe: "maybe"}
 
 func (d Deps) flowScope(args json.RawMessage) (any, error) {
-	var ask struct{ Flow, Step string }
+	var ask struct{ Flow, Function, Step string }
 	if err := decode(args, &ask); err != nil {
 		return nil, err
 	}
-	f, ok := flow.Find(d.flows(), ask.Flow)
+	flows, functions := d.flowsAndFunctions()
+	f, ok := flow.Find(flows, ask.Flow)
+	if ask.Function != "" {
+		f, ok = flow.Find(functions, ask.Function)
+	}
 	if !ok {
-		return nil, fmt.Errorf("there is no flow %s", ask.Flow)
+		return nil, fmt.Errorf("there is no flow %s or function %s", ask.Flow, ask.Function)
 	}
 	parent, branch, index := "", "", len(f.Steps)
 	if ask.Step != "" {
@@ -337,6 +417,43 @@ func (d Deps) draftFlow(args json.RawMessage) (any, error) {
 		answer["backup"] = backup
 	}
 	answer["next"] = "ask the user to review the draft in noct (prefix+i) and promote it (P) or run noct promote " + f.Name
+	return answer, nil
+}
+
+func (d Deps) draftFunction(args json.RawMessage) (any, error) {
+	var ask struct{ Name, YAML string }
+	if err := decode(args, &ask); err != nil {
+		return nil, err
+	}
+	if !naming.IsValid(ask.Name) {
+		return nil, fmt.Errorf("function name %q: use letters, digits, . - _", ask.Name)
+	}
+	var fn flow.Flow
+	if err := yaml.Unmarshal([]byte(ask.YAML), &fn); err != nil {
+		return nil, fmt.Errorf("the YAML does not read as a function: %w", err)
+	}
+	fn.Name, fn.File, fn.Draft, fn.Function = ask.Name, filepath.Join(flow.FunctionsDir(), ask.Name+flow.Ext), true, true
+	backup, err := keepBackup(fn.File, func(content []byte) bool {
+		var old flow.Flow
+		return yaml.Unmarshal(content, &old) == nil && !old.Draft
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := fn.Save(); err != nil {
+		return nil, err
+	}
+	flows, functions := d.flowsAndFunctions()
+	fn.WithFunctions(func(name string) (flow.Flow, bool) { return flow.Find(functions, name) })
+	problem := errors.Join(fn.Validate(d.Library().Find), fn.CheckCalls(functions))
+	answer := map[string]any{"function": fn.Name, "file": fn.File, "draft": true, "problem": problemText(problem), "warnings": []string{}, "called_by": callers(append(flows, functions...), fn.Name)}
+	if problem == nil {
+		answer["warnings"] = warningTexts(fn, d.Library().Find)
+	}
+	if backup != "" {
+		answer["backup"] = backup
+	}
+	answer["next"] = "ask the user to review the draft in noct (prefix+i) and promote it (P) or run noct promote " + fn.Name + "; until then the flows that call it do not run"
 	return answer, nil
 }
 

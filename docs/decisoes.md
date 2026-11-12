@@ -880,3 +880,56 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Um novo módulo no `go.mod`. O config importado vale quando o noct começa de novo, porque o daemon só lê o config ao iniciar; temas novos aparecem na hora, porque a pasta de temas é vigiada. Painéis web para montar e ler esses códigos ficam como ideia.
 
+## ADR-065 — Tela de fluxos: cartões, cabeças de lista, mover como código e desfazer
+
+**Contexto.** O mantenedor achou feias as setas `▼` e os vãos `+` entre os cartões, um passo a mais para atravessar ao navegar; quer trocar passos de lugar sem arrastar livremente pelo canvas, desfazer e refazer, e campos de texto que não mudem o fundo da linha inteira nem ponham uma marca no meio do texto.
+
+**Decisão.**
+- **Campos de texto:** o texto digitado vai na cor de destaque, sem fundo; o cursor é a célula sob ele com o fundo de destaque. Vale para todo campo do noct.
+- **Desenho:** cartões com cantos arredondados, setas de três linhas (`│`, `│`, `↓`) e junções arredondadas, com glifos que a Fira Code desenha inteiros. O fluxograma guarda a seta de saída de cada passo, para a execução ao vivo.
+- **Sem vãos:** `a` adiciona abaixo do selecionado. A cabeça de cada lista (o `● start`, o `yes` e o `no` de um `if`, a entrada de um `repeat`) é um bloco selecionável que adiciona acima do primeiro passo; uma lista vazia continua um slot.
+- **Mover como código:** `J`/`K` e o modo `m` levam um passo pelo fluxo como uma linha se move num editor: passam pelo vizinho, entram num bloco vizinho, vão do `then` ao `else` e saem do bloco no fim. Arrastar um cartão com o mouse o solta abaixo do bloco onde cai, ou no topo de uma lista; o canvas não é livre, os blocos só se encaixam em sequência.
+- **Desfazer:** cada mudança do inspect guarda antes o arquivo do fluxo; `z` volta e `y` refaz, até 100 por fluxo, só na memória do noct em execução.
+
+**Consequências.** As teclas `m`, `z` e `y` entram no contexto `flows` do keymap. Desfazer não atravessa um reinício do noct, nem edições feitas fora do inspect.
+
+## ADR-066 — Variáveis com nomes curtos e escopo de bloco
+
+**Contexto.** O mantenedor quer ler `output` em vez de `.steps.build.output`, e que nomes repetidos se comportem como numa linguagem: no contexto global, a variável muda; dentro de um `if`, `repeat` ou função, poder devolvê-la fora com outro nome, ou deixá-la sumir. Até aqui, todo `set` e `prompt` gravava no mesmo espaço, visível do ponto em diante, e os resultados dos passos só existiam como `.steps.<id>.*`.
+
+**Decisão.**
+- **Nomes curtos:** um passo de script ou `run` grava também `output`, `exit`, `ok`, as capturas e os `outputs` do script como variáveis, sobrescritas pelo próximo passo desses. `.steps.<id>.*` continua igual e sem escopo, para ler um passo específico.
+- **Escopo de bloco:** gravar uma variável que já existe muda a existente, onde quer que tenha nascido; uma nova pertence ao `if` ou `repeat` mais interno em execução e some no fim dele. O `repeat` é um bloco só para todas as passadas, então um contador que nasce na primeira passada vale nas seguintes e no `until`.
+- **`export`** num `if` ou `repeat` (`{interna: externa}`, `""` para o mesmo nome) leva a variável para fora com o valor do fim do bloco. No inspect, `x`.
+- **Análise de escopo e avisos** seguem as mesmas regras; ler uma variável que um bloco fez e não exportou avisa que ela sumiu no fim dele, e como exportar.
+- **Autocompletar** nos prompts de template, a partir do mesmo escopo.
+- Um param com o nome de um campo (`output`, `exit`, `ok`, uma captura) é sobrescrito pelo passo, como uma variável qualquer.
+
+**Consequências.** Um fluxo que criava uma variável dentro de um `if` e a lia depois passa a receber um aviso e a ler vazio; o conserto é um `export`. O demo continua sem avisos. As funções (ADR-067) seguem o mesmo escopo: o que fazem dentro some no fim, menos o que devolvem.
+
+## ADR-067 — Funções
+
+**Contexto.** O mantenedor quer encapsular passos numa função reutilizável, com o próprio fluxo, que ao ser editada valha em todos os fluxos que a chamam, mostrando quais são; um fluxo inteiro chamar outro poderia vir depois.
+
+**Decisão.**
+- **Arquivo próprio** em `~/.local/share/noct/functions/<nome>.yaml`, no formato de um fluxo (`params`, `steps`) mais `returns`. É carregado como um `flow.Flow` marcado `Function`, então o inspect, o fluxograma, o escopo, os avisos e o desfazer valem para ele sem código à parte.
+- **`call: <nome>`** com `with` (templates lidos no chamador). A função roda num escopo próprio: só os params dela, passos e variáveis dela, e tudo some no fim, como um bloco do ADR-066; os `returns`, lidos no fim, viram as capturas do passo e as variáveis curtas no chamador. Os resultados dos passos de dentro ficam no resultado do fluxo sob `<caminho do call>/call/<i>`, e o progresso ao vivo acende o cartão do `call`.
+- **Checagem:** `flow.LoadWithFunctions` carrega fluxos e funções juntos e dá problema a uma chamada para função que não existe, a um `with` sem param correspondente e a um param obrigatório sem valor. Uma função que chama a si mesma é recusada, e chamadas encadeadas param em 16 níveis.
+- **Quem chama:** `flow.Callers` percorre os passos; o inspect mostra `used by …` no fluxograma da função, avisa a cada mudança quais fluxos ela muda e diz quem a chama ao apagá-la.
+- Um fluxo chamar outro fluxo inteiro fica para depois: com triggers e resultado próprio, é outra coisa.
+
+**Consequências.** `noct flow run`, `noct check`, o MCP e o daemon leem a pasta de funções. Uma função não roda sozinha, nem tem resultado próprio. Uma função em rascunho (do `draft_function` do MCP) não roda, e quem a chama tem problema até a promoção: senão, uma IA mudaria em silêncio o que fluxos já aprovados fazem.
+
+## ADR-068 — Passo de agente
+
+**Contexto.** O mantenedor quer um passo que pergunte a um agente de IA (um `claude -p` com o haiku, o llama pelo ollama, o opencode) e aja conforme a resposta, para validar resultados e decidir caminhos, no nível de um automatizador de agentes como o n8n ou o paperclip. O ADR-062 tirou do noct instalar ou recomendar programas.
+
+**Decisão.**
+- **`agent: {ask, use, choices}`**: `ask` é um template; `use` nomeia o agente, ou o `agent` do config; `choices` limita a resposta. Ele aceita `capture`, `expect`, `on_fail` e `timeout` como um `run`, e não roda em painel próprio.
+- **Comandos:** três que o noct sabe chamar (`claude -p --model haiku --tools ""`, `ollama run llama3.2`, `opencode run --agent plan {prompt}`) e os do `[agents]` do config, que acrescentam ou trocam. O noct não instala nem verifica nenhum: sem o programa, o passo falha com o erro dele.
+- **Sem shell:** o comando é dividido em palavras (com aspas simples), e a pergunta vai como entrada ou como um único argumento no lugar de `{prompt}`. Uma pergunta montada com a saída de um passo não vira comando.
+- **Resposta:** `answer` é a saída sem espaços nas pontas; com `choices`, a primeira escolha que aparece como palavra, sem diferença de caixa, e a pergunta ganha "Answer with one word, exactly one of: …". Sem nenhuma escolha na resposta, o passo falha e o `on_fail` decide.
+- **Segurança:** nenhum preset pode agir: o do claude desliga as ferramentas (`--tools ""`), o do opencode usa o agente `plan`, de só leitura, e o ollama só responde; a pergunta carrega texto de programas e de outras pessoas, que poderia pedir ações ao agente. A documentação pede o mesmo dos agentes do `[agents]`. A resposta é dado não confiável: a documentação manda usá-la em `run:` só com `quote`. Um fluxo com passo de agente rodado pelo MCP segue as aprovações de sempre, e o rascunho de uma IA continua precisando ser promovido.
+
+**Consequências.** Uma chamada a um agente custa o que o agente cobra, e o tempo dele entra no do fluxo; `timeout` limita. Agentes de outros fornecedores entram pelo config, sem mudar o noct.
+

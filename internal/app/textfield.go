@@ -117,16 +117,31 @@ func (f *textField) wordEndAfter() int {
 
 // view is the text with a bar at the cursor, cut to width so the cursor stays in sight. A
 // secret shows a dot for each character.
-func (f *textField) view(width int, secret bool) string {
+// draw shows what of the field fits width cells at x, y in style, its text scrolled to keep the
+// cursor in view and the cell under the cursor in cursor's colors, and returns where it ends. No
+// mark goes in the text, so moving the cursor never shifts what is read.
+func (f *textField) draw(screen uv.Screen, x, y, width int, secret bool, style, cursor uv.Style) int {
 	text := f.text
 	if secret {
 		text = []rune(strings.Repeat("•", len(text)))
 	}
-	before, after := string(text[:f.cursor]), string(text[f.cursor:])
-	if width < 2 {
-		return before + "▏" + after
+	if width <= 0 {
+		return x
 	}
-	return ansi.Truncate(tail(before, width-1)+"▏"+after, width, "…")
+	start := 0
+	for ansi.StringWidth(string(text[start:f.cursor])) > width-1 {
+		start++
+	}
+	shown := ansi.Truncate(string(text[start:]), width, "…")
+	end := drawText(screen, x, y, x+width, shown, style)
+	under := " "
+	if f.cursor < len(text) {
+		under = string(text[f.cursor])
+	}
+	at := x + ansi.StringWidth(string(text[start:f.cursor]))
+	cell := uv.Cell{Content: under, Width: max(ansi.StringWidth(under), 1), Style: cursor}
+	screen.SetCell(at, y, &cell)
+	return max(end, at+cell.Width)
 }
 
 // typedField is the text the current mode types into, if any, and what to do after it changes.

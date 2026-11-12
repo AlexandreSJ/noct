@@ -43,6 +43,7 @@ func TestScopeAfterALoopHoldsItsStepsAndMaybeTheBranch(t *testing.T) {
 	want := []string{
 		"{{.env}}",
 		"{{.steps.where.output}}", "{{.steps.where.exit}}", "{{.steps.where.ok}}",
+		"{{.output}}", "{{.exit}}", "{{.ok}}", // the last step's, which the loop changes and keeps
 		"{{.steps.list.output}}", "{{.steps.list.exit}}", "{{.steps.list.ok}}", "{{.steps.list.count}}",
 		"{{.steps.dice.output}} ?", "{{.steps.dice.exit}} ?", "{{.steps.dice.ok}} ?", "{{.steps.dice.number}} ?",
 	}

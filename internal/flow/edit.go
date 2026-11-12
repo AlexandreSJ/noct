@@ -144,3 +144,92 @@ func idFrom(name string) string {
 	}
 	return id.String()
 }
+
+// Shift moves the step at path one place down (or up) the flow as a line moves through code: past
+// a step next to it, into an if or repeat next to it, from an if's yes branch to its no branch,
+// and out of the block at its end. It returns the step's new path; at an end of the flow it stays.
+func (f *Flow) Shift(path string, down bool) string {
+	parent, branch, index := SplitPath(path)
+	list := f.list(parent, branch)
+	if list == nil || index < 0 || index >= len(*list) {
+		return path
+	}
+	step := 1
+	if !down {
+		step = -1
+	}
+	if next := index + step; next >= 0 && next < len(*list) {
+		neighbor := (*list)[next]
+		into, intoBranch := Path(parent, branch, next), ""
+		switch neighbor.Kind() {
+		case IfStep:
+			intoBranch = map[bool]string{true: "then", false: "else"}[down]
+		case RepeatStep:
+			intoBranch = "steps"
+		default:
+			return f.Move(path, step)
+		}
+		at := 0
+		if !down {
+			at = len(*f.list(into, intoBranch))
+		}
+		to, _ := f.MoveTo(path, into, intoBranch, at)
+		return to
+	}
+	if parent == "" {
+		return path
+	}
+	outer, outerBranch, at := SplitPath(parent)
+	switch {
+	case branch == "then" && down:
+		outer, outerBranch, at = parent, "else", 0
+	case branch == "else" && !down:
+		outer, outerBranch, at = parent, "then", len(*f.list(parent, "then"))
+	case down:
+		at++
+	}
+	to, _ := f.MoveTo(path, outer, outerBranch, at)
+	return to
+}
+
+// MoveTo takes the step at path out and puts it at index of parent's branch, both as the flow is
+// before the step leaves its place, and returns its new path. A block cannot go inside itself.
+func (f *Flow) MoveTo(path, parent, branch string, index int) (string, error) {
+	if parent == path || strings.HasPrefix(parent, path+"/") {
+		return path, fmt.Errorf("a step cannot go inside itself")
+	}
+	s, ok := f.Step(path)
+	if !ok || f.list(parent, branch) == nil {
+		return path, fmt.Errorf("no step at %s, or no place at %s %s", path, parent, branch)
+	}
+	from, fromBranch, fromIndex := SplitPath(path)
+	if err := f.Remove(path); err != nil {
+		return path, err
+	}
+	if from == parent && fromBranch == branch && fromIndex < index {
+		index-- // the list closed up where the step was
+	}
+	parent = shiftedPath(parent, path)
+	return f.Insert(parent, branch, index, s)
+}
+
+// shiftedPath is path once the step at removed left its list: a later sibling of removed, or a
+// step inside one, has an index one less.
+func shiftedPath(path, removed string) string {
+	parent, branch, index := SplitPath(removed)
+	prefix := Path(parent, branch, 0)
+	prefix = prefix[:len(prefix)-1] // the list's path, up to the index
+	rest, ok := strings.CutPrefix(path, prefix)
+	if !ok {
+		return path
+	}
+	digits, tail, _ := strings.Cut(rest, "/")
+	n, err := strconv.Atoi(digits)
+	if err != nil || n <= index {
+		return path
+	}
+	if tail != "" {
+		tail = "/" + tail
+	}
+	return prefix + strconv.Itoa(n-1) + tail
+}

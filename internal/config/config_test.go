@@ -40,6 +40,8 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 		Flows:         Flows{OutputKB: 64},
 		MCP:           MCP{Policy: map[string]string{"run_command": PolicyDeny}, ApprovalSeconds: 60},
 		Notify:        NotifyBell,
+		Agent:         "local",
+		Agents:        map[string]string{"local": "ollama run qwen"},
 	}
 	if err := Save(path, want); err != nil {
 		t.Fatal(err)

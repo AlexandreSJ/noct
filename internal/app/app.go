@@ -120,6 +120,8 @@ type App struct {
 	drawingPopup bool
 	// paneTitles are where the frame being drawn put each pane's title, which hovering animates.
 	paneTitles map[layout.PaneID]image.Rectangle
+	// flowHistories are each flow's files before the inspect's changes, to undo and redo them.
+	flowHistories map[string]*flowHistory
 	// paneFilters are the terminals showing only the lines that match a pattern.
 	paneFilters map[layout.PaneID]paneFilter
 	// activity marks, per pane, that output out of sight was told; unseen are the panes that
@@ -135,6 +137,8 @@ type App struct {
 	stageTick <-chan time.Time
 	// noteTick is the next frame of a config note that scrolls, nil when none shows.
 	noteTick <-chan time.Time
+	// flowTick is the next frame of a flow's run in the inspect, nil when none shows.
+	flowTick <-chan time.Time
 
 	homeHintShown   bool
 	homeHintExpired <-chan time.Time
@@ -171,6 +175,8 @@ type App struct {
 	versions *script.Versions
 	memory   *script.Memory
 	flows    []flow.Flow
+	// functions are the steps flows call by name (flow.FunctionsDir).
+	functions []flow.Flow
 
 	imagesEnabled    bool
 	nextImageID      atomic.Uint32
@@ -335,6 +341,8 @@ func (a *App) loop() error {
 			a.advanceAnimations(a.now())
 		case <-a.noteTick:
 			a.noteTick = nil // drawing a note that still scrolls asks for the next
+		case <-a.flowTick:
+			a.flowTick = nil // drawing a run that still goes on asks for the next
 		case <-a.resetExpired:
 			a.resetExpired = nil
 		case <-a.homeHintExpired:

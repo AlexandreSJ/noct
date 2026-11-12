@@ -54,6 +54,20 @@ Encadear scripts num editor visual (ver [fluxos.md](fluxos.md)).
 
 **Próximo no inspect (ADR-062):** editar um passo existente num formulário, em vez do YAML; menus para `with`, `capture`, `expect`, `on_fail`, `timeout`, `pane`/`background`, o `id` e o `every`/`max` do `repeat`; definir os params do fluxo (nome, tipo, padrão, obrigatório); editar e remover triggers; renomear e duplicar fluxos; mover um passo para dentro e para fora de `if` e `repeat`; desfazer; e o visual do fluxograma.
 
+**Tela de fluxos (pedido do mantenedor, 2026-11-11; feita, ADR-065 a ADR-068).** Em ordem, cada uma com testes, docs e commit:
+
+1. **Campos de texto:** o item selecionado muda só a cor do texto, sem fundo; o cursor é uma célula com o fundo de destaque, sem caractere inserido no meio do texto. Vale para todo campo.
+2. **Setas e caixas:** linhas mais limpas, que a FiraCode desenha bem (`│`, `╭╮╰╯`, ponta `▾`), e setas para baixo mais longas, com espaço para a animação.
+3. **Adicionar sem os `+`:** os vãos entre os cartões saem; `a` adiciona logo abaixo do passo selecionado, e o topo de cada lista (o `start`, o `yes`/`no` de um `if`, a entrada de um `repeat`) é selecionável para adicionar acima de tudo.
+4. **Mover e trocar de lugar:** `J`/`K` atravessam `if` e `repeat`, entrando e saindo deles como numa linguagem; `m` liga o modo de mover com as setas; arrastar com o mouse solta o cartão onde ele cai.
+5. **Desfazer e refazer:** `z` e `y`, por fluxo, sobre cada mudança feita no inspect.
+6. **Execução ao vivo:** o passo que roda fica destacado, e três bolinhas de tamanhos e cores diferentes descem pela seta até o próximo cartão, em laço contínuo, enquanto ele roda.
+7. **Tipos de parâmetro:** adicionar um param mostra todos os tipos (texto, número, sim/não, escolha, caminho, segredo) e pede o que cada um precisa.
+8. **Variáveis:** autocompletar ao digitar `{{.`; nomes curtos (`{{.output}}`, `{{.passed}}`) além de `{{.steps.<id>.…}}`; escopo de bloco, como numa linguagem: um `if`, um `repeat` ou uma função mudam uma variável que já existe fora, e as novas somem no fim do bloco, a não ser que ele as exporte com outro nome.
+9. **Funções:** passos reutilizáveis num arquivo próprio, com params e retornos, chamados por `call:` em qualquer fluxo; editar uma muda todos os que a chamam, e o inspect mostra quem chama cada uma.
+10. **Agente:** um passo `agent:` com um prompt que roda um agente de linha de comando do usuário (`claude -p`, `ollama run`, `opencode run`, ou um comando próprio) e devolve a resposta, opcionalmente uma entre `choices`, para os passos seguintes decidirem.
+11. **MCP:** as ferramentas leem e rascunham funções, passos de agente, tipos e o escopo novo, com a mesma política de aprovação.
+
 **Pronto quando:** um teste de ponta a ponta com várias etapas é montado sem editar YAML à mão, roda sozinho por cron, para no passo certo em caso de falha, e a execução de ontem é encontrada pelo calendário.
 
 ## Fase 3 — IA (MCP)

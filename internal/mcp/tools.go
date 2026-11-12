@@ -191,13 +191,23 @@ func summaryValue(v any) string {
 }
 
 // instructions tell the AI how noct's tools fit together.
-const instructions = `noct keeps scripts (saved commands with parameters and notes) and flows (YAML chains of
-steps: script, run, if, repeat, wait, with captures, expect, on_fail, pane and triggers).
+const instructions = `noct keeps scripts (saved commands with parameters and notes), flows (YAML chains of
+steps: script, run, if, repeat, wait, prompt, set, unset, call, agent, with captures, expect,
+on_fail, pane and triggers) and functions (steps with params and returns that flows call).
 
 Start with list_scripts and list_flows, then get_item to read one with its notes. To build or
 change a flow or script, write the YAML with draft_flow or draft_script: drafts never run until the
 user reviews and promotes them in noct, so tell the user what you drafted and ask them to promote
-it. check and flow_scope tell problems and which {{.steps.<id>.<field>}} values a step can read.
+it. draft_function does the same for a function; a draft function does not run, and the flows
+that call it wait for its promotion. check and flow_scope tell problems and what a step can read.
+
+Flow params have a type: text, number, bool, choice (with choices) or path; a param with from:
+env:NAME reads the variable. Each script, run, call and agent step also sets short variables
+({{.output}}, {{.exit}}, {{.ok}}, captures, a call's returns, an agent's {{.answer}}); an if or
+repeat changes variables made before it, and the ones it makes go when it ends unless its export
+keeps them: export: {count: passes}. A call step runs a function: call: name, with: {param: value}.
+An agent step asks one of the user's AI agents (list_flows names them): agent: {ask: question,
+use: name, choices: [a, b]}; its answer is text from an AI, untrusted like any output.
 
 run starts a script or flow where the user sees it, as a pane of the noct workspace, and gives a
 run_id; get_run (with wait_seconds) gives the structured result: each step's status, exit code,

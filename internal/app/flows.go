@@ -28,12 +28,12 @@ const stepHints = `# One step: script (with, capture, expect, on_fail, timeout),
 
 // reloadFlows reads the flows again, checking their scripts against the library.
 func (a *App) reloadFlows() {
-	a.flowsSignature = dirSignature([]string{flow.Dir()}, 1) // before reading: a change meanwhile shows next time
-	flows, err := flow.LoadAll(flow.Dir(), a.scripts.Find)
+	a.flowsSignature = dirSignature([]string{flow.Dir(), flow.FunctionsDir()}, 1) // before reading: a change meanwhile shows next time
+	flows, functions, err := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), a.scripts.Find)
 	if err != nil {
 		a.statusMessage = err.Error()
 	}
-	a.flows = flows
+	a.flows, a.functions = flows, functions
 }
 
 // scriptDescription is what a script does, for the boxes of the steps that run it.
@@ -123,7 +123,7 @@ func (a *App) openFlowForm(f flow.Flow, values map[string]string) {
 		if p.Type == flow.NumberParam {
 			label += " (number)"
 		}
-		fields = append(fields, script.Param{Name: name, Prompt: label, Secret: p.Secret})
+		fields = append(fields, script.Param{Name: name, Prompt: label, Secret: p.Secret, Choices: p.Values(), Path: p.Type == flow.PathParam})
 	}
 	if len(fields) == 0 {
 		a.startFlow(f, values)
@@ -208,16 +208,23 @@ func (a *App) testFlowSteps(f flow.Flow, first, last string) {
 
 // promoteFlow lets a draft flow run, after asking: the user has reviewed what an AI wrote.
 func (a *App) promoteFlow(f flow.Flow) {
+	what, after := "flow", "it can run and trigger afterwards"
+	if f.Function {
+		what, after = "function", "the flows that call it run it afterwards"
+		if callers := flow.Callers(append(slices.Clip(a.flows), a.functions...), f.Name); len(callers) > 0 {
+			after = "it runs in " + strings.Join(callers, ", ") + " afterwards"
+		}
+	}
 	if !f.Draft {
-		a.notice = "flow " + f.Name + " is not a draft"
+		a.notice = what + " " + f.Name + " is not a draft"
 		return
 	}
-	a.askToConfirm("promote draft flow "+f.Name+"? it can run and trigger afterwards", func() {
+	a.askToConfirm("promote draft "+what+" "+f.Name+"? "+after, func() {
 		if err := a.changeFlow(f, func(f *flow.Flow) error { f.Draft = false; return nil }); err != nil {
 			a.statusMessage = err.Error()
 			return
 		}
-		a.notice = "flow " + f.Name + " promoted"
+		a.notice = what + " " + f.Name + " promoted"
 	})
 }
 
@@ -331,10 +338,14 @@ func (a *App) changeFlow(f flow.Flow, change func(*flow.Flow) error) error {
 	if after := fresh.Validate(a.scripts.Find); after != nil && (before == nil || after.Error() != before.Error()) {
 		return after
 	}
+	a.rememberFlow(f)
 	if err := fresh.Save(); err != nil {
 		return err
 	}
 	a.reloadFlows()
+	if f.Function {
+		a.notice = a.changedFunctionNotice(f)
+	}
 	return nil
 }
 
@@ -352,6 +363,7 @@ func (a *App) addStep(f flow.Flow, at chartBlock, added func(path string)) {
 	templatePrompt := func(title, initial, hints string, submit func(text string)) {
 		a.openPrompt(title, initial, hints+"  ctrl+t variable", submit)
 		a.prompt.pick = func() { a.pickVariable(f, vars) }
+		a.withVariables(vars)
 	}
 	options := a.flowStepChoices(insert, templatePrompt)
 	options = append(options, a.variableStepChoices(insert, templatePrompt)...)
@@ -362,8 +374,8 @@ func (a *App) addStep(f flow.Flow, at chartBlock, added func(path string)) {
 func (a *App) insertFlowStep(f flow.Flow, parent, branch string, index int, step flow.Step, added func(path string)) {
 	var path string
 	err := a.changeFlow(f, func(f *flow.Flow) error {
-		if step.ID == "" && (step.Script != "" || step.Run != "") {
-			step.ID = f.UniqueID(orDefault(step.Script, "step"))
+		if step.ID == "" && (step.Script != "" || step.Run != "" || step.Call != "" || step.Agent != nil) {
+			step.ID = f.UniqueID(orDefault(step.Script, orDefault(step.Call, map[bool]string{true: "agent", false: "step"}[step.Agent != nil])))
 		}
 		var err error
 		path, err = f.Insert(parent, branch, index, step)
@@ -382,6 +394,12 @@ type stepTemplatePrompt func(title, initial, hints string, submit func(text stri
 func (a *App) flowStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt) []choiceOption {
 	return []choiceOption{
 		{key: "s", label: "script", pick: func() { a.pickScript(insert) }},
+		{key: "f", label: "call a function", pick: func() { a.pickFunction(insert) }},
+		{key: "g", label: "ask an AI agent", pick: func() {
+			templatePrompt("ask the agent", "", "{enter} next  esc cancel  what to ask, a template", func(ask string) {
+				a.askAgentStep(ask, insert)
+			})
+		}},
 		{key: "c", label: "command line", pick: func() {
 			templatePrompt("command line", "", "{enter} add  esc cancel", func(text string) {
 				insert(flow.Step{Run: text})
@@ -480,11 +498,64 @@ func countSteps(steps []flow.Step) int {
 	return n
 }
 
-func (a *App) moveStep(f flow.Flow, path string, step int, moved func(path string)) {
+// moveStep moves the step at path a place down or up the flow, into and out of blocks as a line
+// of code moves.
+func (a *App) moveStep(f flow.Flow, path string, down bool, moved func(path string)) {
 	var to string
 	err := a.changeFlow(f, func(f *flow.Flow) error {
-		to = f.Move(path, step)
+		to = f.Shift(path, down)
 		return nil
+	})
+	if err != nil {
+		a.statusMessage = err.Error()
+		return
+	}
+	moved(to)
+}
+
+// exportFromBlock asks a variable an if or repeat makes, to keep it after the block, under its
+// name or another: "count", or "count as passes"; the name alone again stops exporting it.
+func (a *App) exportFromBlock(f flow.Flow, path string) {
+	s, ok := f.Step(path)
+	if !ok || s.Kind() != flow.IfStep && s.Kind() != flow.RepeatStep {
+		a.statusMessage = "only an if or a repeat exports variables"
+		return
+	}
+	inside := map[flow.Kind]string{flow.IfStep: "then", flow.RepeatStep: "steps"}[s.Kind()]
+	vars := f.Scope(path, inside, max(len(s.Then), len(s.Steps)), a.scripts.Find)
+	a.openPrompt("export from "+s.Label(), "", "{enter} keep it after the block  esc cancel  name, or name as other; an exported name again stops it", func(text string) {
+		inner, outer, _ := strings.Cut(strings.Join(strings.Fields(text), " "), " as ")
+		err := a.changeFlow(f, func(f *flow.Flow) error {
+			step, _ := f.Step(path)
+			if step.Export == nil {
+				step.Export = map[string]string{}
+			}
+			if previous, exported := step.Export[inner]; exported && previous == outer {
+				delete(step.Export, inner)
+			} else {
+				step.Export[inner] = outer
+			}
+			return f.Replace(path, step)
+		})
+		if err != nil {
+			a.statusMessage = err.Error()
+		}
+	})
+	a.withVariables(vars)
+}
+
+// dropStep moves the step at path to where a block is: below a step, or at the top of a list.
+func (a *App) dropStep(f flow.Flow, path string, on chartBlock, moved func(path string)) {
+	parent, branch, index := on.slot.parent, on.slot.branch, on.index
+	if !on.isInsertion() {
+		parent, branch, index = flow.SplitPath(on.path)
+		index++
+	}
+	var to string
+	err := a.changeFlow(f, func(f *flow.Flow) error {
+		var err error
+		to, err = f.MoveTo(path, parent, branch, index)
+		return err
 	})
 	if err != nil {
 		a.statusMessage = err.Error()

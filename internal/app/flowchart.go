@@ -13,10 +13,11 @@ import (
 	"github.com/AlexandreSJ/noct/internal/flow"
 )
 
-// The flowchart of a flow: its steps as boxes from top to bottom, joined by arrows. An if splits
+// The flowchart of a flow: its steps as cards from top to bottom, joined by arrows. An if splits
 // into its two branches side by side and joins them again; a repeat frames the steps it repeats.
-// The arrows before, between and after the steps of a list are gaps, where a step can be added.
-// The chart is drawn on a canvas of its own size, which the inspect panel shows a part of.
+// A step is added below the one selected; the head of each list (the start, an if's yes and no,
+// a repeat's way in) is selected to add above its first step, and an empty list is a slot. The
+// chart is drawn on a canvas of its own size, which the inspect panel shows a part of.
 
 // boxWidths are the widths of a step's box at each zoom, from far to near; boxLines how many
 // lines of detail it shows.
@@ -25,10 +26,19 @@ var (
 	boxLines  = []int{1, 2, 4}
 )
 
-// Gaps of the chart: between an if's branches, and around a repeat's steps.
+// Gaps of the chart: between an if's branches, around a repeat's steps, and the rows of the arrow
+// from one card down to the next.
 const (
 	branchGap   = 3
 	repeatInset = 2
+	arrowRows   = 3
+)
+
+// The lines of the chart, drawn as fonts like Fira Code draw them whole.
+const (
+	lineDown  = "│"
+	arrowDown = "↓"
+	arrowUp   = "↑"
 )
 
 type nodeKind int
@@ -40,6 +50,14 @@ const (
 	slotNode                   // an empty list of steps, where one can be added
 	seqNode                    // steps one below the other
 	pillNode                   // start or end of the flow
+	paramsNode                 // the flow's params, above its start
+)
+
+// paramsKey is the params card's key; maxParamLines bounds the params it lists.
+const (
+	paramsKey      = "params"
+	maxParamLines  = 8
+	maxParamsWidth = 60
 )
 
 // chartNode is one part of the chart, measured: w by h cells, with the column arrows enter and
@@ -53,10 +71,6 @@ type chartNode struct {
 	slot     chartSlot
 	label    string
 	children []*chartNode
-	// gapBase is the index of the step a sequence's first arrow comes before: -1 when the
-	// sequence starts with the start pill. Only a sequence of steps has gaps.
-	gapBase int
-	hasGaps bool
 }
 
 // chartSlot is a list of steps: the flow's own when parent is "", or an if's or repeat's.
@@ -64,30 +78,37 @@ type chartSlot struct {
 	parent, branch string
 }
 
-// chartBlock is something on the chart that can be selected: a step, or a place in a list where
-// a step can be added (an empty list, or a gap between steps), at index.
+// chartBlock is something on the chart that can be selected: a step, or the place in a list where
+// a step is added at index: an empty list, or the head of one.
 type chartBlock struct {
 	key   string
 	path  string
 	slot  chartSlot
 	index int
 	rect  image.Rectangle
+	// params marks the params card, which is neither a step nor a place to add one.
+	params bool
 }
 
 // Keys of the chart's blocks, which stay the same while the chart is drawn again.
-func stepKey(path string) string    { return "step:" + path }
-func slotKey(slot chartSlot) string { return "slot:" + slot.parent + ":" + slot.branch }
-func gapKey(slot chartSlot, index int) string {
-	return fmt.Sprintf("gap:%s:%s:%d", slot.parent, slot.branch, index)
-}
-func (b chartBlock) isInsertion() bool           { return b.path == "" }
+func stepKey(path string) string                 { return "step:" + path }
+func slotKey(slot chartSlot) string              { return "slot:" + slot.parent + ":" + slot.branch }
+func headKey(slot chartSlot) string              { return "head:" + slot.parent + ":" + slot.branch }
+func (b chartBlock) isInsertion() bool           { return b.path == "" && !b.params }
 func (b chartBlock) contains(p image.Point) bool { return p.In(b.rect) }
 
-// flowChart is a flow drawn at a zoom, with where each block is.
+// flowChart is a flow drawn at a zoom, with where each block is and the arrow out of each step.
 type flowChart struct {
 	canvas uv.ScreenBuffer
 	size   image.Point
 	blocks []chartBlock
+	arrows map[string]chartArrow
+}
+
+// chartArrow is the line out of a step, down to what runs after it: rows cells from top, in
+// column x.
+type chartArrow struct {
+	x, top, rows int
 }
 
 // chartStyle is what drawing a chart needs besides the flow.
@@ -102,19 +123,34 @@ type chartStyle struct {
 	// whose templates read a step that may not be there.
 	ranged map[string]bool
 	warned map[string]bool
+	// moving marks the selected step as moved by the arrows; dropOn is the block a card carried
+	// by the mouse would land on.
+	moving bool
+	dropOn string
+	// running is the path of the step a run is on, lit on the chart.
+	running string
+	// paramLines are the flow's params as its card lists them.
+	paramLines []string
 }
 
+const startLabel = "● start"
+
 func buildChart(f flow.Flow, style chartStyle) *flowChart {
+	style.paramLines = append(paramLines(f), returnLines(f)...)
 	body := style.sequence(f.Steps, chartSlot{})
-	start := &chartNode{kind: pillNode, label: "● start"}
+	start := &chartNode{kind: pillNode, label: startLabel}
 	end := &chartNode{kind: pillNode, label: "◉ end"}
 	for _, pill := range []*chartNode{start, end} {
 		pill.w, pill.h = ansi.StringWidth(pill.label), 1
 		pill.center = pill.w / 2
 	}
-	root := measureSeq(append(append([]*chartNode{start}, body.children...), end))
-	root.hasGaps, root.gapBase = len(f.Steps) > 0, -1
-	c := &flowChart{size: image.Pt(root.w+4, root.h+2)}
+	params := &chartNode{kind: paramsNode, label: "params", w: boxWidths[style.zoom]}
+	for _, line := range style.paramLines {
+		params.w = max(params.w, min(ansi.StringWidth(line)+4, maxParamsWidth))
+	}
+	params.h, params.center = len(style.paramLines)+2, params.w/2
+	root := measureSeq(append(append([]*chartNode{params, start}, body.children...), end))
+	c := &flowChart{size: image.Pt(root.w+4, root.h+2), arrows: map[string]chartArrow{}}
 	c.canvas = uv.NewScreenBuffer(c.size.X, c.size.Y)
 	style.draw(c, root, 2, 1)
 	return c
@@ -131,7 +167,7 @@ func (s chartStyle) sequence(steps []flow.Step, slot chartSlot) *chartNode {
 		items = append(items, s.node(step, flow.Path(slot.parent, slot.branch, i)))
 	}
 	seq := measureSeq(items)
-	seq.slot, seq.hasGaps = slot, true
+	seq.slot = slot
 	return seq
 }
 
@@ -141,7 +177,7 @@ func measureSeq(items []*chartNode) *chartNode {
 		left, right = max(left, item.center), max(right, item.w-item.center)
 		h += item.h
 	}
-	return &chartNode{kind: seqNode, w: left + right, h: h + len(items) - 1, center: left, children: items}
+	return &chartNode{kind: seqNode, w: left + right, h: h + (len(items)-1)*arrowRows, center: left, children: items}
 }
 
 func (s chartStyle) node(step flow.Step, path string) *chartNode {
@@ -155,6 +191,13 @@ func (s chartStyle) node(step flow.Step, path string) *chartNode {
 	return &chartNode{kind: stepNode, step: step, path: path, w: w, h: len(s.boxText(step)) + 2, center: w / 2}
 }
 
+// ifSplitRows are the rows from an if's card to its branches: the split, and the arrow down into
+// each; repeatRows, a repeat's frame and the arrows into and out of its steps.
+const (
+	ifSplitRows = 3
+	repeatRows  = 5
+)
+
 // ifNode puts the if's box over its branches, then on the left, else on the right, centered
 // between them.
 func (s chartStyle) ifNode(step flow.Step, path string) *chartNode {
@@ -167,7 +210,7 @@ func (s chartStyle) ifNode(step flow.Step, path string) *chartNode {
 	w := max(shift+then.w+branchGap+otherwise.w, shift+mid-header.center+header.w)
 	return &chartNode{
 		kind: ifNode, step: step, path: path,
-		w: w, h: header.h + 2 + max(then.h, otherwise.h) + 2, center: shift + mid,
+		w: w, h: header.h + ifSplitRows + max(then.h, otherwise.h) + 2, center: shift + mid,
 		children: []*chartNode{header, then, otherwise},
 	}
 }
@@ -178,7 +221,7 @@ func (s chartStyle) repeatNode(step flow.Step, path string) *chartNode {
 	least := max(ansi.StringWidth(s.repeatTitle(step))+6, boxWidths[s.zoom])
 	center := max(body.center+repeatInset, least/2)
 	w := max(center+body.w-body.center+repeatInset, least)
-	return &chartNode{kind: repeatNode, step: step, path: path, w: w, h: body.h + 4, center: center, children: []*chartNode{body}}
+	return &chartNode{kind: repeatNode, step: step, path: path, w: w, h: body.h + repeatRows, center: center, children: []*chartNode{body}}
 }
 
 func (s chartStyle) repeatTitle(step flow.Step) string {
@@ -194,6 +237,9 @@ func (s chartStyle) repeatTitle(step flow.Step) string {
 	}
 	if r.Every != "" && s.zoom == 2 {
 		title += " every " + r.Every
+	}
+	if export := exportText(step.Export); export != nil && s.zoom > 0 {
+		title += " · " + export[0]
 	}
 	return title
 }
@@ -215,8 +261,17 @@ func (s chartStyle) boxText(step flow.Step) []string {
 		}
 	case flow.CommandStep:
 		lines = append(lines, "$ "+strings.Join(strings.Fields(step.Run), " "))
+	case flow.AgentStep:
+		lines = append(lines, "◆ "+orDefault(step.Agent.Use, "agent")+" · "+shortTemplate(step.Agent.Ask))
+		if len(step.Agent.Choices) > 0 {
+			lines = append(lines, "→ "+strings.Join(step.Agent.Choices, " | "))
+		}
+	case flow.CallStep:
+		lines = append(lines, "ƒ "+step.Call)
+		lines = append(lines, withText(step.With)...)
 	case flow.IfStep:
 		lines = append(lines, shortTemplate(step.If))
+		lines = append(lines, exportText(step.Export)...)
 	case flow.WaitStep:
 		lines = append(lines, "wait "+step.Wait)
 	case flow.PromptStep:
@@ -230,6 +285,22 @@ func (s chartStyle) boxText(step flow.Step) []string {
 		lines = append(lines, "capture "+strings.Join(slices.Sorted(maps.Keys(step.Capture)), ", "))
 	}
 	return lines[:min(len(lines), boxLines[s.zoom])]
+}
+
+// exportText tells what a block keeps for the steps after it.
+func exportText(export map[string]string) []string {
+	var parts []string
+	for _, inner := range slices.Sorted(maps.Keys(export)) {
+		if outer := export[inner]; outer != "" && outer != inner {
+			parts = append(parts, inner+" → "+outer)
+		} else {
+			parts = append(parts, inner)
+		}
+	}
+	if len(parts) == 0 {
+		return nil
+	}
+	return []string{"export " + strings.Join(parts, ", ")}
 }
 
 func withText(with map[string]string) []string {
@@ -253,8 +324,16 @@ func (s chartStyle) draw(c *flowChart, n *chartNode, x, y int) {
 		s.drawRepeat(c, n, x, y)
 	case slotNode:
 		s.drawSlot(c, n, x, y)
+	case paramsNode:
+		s.drawParams(c, n, x, y)
 	case pillNode:
-		drawText(c.canvas, x, y, x+n.w, n.label, s.pal.panelMuted)
+		style := s.pal.panelMuted
+		if n.label == startLabel {
+			key := headKey(chartSlot{})
+			c.blocks = append(c.blocks, chartBlock{key: key, rect: image.Rect(x, y, x+n.w, y+1)})
+			style = s.headStyle(key)
+		}
+		drawText(c.canvas, x, y, x+n.w, n.label, style)
 	}
 }
 
@@ -262,12 +341,35 @@ func (s chartStyle) draw(c *flowChart, n *chartNode, x, y int) {
 func (s chartStyle) drawSeq(c *flowChart, n *chartNode, x, y int) {
 	for i, item := range n.children {
 		if i > 0 {
-			s.drawArrow(c, n.hasGaps, n.slot, n.gapBase+i, x+n.center, y, "▼")
-			y++
+			s.drawArrow(c, n.children[i-1].path, x+n.center, y, arrowRows)
+			y += arrowRows
 		}
 		s.draw(c, item, x+n.center-item.center, y)
 		y += item.h
 	}
+}
+
+// drawArrow draws a line down rows cells from top ending in an arrowhead, the way out of the step
+// at from, which a run moving on goes along.
+func (s chartStyle) drawArrow(c *flowChart, from string, x, top, rows int) {
+	for y := top; y < top+rows-1; y++ {
+		setRune(c.canvas, x, y, lineDown, s.pal.unfocusedFrame)
+	}
+	setRune(c.canvas, x, top+rows-1, arrowDown, s.pal.unfocusedFrame)
+	if from != "" {
+		c.arrows[from] = chartArrow{x: x, top: top, rows: rows}
+	}
+}
+
+// headStyle is a list head's: the accent when selected, muted otherwise.
+func (s chartStyle) headStyle(key string) uv.Style {
+	if key == s.dropOn {
+		return s.pal.status
+	}
+	if key == s.selected {
+		return s.pal.focusedTitle
+	}
+	return s.pal.panelMuted
 }
 
 func (s chartStyle) drawBox(c *flowChart, n *chartNode, x, y int) {
@@ -276,7 +378,7 @@ func (s chartStyle) drawBox(c *flowChart, n *chartNode, x, y int) {
 	c.blocks = append(c.blocks, chartBlock{key: key, path: n.path, rect: rect})
 	line, title := s.frameStyles(key, n.path)
 	fillRect(c.canvas, rect, s.pal.panelText)
-	drawFrame(c.canvas, rect, s.boxTitle(n.step, n.path), line, title)
+	drawCard(c.canvas, rect, s.boxTitle(n.step, n.path), line, title)
 	for i, text := range s.boxText(n.step) {
 		style := s.pal.panelText
 		if i > 0 {
@@ -289,7 +391,19 @@ func (s chartStyle) drawBox(c *flowChart, n *chartNode, x, y int) {
 // boxTitle is a step's name, with how it went in the last run.
 func (s chartStyle) boxTitle(step flow.Step, path string) string {
 	symbol := map[flow.Kind]string{flow.IfStep: "◇ ", flow.WaitStep: "◷ ", flow.PromptStep: "? ", flow.SetStep: "= ", flow.UnsetStep: "∅ "}[step.Kind()]
-	return s.warning(path) + s.mark(path) + symbol + step.Label()
+	return s.boxMarks(path) + symbol + step.Label()
+}
+
+// boxMarks go before a card's title: running, being moved, warned of, how it went.
+func (s chartStyle) boxMarks(path string) string {
+	moved := ""
+	if s.moving && stepKey(path) == s.selected {
+		moved = "↕ "
+	}
+	if path == s.running {
+		moved = "▶ " + moved
+	}
+	return moved + s.warning(path) + s.mark(path)
 }
 
 func (s chartStyle) warning(path string) string {
@@ -317,6 +431,12 @@ func (s chartStyle) mark(path string) string {
 // color when it failed in the last run.
 func (s chartStyle) frameStyles(key, path string) (uv.Style, uv.Style) {
 	switch {
+	case key == s.dropOn:
+		return s.pal.status, s.pal.status
+	case path != "" && path == s.running:
+		running := s.pal.success
+		running.Attrs |= uv.AttrBold
+		return running, running
 	case key == s.selected || s.ranged[key]:
 		return s.pal.focusedFrame, s.pal.focusedTitle
 	case s.result != nil && s.result.Steps[path].Status == flow.StatusFailed:
@@ -333,43 +453,84 @@ func (s chartStyle) drawIf(c *flowChart, n *chartNode, x, y int) {
 	thenX, elseX := left, left+then.w+branchGap
 	thenCenter, elseCenter := thenX+then.center, elseX+otherwise.center
 	split := y + header.h
-	s.drawJoin(c, thenCenter, elseCenter, x+n.center, split, "┌", "┴", "┐")
-	drawText(c.canvas, thenCenter+2, split, x+n.center-1, "yes", s.pal.panelMuted)
-	drawText(c.canvas, elseCenter-3, split, elseCenter, "no", s.pal.panelMuted)
-	top := split + 2
+	s.drawJoin(c, thenCenter, elseCenter, x+n.center, split, "╭", "┴", "╮")
+	s.drawBranchHead(c, n.step.Then, then.slot, "yes", thenCenter+2, split)
+	s.drawBranchHead(c, n.step.Else, otherwise.slot, "no", elseCenter-3, split)
+	top := split + ifSplitRows
+	for _, center := range []int{thenCenter, elseCenter} {
+		s.drawArrow(c, "", center, split+1, ifSplitRows-1)
+	}
 	s.draw(c, then, thenX, top)
 	s.draw(c, otherwise, elseX, top)
 	join := top + max(then.h, otherwise.h) + 1
-	s.drawBranchEnds(c, n.step.Then, then, thenCenter, split+1, top, join)
-	s.drawBranchEnds(c, n.step.Else, otherwise, elseCenter, split+1, top, join)
-	s.drawJoin(c, thenCenter, elseCenter, x+n.center, join, "└", "┬", "┘")
+	s.drawBranchEnd(c, n.step.Then, then, thenCenter, top, join)
+	s.drawBranchEnd(c, n.step.Else, otherwise, elseCenter, top, join)
+	s.drawJoin(c, thenCenter, elseCenter, x+n.center, join, "╰", "┬", "╯")
 }
 
-// drawBranchEnds draws the arrow into a branch and the line from its end down to the join, with
-// the gaps before its first step and after its last.
-func (s chartStyle) drawBranchEnds(c *flowChart, steps []flow.Step, branch *chartNode, center, arrow, top, join int) {
-	gaps := len(steps) > 0
-	s.drawArrow(c, gaps, branch.slot, 0, center, arrow, "▼")
-	s.drawArrow(c, gaps, branch.slot, len(steps), center, top+branch.h, "│")
-	for yy := top + branch.h + 1; yy < join; yy++ {
-		setRune(c.canvas, center, yy, "│", s.pal.unfocusedFrame)
+// drawBranchHead labels a branch; the label of one with steps is its head, to add above them.
+func (s chartStyle) drawBranchHead(c *flowChart, steps []flow.Step, slot chartSlot, label string, x, y int) {
+	style := s.pal.panelMuted
+	if len(steps) > 0 {
+		key := headKey(slot)
+		c.blocks = append(c.blocks, chartBlock{key: key, slot: slot, rect: image.Rect(x, y, x+len(label), y+1)})
+		style = s.headStyle(key)
+	}
+	drawText(c.canvas, x, y, x+len(label), label, style)
+}
+
+// drawBranchEnd draws the line from a branch's end down to the join, the way out of its last step.
+func (s chartStyle) drawBranchEnd(c *flowChart, steps []flow.Step, branch *chartNode, center, top, join int) {
+	for yy := top + branch.h; yy < join; yy++ {
+		setRune(c.canvas, center, yy, lineDown, s.pal.unfocusedFrame)
+	}
+	if len(steps) > 0 {
+		c.arrows[flow.Path(branch.slot.parent, branch.slot.branch, len(steps)-1)] = chartArrow{x: center, top: top + branch.h, rows: join - top - branch.h}
 	}
 }
 
-// drawArrow draws a piece of line; when it is a gap, adding a step there puts it at index of slot,
-// and a selected gap shows as a plus.
-func (s chartStyle) drawArrow(c *flowChart, gap bool, slot chartSlot, index, x, y int, arrow string) {
-	if !gap {
-		setRune(c.canvas, x, y, arrow, s.pal.unfocusedFrame)
+// paramLines are what the params card lists: each param with its type and default.
+func paramLines(f flow.Flow) []string {
+	names := slices.Sorted(maps.Keys(f.Params))
+	if len(names) == 0 {
+		return []string{"none · a adds one"}
+	}
+	var lines []string
+	for i, name := range names {
+		if i == maxParamLines-1 && len(names) > maxParamLines {
+			lines = append(lines, fmt.Sprintf("… %d more", len(names)-i))
+			break
+		}
+		lines = append(lines, name+"  "+paramText(f.Params[name]))
+	}
+	return lines
+}
+
+func (s chartStyle) drawParams(c *flowChart, n *chartNode, x, y int) {
+	rect := image.Rect(x, y, x+n.w, y+n.h)
+	c.blocks = append(c.blocks, chartBlock{key: paramsKey, rect: rect, params: true})
+	line, title := s.pal.unfocusedFrame, s.pal.panelHeading
+	if s.selected == paramsKey {
+		line, title = s.pal.focusedFrame, s.pal.focusedTitle
+	}
+	fillRect(c.canvas, rect, s.pal.panelText)
+	drawCard(c.canvas, rect, "$ params", line, title)
+	for i, text := range s.paramLines {
+		drawText(c.canvas, x+2, y+1+i, x+n.w-2, text, s.pal.panelMuted)
+	}
+}
+
+// drawCard frames a card with round corners.
+func drawCard(screen uv.Screen, rect image.Rectangle, title string, line, titleStyle uv.Style) {
+	drawFrame(screen, rect, title, line, titleStyle)
+	if rect.Dx() < 2 || rect.Dy() < 2 {
 		return
 	}
-	key := gapKey(slot, index)
-	c.blocks = append(c.blocks, chartBlock{key: key, slot: slot, index: index, rect: image.Rect(x-1, y, x+2, y+1)})
-	if key == s.selected {
-		setRune(c.canvas, x, y, "+", s.pal.focusedTitle)
-		return
-	}
-	setRune(c.canvas, x, y, arrow, s.pal.unfocusedFrame)
+	right, bottom := rect.Max.X-1, rect.Max.Y-1
+	setRune(screen, rect.Min.X, rect.Min.Y, "╭", line)
+	setRune(screen, right, rect.Min.Y, "╮", line)
+	setRune(screen, rect.Min.X, bottom, "╰", line)
+	setRune(screen, right, bottom, "╯", line)
 }
 
 // drawJoin draws a horizontal line from left to right with its ends and middle marked.
@@ -390,15 +551,24 @@ func (s chartStyle) drawRepeat(c *flowChart, n *chartNode, x, y int) {
 	// Only the frame's title row selects the repeat: inside it are its own steps.
 	c.blocks = append(c.blocks, chartBlock{key: key, path: n.path, rect: image.Rect(x, y, x+n.w, y+1)})
 	line, title := s.frameStyles(key, n.path)
-	drawFrame(c.canvas, rect, s.warning(n.path)+s.mark(n.path)+s.repeatTitle(n.step), line, title)
-	for yy := y + 2; yy < y+n.h-2; yy++ {
-		setRune(c.canvas, x+n.w-1, yy, "▲", line)
-	}
+	drawCard(c.canvas, rect, s.boxMarks(n.path)+s.repeatTitle(n.step), line, title)
+	setRune(c.canvas, x+n.w-1, y+1, arrowUp, line) // the way back, up the frame's side
 	body := n.children[0]
-	gaps := len(n.step.Steps) > 0
-	s.drawArrow(c, gaps, body.slot, 0, x+n.center, y+1, "▼")
-	s.drawArrow(c, gaps, body.slot, len(n.step.Steps), x+n.center, y+n.h-2, "│")
-	s.draw(c, body, x+n.center-body.center, y+2)
+	in := image.Rect(x+n.center-1, y+1, x+n.center+2, y+3)
+	if len(n.step.Steps) > 0 {
+		head := headKey(body.slot)
+		c.blocks = append(c.blocks, chartBlock{key: head, slot: body.slot, rect: in})
+		if head == s.selected {
+			line = s.pal.focusedTitle
+		}
+	}
+	setRune(c.canvas, x+n.center, y+1, lineDown, line)
+	setRune(c.canvas, x+n.center, y+2, arrowDown, line)
+	s.draw(c, body, x+n.center-body.center, y+3)
+	setRune(c.canvas, x+n.center, y+n.h-2, lineDown, s.pal.unfocusedFrame)
+	if last := len(n.step.Steps) - 1; last >= 0 {
+		c.arrows[flow.Path(n.path, "steps", last)] = chartArrow{x: x + n.center, top: y + n.h - 2, rows: 1}
+	}
 }
 
 func (s chartStyle) drawSlot(c *flowChart, n *chartNode, x, y int) {
@@ -409,7 +579,7 @@ func (s chartStyle) drawSlot(c *flowChart, n *chartNode, x, y int) {
 	if key == s.selected {
 		line, text = s.pal.focusedFrame, s.pal.focusedTitle
 	}
-	drawFrame(c.canvas, rect, "", line, line)
+	drawCard(c.canvas, rect, "", line, line)
 	drawCentered(c.canvas, rect, y+1, "∅ a adds", text)
 }
 
@@ -425,8 +595,15 @@ func (c *flowChart) blockAt(p image.Point) (chartBlock, bool) {
 
 // firstStep is the chart's first step, or its first block when it has no steps.
 func (c *flowChart) firstStep() chartBlock {
-	i := max(slices.IndexFunc(c.blocks, func(b chartBlock) bool { return !b.isInsertion() }), 0)
-	return c.blocks[i]
+	for _, first := range []func(chartBlock) bool{
+		func(b chartBlock) bool { return b.path != "" },
+		chartBlock.isInsertion,
+	} {
+		if i := slices.IndexFunc(c.blocks, first); i >= 0 {
+			return c.blocks[i]
+		}
+	}
+	return c.blocks[0]
 }
 
 func (c *flowChart) block(key string) (chartBlock, bool) {

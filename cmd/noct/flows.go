@@ -19,7 +19,14 @@ import (
 )
 
 func loadFlows(lib script.Library) ([]flow.Flow, error) {
-	return flow.LoadAll(flow.Dir(), lib.Find)
+	flows, _, err := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), lib.Find)
+	return flows, err
+}
+
+// loadFunctions reads the functions flows call; unreadable ones are left out, and their calls fail.
+func loadFunctions(lib script.Library) func(name string) (flow.Flow, bool) {
+	_, functions, _ := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), lib.Find)
+	return func(name string) (flow.Flow, bool) { return flow.Find(functions, name) }
 }
 
 const flowUsage = "usage: noct flow run <flow> [--steps <first>..<last>] [name=value ...] | noct flow ls"
@@ -77,7 +84,12 @@ func promote(name string) error {
 	if err != nil {
 		return err
 	}
-	if f, ok := flow.Find(flows, name); ok {
+	_, functions, _ := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), lib.Find)
+	f, ok := flow.Find(flows, name)
+	if !ok {
+		f, ok = flow.Find(functions, name)
+	}
+	if ok {
 		fresh, err := flow.Load(f.File)
 		if err != nil {
 			return err
@@ -88,7 +100,7 @@ func promote(name string) error {
 	if s, ok := lib.Find(name); ok {
 		return script.Promote(s)
 	}
-	return fmt.Errorf("no flow or script called %s", name)
+	return fmt.Errorf("no flow, function or script called %s", name)
 }
 
 // enableTriggers turns a flow's triggers on or off on this machine.
@@ -122,7 +134,12 @@ func runFlow(name, steps string, args []string) error {
 			fmt.Fprintln(os.Stderr, "noct:", err)
 		}
 	}
-	result, err := runSteps(newFlowRunner(lib), f, params, steps)
+	runner := newFlowRunner(lib)
+	runner.Progress = func(path string) {
+		_ = flow.SaveProgress(flow.ResultsDir(), name, path) // only the inspect's live view misses it
+	}
+	result, err := runSteps(runner, f, params, steps)
+	flow.ClearProgress(flow.ResultsDir(), name)
 	if err != nil {
 		result.Exit = 1 // the record ends like a stop that was not a program's
 	}
@@ -181,6 +198,7 @@ func flowParams(f flow.Flow, name string, args []string) (map[string]string, err
 }
 
 func newFlowRunner(lib script.Library) *flow.Runner {
+	cfg := loadConfig()
 	return &flow.Runner{
 		Lookup: lib.Find,
 		Shell:  shell(),
@@ -190,10 +208,16 @@ func newFlowRunner(lib script.Library) *flow.Runner {
 		Out:    os.Stdout,
 		Sleep:  time.Sleep,
 		// The config keeps kilobytes; 0, all of the output, stays 0.
-		KeepOutput: loadConfig().Flows.OutputKB << 10,
+		KeepOutput: cfg.Flows.OutputKB << 10,
 		Ask:        terminalAsk(os.Stdin, os.Stdout),
 		OpenPane:   workspacePanes(),
 		Attention:  workspaceAttention(),
+		Function:   loadFunctions(lib),
+		Agents: func(name string) (string, bool) {
+			command, ok := cfg.Agents[name]
+			return command, ok
+		},
+		DefaultAgent: cfg.Agent,
 	}
 }
 
