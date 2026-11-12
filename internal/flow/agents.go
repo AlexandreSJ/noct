@@ -16,7 +16,7 @@ import (
 // its read-only plan agent, and llm and ollama only answer, so a question carrying someone
 // else's text cannot make them change anything.
 var AgentPresets = map[string]string{
-	"claude":   `claude -p --model haiku --tools ""`,
+	"claude":   `claude -p --model haiku --tools "" --strict-mcp-config`,
 	"codex":    "codex exec --ephemeral --skip-git-repo-check --sandbox read-only -",
 	"llm":      "llm",
 	"ollama":   "ollama run --hidethinking " + OllamaModel,

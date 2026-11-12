@@ -2,6 +2,7 @@ package app
 
 import (
 	"image"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -75,7 +76,7 @@ func TestScopePaneAndWarnings(t *testing.T) {
 			t.Errorf("screen lacks %q:\n%s", want, screen)
 		}
 	}
-	if strings.Contains(screen, ".steps.three.output") {
+	if regexp.MustCompile(`[^{]\.steps\.three\.output`).MatchString(screen) { // not the command's {{.steps.three.output}}
 		t.Error("the scope of step two lists step three")
 	}
 }

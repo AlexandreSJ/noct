@@ -148,6 +148,7 @@ var keyContexts = []keyContext{
 		{"pan-down", "pan down", []string{"ctrl+down"}},
 		{"pan-left", "pan left", []string{"ctrl+left"}},
 		{"pan-right", "pan right", []string{"ctrl+right"}},
+		{"keys", "these keys", []string{"?"}},
 		{"delete", "delete the flow, or remove the step", []string{"delete"}},
 		{"close", "close the panel", []string{"ctrl+d"}},
 	}},

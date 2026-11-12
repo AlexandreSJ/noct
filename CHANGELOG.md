@@ -19,10 +19,12 @@ terminal's own background stays untouched.
 
 ### Added
 
-- The demo has `demo-triage`: an AI agent reads a made-up failing test and decides whether to
-  run it again, explain it through the function `demo-explain`, or ask you for a missing
+- The demo has `demo-triage`: it tells what is about to happen, asks how a made-up test should
+  fail (enter picks at random), and an AI agent reads only the test's output and decides whether
+  to run it again, explain it through the function `demo-explain`, or ask you for a missing
   setting. It asks the agent you already use, or the one its `agent` param names, and ends with a
-  short report. `noct setup` installs it beside the others.
+  report of how the test really failed and whether the agent got it right. `noct setup` installs
+  it beside the others.
 - The MCP server lists functions (with who calls each) and the agents an agent step can ask, reads
   a function with `get_item`, and drafts one with `draft_function`. A draft function does not run,
   and the flows that call it wait for its promotion.
@@ -32,6 +34,11 @@ terminal's own background stays untouched.
   can branch on it. The question never goes through a shell, and no preset can change anything.
   By default (`agent = "auto"`) a step asks the first agent this machine has, and `use:` can come
   from a param. `noct agents` lists them and, when there is none, says how to start with ollama.
+  In the inspect, `a` then `g` sets one up in a single form (the question, its answers, the agent
+  and a timeout) that `enter` adds from any field.
+- The inspect tells about the selected block below the chart: what its kind of step does, its
+  whole text and how it went in the run shown. Select it with the keys or a click; the wheel
+  scrolls it. `?` lists every key of the inspect.
 - Functions: steps any flow can call, in a file of their own with params and returns. A `call:` step
   runs one in a scope of its own and gets back what it returns. The inspect lists functions after
   the flows (`F` makes one), shows which flows call each, and tells what a change reaches.
@@ -103,6 +110,14 @@ terminal's own background stays untouched.
   `↓`), no longer `▼`. The `+` gaps between cards are gone: `a` adds below the selected step,
   and the head of a list (the start, an if's yes or no, a repeat's way in) adds above its first
   step.
+- Each card in the inspect starts its title with a mark of its kind (`▸` script, `$` command, `◆`
+  AI agent, `ƒ` function, `◇` if, `↻` repeat, `◷` wait, `?` asks you, `=` set, `∅` unset) and
+  names the kind on its right; text that does not fit ends in `…`.
+- A card moves with the mouse only with `alt` (or `ctrl`) held; dragged without either, the chart
+  pans. While it is carried, a dashed outline shows exactly where it lands: before or after any
+  card, at the top of an if's branch or a repeat, or in an empty list.
+- Hints at the bottom of panels and popups break into more lines instead of being cut; popups
+  grow to fit them.
 - Typing in a field no longer paints the whole row: the text shows in the selected color and the
   cursor is the cell under it on the selected color's background, so no mark shifts the text
   while the cursor moves.
@@ -127,6 +142,8 @@ terminal's own background stays untouched.
 
 ### Fixed
 
+- The `claude` agent preset no longer loads your MCP servers (`--strict-mcp-config`): with them, an
+  agent step's claude could reach noct's own tools.
 - Saving a script, its notes or a draft from an AI no longer leaves a half-written file when noct
   stops in the middle of the write.
 

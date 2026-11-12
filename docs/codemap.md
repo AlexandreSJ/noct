@@ -85,8 +85,9 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/logs_preview.go` | The selected log beside the logs panel's lists: a terminal that prints a part of 5000 lines of it, the last following its end, restarted as the selection or the part changes, and scrolling its history on into the parts before and after |
 | `internal/app/logs_search.go` | Searching the log shown (`/`, `n`, `N`, its matches lit) and filtering its lines (`f`) |
 | `internal/app/library_watch.go` | Reading scripts and flows again while a panel shows them and their files changed on disk |
-| `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks |
-| `internal/app/flowchart.go` | Laying out and drawing a flow as a flowchart on its own canvas, and which block is where: steps, empty lists and the gaps where steps are added; ranges and warnings marked |
+| `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks, alt+drag carrying a card to its place |
+| `internal/app/inspect_details.go` | The details under the inspect's chart: the selected block's kind, whole text and run, scrolled by the wheel |
+| `internal/app/flowchart.go` | Laying out and drawing a flow as a flowchart on its own canvas, and which block is where: steps with the mark and name of their kind, empty lists, the places a carried card drops at and its dashed outline; ranges and warnings marked |
 | `internal/app/triggers.go` | The daemon's trigger ticks, flows started by triggers (headless, logged, recorded), adding triggers from the inspect |
 | `internal/app/notify.go` | Telling a run that ended out of sight: the system's notification (`notify-send`, `osascript`), OSC 9 to the terminal, or its bell |
 | `internal/app/requests.go` | What the MCP server asks of the workspace: list and read panes, type into one, run a command, script or flow where the user sees it; reading a request's connection until it ends (`receiveUntilEnd`) |
@@ -96,7 +97,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/logs_heatmap.go` | The logs calendar's activity colors: each day's step by its logs, the style over it, and the legend |
 | `internal/app/logs_filter.go` | The logs filter line: words over name, date, time and status; size and line comparisons |
 | `internal/app/scope.go` | The inspect's scope pane (variables of the selected block with their last values) and the variable picker of template prompts (ctrl+t) |
-| `internal/app/flow_agents.go` | Adding an agent step in the inspect: its answers and which agent it asks |
+| `internal/app/flow_agents.go` | Adding an agent step in the inspect, from one form: what it asks, its answers, the agent and the timeout |
 | `internal/app/flow_functions.go` | Functions in the inspect: making one, the call step's function and values, returns on the params card, which flows a change reaches |
 | `internal/app/flow_params.go` | A flow's params in the inspect: adding one with every type a param can have, changing its default, label and required, removing it |
 | `internal/app/flowchart_live.go` | A flow's run on its chart as it goes: the dots going down the arrow out of the step running, and the frames that move them |
@@ -154,7 +155,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/config/config.go` | Settings file: defaults, validation, atomic load and save |
 | `third_party/ultraviolet`, `third_party/vt` | Copies of charmbracelet/ultraviolet and x/vt with throughput and rendering fixes (`noct:` comments); see `third_party/README.md`. `noct_render_test.go` replays the renderer's output into the emulator |
 | `docs/demo/record.sh`, `docs/demo/*.tape` | The README's GIFs (`make demo`): VHS tapes run noct in a home of its own, with the demo scripts and flows of `docs/demo/scripts` and `docs/demo/flows` |
-| `examples/examples.go`, `examples/demo/` | The demo the setup installs: scripts `demo/*` with tutorial notes the flows `demo-deploy` (a deploy with health check and rollback), `demo-loops` (each step kind alone) and `demo-triage` (an AI agent sorts a failing test), and the function `demo-explain` (scripts include `demo/failing-test` and `demo/report`), embedded and copied without overwriting |
+| `examples/examples.go`, `examples/demo/` | The demo the setup installs: scripts `demo/*` with tutorial notes the flows `demo-deploy` (a deploy with health check and rollback), `demo-loops` (each step kind alone) and `demo-triage` (an AI agent sorts a failing test), and the function `demo-explain` (scripts include `demo/triage-intro`, `demo/pick-failure`, `demo/failing-test` and `demo/report`), embedded and copied without overwriting |
 | `docs/assets/` | The README's logo (`logo.svg`, the home's art as rectangles) and GIFs |
 | `.github/workflows/ci.yml`, `.githooks/pre-push`, `Makefile` (`hooks`) | Checks before a release: `make check` on GitHub for every pushed branch and pull request, and locally on each pushed commit, which also stops a version tag off the tip of `main` or without its CHANGELOG section |
 | `.github/workflows/release.yml`, `Makefile` (`dist`, `release-notes`), `CHANGELOG.md` | Releases: a pushed `vX.Y.Z` tag runs the checks, builds the archives and checksums, and publishes the GitHub release with the tag's CHANGELOG section, which noct's updates read (ADR-047) |

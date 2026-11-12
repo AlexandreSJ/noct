@@ -1,8 +1,16 @@
 description: Print what demo-triage found, as a short report.
 run: |
-  printf '\nThe agent sorted the failure as: %s\n\n%s\n' {{quote .kind}} {{quote .summary}}
+  printf '\n── demo-triage result ──────────────────────────────\n'
+  printf '  The test failed as:    %s\n' {{quote .expected}}
+  if [ {{quote .kind}} = {{quote .expected}} ]; then verdict='✓ right'; else verdict='✗ wrong'; fi
+  printf '  The agent sorted it:   %s  %s\n\n' {{quote .kind}} "$verdict"
+  printf '  What came of it:\n'
+  printf '%s\n' {{quote .summary}} | sed 's/^/    /'
+  printf '\nRun it again for another failure; agent=<name> asks another agent.\n'
 params:
   - name: kind
     prompt: What the agent sorted the failure as
+  - name: expected
+    prompt: How the test really failed
   - name: summary
     prompt: What happened next

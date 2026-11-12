@@ -97,7 +97,9 @@ func (a *App) drawPrompt(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	matches, _ := a.prompt.suggestions()
 	rows := min(len(matches), maxSuggestions)
-	inner := a.drawPanel(screen, centeredRect(area, 50+20*min(rows, 1), panelHeight(3+rows)), a.prompt.title)
+	width := 50 + 20*min(rows, 1)
+	hints := a.hint("prompt", a.prompt.hints)
+	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(3+rows+moreHintRows(hints, width))), a.prompt.title)
 	a.prompt.input.draw(screen, inner.Min.X+1, inner.Min.Y, inner.Dx()-2, false, a.palette.typing(), a.palette.selectedRow)
 	a.drawSuggestions(inner, inner.Min.Y+1, func(x, y, maxX int, text string, selected bool) {
 		style := a.palette.panelMuted
@@ -106,7 +108,7 @@ func (a *App) drawPrompt(screen uv.Screen) {
 		}
 		drawText(screen, x, y, maxX, text, style)
 	})
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("prompt", a.prompt.hints), a.palette.panelMuted)
+	drawHints(screen, inner, hints, a.palette.panelMuted)
 }
 
 func (a *App) askToConfirm(question string, accept func()) {

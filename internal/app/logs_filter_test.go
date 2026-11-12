@@ -103,7 +103,7 @@ func TestLogsOpenAFlowRunInTheInspect(t *testing.T) {
 		t.Fatalf("i opened %T", a.currentTab().focusedView())
 	}
 	screen := screenText(a)
-	if !strings.Contains(screen, "run of "+at.Format("Jan 2 15:04")) || !strings.Contains(screen, "✗ one") {
+	if !strings.Contains(screen, "run of "+at.Format("Jan 2 15:04")) || !strings.Contains(screen, "✗ $ one") {
 		t.Errorf("the chart does not show that run:\n%s", screen)
 	}
 }

@@ -365,7 +365,7 @@ func (a *App) addStep(f flow.Flow, at chartBlock, added func(path string)) {
 		a.prompt.pick = func() { a.pickVariable(f, vars) }
 		a.withVariables(vars)
 	}
-	options := a.flowStepChoices(insert, templatePrompt)
+	options := a.flowStepChoices(insert, templatePrompt, func() { a.pickVariable(f, vars) })
 	options = append(options, a.variableStepChoices(insert, templatePrompt)...)
 	a.openChoice("add step", options...)
 }
@@ -391,15 +391,11 @@ func (a *App) insertFlowStep(f flow.Flow, parent, branch string, index int, step
 type stepTemplatePrompt func(title, initial, hints string, submit func(text string))
 
 // flowStepChoices are the add step options that run something or shape the flow.
-func (a *App) flowStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt) []choiceOption {
+func (a *App) flowStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt, pickVariable func()) []choiceOption {
 	return []choiceOption{
 		{key: "s", label: "script", pick: func() { a.pickScript(insert) }},
 		{key: "f", label: "call a function", pick: func() { a.pickFunction(insert) }},
-		{key: "g", label: "ask an AI agent", pick: func() {
-			templatePrompt("ask the agent", "", "{enter} next  esc cancel  what to ask, a template", func(ask string) {
-				a.askAgentStep(ask, insert)
-			})
-		}},
+		{key: "g", label: "ask an AI agent", pick: func() { a.openAgentForm(insert, pickVariable) }},
 		{key: "c", label: "command line", pick: func() {
 			templatePrompt("command line", "", "{enter} add  esc cancel", func(text string) {
 				insert(flow.Step{Run: text})
@@ -544,13 +540,9 @@ func (a *App) exportFromBlock(f flow.Flow, path string) {
 	a.withVariables(vars)
 }
 
-// dropStep moves the step at path to where a block is: below a step, or at the top of a list.
-func (a *App) dropStep(f flow.Flow, path string, on chartBlock, moved func(path string)) {
-	parent, branch, index := on.slot.parent, on.slot.branch, on.index
-	if !on.isInsertion() {
-		parent, branch, index = flow.SplitPath(on.path)
-		index++
-	}
+// dropStep moves the step at path to index of the list at parent's branch, as the flow is before
+// the step leaves its place.
+func (a *App) dropStep(f flow.Flow, path, parent, branch string, index int, moved func(path string)) {
 	var to string
 	err := a.changeFlow(f, func(f *flow.Flow) error {
 		var err error
@@ -600,10 +592,16 @@ func (a *App) stepKindLines(step flow.Step) []styledLine {
 		add("Chooses a branch: then when this is true, else when false.", pal.panelHeading)
 		add(step.If, pal.panelText)
 		add(fmt.Sprintf("then: %d steps · else: %d steps", countSteps(step.Then), countSteps(step.Else)), pal.panelMuted)
+		lines = append(lines, exportLines(step, pal)...)
 	case flow.RepeatStep:
 		add("Repeats the steps inside it.", pal.panelHeading)
 		add(repeatText(step.Repeat), pal.panelText)
 		add("Each pass forgets the results of the pass before.", pal.panelMuted)
+		lines = append(lines, exportLines(step, pal)...)
+	case flow.AgentStep:
+		lines = append(lines, a.agentStepLines(step)...)
+	case flow.CallStep:
+		lines = append(lines, a.callStepLines(step)...)
 	case flow.WaitStep:
 		add("Waits "+step.Wait+" before the next step.", pal.panelHeading)
 	case flow.PromptStep:
@@ -616,6 +614,48 @@ func (a *App) stepKindLines(step flow.Step) []styledLine {
 	case flow.UnsetStep:
 		add("Clears variables and steps' results; they read as empty after it:", pal.panelHeading)
 		add(strings.Join(step.Unset, ", "), pal.panelText)
+	}
+	return lines
+}
+
+// exportLines tell what an if or a repeat keeps for the steps after it.
+func exportLines(step flow.Step, pal *palette) []styledLine {
+	var lines []styledLine
+	for _, text := range exportText(step.Export) {
+		lines = append(lines, styledLine{text, pal.panelText}, styledLine{"what the block makes goes when it ends, but these stay", pal.panelMuted})
+	}
+	return lines
+}
+
+// agentStepLines tell what an agent step asks, which agent, and where its answer goes.
+func (a *App) agentStepLines(step flow.Step) []styledLine {
+	pal := &a.palette
+	lines := []styledLine{{"Asks an AI agent, one already on this machine, and keeps its answer:", pal.panelHeading}}
+	for _, line := range strings.Split(strings.TrimRight(step.Agent.Ask, "\n"), "\n") {
+		lines = append(lines, styledLine{line, pal.panelText})
+	}
+	agent := "the default agent (" + a.config.Agent + "; noct agents lists them)"
+	if step.Agent.Use != "" {
+		agent = step.Agent.Use
+	}
+	lines = append(lines, styledLine{"asks " + agent, pal.panelText})
+	if len(step.Agent.Choices) > 0 {
+		lines = append(lines, styledLine{"the answer must be one of " + strings.Join(step.Agent.Choices, ", ") + "; one that says none fails the step", pal.panelMuted})
+	}
+	return append(lines, styledLine{"later steps read it as {{.answer}} and {{.steps." + orDefault(step.ID, "<id>") + ".answer}}", pal.panelMuted})
+}
+
+// callStepLines tell which function a call step runs and what comes back from it.
+func (a *App) callStepLines(step flow.Step) []styledLine {
+	pal := &a.palette
+	lines := []styledLine{{"Calls function " + step.Call + ": runs its steps with the values below.", pal.panelHeading}}
+	if fn, ok := flow.Find(a.functions, step.Call); ok {
+		if fn.Description != "" {
+			lines = append(lines, styledLine{fn.Description, pal.panelText})
+		}
+		if len(fn.Returns) > 0 {
+			lines = append(lines, styledLine{"gives back " + strings.Join(slices.Sorted(maps.Keys(fn.Returns)), ", ") + " as variables", pal.panelMuted})
+		}
 	}
 	return lines
 }

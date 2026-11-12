@@ -54,7 +54,8 @@ func (a *App) handleChoiceKey(key uv.KeyPressEvent) {
 func (a *App) drawChoice(screen uv.Screen) {
 	c := &a.choice
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	inner := a.drawPanel(screen, centeredRect(area, 34, panelHeight(len(c.options)+2)), c.title)
+	hints := a.hint("choice", "{enter} choose  esc cancel")
+	inner := a.drawPanel(screen, centeredRect(area, 34, panelHeight(len(c.options)+2+moreHintRows(hints, 34))), c.title)
 	for i, option := range c.options {
 		style := a.palette.panelText
 		if i == c.selected {
@@ -62,5 +63,5 @@ func (a *App) drawChoice(screen uv.Screen) {
 		}
 		drawRow(screen, inner, inner.Min.Y+i, option.label, option.key, style)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("choice", "{enter} choose  esc cancel"), a.palette.panelMuted)
+	drawHints(screen, inner, hints, a.palette.panelMuted)
 }

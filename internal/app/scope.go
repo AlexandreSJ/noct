@@ -99,6 +99,7 @@ func (p *inspectPanel) scopeLines(f flow.Flow, r *flow.Result, block chartBlock)
 // pickVariable searches the variables a template prompt can read and types the one chosen;
 // closing the search goes back to the prompt.
 func (a *App) pickVariable(f flow.Flow, vars []flow.Variable) {
+	back := a.mode // the prompt or form the variable is typed into
 	var last *flow.Result
 	if r, ran := flow.LastResult(flow.ResultsDir(), f.Name); ran {
 		last = &r
@@ -107,10 +108,10 @@ func (a *App) pickVariable(f flow.Flow, vars []flow.Variable) {
 	for _, v := range vars {
 		kind := strings.TrimSpace(certaintyMarks[v.Certainty] + variableValue(f, v, last))
 		items = append(items, finderItem{label: variableName(v), kind: kind, open: func() {
-			a.prompt.input.insert(v.Template())
-			a.mode = promptMode
+			a.mode = back
+			a.editTypedText(func(field *textField) { field.insert(v.Template()) })
 		}})
 	}
 	a.openFinderWith("variable", items)
-	a.finder.cancel = func() { a.mode = promptMode }
+	a.finder.cancel = func() { a.mode = back }
 }

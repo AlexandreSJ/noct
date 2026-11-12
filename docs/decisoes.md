@@ -895,6 +895,14 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** As teclas `m`, `z` e `y` entram no contexto `flows` do keymap. Desfazer não atravessa um reinício do noct, nem edições feitas fora do inspect.
 
+**Atualização (ler e arrastar com clareza).** O mantenedor achou o arrastar estranho (pegava o cartão sem querer, e sobre um `if` o lugar marcado não era onde o cartão caía), não distinguia de relance um agente de uma função ou de um `if`, e via dicas e textos cortados sem aviso.
+- **Arrastar só com `Alt` ou `Ctrl`:** sem modificador, arrastar sempre move o fluxograma; com `Alt` (ou `Ctrl`) pressionado sobre um cartão, ele é carregado. Mover pelo teclado (`J`/`K`, `m`) continua igual.
+- **O lugar exato:** carregando, um contorno tracejado (`╌`, `╎`) com `↳` e o nome do passo ocupa o lugar onde ele vai cair: antes ou depois de qualquer cartão, no topo de um ramo do `if` ou de um `repeat`, ou numa lista vazia. O lugar é o mais perto do ponteiro (a metade de cima de um cartão é antes dele, a de baixo é depois); longe de todos, ou junto do próprio passo, soltar não muda nada. Para todo lugar caber o contorno, toda seta tem três linhas, também as da divisão do `if`, do fim dos ramos e de dentro do `repeat`. Enquanto carrega, os detalhes somem e o fluxograma rola quando o ponteiro chega na borda.
+- **Tipo no cartão:** o título começa com a marca do tipo (`▸` script, `$` comando, `◆` agente de IA, `ƒ` função, `◇` if, `↻` repeat, `◷` wait, `?` pergunta, `=` set, `∅` unset) e o nome do tipo vai à direita da linha de cima, a partir do zoom 2, menos quando o nome do passo já o diz.
+- **Texto cortado termina em `…`**, nos cartões, títulos e formulários.
+- **Detalhes:** embaixo do fluxograma, um painel conta do bloco selecionado (pelo teclado ou por clique): o que o tipo faz, o texto inteiro e como foi na execução mostrada. A roda sobre ele o rola; `Enter` abre tudo num popup, como antes.
+- **Dicas quebram a linha** em vez de cortar, nos painéis e nos popups, que crescem para caber; só passando de quatro linhas a última termina em `…`. A linha do inspect ficou com as teclas principais, e `?` lista todas.
+
 ## ADR-066 — Variáveis com nomes curtos e escopo de bloco
 
 **Contexto.** O mantenedor quer ler `output` em vez de `.steps.build.output`, e que nomes repetidos se comportem como numa linguagem: no contexto global, a variável muda; dentro de um `if`, `repeat` ou função, poder devolvê-la fora com outro nome, ou deixá-la sumir. Até aqui, todo `set` e `prompt` gravava no mesmo espaço, visível do ponto em diante, e os resultados dos passos só existiam como `.steps.<id>.*`.
@@ -941,4 +949,6 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **`use` é um template**, então um param escolhe o agente; vazio pergunta ao padrão. A pergunta e o `use` passam pela análise de escopo e pela validação de templates, que antes deixavam o `ask` de fora.
 - **Raciocínio em voz alta:** o `answer` tira o `Thinking... ...done thinking.` do ollama e os `<think>…</think>` antes de procurar as escolhas, porque o raciocínio cita escolhas que o modelo descarta.
 - **`noct agents`** lista os agentes, os prontos e o padrão. Sem nenhum pronto, ele e o passo que falha sugerem o ollama, que roda local e de graça, com `ollama pull llama3.2`: é a exceção do ADR-062, limitada a quem não tem agente nenhum.
+- **Sem MCP no claude:** o preset ganha `--strict-mcp-config`. Sem ele, o `claude -p` carregava os servidores MCP do usuário, inclusive o do próprio noct, e `--tools ""` não os desliga. O codex e o opencode podem ter servidores MCP no config deles; as ferramentas do noct que agem continuam pedindo aprovação.
+- **Um formulário só:** no inspect, `a` e `g` abrem um formulário com a pergunta, as respostas, o agente (os prontos dizem o comando, os outros o motivo) e o timeout, que começa em 5 minutos; `Enter` adiciona de qualquer campo, e `Ctrl+T` busca uma variável para a pergunta.
 

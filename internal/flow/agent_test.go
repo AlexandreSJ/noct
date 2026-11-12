@@ -63,8 +63,8 @@ func TestAnAgentsCommandTakesTheQuestionAsOneArgument(t *testing.T) {
 		t.Errorf("argv %q input %q err %v", argv, input, err)
 	}
 	argv, input, _ = AgentArgv(AgentPresets["claude"], "hi")
-	if !slices.Equal(argv, []string{"claude", "-p", "--model", "haiku", "--tools", ""}) || input != "hi" {
-		t.Errorf("claude: argv %q input %q, want no tools and the question as input", argv, input)
+	if !slices.Equal(argv, []string{"claude", "-p", "--model", "haiku", "--tools", "", "--strict-mcp-config"}) || input != "hi" {
+		t.Errorf("claude: argv %q input %q, want no tools, no MCP servers and the question as input", argv, input)
 	}
 	if _, _, err := AgentArgv(`x "open`, "q"); err == nil {
 		t.Error("took a command with an open quote")

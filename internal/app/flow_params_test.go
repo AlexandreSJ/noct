@@ -106,10 +106,10 @@ func TestInspectAddsVariableSteps(t *testing.T) {
 	case !slices.Equal(unset.Unset, []string{"sum", "steps.x", "b"}):
 		t.Errorf("unset = %+v", unset)
 	}
-	screen := screenText(a)
-	for _, want := range []string{"? prompt", "= set", "∅ unset", "clear sum, steps.x, b"} {
-		if !strings.Contains(screen, want) {
-			t.Errorf("chart lacks %q:\n%s", want, screen)
+	chart := chartText(a.currentTab().focusedView().(*inspectPanel).chart)
+	for _, want := range []string{"? prompt", "asks you", "= set", "∅ unset", "sum, steps.x, b"} {
+		if !strings.Contains(chart, want) {
+			t.Errorf("chart lacks %q:\n%s", want, chart)
 		}
 	}
 }

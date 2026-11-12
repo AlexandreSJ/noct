@@ -1,0 +1,12 @@
+description: Pick how demo-triage's made-up test fails, at random unless told.
+run: |
+  case {{quote .failure}} in
+    flaky|bug|env) kind={{quote .failure}} ;;
+    *) set -- flaky bug env; shift $(( $(date +%s) % 3 )); kind=$1 ;;
+  esac
+  printf '\nThis run the test fails as: %s\n' "$kind"
+  printf 'The agent does not see this: it reads only the test output below.\n\n'
+params:
+  - name: failure
+    prompt: flaky, bug or env; anything else picks one at random
+    default: random

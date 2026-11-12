@@ -202,7 +202,7 @@ returns:
 
   | Agent | Command |
   |---|---|
-  | `claude` | `claude -p --model haiku --tools ""` (no tools) |
+  | `claude` | `claude -p --model haiku --tools "" --strict-mcp-config` (no tools) |
   | `codex` | `codex exec --ephemeral --skip-git-repo-check --sandbox read-only -` |
   | `opencode` | `opencode run --agent plan {prompt}` (its read-only agent) |
   | `llm` | `llm` (only answers) |
@@ -215,14 +215,17 @@ returns:
   agent = "ollama"                 # or auto, or any name below
   [agents]
   ollama = "ollama run --hidethinking qwen3.5:4b"
-  claude = 'claude -p --model sonnet --tools ""'
+  claude = 'claude -p --model sonnet --tools "" --strict-mcp-config'
   codex = "codex exec --ephemeral --skip-git-repo-check --sandbox read-only -m <model> -"
   llm = "llm -m gpt-4o-mini"
   hermes = "hermes chat --oneshot -Q -t todo -q {prompt}"  # -t todo: no tool that acts
   ```
 
   An agent of your own should not be able to act: a question carries text from programs and
-  other people, which could ask it to. noct does not install any of them.
+  other people, which could ask it to. That includes MCP servers in its own config, which can
+  give it tools; noct's own tools that act still ask you first. noct does not install any of them.
+- In the inspect, `a` then `g` adds an agent step from one form: the question (`ctrl+t` types a
+  variable), the answers, the agent and the timeout; `enter` adds it from any field.
 - `{{.answer}}` is the answer trimmed, without the thinking a model prints first (ollama's
   `Thinking...` and `<think>` tags); with `choices`, the first choice it says as a word, in any
   case, and an answer that says none fails the step (`on_fail` applies). `{{.output}}` is all it

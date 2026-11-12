@@ -461,20 +461,57 @@ func drawText(screen uv.Screen, x, y, maxX int, text string, style uv.Style) int
 	return x
 }
 
+// maxHintRows is the most rows a line of hints wraps to; past them, the last row is cut with "…".
+const maxHintRows = 4
+
 // wrapHints breaks a line of hints into at most maxLines lines width wide, between hints (two
-// spaces apart) so no key is parted from what it does. The last line takes what is left.
+// spaces apart) so no key is parted from what it does; a hint wider than a line breaks between its
+// words. What is left past the last line is cut with "…".
 func wrapHints(hints string, width, maxLines int) []string {
-	var lines []string
+	width = max(width, 1)
+	var packed []string
 	line := ""
 	for _, hint := range strings.Split(hints, "  ") {
 		switch {
 		case line == "":
 			line = hint
-		case len(lines) < maxLines-1 && ansi.StringWidth(line+"  "+hint) > width:
-			lines, line = append(lines, line), hint
+		case ansi.StringWidth(line+"  "+hint) > width:
+			packed, line = append(packed, line), hint
 		default:
 			line += "  " + hint
 		}
 	}
-	return append(lines, line)
+	packed = append(packed, line)
+	var lines []string
+	for _, line := range packed {
+		lines = append(lines, strings.Split(ansi.Wrap(line, width, ""), "\n")...)
+	}
+	if len(lines) > maxLines {
+		rest := strings.Join(lines[maxLines-1:], " ")
+		lines = append(lines[:maxLines-1], ansi.Truncate(rest, width, "…"))
+	}
+	return lines
+}
+
+// drawHints writes hints on the last rows of area, broken into lines where they would be cut, and
+// returns how many rows they took.
+func drawHints(screen uv.Screen, area image.Rectangle, hints string, style uv.Style) int {
+	lines := wrapHints(hints, area.Dx()-1, maxHintRows)
+	for i, line := range lines {
+		drawText(screen, area.Min.X+1, area.Max.Y-len(lines)+i, area.Max.X, line, style)
+	}
+	return len(lines)
+}
+
+// moreHintRows are the rows hints take in a popup width wide past the one each popup keeps.
+func moreHintRows(hints string, width int) int {
+	return len(wrapHints(hints, width-5, maxHintRows)) - 1
+}
+
+// drawTextCut is drawText that ends a text too long for its room with "…", to show it goes on.
+func drawTextCut(screen uv.Screen, x, y, maxX int, text string, style uv.Style) int {
+	if ansi.StringWidth(text) > maxX-x {
+		text = ansi.Truncate(text, max(maxX-x, 0), "…")
+	}
+	return drawText(screen, x, y, maxX, text, style)
 }
