@@ -11,11 +11,15 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
-Animations got a lot smoother. Panes, tabs and popups now go away as gently as they appear,
-instead of vanishing on the last frame; new effects, `dissolve`, `wipe`, `grow`, `slide-left`, `slide-right` and `shine`, join
-`01`, `fade` and `jitter`; and hovering a tab, a pane's title or a list's row lights it in the
-selected color and blends it back as the mouse leaves. Fades touch only text colors, so a
-terminal's own background stays untouched.
+## v0.3.0 - 2026-11-13
+
+Flows grow up. A step can ask an AI agent you already have (claude, codex, opencode, llm, ollama
+or your own) and the flow acts on its answer; `switch`, `repeat each` and `retry` join `if` and
+`repeat`; functions are steps any flow can call; and variables are scoped as in a language. The
+inspect draws all of it as round cards, tells about the selected one below the chart, and moves
+steps with `J`, `K` or the mouse. The demo's new `demo-triage` shows an agent sorting a failing
+test. Animations got smoother too: panes, tabs and popups now go away as gently as they appear,
+with new effects, and hovering lights tabs, titles and rows.
 
 ### Added
 
@@ -24,15 +28,15 @@ terminal's own background stays untouched.
   to run it again, explain it through the function `demo-explain`, or ask you for a missing
   setting. It asks ollama, which runs a model on your machine, or the agent its `agent` param
   names (`agent=default` for the config's), and ends with a report of how the test really failed
-  and whether the agent got it right. `noct setup` installs
-  it beside the others.
+  and whether the agent got it right. `noct setup` installs it beside the others.
 - The MCP server lists functions (with who calls each) and the agents an agent step can ask, reads
   a function with `get_item`, and drafts one with `draft_function`. A draft function does not run,
   and the flows that call it wait for its promotion.
 - Agent steps: `agent: {ask: …}` asks an AI agent you have (`claude`, `codex`, `opencode`, `llm`,
   `ollama`, or a command under `[agents]` in the config) and keeps its answer in `{{.answer}}`,
   without the thinking a model prints first; with `choices`, the answer is one of them, so an if
-  can branch on it. The question never goes through a shell, and no preset can change anything.
+  can branch on it. The question never goes through a shell, no preset can change anything, and
+  the `claude` one does not load your MCP servers.
   `use: default`, or no `use`, asks the config's agent; by default (`agent = "auto"`) the first
   agent this machine has. `use:` can come from a param. `noct agents` lists them and, when there
   is none, says how to start with ollama; `noct agents default <name>` sets the config's agent.
@@ -156,8 +160,6 @@ terminal's own background stays untouched.
 
 ### Fixed
 
-- The `claude` agent preset no longer loads your MCP servers (`--strict-mcp-config`): with them, an
-  agent step's claude could reach noct's own tools.
 - Saving a script, its notes or a draft from an AI no longer leaves a half-written file when noct
   stops in the middle of the write.
 
