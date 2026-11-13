@@ -62,9 +62,13 @@ type App struct {
 	keymap     keymap
 	palette    palette
 
-	mode        mode
-	drag        *mouseDrag
-	selection   *textSelection
+	mode      mode
+	drag      *mouseDrag
+	selection *textSelection
+	// mouseHeld is the pane a button is down on; lastMouse is where the pointer last was inside
+	// the window, where a drag whose release noct never saw ends.
+	mouseHeld   *heldMouse
+	lastMouse   image.Point
 	configPanel configPanel
 	prompt      textPrompt
 	confirm     confirmation

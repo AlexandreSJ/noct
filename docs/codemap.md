@@ -111,7 +111,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/setup.go` | noct setup (ADR-056): when it opens (or, once, tells it is there), its steps and keys, the draft config and saving it, the demo and the AI clients at the end |
 | `internal/app/setup_draw.go` | Drawing the setup: the steps' bar, each step's lines, the theme swatches beside the stage, the summary |
 | `internal/app/shortcut.go` | Direct shortcuts: modifier + noct mode key without the prefix, modifier + shift + arrows to move |
-| `internal/app/mouse.go` | Mouse: tab and pane clicks, dragging dividers, wheel scrolling (over the tab bar, changing tab), forwarding to views that take it |
+| `internal/app/mouse.go` | Mouse: tab and pane clicks, dragging dividers, wheel scrolling (over the tab bar, changing tab), forwarding to views that take it; the pane a button is held on keeps the drag, and a release noct never saw (outside the window) ends it |
 | `internal/app/editor.go` | Program settings (editor, file manager): choices found on the system or a custom command; opening a folder |
 | `internal/app/note_images.go` | Images in a script's notes (a line `![what](file.png)`): reading PNG, JPEG and GIF within size limits, and drawing them with half blocks, kept per size |
 | `internal/app/note_images_kitty.go` | Note images in full resolution where kitty's placeholders show: sending the PNG once per attached terminal, its virtual placement, the placeholder cells |

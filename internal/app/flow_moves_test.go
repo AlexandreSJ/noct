@@ -138,3 +138,39 @@ func chartText(c *flowChart) string {
 	}
 	return out.String()
 }
+
+// A drag ends however the button goes up: released past the chart, as on the tab bar, the chart
+// still gets it; the pointer leaving the window, or coming back with no button held, lets go
+// where it last was inside, as the release out there never arrives.
+func TestADragLetsGoWhereverTheButtonGoesUp(t *testing.T) {
+	a, p := openMovesFlow(t)
+	frame, _ := a.currentTab().frameOf(a.currentTab().focused, a.workspaceArea())
+	block, _ := p.chart.block(stepKey("0"))
+	from := block.rect.Add(contentRect(frame).Min.Add(p.chartArea.Min).Sub(p.pan)).Min.Add(image.Pt(2, 1))
+	press := func() {
+		a.handleMouse(uv.MouseClickEvent{X: from.X, Y: from.Y, Button: uv.MouseLeft, Mod: uv.ModAlt})
+		a.handleMouse(uv.MouseMotionEvent{X: from.X + 1, Y: from.Y + 1, Button: uv.MouseLeft, Mod: uv.ModAlt})
+		drawnApp(a)
+		if p.drag == nil {
+			t.Fatal("the press did not start a drag")
+		}
+	}
+	press()
+	a.handleMouse(uv.MouseReleaseEvent{X: 3, Y: 0, Button: uv.MouseLeft})
+	if p.drag != nil || a.mouseHeld != nil {
+		t.Error("a release on the tab bar left the chart dragging")
+	}
+	press()
+	a.handleMouse(uv.MouseMotionEvent{X: a.size.X + 4, Y: from.Y, Button: uv.MouseLeft})
+	if p.drag != nil {
+		t.Error("leaving the window left the chart dragging")
+	}
+	press()
+	a.handleMouse(uv.MouseMotionEvent{X: from.X, Y: from.Y, Button: uv.MouseNone})
+	if p.drag != nil {
+		t.Error("coming back with no button left the chart dragging")
+	}
+	if steps := loadFlowSteps(t, "moves"); steps[0].ID != "a" {
+		t.Errorf("letting go near where it was picked moved the card: %+v", steps)
+	}
+}

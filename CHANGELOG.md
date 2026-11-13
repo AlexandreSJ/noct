@@ -36,6 +36,9 @@ the shortcut is `Alt` by default. How to write an entry is in
 - The updates popup reads each changelog paragraph as one, instead of breaking it where the file
   does, and the logs list's heading wraps in a narrow pane.
 - Adding a custom agent showed `prompt` where its hint meant `{prompt}`.
+- A drag no longer sticks when the mouse button goes up outside where it started: off the
+  inspect's chart, over another pane, or outside the terminal's window. Leaving the window lets go
+  of the drag right there, and a card let go off the chart stays where it was.
 
 ## v0.3.0 - 2026-11-13
 

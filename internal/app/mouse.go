@@ -71,8 +71,18 @@ func (a *App) onHome() bool {
 	return a.mode == normalMode && a.showsHome()
 }
 
+// heldMouse is the pane a button was pressed on, which gets the motion and the release until the
+// button goes up, wherever the pointer is, so a drag that leaves it still ends there.
+type heldMouse struct {
+	tab  *tab
+	pane layout.PaneID
+}
+
 func (a *App) handleMouse(event uv.MouseEvent) {
 	if !a.config.Mouse {
+		return
+	}
+	if a.letGoUnseen(event) {
 		return
 	}
 	switch event.(type) {
@@ -85,6 +95,31 @@ func (a *App) handleMouse(event uv.MouseEvent) {
 	case uv.MouseWheelEvent:
 		a.handleWheel(event)
 	}
+}
+
+// mouseDown tells whether a button is held for noct: dragging a divider or a floating pane,
+// selecting text, or pressed on a pane that takes the mouse, such as the inspect's chart.
+func (a *App) mouseDown() bool {
+	return a.drag != nil || a.selection != nil && a.selection.dragging || a.mouseHeld != nil
+}
+
+// letGoUnseen ends a drag whose button went up where noct could not see it. A terminal tells
+// nothing once the pointer leaves its window, so the release outside never arrives: motion past
+// the window's cells, or motion with no button held (reported where the pointer moves without
+// one), means the button is up, and the drag ends where the pointer last was inside. It tells
+// whether the event is used up; motion with no button goes on as hovering.
+func (a *App) letGoUnseen(event uv.MouseEvent) bool {
+	m := event.Mouse()
+	point := image.Pt(m.X, m.Y)
+	outside := !point.In(image.Rect(0, 0, a.size.X, a.size.Y))
+	if !outside {
+		defer func() { a.lastMouse = point }()
+	}
+	if _, motion := event.(uv.MouseMotionEvent); !motion || !a.mouseDown() || !outside && m.Button != uv.MouseNone {
+		return false
+	}
+	a.handleMouseRelease(uv.MouseReleaseEvent(uv.Mouse{X: a.lastMouse.X, Y: a.lastMouse.Y, Button: uv.MouseLeft}))
+	return outside
 }
 
 func (a *App) handleMouseMotion(event uv.MouseEvent) {
@@ -124,8 +159,8 @@ func (a *App) handleMouseRelease(event uv.MouseEvent) {
 // it starts selecting instead.
 func (a *App) handleClick(event uv.MouseEvent) {
 	m := event.Mouse()
-	// A release outside the window never arrives; a new click ends that drag or selection.
-	a.drag, a.selection = nil, nil
+	// A release outside the window may never arrive; a new click ends that drag or selection.
+	a.drag, a.selection, a.mouseHeld = nil, nil, nil
 	switch a.mode {
 	case infoMode:
 		a.mode = a.info.back // a click closes what it tells, as a key does
@@ -291,6 +326,12 @@ func (a *App) wheelScrollback(t *tab, m uv.Mouse) {
 // forwardMouse passes the event to the focused view when it is over the view's content and the
 // view takes mouse events. It reports whether the view got it.
 func (a *App) forwardMouse(event uv.MouseEvent) bool {
+	switch event.(type) {
+	case uv.MouseMotionEvent, uv.MouseReleaseEvent:
+		if a.mouseHeld != nil {
+			return a.sendHeldMouse(event)
+		}
+	}
 	t := a.currentTab()
 	if a.mode != normalMode || t == nil || t.isEmpty() {
 		return false
@@ -305,6 +346,48 @@ func (a *App) forwardMouse(event uv.MouseEvent) bool {
 	point := image.Pt(m.X, m.Y)
 	if !point.In(content) || !target.WantsMouseAt(point.Sub(content.Min)) {
 		return false
+	}
+	target.SendMouse(relativeTo(event, content.Min))
+	if _, click := event.(uv.MouseClickEvent); click {
+		a.mouseHeld = &heldMouse{tab: t, pane: t.focused}
+	}
+	return true
+}
+
+// mouseAnywhere views take a held button's motion and release wherever the pointer is, even past
+// their own cells: the inspect leaves a card where it was when it is let go off the chart.
+type mouseAnywhere interface{ mouseAnywhere() }
+
+func (p *inspectPanel) mouseAnywhere() {}
+
+// sendHeldMouse gives the pane a button was pressed on the motion or the release, at the point
+// nearest the pointer inside it, or where it is for a mouseAnywhere view; the release ends the
+// hold. It tells whether the pane got it.
+func (a *App) sendHeldMouse(event uv.MouseEvent) bool {
+	h := a.mouseHeld
+	if _, release := event.(uv.MouseReleaseEvent); release {
+		a.mouseHeld = nil
+	}
+	target, ok := h.tab.views[h.pane].(mouseAware)
+	frame, placed := h.tab.frameOf(h.pane, a.workspaceArea())
+	if !ok || !placed {
+		a.mouseHeld = nil // the pane closed while the button was down
+		return false
+	}
+	content := contentRect(frame)
+	m := event.Mouse()
+	if content.Empty() {
+		return false
+	}
+	if _, anywhere := target.(mouseAnywhere); !anywhere {
+		m.X = min(max(m.X, content.Min.X), content.Max.X-1) // a program reads only its own cells
+		m.Y = min(max(m.Y, content.Min.Y), content.Max.Y-1)
+	}
+	switch event.(type) {
+	case uv.MouseReleaseEvent:
+		event = uv.MouseReleaseEvent(m)
+	default:
+		event = uv.MouseMotionEvent(m)
 	}
 	target.SendMouse(relativeTo(event, content.Min))
 	return true
