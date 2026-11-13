@@ -142,7 +142,7 @@ In the scripts panel, `Enter` asks for the parameters and runs the script in a t
 
 ## Flows
 
-A flow chains scripts into a test routine, saved in `~/.local/share/noct/flows/<name>.yaml`. `Ctrl+Space` `i` opens the inspect, where each flow is a flowchart you build step by step: run a script, `if`/`else`, `repeat` until a condition, wait, set a variable, or prompt for a value mid-run. Every run is kept with each step's output, and `Ctrl+Space` `v` shows them on a calendar.
+A flow chains scripts into a test routine, saved in `~/.local/share/noct/flows/<name>.yaml`. `Ctrl+Space` `i` opens the inspect, where each flow is a flowchart you build step by step: run a script, `if`/`else`, `switch` on a value, `repeat` until a condition or for each line, `retry` a failing step, wait, set a variable, or prompt for a value mid-run. Every run is kept with each step's output, and `Ctrl+Space` `v` shows them on a calendar.
 
 Triggers start a flow on their own while the workspace runs: on a cron schedule, when files change, or after another flow ends. `noct enable <flow>` turns them on. Writing a flow by hand is covered in [docs/writing-flows.md](docs/writing-flows.md).
 
@@ -174,6 +174,8 @@ claude mcp add noct -- noct mcp
 | `noct promote <flow or script>` | Let a draft an AI wrote run, once reviewed |
 | `noct mcp` | Serve noct to an AI client over stdin and stdout |
 | `noct check` | Report the scripts and flows that cannot be loaded |
+| `noct agents` | List the AI agents a flow can ask, the ones this machine has and the default |
+| `noct agents default <name>` | Make that agent the one steps with `use: default` ask |
 | `noct export theme [name]`, `config`, `keys` | Print a theme, the settings you changed, or your keys and binds as one `noct import …` line, with a QR code of it, to run on another machine |
 | `noct import <code>` | Bring in what `noct export` printed, showing what changes and asking first |
 | `noct import theme <file>` | Turn a kitty, Ghostty or base16 theme into a noct theme, with its 16 colors |

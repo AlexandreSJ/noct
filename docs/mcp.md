@@ -23,7 +23,7 @@ O protocolo é implementado à mão, sem SDK: `initialize` (versões `2025-06-18
 | Ferramenta | Faz | Política padrão |
 |---|---|---|
 | `list_scripts` | Scripts com descrição, programa, params (os secretos sem valor), `outputs`, rascunho ou quebrado | allow |
-| `list_flows` | Fluxos com descrição, params (com o tipo), triggers e se estão ligados, rascunho, problema, avisos, última execução; as funções, com params, retornos e quem chama cada uma; os agentes que um passo `agent:` pode perguntar, e o padrão | allow |
+| `list_flows` | Fluxos com descrição, params (com o tipo), triggers e se estão ligados, rascunho, problema, avisos, última execução; as funções, com params, retornos e quem chama cada uma; os agentes que um passo `agent:` pode perguntar, os prontos nesta máquina, e o padrão (`auto`: o primeiro pronto) | allow |
 | `get_item` | Um fluxo ou uma função (YAML, problema, avisos e, da função, quem a chama) ou um script (YAML e `notes.md`) | allow |
 | `check` | Como `noct check`: problemas e avisos de escopo | allow |
 | `flow_scope` | O que os templates leem num passo de um fluxo ou função (params, nomes curtos como `{{.output}}`, `{{.steps.<id>.…}}`), com a certeza (`set`, `this_pass`, `maybe`) e o valor da última execução, seguindo o escopo de bloco (ADR-066) | allow |

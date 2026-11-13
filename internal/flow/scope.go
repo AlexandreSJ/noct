@@ -66,6 +66,9 @@ func (f Flow) scope(parent, branch string, index int, lookup func(id string) (sc
 		if i >= innermostRepeat && innermostRepeat >= 0 {
 			certainty = ThisPass
 		}
+		if l.each != "" {
+			sc.set(l.each, l.parent, certainty)
+		}
 		for j, s := range l.steps[:min(l.index, len(l.steps))] {
 			sc.add(s, Path(l.parent, l.branch, j), certainty)
 		}
@@ -78,7 +81,7 @@ func (f Flow) scope(parent, branch string, index int, lookup func(id string) (sc
 type scope struct {
 	vars []Variable
 	// cleared holds the names and steps.<id> unset before the point and not set again; ended, the
-	// variables an if or repeat made, which went when it ended.
+	// variables an if, a switch or a repeat made, which went when it ended.
 	cleared map[string]bool
 	ended   map[string]bool
 	// functions finds the functions call steps name, for what they return.
@@ -93,6 +96,8 @@ type level struct {
 	parent, branch string
 	index          int
 	repeatBody     bool
+	// each is the variable a repeat each gives its steps each line in.
+	each string
 }
 
 func (f Flow) levelsTo(parent, branch string, index int) []level {
@@ -105,8 +110,15 @@ func (f Flow) levelsTo(parent, branch string, index int) []level {
 	if !ok {
 		return levels
 	}
-	list := map[string][]Step{"then": s.Then, "else": s.Else, "steps": s.Steps}[branch]
-	return append(levels, level{steps: list, parent: parent, branch: branch, index: index, repeatBody: branch == "steps"})
+	var list []Step
+	if inner := s.branch(branch); inner != nil {
+		list = *inner
+	}
+	l := level{steps: list, parent: parent, branch: branch, index: index, repeatBody: branch == "steps"}
+	if l.repeatBody && s.Repeat != nil && s.Repeat.Each != "" {
+		l.each = s.Repeat.EachVar()
+	}
+	return append(levels, l)
 }
 
 // add takes in what a step that ran does to the scope, and what the steps inside it do: an if's
@@ -136,20 +148,58 @@ func (sc *scope) add(s Step, path string, certainty Certainty) {
 			sc.unset(name, certainty)
 		}
 	}
-	inner := []struct {
-		branch    string
-		steps     []Step
-		certainty Certainty
-	}{{"then", s.Then, Maybe}, {"else", s.Else, Maybe}, {"steps", s.Steps, certainty}}
 	outside := sc.variableNames()
-	for _, list := range inner {
-		for i, child := range list.steps {
-			sc.add(child, Path(path, list.branch, i), list.certainty)
+	exported := func(string) Certainty { return certainty }
+	inner := certainty // a repeat's steps run at least once
+	if s.Kind() == IfStep || s.Kind() == SwitchStep {
+		inner = Maybe // only one of the branches runs
+		sure := sc.setByEveryBranch(s, path, certainty)
+		exported = func(name string) Certainty { return map[bool]Certainty{true: certainty, false: Maybe}[sure[name]] }
+	}
+	if s.Repeat != nil && s.Repeat.Each != "" {
+		inner = Maybe // a repeat each runs no pass when there are no lines
+		exported = func(string) Certainty { return Maybe }
+		sc.set(s.Repeat.EachVar(), path, certainty)
+	}
+	for _, list := range s.Branches() {
+		for i, child := range list.Steps {
+			sc.add(child, Path(path, list.Name, i), inner)
 		}
 	}
-	if s.Kind() == IfStep || s.Kind() == RepeatStep {
-		sc.closeBlock(s, path, outside, map[bool]Certainty{true: Maybe, false: certainty}[s.Kind() == IfStep])
+	if s.IsBlock() {
+		sc.closeBlock(s, path, outside, exported)
 	}
+}
+
+// setByEveryBranch are the variables an if or a switch leaves set whichever of its branches runs.
+func (sc *scope) setByEveryBranch(s Step, path string, certainty Certainty) map[string]bool {
+	var sure map[string]bool
+	for _, branch := range s.Branches() {
+		trial := sc.clone()
+		for i, child := range branch.Steps {
+			trial.add(child, Path(path, branch.Name, i), certainty)
+		}
+		set := map[string]bool{}
+		for _, v := range trial.vars {
+			if v.Step == "" && v.Certainty != Maybe {
+				set[v.Field] = true
+			}
+		}
+		if sure == nil {
+			sure = set
+		} else {
+			maps.DeleteFunc(sure, func(name string, _ bool) bool { return !set[name] })
+		}
+	}
+	return sure
+}
+
+func (sc *scope) clone() *scope {
+	c := *sc
+	c.vars = slices.Clone(sc.vars)
+	c.cleared = maps.Clone(sc.cleared)
+	c.ended = maps.Clone(sc.ended)
+	return &c
 }
 
 // variableNames are the names of the variables in the scope now.
@@ -163,9 +213,9 @@ func (sc *scope) variableNames() map[string]bool {
 	return names
 }
 
-// closeBlock takes out the variables an if or repeat made, those not in outside, giving its
-// exports their names outside.
-func (sc *scope) closeBlock(s Step, path string, outside map[string]bool, certainty Certainty) {
+// closeBlock takes out the variables a block made, those not in outside, giving its
+// exports their names outside, as surely set as exported says.
+func (sc *scope) closeBlock(s Step, path string, outside map[string]bool, exported func(name string) Certainty) {
 	made := map[string]bool{}
 	for _, v := range sc.vars {
 		if v.Step == "" && !outside[v.Field] {
@@ -178,7 +228,7 @@ func (sc *scope) closeBlock(s Step, path string, outside map[string]bool, certai
 	}
 	for _, inner := range slices.Sorted(maps.Keys(s.Export)) {
 		if made[inner] || outside[inner] {
-			sc.set(cmp.Or(s.Export[inner], inner), path, certainty)
+			sc.set(cmp.Or(s.Export[inner], inner), path, exported(inner))
 		}
 	}
 }

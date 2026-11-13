@@ -3,8 +3,8 @@
 # prompt, needs you at the terminal):
 #   noct flow run demo-loops
 # or test the steps before the prompt without a terminal:
-#   noct flow run demo-loops --steps 1..9
-description: "Each flow feature shown on its own: times, every, until, set, unset, capture, wait, prompt."
+#   noct flow run demo-loops --steps 0..15
+description: "Each flow feature shown on its own: times, every, until, each, set, unset, capture, retry, switch, wait, prompt."
 
 steps:
   # repeat times: run the inner steps a fixed number of passes.
@@ -56,6 +56,42 @@ steps:
   - id: clear
     unset: [greeting, steps.dice]
   - run: echo "cleared the greeting variable and the dice result"
+
+  # repeat each: run the inner steps once for each line of a text, the line in
+  # {{.item}}, or in the variable as names. Empty lines are skipped; until and
+  # max can end it sooner.
+  - id: fruits
+    run: printf 'apple\nbanana\ncherry\n'
+  - id: each
+    repeat:
+      each: '{{.steps.fruits.output}}'
+      as: fruit
+    steps:
+      - run: echo "one {{.fruit}}"
+
+  # retry: run a step that failed again, here up to 2 more times, 300ms apart,
+  # before on_fail. This one fails twice and passes on its third try; a file
+  # in the temporary folder counts the tries. retry: 2 alone does not wait.
+  - id: retry
+    run: |
+      f="${TMPDIR:-/tmp}/noct-demo-retry"
+      n=$(( $(cat "$f" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$f"
+      if [ "$n" -lt 3 ]; then echo "try $n fails"; exit 1; fi
+      rm -f "$f"; echo "try $n passes"
+    retry: {max: 2, every: 300ms}
+
+  # switch: run the first case whose is holds the value, or else when none
+  # does. One case can take several values.
+  - set: {color: green}
+  - id: switch
+    switch: '{{.color}}'
+    cases:
+      - is: [red, orange]
+        steps: [{run: echo "a warm color"}]
+      - is: green
+        steps: [{run: echo "a fresh color"}]
+    else:
+      - run: echo "{{.color}} is in no case"
 
   # wait: pause the flow. Durations look like 5s or 1m30s.
   - id: pause

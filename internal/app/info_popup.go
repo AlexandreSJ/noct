@@ -57,5 +57,5 @@ func (a *App) drawInfo(screen uv.Screen) {
 	if len(lines) > visible {
 		hints = a.hint("info", "{up}{down} scroll  {pgup} {pgdown} page  any other key closes")
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, hints, a.palette.panelMuted)
+	drawTextCut(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, hints, a.palette.panelMuted)
 }

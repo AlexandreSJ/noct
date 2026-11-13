@@ -151,7 +151,8 @@ func fuzzyScore(query, text string) (int, bool) {
 func (a *App) drawFinder(screen uv.Screen) {
 	f := &a.finder
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	inner := a.drawPanel(screen, centeredRect(area, 60, panelHeight(finderResults+3)), f.title)
+	hints := a.hint("search", finderHints)
+	inner := a.drawPanel(screen, centeredRect(area, 60, panelHeight(finderResults+3+moreHintRows(hints, 60))), f.title)
 	x := drawText(screen, inner.Min.X+1, inner.Min.Y, inner.Max.X, "› ", a.palette.panelHeading)
 	f.query.draw(screen, x, inner.Min.Y, inner.Max.X-1-x, false, a.palette.typing(), a.palette.selectedRow)
 	first := listFirst(f.first, f.selected, len(f.matches), finderResults)
@@ -163,5 +164,5 @@ func (a *App) drawFinder(screen uv.Screen) {
 		}
 		drawRow(screen, inner, inner.Min.Y+2+i-first, f.matches[i].label, f.matches[i].kind, style)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("search", finderHints), a.palette.panelMuted)
+	drawHints(screen, inner, hints, a.palette.panelMuted)
 }

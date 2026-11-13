@@ -20,9 +20,11 @@ import (
 )
 
 // stepHints heads the file a step is edited in.
-const stepHints = `# One step: script (with, capture, expect, on_fail, timeout), run (capture, expect, on_fail,
-# timeout), if (then, else), repeat (times or until with max, every; steps) or wait (5s, 1m).
-# timeout stops a script or run step that runs longer: 30s, 10m, 1h30m.
+const stepHints = `# One step: script (with, capture, expect, on_fail, retry, timeout), run (capture, expect,
+# on_fail, retry, timeout), if (then, else), switch (cases: - is: value, steps; else), repeat
+# (times, each with as, or until with max; every; steps) or wait (5s, 1m).
+# timeout stops a script or run step that runs longer: 30s, 10m, 1h30m. retry: 3 runs a failed
+# step again up to 3 times; retry: {max: 3, every: 10s} waits between tries.
 # Templates read {{.steps.<id>.output}}, .exit, .ok and captures. See docs/fluxos.md.
 `
 
@@ -365,7 +367,7 @@ func (a *App) addStep(f flow.Flow, at chartBlock, added func(path string)) {
 		a.prompt.pick = func() { a.pickVariable(f, vars) }
 		a.withVariables(vars)
 	}
-	options := a.flowStepChoices(insert, templatePrompt)
+	options := a.flowStepChoices(insert, templatePrompt, func() { a.pickVariable(f, vars) })
 	options = append(options, a.variableStepChoices(insert, templatePrompt)...)
 	a.openChoice("add step", options...)
 }
@@ -391,15 +393,11 @@ func (a *App) insertFlowStep(f flow.Flow, parent, branch string, index int, step
 type stepTemplatePrompt func(title, initial, hints string, submit func(text string))
 
 // flowStepChoices are the add step options that run something or shape the flow.
-func (a *App) flowStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt) []choiceOption {
+func (a *App) flowStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt, pickVariable func()) []choiceOption {
 	return []choiceOption{
 		{key: "s", label: "script", pick: func() { a.pickScript(insert) }},
 		{key: "f", label: "call a function", pick: func() { a.pickFunction(insert) }},
-		{key: "g", label: "ask an AI agent", pick: func() {
-			templatePrompt("ask the agent", "", "{enter} next  esc cancel  what to ask, a template", func(ask string) {
-				a.askAgentStep(ask, insert)
-			})
-		}},
+		{key: "a", label: "AI agent", pick: func() { a.openAgentForm(insert, pickVariable) }},
 		{key: "c", label: "command line", pick: func() {
 			templatePrompt("command line", "", "{enter} add  esc cancel", func(text string) {
 				insert(flow.Step{Run: text})
@@ -410,9 +408,32 @@ func (a *App) flowStepChoices(insert func(flow.Step), templatePrompt stepTemplat
 				insert(flow.Step{If: text})
 			})
 		}},
+		{key: "o", label: "switch: one of cases", pick: func() {
+			templatePrompt("switch on", "{{.answer}}", "{enter} next  esc cancel  the value the cases compare", func(value string) {
+				a.openPrompt("cases", "", "{enter} add  esc cancel  the values, a space between: flaky bug env; | joins two in one case: bug|regression", func(text string) {
+					step, err := switchStep(value, text)
+					if err != nil {
+						a.statusMessage = err.Error()
+						return
+					}
+					insert(step)
+				})
+			})
+		}},
 		{key: "l", label: "repeat", pick: func() {
 			templatePrompt("repeat", "3", "{enter} add  esc cancel  times, or until", func(text string) {
 				insert(repeatStep(text))
+			})
+		}},
+		{key: "e", label: "for each line", pick: func() {
+			templatePrompt("for each line of", "{{.output}}", "{enter} next  esc cancel  a text; its steps run once per line", func(each string) {
+				a.openPrompt("each line in variable", flow.DefaultEachVar, "{enter} add  esc cancel  the steps read it as {{.name}}", func(name string) {
+					step := flow.Step{Repeat: &flow.Repeat{Each: each}}
+					if name = strings.TrimSpace(name); name != flow.DefaultEachVar {
+						step.Repeat.As = name
+					}
+					insert(step)
+				})
 			})
 		}},
 		{key: "w", label: "wait", pick: func() {
@@ -454,6 +475,18 @@ func orDefault(value, fallback string) string {
 	return value
 }
 
+// switchStep compares value with a case for each word of cases; values joined by | share one.
+func switchStep(value, cases string) (flow.Step, error) {
+	step := flow.Step{Switch: value}
+	for _, word := range strings.Fields(cases) {
+		step.Cases = append(step.Cases, flow.Case{Is: strings.Split(word, "|")})
+	}
+	if len(step.Cases) == 0 {
+		return flow.Step{}, errors.New("cases: the values the switch compares, as flaky bug env")
+	}
+	return step, nil // changing the flow checks it, a value in two cases too
+}
+
 // repeatStep repeats a number of times, or until a condition, at most 10 times.
 func repeatStep(text string) flow.Step {
 	if times, err := strconv.Atoi(text); err == nil {
@@ -480,7 +513,7 @@ func (a *App) pickScript(picked func(flow.Step)) {
 func (a *App) removeStep(f flow.Flow, path string) {
 	step, _ := f.Step(path)
 	question := "remove step " + step.Label() + "?"
-	if inner := countSteps(step.Then) + countSteps(step.Else) + countSteps(step.Steps); inner > 0 {
+	if inner := countSteps(step) - 1; inner > 0 {
 		question = fmt.Sprintf("remove step %s and the %d steps inside it?", step.Label(), inner)
 	}
 	a.askToConfirm(question, func() {
@@ -490,10 +523,13 @@ func (a *App) removeStep(f flow.Flow, path string) {
 	})
 }
 
-func countSteps(steps []flow.Step) int {
+// countSteps is how many steps there are in steps, with the ones inside them.
+func countSteps(steps ...flow.Step) int {
 	n := len(steps)
 	for _, s := range steps {
-		n += countSteps(s.Then) + countSteps(s.Else) + countSteps(s.Steps)
+		for _, inner := range s.Branches() {
+			n += countSteps(inner.Steps...)
+		}
 	}
 	return n
 }
@@ -513,16 +549,16 @@ func (a *App) moveStep(f flow.Flow, path string, down bool, moved func(path stri
 	moved(to)
 }
 
-// exportFromBlock asks a variable an if or repeat makes, to keep it after the block, under its
+// exportFromBlock asks a variable an if, a switch or a repeat makes, to keep it after the block, under its
 // name or another: "count", or "count as passes"; the name alone again stops exporting it.
 func (a *App) exportFromBlock(f flow.Flow, path string) {
 	s, ok := f.Step(path)
-	if !ok || s.Kind() != flow.IfStep && s.Kind() != flow.RepeatStep {
-		a.statusMessage = "only an if or a repeat exports variables"
+	if !ok || !s.IsBlock() {
+		a.statusMessage = "only an if, a switch or a repeat exports variables"
 		return
 	}
-	inside := map[flow.Kind]string{flow.IfStep: "then", flow.RepeatStep: "steps"}[s.Kind()]
-	vars := f.Scope(path, inside, max(len(s.Then), len(s.Steps)), a.scripts.Find)
+	inside := s.Branches()[0] // the first list's end: what its steps make
+	vars := f.Scope(path, inside.Name, len(inside.Steps), a.scripts.Find)
 	a.openPrompt("export from "+s.Label(), "", "{enter} keep it after the block  esc cancel  name, or name as other; an exported name again stops it", func(text string) {
 		inner, outer, _ := strings.Cut(strings.Join(strings.Fields(text), " "), " as ")
 		err := a.changeFlow(f, func(f *flow.Flow) error {
@@ -544,13 +580,52 @@ func (a *App) exportFromBlock(f flow.Flow, path string) {
 	a.withVariables(vars)
 }
 
-// dropStep moves the step at path to where a block is: below a step, or at the top of a list.
-func (a *App) dropStep(f flow.Flow, path string, on chartBlock, moved func(path string)) {
-	parent, branch, index := on.slot.parent, on.slot.branch, on.index
-	if !on.isInsertion() {
-		parent, branch, index = flow.SplitPath(on.path)
-		index++
+// retryStep asks how many times a failed script, run or agent step runs again, and how long it
+// waits before each try: "3", or "3 every 10s"; 0 or nothing runs it once.
+func (a *App) retryStep(f flow.Flow, path string) {
+	s, ok := f.Step(path)
+	if kind := s.Kind(); !ok || kind != flow.ScriptStep && kind != flow.CommandStep && kind != flow.AgentStep {
+		a.statusMessage = "only a script, command or agent step retries"
+		return
 	}
+	initial := "3"
+	if s.Retry != nil {
+		initial = strings.TrimPrefix(retryText(s.Retry), "retry ")
+		initial = strings.Replace(initial, "×", "", 1)
+	}
+	a.openPrompt("retry "+s.Label(), initial, "{enter} set  esc cancel  times it runs again when it fails, as 3 or 3 every 10s; 0 none", func(text string) {
+		retry, err := parseRetry(text)
+		if err != nil {
+			a.statusMessage = err.Error()
+			return
+		}
+		err = a.changeFlow(f, func(f *flow.Flow) error {
+			step, _ := f.Step(path)
+			step.Retry = retry
+			return f.Replace(path, step)
+		})
+		if err != nil {
+			a.statusMessage = err.Error()
+		}
+	})
+}
+
+// parseRetry reads "3" or "3 every 10s"; 0 or nothing is no retry.
+func parseRetry(text string) (*flow.Retry, error) {
+	times, every, _ := strings.Cut(strings.Join(strings.Fields(text), " "), " every ")
+	if times == "" || times == "0" {
+		return nil, nil
+	}
+	n, err := strconv.Atoi(times)
+	if err != nil || n < 0 {
+		return nil, fmt.Errorf("retry %q: a number of times, as 3 or 3 every 10s", text)
+	}
+	return &flow.Retry{Max: n, Every: every}, nil
+}
+
+// dropStep moves the step at path to index of the list at parent's branch, as the flow is before
+// the step leaves its place.
+func (a *App) dropStep(f flow.Flow, path, parent, branch string, index int, moved func(path string)) {
 	var to string
 	err := a.changeFlow(f, func(f *flow.Flow) error {
 		var err error
@@ -599,11 +674,29 @@ func (a *App) stepKindLines(step flow.Step) []styledLine {
 	case flow.IfStep:
 		add("Chooses a branch: then when this is true, else when false.", pal.panelHeading)
 		add(step.If, pal.panelText)
-		add(fmt.Sprintf("then: %d steps · else: %d steps", countSteps(step.Then), countSteps(step.Else)), pal.panelMuted)
+		add(fmt.Sprintf("then: %d steps · else: %d steps", countSteps(step.Then...), countSteps(step.Else...)), pal.panelMuted)
+		lines = append(lines, exportLines(step, pal)...)
+	case flow.SwitchStep:
+		add("Runs the first case that holds this value, else the else:", pal.panelHeading)
+		add(step.Switch, pal.panelText)
+		labels := branchLabels(step)
+		for i, branch := range step.Branches() {
+			add(fmt.Sprintf("%s: %d steps", labels[i], countSteps(branch.Steps...)), pal.panelMuted)
+		}
+		lines = append(lines, exportLines(step, pal)...)
 	case flow.RepeatStep:
-		add("Repeats the steps inside it.", pal.panelHeading)
+		if step.Repeat.Each != "" {
+			add("Runs the steps inside it once for each line of:", pal.panelHeading)
+		} else {
+			add("Repeats the steps inside it.", pal.panelHeading)
+		}
 		add(repeatText(step.Repeat), pal.panelText)
 		add("Each pass forgets the results of the pass before.", pal.panelMuted)
+		lines = append(lines, exportLines(step, pal)...)
+	case flow.AgentStep:
+		lines = append(lines, a.agentStepLines(step)...)
+	case flow.CallStep:
+		lines = append(lines, a.callStepLines(step)...)
 	case flow.WaitStep:
 		add("Waits "+step.Wait+" before the next step.", pal.panelHeading)
 	case flow.PromptStep:
@@ -616,6 +709,48 @@ func (a *App) stepKindLines(step flow.Step) []styledLine {
 	case flow.UnsetStep:
 		add("Clears variables and steps' results; they read as empty after it:", pal.panelHeading)
 		add(strings.Join(step.Unset, ", "), pal.panelText)
+	}
+	return lines
+}
+
+// exportLines tell what an if, a switch or a repeat keeps for the steps after it.
+func exportLines(step flow.Step, pal *palette) []styledLine {
+	var lines []styledLine
+	for _, text := range exportText(step.Export) {
+		lines = append(lines, styledLine{text, pal.panelText}, styledLine{"what the block makes goes when it ends, but these stay", pal.panelMuted})
+	}
+	return lines
+}
+
+// agentStepLines tell what an agent step asks, which agent, and where its answer goes.
+func (a *App) agentStepLines(step flow.Step) []styledLine {
+	pal := &a.palette
+	lines := []styledLine{{"Asks an AI agent, one already on this machine, and keeps its answer:", pal.panelHeading}}
+	for _, line := range strings.Split(strings.TrimRight(step.Agent.Ask, "\n"), "\n") {
+		lines = append(lines, styledLine{line, pal.panelText})
+	}
+	agent := "the default agent (" + a.config.Agent + "; noct agents default <name> changes it)"
+	if use := strings.TrimSpace(step.Agent.Use); use != "" && use != flow.DefaultAgent {
+		agent = use
+	}
+	lines = append(lines, styledLine{"asks " + agent, pal.panelText})
+	if len(step.Agent.Choices) > 0 {
+		lines = append(lines, styledLine{"the answer must be one of " + strings.Join(step.Agent.Choices, ", ") + "; one that says none fails the step", pal.panelMuted})
+	}
+	return append(lines, styledLine{"later steps read it as {{.answer}} and {{.steps." + orDefault(step.ID, "<id>") + ".answer}}", pal.panelMuted})
+}
+
+// callStepLines tell which function a call step runs and what comes back from it.
+func (a *App) callStepLines(step flow.Step) []styledLine {
+	pal := &a.palette
+	lines := []styledLine{{"Calls function " + step.Call + ": runs its steps with the values below.", pal.panelHeading}}
+	if fn, ok := flow.Find(a.functions, step.Call); ok {
+		if fn.Description != "" {
+			lines = append(lines, styledLine{fn.Description, pal.panelText})
+		}
+		if len(fn.Returns) > 0 {
+			lines = append(lines, styledLine{"gives back " + strings.Join(slices.Sorted(maps.Keys(fn.Returns)), ", ") + " as variables", pal.panelMuted})
+		}
 	}
 	return lines
 }
@@ -653,10 +788,22 @@ func (a *App) stepResultLines(step flow.Step) []styledLine {
 	if step.Timeout != "" {
 		add("stopped, and failed, after "+step.Timeout+" (timeout)", pal.panelMuted)
 	}
+	if step.Retry != nil {
+		add(retryText(step.Retry)+": a failure runs it again, before on_fail", pal.panelMuted)
+	}
 	if step.OnFail == flow.OnFailContinue {
 		add("a failure does not stop the flow", pal.panelMuted)
 	}
 	return lines
+}
+
+// retryText tells how many times a failed step runs again.
+func retryText(r *flow.Retry) string {
+	text := fmt.Sprintf("retry %d×", r.Max)
+	if r.Every != "" {
+		text += " every " + r.Every
+	}
+	return text
 }
 
 // scriptLines tell what a script does: its description, command line and notes.
@@ -684,7 +831,16 @@ func (a *App) scriptLines(id string) []styledLine {
 
 func repeatText(r *flow.Repeat) string {
 	text := fmt.Sprintf("%d times", r.Times)
-	if r.Until != "" {
+	switch {
+	case r.Each != "":
+		text = r.Each + ", each line in {{." + r.EachVar() + "}}"
+		if r.Until != "" {
+			text += ", until " + r.Until
+		}
+		if r.Max > 0 {
+			text += fmt.Sprintf(", at most %d lines", r.Max)
+		}
+	case r.Until != "":
 		text = fmt.Sprintf("until %s, at most %d times", r.Until, mostPasses(r.Times, r.Max))
 	}
 	if r.Every != "" {

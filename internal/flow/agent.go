@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -18,25 +19,13 @@ import (
 // on it. The question goes to the agent's command as its input, or in place of {prompt}, never
 // through a shell.
 
-// Agent is what an agent step asks: Ask, a template; Use, the agent, or "" for the default one;
-// Choices, the answers it may give.
+// Agent is what an agent step asks: Ask, a template; Use, the agent: a name, auto, or default
+// (also "") for the config's; Choices, the answers it may give.
 type Agent struct {
 	Ask     string   `yaml:"ask"`
 	Use     string   `yaml:"use,omitempty"`
 	Choices []string `yaml:"choices,omitempty"`
 }
-
-// AgentPresets are the agents noct knows how to ask, by name; the config adds others or changes
-// these. None may act: claude runs with no tools, opencode with its read-only plan agent, and
-// ollama only answers, so a question carrying someone else's text cannot make them do anything.
-var AgentPresets = map[string]string{
-	"claude":   `claude -p --model haiku --tools ""`,
-	"ollama":   "ollama run llama3.2",
-	"opencode": "opencode run --agent plan {prompt}",
-}
-
-// DefaultAgent is the agent a step without use asks, unless the config names another.
-const DefaultAgent = "claude"
 
 // promptPlaceholder in an agent's command is where the question goes, as one argument.
 const promptPlaceholder = "{prompt}"
@@ -93,6 +82,14 @@ func splitCommand(line string) ([]string, error) {
 	return words, nil
 }
 
+// thinking is what models that reason aloud print before their answer: ollama's
+// Thinking... ...done thinking. and the <think> tags of others.
+var thinking = regexp.MustCompile(`(?s)Thinking\.\.\..*?\.\.\.done thinking\.|<think>.*?</think>`)
+
+func withoutThinking(output string) string {
+	return thinking.ReplaceAllString(output, "")
+}
+
 // pickChoice is the first of choices the answer says, as a word in any case, or "".
 func pickChoice(answer string, choices []string) string {
 	words := strings.FieldsFunc(strings.ToLower(answer), func(r rune) bool {
@@ -116,10 +113,13 @@ func (x *running) runAgent(s Step, path string) bool {
 	if len(s.Agent.Choices) > 0 {
 		question += "\n\nAnswer with one word, exactly one of: " + strings.Join(s.Agent.Choices, ", ") + "."
 	}
-	name := cmp.Or(s.Agent.Use, x.DefaultAgent, DefaultAgent)
-	command, ok := x.agentCommand(name)
-	if !ok {
-		return x.stop(path, "there is no agent "+name+": add its command under [agents] in the config", 1)
+	use, err := x.render(s.Agent.Use)
+	if err != nil {
+		return x.stop(path, "use: "+err.Error(), 1)
+	}
+	name, command, err := ResolveAgent(x.Agents, StepAgent(use, x.DefaultAgent))
+	if err != nil {
+		return x.stop(path, err.Error(), 1)
 	}
 	argv, input, err := AgentArgv(command, question)
 	if err != nil {
@@ -133,7 +133,7 @@ func (x *running) runAgent(s Step, path string) bool {
 	if timedOut {
 		exit = timeoutExit
 	}
-	answer := strings.TrimSpace(output)
+	answer := strings.TrimSpace(withoutThinking(output))
 	captures := capture(x.capturePatterns(s), output)
 	if captures == nil {
 		captures = map[string]string{}
@@ -145,7 +145,7 @@ func (x *running) runAgent(s Step, path string) bool {
 		chose = captures["answer"] != ""
 	}
 	result := StepResult{Status: StatusOK, Exit: exit, Duration: time.Since(start), Captures: captures, Output: truncate(output, x.KeepOutput)}
-	ok = !timedOut && chose && succeeded(s.Expect, exit, output)
+	ok := !timedOut && chose && succeeded(s.Expect, exit, output)
 	x.keepStepValues(s.ID, result, output, ok)
 	if ok {
 		x.result.Steps[path] = result
@@ -165,16 +165,6 @@ func (x *running) runAgent(s Step, path string) bool {
 		return x.stopTimedOut(path)
 	}
 	return x.afterFailure(s, path, result.Message, max(exit, 1))
-}
-
-func (x *running) agentCommand(name string) (string, bool) {
-	if x.Agents != nil {
-		if command, ok := x.Agents(name); ok {
-			return command, true
-		}
-	}
-	command, ok := AgentPresets[name]
-	return command, ok
 }
 
 // ask runs the agent's command with the question as its input, showing what it says as it comes,

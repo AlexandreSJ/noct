@@ -789,7 +789,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 **Contexto.** Os flows são a parte mais rica do noct e a mais difícil de descobrir; e as animações vinham desligadas em quase todos os momentos.
 
 **Decisão.**
-- Os scripts `demo/*` e os flows `demo-deploy` e `demo-loops` ficam em `examples/demo/`, embutidos no binário (`examples.InstallDemo`) e copiados pelo instalador sem sobrescrever o que já existe. Só usam `printf` e `sleep`.
+- Os scripts `demo/*` e os flows `demo-deploy` e `demo-loops` ficam em `examples/demo/`, embutidos no binário (`examples.InstallDemo`) e copiados pelo instalador sem sobrescrever o que já existe. Só usam `printf` e `sleep`. Depois do ADR-068, a `demo-triage` e a função `demo-explain` (em `examples/demo/functions/`) perguntam ao agente de verdade que o config nomeia; o teste que ela classifica continua fictício.
 - Os efeitos e tempos que o mantenedor usa viram o padrão: hover fade 150, panels jitter 300, tabs jitter 300, focus none 100, move fade 200, fullscreen 01 200, popup 01 200, activity fade 600.
 
 **Consequências.** Quem nunca gravou as animações no config passa a ver as novas. Os testes de animação fixam os efeitos para que foram escritos, à parte dos padrões.
@@ -852,6 +852,8 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Numa máquina nova, um script com programa faltando mostra `(not found)` e o usuário instala por fora. O noct não tem lógica de pacotes nem comandos com `sudo` para manter. O ADR-005 e o ADR-010 ficam substituídos.
 
+**Exceção (ADR-068).** Quando não há nenhum agente de IA pronto, `noct agents` e o passo de agente que falha sugerem um, o ollama, e como baixar um modelo, a pedido do mantenedor. O noct continua sem instalar nada.
+
 ## ADR-063 — Params do ambiente, perguntados quando a variável falta
 
 **Contexto.** Um script já podia ler um parâmetro do ambiente (`from: env:NOME`), mas sem a variável ele não rodava. O mantenedor quer que o usuário possa deixar seus valores, inclusive os secretos, em variáveis de ambiente e que o noct só as use, sem perguntar; quem não tem a variável deve poder digitar o valor. Os fluxos não tinham isso. A ideia anterior da task 14, passar todos os valores ao comando como variáveis de ambiente em vez de colados no `sh -c`, mudaria o formato de todos os scripts; o `quote` (task 13) já fecha a injeção em quem precisa.
@@ -893,6 +895,15 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** As teclas `m`, `z` e `y` entram no contexto `flows` do keymap. Desfazer não atravessa um reinício do noct, nem edições feitas fora do inspect.
 
+**Atualização (ler e arrastar com clareza).** O mantenedor achou o arrastar estranho (pegava o cartão sem querer, e sobre um `if` o lugar marcado não era onde o cartão caía), não distinguia de relance um agente de uma função ou de um `if`, e via dicas e textos cortados sem aviso.
+- **Arrastar só com `Alt` ou `Ctrl`:** sem modificador, arrastar sempre move o fluxograma; com `Alt` (ou `Ctrl`) pressionado sobre um cartão, ele é carregado. Mover pelo teclado (`J`/`K`, `m`) continua igual.
+- **O lugar exato:** carregando, um contorno tracejado (`╌`, `╎`) com `↳` e o nome do passo ocupa o lugar onde ele vai cair: antes ou depois de qualquer cartão, no topo de um ramo do `if` ou de um `repeat`, ou numa lista vazia. O lugar é o mais perto do ponteiro (a metade de cima de um cartão é antes dele, a de baixo é depois); longe de todos, ou junto do próprio passo, soltar não muda nada. Para todo lugar caber o contorno, toda seta tem três linhas, também as da divisão do `if`, do fim dos ramos e de dentro do `repeat`. Enquanto carrega, os detalhes somem e o fluxograma rola quando o ponteiro chega na borda.
+- **Tipo no cartão:** o título começa com a marca do tipo (`▸` script, `$` comando, `◆` agente de IA, `ƒ` função, `◇` if, `↻` repeat, `◷` wait, `?` pergunta, `=` set, `∅` unset) e o nome do tipo vai à direita da linha de cima, a partir do zoom 2, menos quando o nome do passo já o diz.
+- **Texto cortado termina em `…`**, nos cartões, títulos e formulários.
+- **Lista vazia é só `∅`:** o cartão `∅ a adds` dizia uma tecla dentro do desenho; agora a lista vazia é um `∅` na linha, e a cabeça dela (o `● start`, o `yes` ou o `no`, a seta de entrada do `repeat`) se seleciona mesmo vazia, como já se selecionava com passos. O `a` ali coloca o primeiro passo. O cartão de params sem nenhum diz só `none`.
+- **Detalhes:** embaixo do fluxograma, um painel conta do bloco selecionado (pelo teclado ou por clique): o que o tipo faz, o texto inteiro e como foi na execução mostrada. A roda sobre ele o rola; `Enter` abre tudo num popup, como antes.
+- **Dicas quebram a linha** em vez de cortar, nos painéis e nos popups, que crescem para caber; só passando de quatro linhas a última termina em `…`. A linha do inspect ficou com as teclas principais, e `?` lista todas.
+
 ## ADR-066 — Variáveis com nomes curtos e escopo de bloco
 
 **Contexto.** O mantenedor quer ler `output` em vez de `.steps.build.output`, e que nomes repetidos se comportem como numa linguagem: no contexto global, a variável muda; dentro de um `if`, `repeat` ou função, poder devolvê-la fora com outro nome, ou deixá-la sumir. Até aqui, todo `set` e `prompt` gravava no mesmo espaço, visível do ponto em diante, e os resultados dos passos só existiam como `.steps.<id>.*`.
@@ -901,7 +912,7 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 - **Nomes curtos:** um passo de script ou `run` grava também `output`, `exit`, `ok`, as capturas e os `outputs` do script como variáveis, sobrescritas pelo próximo passo desses. `.steps.<id>.*` continua igual e sem escopo, para ler um passo específico.
 - **Escopo de bloco:** gravar uma variável que já existe muda a existente, onde quer que tenha nascido; uma nova pertence ao `if` ou `repeat` mais interno em execução e some no fim dele. O `repeat` é um bloco só para todas as passadas, então um contador que nasce na primeira passada vale nas seguintes e no `until`.
 - **`export`** num `if` ou `repeat` (`{interna: externa}`, `""` para o mesmo nome) leva a variável para fora com o valor do fim do bloco. No inspect, `x`.
-- **Análise de escopo e avisos** seguem as mesmas regras; ler uma variável que um bloco fez e não exportou avisa que ela sumiu no fim dele, e como exportar.
+- **Análise de escopo e avisos** seguem as mesmas regras; ler uma variável que um bloco fez e não exportou avisa que ela sumiu no fim dele, e como exportar. O `export` de um `if` conta como certo quando os dois ramos (`then` e `else`) deixam a variável feita; com um ramo só, conta como talvez.
 - **Autocompletar** nos prompts de template, a partir do mesmo escopo.
 - Um param com o nome de um campo (`output`, `exit`, `ok`, uma captura) é sobrescrito pelo passo, como uma variável qualquer.
 
@@ -933,3 +944,31 @@ O caso da home (sem caracteres largos) não se reproduz no emulador: a sequênci
 
 **Consequências.** Uma chamada a um agente custa o que o agente cobra, e o tempo dele entra no do fluxo; `timeout` limita. Agentes de outros fornecedores entram pelo config, sem mudar o noct.
 
+**Atualização (o agente que o usuário já tem).** O mantenedor quer que a demo e os fluxos rodem com o agente que cada um já usa, trocando só o nome ou o modelo, e que quem não tem nenhum receba uma sugestão.
+- **Presets:** entram `codex` (`codex exec --ephemeral --skip-git-repo-check --sandbox read-only -`, a sandbox de só leitura) e `llm` (`llm`, que só responde); o do ollama vira `ollama run --hidethinking llama3.2`. `hermes` não vira preset: a documentação dele não garante que `-t todo` substitui as ferramentas padrão, e o noct não o testou; o `writing-flows.md` mostra como acrescentá-lo pelo `[agents]`, com o aviso. O `gemini` fica de fora pelo mesmo motivo: num uso sem terminal, sair do modo `plan` passa ao modo que aprova tudo.
+- **`agent = "auto"`** (o padrão novo, no lugar de `claude`): pergunta ao primeiro agente pronto, os do `[agents]` antes e os presets na ordem claude, codex, opencode, llm, ollama. Pronto é ter o programa no PATH; para o ollama, também ter o modelo. O preset do ollama sem o `llama3.2` usa o primeiro modelo que o ollama já tem (o usado por último), em vez de baixar um; um comando do config roda como está escrito.
+- **`use` é um template**, então um param escolhe o agente; vazio pergunta ao padrão. A pergunta e o `use` passam pela análise de escopo e pela validação de templates, que antes deixavam o `ask` de fora.
+- **Raciocínio em voz alta:** o `answer` tira o `Thinking... ...done thinking.` do ollama e os `<think>…</think>` antes de procurar as escolhas, porque o raciocínio cita escolhas que o modelo descarta.
+- **`noct agents`** lista os agentes, os prontos e o padrão. Sem nenhum pronto, ele e o passo que falha sugerem o ollama, que roda local e de graça, com `ollama pull llama3.2`: é a exceção do ADR-062, limitada a quem não tem agente nenhum.
+- **Sem MCP no claude:** o preset ganha `--strict-mcp-config`. Sem ele, o `claude -p` carregava os servidores MCP do usuário, inclusive o do próprio noct, e `--tools ""` não os desliga. O codex e o opencode podem ter servidores MCP no config deles; as ferramentas do noct que agem continuam pedindo aprovação.
+- **Um formulário só:** no inspect, `a` e `a` (antes `g`) abrem um formulário com a pergunta, as respostas, o agente (os prontos dizem o comando, os outros o motivo) e o timeout, que começa em 5 minutos; `Enter` adiciona de qualquer campo, e `Ctrl+T` busca uma variável para a pergunta.
+
+**Atualização (`use: default` e agente próprio).** O mantenedor quer escolher o agente por nome em cada passo, com um nome para "o padrão", e acrescentar um agente que não está na lista sem editar o config à mão.
+- **`use: default`** pergunta ao `agent` do config, como um `use` vazio ou ausente; `use: auto` pergunta ao primeiro pronto, seja qual for o config. `default` e `auto` são nomes reservados: o `[agents]` não pode usá-los (o `noct agents` avisa e eles não entram na lista), e `agent = "default"` no config vale `auto`.
+- **O formulário sempre grava `use:`.** Antes, escolher o agente que era o padrão naquele momento não gravava nada, e o passo mudava de agente quando o config mudava. A lista é `default` (selecionado), `auto`, os agentes prontos, os que faltam, e `custom agent`, que pede um nome e um comando e os grava no `[agents]` do config. O passo ganha `use: <nome>`. As notas da lista são calculadas ao abrir o formulário, porque achar o ollama roda `ollama list`.
+- **`noct agents default <nome>`** grava `agent = "<nome>"` no config pelo mesmo `config.Save` das configurações; um nome que nenhum agente tem é recusado, e um que esta máquina não tem é gravado com o aviso do que falta. Sem nome, diz o atual. O `noct agents` sugere o comando quando há mais de um agente pronto.
+- **A demo-triage pergunta ao `ollama`** (o param `agent` começa nele), que roda na máquina sem conta; `agent=default` usa o do config. A `demo-explain` recebe `default` quando não lhe dão um agente.
+
+## ADR-069 — Switch, repeat each e retry
+
+**Contexto.** O mantenedor pediu um `switch case` além do `if`/`else`, e aceitou mais dois que faltavam: rodar um passo que falha de novo sem montar um `repeat` em volta, e percorrer as linhas de uma saída (arquivos, hosts). A `demo-triage` mostrava a falta dos três: um `if` dentro do `else` de outro para separar `flaky`, `bug` e `env`, e um `repeat until` só para tentar os testes de novo.
+
+**Decisão.**
+- **`switch: <template>`** com `cases: [{is, steps}]` e `else`. O valor, sem espaços nas pontas, é comparado como texto com cada `is` (um valor sozinho ou uma lista), e roda o primeiro caso que o tem; nenhum tendo, o `else`, que é opcional. `cases` é uma lista e não um mapa, porque a ordem decide qual caso vence e a ordem das colunas no fluxograma. O padrão é `else`, como no `if`, porque `default` já é do `prompt`. Um valor em dois casos é recusado, porque só o primeiro rodaria.
+- **Caminhos:** os passos de um caso são `<switch>/case0/<n>`, `case1`…; os do `else`, `<switch>/else/<n>`. O pacote `flow` passa a percorrer as listas de dentro de um passo por `Branches()` (`then`/`else`, os casos e o `else`, `steps`), usado na validação, no escopo, nos avisos, no `J`/`K` e no fluxograma, para que um tipo novo de bloco não precise de um caso em cada lugar.
+- **Escopo:** o `switch` é um bloco como o `if`: o que nasce num caso some no fim, a não ser que `export` o guarde, e o exportado só é certo quando todos os casos e o `else` o fazem.
+- **`repeat: {each: <template>, as: <nome>}`** no lugar de um tipo novo: o `repeat` já tem a moldura, as passadas, o `until`, o `max`, o `every` e o escopo. Roda uma passada por linha não vazia, sem espaços nas pontas, com a linha em `{{.item}}` ou em `as`. Essa variável é só do repeat: uma de mesmo nome fora dele volta como estava. Sem linhas, não roda, e não é falha; `until` não cumprido no fim das linhas também não.
+- **`retry: {max, every}`** (ou só `retry: 3`) em `script`, `run` e `agent`, os mesmos que têm `on_fail`: depois de uma falha, roda o passo de novo até `max` vezes, esperando `every`; só a última falha chega ao `on_fail`. O timeout do fluxo também encerra as tentativas.
+- **No inspect:** o `switch` se divide numa coluna por caso, com os valores no topo e o `else` por último, cada topo selecionável; em **add step**, `o` (switch) pede o template e os valores, `e` (for each line) o template e a variável, e `a` passa a ser o agente (era `g`, a pedido do mantenedor). `R` muda o retry do passo selecionado (`3`, `3 every 10s`, `0` tira). O cartão mostra `retry 3× every 10s`, e o `repeat each` se chama `↻ for each file in …`.
+
+**Consequências.** O YAML ganha três formas, e um fluxo que as usa não roda num noct mais antigo (que recusa as chaves). A `demo-triage` usa `switch` e `retry`, e a `demo-loops` mostra `each`, `retry` e `switch`. `parallel` ficou de fora: saída de vários passos ao mesmo tempo, falha de um ramo e o painel ao vivo pedem uma decisão à parte.

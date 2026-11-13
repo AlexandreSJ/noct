@@ -174,8 +174,8 @@ func (p *scriptsPanel) selectKey(key string) {
 
 func (p *scriptsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	pal := &p.app.palette
-	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-1)
-	drawText(screen, area.Min.X+1, area.Max.Y-1, area.Max.X, p.app.hint("scripts", scriptsHints), pal.panelMuted)
+	rows := drawHints(screen, area, p.app.hint("scripts", scriptsHints), pal.panelMuted)
+	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-rows)
 	body = p.drawProblems(screen, body)
 	row, ok := p.current()
 	if !ok {

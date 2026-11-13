@@ -37,7 +37,7 @@ Hoje, abrir uma ferramenta de terminal num arquivo é `prefixo` + `p`, digitar o
 1. **Keys.** Prefixo (`ctrl+space`, `alt+space`, ou capturar outro) e atalho direto (`alt`, `ctrl`, `ctrl+alt`, `off`).
 2. **Themes.** A lista dos temas prontos e os do usuário, cada um com uma faixa das cores e o palco ao lado mostrando o selecionado ao vivo. `Space` marca quais ficam disponíveis (`appearance.themes`), `Enter` escolhe o ativo, o modo (`dark` ou `light`, ADR-055) troca com `m` e o fundo (`terminal` ou `theme`) com `b`. Os não marcados somem da escolha de tema do config; a lista vazia mostra todos. Os temas do usuário (`themes/*.toml`) aparecem sempre.
 3. **Animations.** `all` (o padrão novo, abaixo), `few` (só `hover`, `popup` e `activity`, curtas) ou `none` (**Appearance → animations** em `off`).
-4. **Demo.** Instala os scripts `demo/*` na pasta de scripts e os flows `demo-*` na pasta de flows. Arquivos que já existem não são sobrescritos.
+4. **Demo.** Instala os scripts `demo/*` na pasta de scripts, os flows `demo-*` na pasta de flows e as funções `demo-*` na pasta de funções. Arquivos que já existem não são sobrescritos.
 5. **MCP.** Os clientes de IA encontrados no PATH (`claude`, `codex`, `gemini`, `code`), cada um com o comando que adiciona o noct. Os marcados rodam num painel visível depois que o instalador fecha; nada roda sem marcar.
 6. **Shortcuts.** As binds próprias já no config e `+ create new shortcut`, que cria uma como a página das teclas faz (a tecla, depois `c`/`s`/`f` para comando, script ou flow, o que roda e o nome); `continue` segue. O noct não sugere nenhuma: um atalho para uma ferramenta só existe se o usuário o criar.
 
@@ -103,10 +103,11 @@ A busca ganha `'` como segunda tecla padrão: `prefixo` + `'` e `shortcut` + `'`
 
 ## Demo
 
-Tudo fictício, só `printf` e `sleep`, para rodar em qualquer máquina.
+Tudo fictício, só `printf` e `sleep`, para rodar em qualquer máquina. A exceção é o agente da `demo-triage`, que é de verdade.
 
 - **`demo-deploy`** (o overview): deploy de um serviço `api` com params `env` (`staging`/`production`), `version`, `fail_health` (`no`/`yes`) e `token`, um param `from: env:DEMO_DEPLOY_TOKEN` com `secret: true`: com a variável no shell, o noct a usa sem perguntar; sem ela, o formulário pergunta mascarado. Confirma com `prompt` quando é produção (`if`); `demo/build` e `demo/test` com captura por regex (testes que passaram) e `expect`; `demo/deploy` com `pane: new`; checagem de saúde com `repeat` `until` e `max`; rollback por `if` quando a saúde falha, terminando com `on_fail`; resumo com `set`.
-- **`demo-loops`**: cada recurso sozinho: `times`, `every`, `until`, `set`, `unset`, `wait`.
+- **`demo-loops`**: cada recurso sozinho: `times`, `every`, `until`, `each`, `set`, `unset`, `capture`, `retry`, `switch`, `wait`, `prompt`.
+- **`demo-triage`**: abre dizendo o que vai acontecer e como é o resultado (`demo/triage-intro`), e pergunta no painel como o teste fictício deve falhar (`flaky`, `bug`, `env`; `Enter` sozinho sorteia), a não ser que o param `fails` já diga. O `demo/pick-failure` mostra a escolha, que o agente não lê, e o `demo/failing-test` falha desse jeito sem dizer qual. Um passo `agent` com `choices` pede ao agente do param `agent` (`ollama` por padrão, que roda na máquina; `default` é o do config, que `noct agents` mostra) que o classifique, e um `switch` segue a resposta: `flaky` roda os testes de novo, com `retry` enquanto falham; `bug` chama a função `demo-explain`, que pergunta a causa e onde olhar em dois passos `agent` e as devolve em `returns`; `env` pergunta a você com `prompt`. Cada caso faz `note`, que o `export` leva para fora como `summary`. O script `demo/report` fecha com como o teste falhou de verdade, a classificação do agente, se ela acertou e o resumo, lidos só por `quote`. Foi testada com claude, opencode e ollama: `gpt-oss`, `qwen3.5:9b`, `qwen3.5:4b` e até o `qwen3.5:0.8b` classificam os três casos.
 - **Scripts `demo/*`** com `notes.md` que ensinam: onde mudar um param, como abrir o flow no inspect (`prefixo` + `i`), rodar com `p`, testar um passo com `t`, ver o log no calendário (`prefixo` + `v`), trocar uma tecla no config. `demo/start-here` diz a ordem.
 
 Os arquivos ficam em `examples/demo/` no repositório e embutidos no binário, de onde o instalador os copia.

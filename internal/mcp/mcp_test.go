@@ -425,7 +425,7 @@ func TestADraftedFunctionWaitsForItsPromotion(t *testing.T) {
 	if fn["name"] != "health" || fn["called_by"].([]any)[0] != "ship" || fn["returns"].(map[string]any)["status"] == nil {
 		t.Fatalf("function = %v", fn)
 	}
-	if agents := listed["agents"].(map[string]any); agents["default"] != "claude" || len(agents["names"].([]any)) < 3 {
+	if agents := listed["agents"].(map[string]any); agents["default"] != "auto" || len(agents["names"].([]any)) < 3 {
 		t.Errorf("agents = %v", agents)
 	}
 	scope, _ := s.call("flow_scope", map[string]any{"flow": "ship", "step": "1"}, false)

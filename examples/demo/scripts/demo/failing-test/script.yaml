@@ -1,0 +1,23 @@
+description: Pretend to run a test that fails in one of three ways, for demo-triage to read.
+run: |
+  printf 'Running TestCheckout...\n'
+  sleep 1
+  case {{quote .failure}} in
+    flaky)
+      echo "--- FAIL: TestCheckout (30.01s)"
+      echo "    checkout_test.go:41: dial tcp 10.0.0.7:5432: i/o timeout"
+      echo "    this test passed in 4 of its last 5 runs" ;;
+    bug)
+      echo "--- FAIL: TestCheckout (0.02s)"
+      echo "    checkout_test.go:88: total() = 90, want 100"
+      echo "    the cart has one item of 100 with one coupon of 5, and both were taken off" ;;
+    env)
+      echo "--- FAIL: TestCheckout (0.00s)"
+      echo "    checkout_test.go:12: PAYMENTS_REGION is empty; the payments client needs it" ;;
+  esac
+  exit 1
+params:
+  - name: failure
+    prompt: How the test fails
+    choices: [flaky, bug, env]
+    default: flaky

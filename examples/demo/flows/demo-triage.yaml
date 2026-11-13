@@ -1,0 +1,112 @@
+# demo-triage: a made-up test fails, and an AI agent you already use reads it
+# and decides what comes next. The run tells what to expect, asks how the test
+# should fail (empty picks at random), and ends with a report: how it really
+# failed, what the agent said, and whether that was right.
+#
+# The test is made up (demo/failing-test only prints), but the agent is real:
+# noct agents lists the ones it knows and which of them this machine has. This
+# demo asks ollama, which runs a model on this machine with no account. To ask
+# another, give the agent param:
+#   noct flow run demo-triage agent=claude
+#   noct flow run demo-triage agent=default    # agent = "<name>" in the config
+# use: default asks the config's agent; noct agents default <name> changes it.
+# A model of your own goes under [agents] in the config, by name, and then
+# works the same (or add it from the inspect: a, a, agent: custom agent):
+#   [agents]
+#   ollama = "ollama run --hidethinking qwen3.5:4b"
+#   hermes = "hermes chat --oneshot -Q -t todo -q {prompt}"   # todo: no tool that acts
+# The question comes in place of {prompt}, or as the command's input without it.
+# An agent of your own should not be able to change anything: the question
+# carries a test's output, text written by someone else.
+description: A test fails; an AI agent you already use reads it and decides whether to run it again, explain it or ask you.
+
+params:
+  # fails can stay empty: the run asks how the test fails. fails=bug (or
+  # flaky, env) skips the question.
+  fails:
+    prompt: How the test fails (empty asks during the run)
+  # use is a template, so a param can pick the agent: ollama unless you give
+  # another name, or default for the config's.
+  agent:
+    prompt: Agent (a name from noct agents, or default)
+    default: ollama
+
+steps:
+  - id: intro
+    script: demo/triage-intro
+
+  # prompt asks whoever watches the run, in its pane; enter alone keeps the
+  # default. A run nobody watches would stop here: give it fails= instead.
+  - if: '{{eq .fails ""}}'
+    then:
+      - id: choose
+        prompt: 'Which failure: flaky, bug or env? Enter alone picks one'
+        var: fails
+        default: random
+
+  # capture keeps the pick, to check the agent's answer in the report.
+  - id: pick
+    script: demo/pick-failure
+    with: {failure: '{{.fails}}'}
+    capture: {kind: 'fails as: (flaky|bug|env)'}
+
+  # on_fail: continue goes on after the test fails, so the agent can read it.
+  - id: test
+    script: demo/failing-test
+    with: {failure: '{{.steps.pick.kind}}'}
+    on_fail: continue
+
+  # agent with choices: the answer must say one of them and lands in
+  # {{.answer}}. One that says none fails the step. The timeout keeps a slow
+  # model from holding the flow forever.
+  - id: triage
+    agent:
+      ask: |
+        Sort this failing test into one of three kinds:
+        flaky: a timeout or a lost connection; running it again usually passes.
+        bug: the code gave a wrong value, such as got 3, want 4.
+        env: a setting or an environment variable is missing or empty.
+        The test printed:
+        {{.steps.test.output}}
+      use: '{{.agent}}'
+      choices: [flaky, bug, env]
+    timeout: 3m
+
+  # switch runs the case that holds the agent's answer. note is made inside
+  # the cases, so it would go when the switch ends; export keeps it, as
+  # {{.summary}}. The agent's choices make else unreachable, but a switch
+  # can always end in one.
+  - switch: '{{.answer}}'
+    cases:
+      # Run the real tests again; retry runs them up to 2 more times, 1s
+      # apart, while they fail.
+      - is: flaky
+        steps:
+          - id: again
+            script: demo/test
+            capture: {passed: '([0-9]+ passed)'}
+            retry: {max: 2, every: 1s}
+          - set: {note: 'Ran the tests again: {{.steps.again.passed}}.'}
+      # call: run the demo-explain function with these params; its returns
+      # come back as {{.cause}} and {{.hint}}.
+      - is: bug
+        steps:
+          - id: explain
+            call: demo-explain
+            with: {log: '{{.steps.test.output}}', agent: '{{.agent}}'}
+          - set: {note: "Cause: {{.cause}}\nLook at: {{.hint}}"}
+      - is: env
+        steps:
+          - id: region
+            prompt: The test needs PAYMENTS_REGION. Which region should it use?
+            var: region
+            default: us-east-1
+          - set: {note: 'Run the test again with PAYMENTS_REGION={{.region}}.'}
+    else:
+      - set: {note: 'The agent answered something else.'}
+    export: {note: summary}
+
+  # An answer is text an AI wrote: demo/report reads it only through quote.
+  - id: report
+    script: demo/report
+    with: {kind: '{{.steps.triage.answer}}', expected: '{{.steps.pick.kind}}', summary: '{{.summary}}'}

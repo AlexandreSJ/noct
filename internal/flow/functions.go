@@ -107,9 +107,9 @@ func walkSteps(steps []Step, parent, branch string, visit func(s Step, path stri
 	for i, s := range steps {
 		path := Path(parent, branch, i)
 		visit(s, path)
-		walkSteps(s.Then, path, "then", visit)
-		walkSteps(s.Else, path, "else", visit)
-		walkSteps(s.Steps, path, "steps", visit)
+		for _, inner := range s.Branches() {
+			walkSteps(inner.Steps, path, inner.Name, visit)
+		}
 	}
 }
 

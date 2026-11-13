@@ -57,9 +57,9 @@ type Runner struct {
 	Progress func(path string)
 	// Function finds a function a call step names.
 	Function func(name string) (Flow, bool)
-	// Agents finds the command of an agent by name, over AgentPresets; DefaultAgent is the one a
-	// step without use asks, or "" for flow.DefaultAgent.
-	Agents       func(name string) (string, bool)
+	// Agents are the config's commands of agents by name, over AgentPresets; DefaultAgent is the
+	// one a step with use: default, or none, asks, or "" for AutoAgent.
+	Agents       map[string]string
 	DefaultAgent string
 }
 
@@ -71,9 +71,11 @@ type running struct {
 	// steps holds, by step id, output, exit, ok and the captures, for the templates.
 	steps  map[string]map[string]string
 	result Result
-	// blocks are, for each if and repeat running, the variables made inside it, which go when it
-	// ends.
+	// blocks are, for each if, switch and repeat running, the variables made inside it, which go
+	// when it ends.
 	blocks []map[string]bool
+	// retried counts, by path, the times a failed step has run again for its retry.
+	retried map[string]int
 	// depth is how many functions call each other down to the step running.
 	depth int
 	// deadline is when the flow's timeout, as written in timeout, ends the run; zero without one.
@@ -140,6 +142,8 @@ func (x *running) runStep(s Step, path string) bool {
 		return x.runAgent(s, path)
 	case IfStep:
 		return x.runIf(s, path)
+	case SwitchStep:
+		return x.runSwitch(s, path)
 	case RepeatStep:
 		return x.runRepeat(s, path)
 	case PromptStep:
@@ -182,13 +186,64 @@ func (x *running) runIf(s Step, path string) bool {
 	return x.runSteps(steps, path, branch)
 }
 
+// runSwitch runs the steps of the first case whose values hold the switch's, or its else.
+func (x *running) runSwitch(s Step, path string) bool {
+	value, err := x.render(s.Switch)
+	if err != nil {
+		return x.stop(path, "switch: "+err.Error(), 1)
+	}
+	value = strings.TrimSpace(value)
+	branch, steps, answer := "else", s.Else, "else"
+	for i, c := range s.Cases {
+		if slices.ContainsFunc(c.Is, func(is string) bool { return strings.TrimSpace(is) == value }) {
+			branch, steps, answer = CaseBranch(i), c.Steps, strconv.Quote(value)
+			break
+		}
+	}
+	if branch == "else" {
+		answer = fmt.Sprintf("else (%q is in no case)", value)
+	}
+	x.header("◈", "switch "+s.Switch, "→ "+answer)
+	x.result.Steps[path] = StepResult{Status: StatusOK, Message: answer}
+	x.openBlock()
+	defer x.closeBlock(s.Export)
+	return x.runSteps(steps, path, branch)
+}
+
+// eachLines are the lines a repeat each runs its steps for: the text's lines, trimmed, without
+// the empty ones.
+func eachLines(text string) []string {
+	var lines []string
+	for _, line := range strings.Split(text, "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return lines
+}
+
 // runRepeat runs the steps pass after pass. Each pass starts without the results of the steps
 // inside from the pass before, so a step that did not run this time reads as empty.
 func (x *running) runRepeat(s Step, path string) bool {
 	r := s.Repeat
 	passes := r.passes()
+	var lines []string
+	if r.Each != "" {
+		text, err := x.render(r.Each)
+		if err != nil {
+			return x.stop(path, "each: "+err.Error(), 1)
+		}
+		lines = eachLines(text)
+		passes = len(lines)
+		if r.Max > 0 {
+			passes = min(passes, r.Max)
+		}
+	}
 	every, _ := time.ParseDuration(r.Every) // checked by Validate; "" is no wait
 	start := time.Now()
+	if r.Each != "" {
+		defer x.keepAside(r.EachVar())() // after the block closes, which takes the repeat's own away
+	}
 	x.openBlock()
 	defer x.closeBlock(s.Export)
 	for pass := 1; pass <= passes; pass++ {
@@ -196,7 +251,12 @@ func (x *running) runRepeat(s Step, path string) bool {
 			x.sleep(every)
 		}
 		x.forget(s.Steps)
-		x.header("↻", fmt.Sprintf("%s pass %d of %d", s.Label(), pass, passes), "")
+		if r.Each != "" {
+			x.assign(r.EachVar(), lines[pass-1])
+			x.header("↻", fmt.Sprintf("%s %d of %d", s.Label(), pass, passes), r.EachVar()+" = "+lines[pass-1])
+		} else {
+			x.header("↻", fmt.Sprintf("%s pass %d of %d", s.Label(), pass, passes), "")
+		}
 		if !x.runSteps(s.Steps, path, "steps") {
 			return false
 		}
@@ -212,11 +272,27 @@ func (x *running) runRepeat(s Step, path string) bool {
 			return true
 		}
 	}
-	if r.Until != "" && r.Times == 0 {
+	if r.Until != "" && r.Times == 0 && r.Each == "" {
 		return x.stop(path, fmt.Sprintf("until was still false after %d passes (max)", passes), 1)
 	}
 	x.result.Steps[path] = StepResult{Status: StatusOK, Duration: time.Since(start), Message: fmt.Sprintf("%d passes", passes)}
 	return true
+}
+
+// keepAside lets a repeat each give its variable each line without changing a variable of the
+// same name outside: it returns what puts that one back, or takes the line away, when the repeat
+// ends.
+func (x *running) keepAside(name string) func() {
+	value, had := x.vars[name]
+	if had {
+		delete(x.vars, name) // so the repeat's own is made inside it
+	}
+	return func() {
+		delete(x.vars, name)
+		if had {
+			x.vars[name] = value
+		}
+	}
 }
 
 func (r *Repeat) passes() int {
@@ -229,8 +305,8 @@ func (r *Repeat) passes() int {
 func (x *running) forget(steps []Step) {
 	for _, s := range steps {
 		delete(x.steps, s.ID)
-		for _, inner := range [][]Step{s.Then, s.Else, s.Steps} {
-			x.forget(inner)
+		for _, inner := range s.Branches() {
+			x.forget(inner.Steps)
 		}
 	}
 }
@@ -337,8 +413,21 @@ func stepValues(output string, exit int, ok bool, captures map[string]string) ma
 	return values
 }
 
-// afterFailure does what the failed step's on_fail says: go on, run it again or stop the flow.
+// afterFailure runs the failed step again while its retry allows, then does what its on_fail
+// says: go on, run it again or stop the flow.
 func (x *running) afterFailure(s Step, path, reason string, exit int) bool {
+	if tried := x.retried[path]; s.Retry != nil && tried < s.Retry.Max && !x.runTimedOut() {
+		if x.retried == nil {
+			x.retried = map[string]int{}
+		}
+		x.retried[path] = tried + 1
+		defer delete(x.retried, path) // once the last try is done, the next time the step runs it starts over
+		fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; retry %d of %d\x1b[0m\n", s.Label(), reason, tried+1, s.Retry.Max)
+		if every, _ := time.ParseDuration(s.Retry.Every); every > 0 { // checked by Validate
+			x.sleep(every)
+		}
+		return x.runStep(s, path)
+	}
 	switch x.onFail(s, reason) {
 	case OnFailContinue:
 		fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; going on\x1b[0m\n", s.Label(), reason)

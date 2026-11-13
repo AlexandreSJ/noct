@@ -1,0 +1,18 @@
+description: Tell what demo-triage does and what its result looks like.
+run: |
+  cat <<'EOF'
+  demo-triage: an AI agent sorts a failing test
+
+    1. You pick how a made-up test fails, or let noct pick at random.
+    2. The test runs and fails. An AI agent reads only what it printed
+       and sorts the failure: flaky, bug or env.
+    3. noct acts on the answer:
+         flaky  runs the real tests again, until they pass
+         bug    asks the agent, through a function, for the cause
+         env    asks you for the setting that is missing
+    4. A report tells whether the agent got it right, and what came of it.
+
+  The agent is ollama, which runs a model on this machine. agent=<name>
+  asks another (noct agents lists them), and agent=default the config's.
+
+  EOF

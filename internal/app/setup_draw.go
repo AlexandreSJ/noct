@@ -127,9 +127,10 @@ func (a *App) setupLines() []setupLine {
 		return []setupLine{
 			{text: mark(w.demo) + " install the demo", selected: true},
 			{},
-			{text: "scripts demo/* and the flows demo-deploy and demo-loops: a deploy with a health", muted: true},
-			{text: "check and a rollback, made up, to learn flows by running them. start with", muted: true},
-			{text: "demo/start-here in the scripts panel.", muted: true},
+			{text: "scripts demo/* and the flows demo-deploy, demo-loops and demo-triage: a deploy", muted: true},
+			{text: "with a health check and a rollback, made up, to learn flows by running them, and", muted: true},
+			{text: "an AI agent that sorts a failing test. start with demo/start-here in the scripts", muted: true},
+			{text: "panel.", muted: true},
 		}
 	case setupMCP:
 		return a.setupMCPLines()

@@ -136,14 +136,16 @@ func (a *App) drawSessions(screen uv.Screen) {
 	if a.sessionFilter != "" {
 		title += " · filter: " + a.sessionFilter
 	}
-	inner := a.drawPanel(screen, centeredRect(area, sessionPanelWidth, panelHeight(rows+2)), title)
+	hints := a.hint("sessions", sessionHints)
+	more := moreHintRows(hints, sessionPanelWidth)
+	inner := a.drawPanel(screen, centeredRect(area, sessionPanelWidth, panelHeight(rows+2+more)), title)
 	if len(a.sessionRows) == 0 {
 		drawText(screen, inner.Min.X+1, inner.Min.Y, inner.Max.X, "no session matches; esc shows them all", pal.panelMuted)
 	}
 	now := time.Now()
 	for i, s := range a.sessionRows {
 		y := inner.Min.Y + i
-		if y >= inner.Max.Y-2 {
+		if y >= inner.Max.Y-2-more {
 			break
 		}
 		style := pal.panelText
@@ -152,7 +154,7 @@ func (a *App) drawSessions(screen uv.Screen) {
 		}
 		drawRow(screen, inner, y, a.sessionLabel(s), lastUsed(s.lastAccess, now, s == a.session && a.client != nil), style)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("sessions", sessionHints), pal.panelMuted)
+	drawHints(screen, inner, hints, pal.panelMuted)
 }
 
 // sessionLabel is a session's row: open (●) or closed (○), its name and its tabs.

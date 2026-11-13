@@ -49,8 +49,8 @@ func validateSteps(steps []Step, where string, ids map[string]bool, lookup func(
 		if err := s.validate(ids, lookup); err != nil {
 			return fmt.Errorf("%s: %w", at, err)
 		}
-		for _, inner := range [][]Step{s.Then, s.Else, s.Steps} {
-			if err := validateSteps(inner, at+" > ", ids, lookup); err != nil {
+		for _, inner := range s.Branches() {
+			if err := validateSteps(inner.Steps, at+" > ", ids, lookup); err != nil {
 				return err
 			}
 		}
@@ -86,20 +86,26 @@ func (s Step) validateFieldsBelong(kind Kind) error {
 	if (s.Var != "" || s.Default != "" || s.Type != "") && kind != PromptStep {
 		return errors.New("var, default and type belong to a prompt")
 	}
-	if (len(s.Then) > 0 || len(s.Else) > 0) && kind != IfStep {
-		return errors.New("then and else belong to an if")
+	if len(s.Then) > 0 && kind != IfStep {
+		return errors.New("then belongs to an if")
+	}
+	if len(s.Else) > 0 && kind != IfStep && kind != SwitchStep {
+		return errors.New("else belongs to an if or a switch")
+	}
+	if len(s.Cases) > 0 && kind != SwitchStep {
+		return errors.New("cases belong to a switch")
 	}
 	if len(s.Steps) > 0 && kind != RepeatStep {
 		return errors.New("steps belong to a repeat")
 	}
-	if (len(s.Capture) > 0 || s.Expect != nil || s.OnFail != "") && kind != ScriptStep && kind != CommandStep && kind != AgentStep {
-		return errors.New("capture, expect and on_fail belong to a script, run or agent step")
+	if (len(s.Capture) > 0 || s.Expect != nil || s.OnFail != "" || s.Retry != nil) && kind != ScriptStep && kind != CommandStep && kind != AgentStep {
+		return errors.New("capture, expect, on_fail and retry belong to a script, run or agent step")
 	}
 	if len(s.With) > 0 && kind != ScriptStep && kind != CallStep {
 		return errors.New("with belongs to a script or call step")
 	}
-	if len(s.Export) > 0 && kind != IfStep && kind != RepeatStep {
-		return errors.New("export belongs to an if or a repeat")
+	if len(s.Export) > 0 && !s.IsBlock() {
+		return errors.New("export belongs to an if, a switch or a repeat")
 	}
 	for inner, outer := range s.Export {
 		if !isVariable(inner) || outer != "" && !isVariable(outer) {
@@ -108,6 +114,43 @@ func (s Step) validateFieldsBelong(kind Kind) error {
 	}
 	if s.OnFail != "" && s.OnFail != OnFailStop && s.OnFail != OnFailContinue && s.OnFail != OnFailAsk {
 		return fmt.Errorf("on_fail is %s, %s or %s", OnFailStop, OnFailContinue, OnFailAsk)
+	}
+	return s.Retry.validate()
+}
+
+func (r *Retry) validate() error {
+	if r == nil {
+		return nil
+	}
+	if r.Max < 1 {
+		return errors.New("retry is how many times to run the step again: 1 or more")
+	}
+	if r.Every != "" {
+		if _, err := time.ParseDuration(r.Every); err != nil {
+			return fmt.Errorf("retry every %q is not a duration like 10s", r.Every)
+		}
+	}
+	return nil
+}
+
+// validateSwitch checks that each case has values, and that no value is in two cases, where only
+// the first would ever run.
+func (s Step) validateSwitch() error {
+	if len(s.Cases) == 0 {
+		return errors.New("a switch needs cases: - is: value, with its steps")
+	}
+	seen := map[string]int{}
+	for i, c := range s.Cases {
+		if len(c.Is) == 0 {
+			return fmt.Errorf("case %d: is is empty; give it a value", i+1)
+		}
+		for _, value := range c.Is {
+			value = strings.TrimSpace(value)
+			if first, twice := seen[value]; twice {
+				return fmt.Errorf("case %d: %q is also in case %d, which runs first", i+1, value, first)
+			}
+			seen[value] = i + 1
+		}
 	}
 	return nil
 }
@@ -134,6 +177,8 @@ func (s Step) validateKind(kind Kind, lookup func(id string) (script.Script, boo
 		}
 	case RepeatStep:
 		return s.Repeat.validate()
+	case SwitchStep:
+		return s.validateSwitch()
 	case AgentStep:
 		if strings.TrimSpace(s.Agent.Ask) == "" {
 			return errors.New("an agent step asks something: ask is empty")
@@ -208,10 +253,18 @@ func (r *Repeat) validate() error {
 	if r.Times < 0 || r.Max < 0 {
 		return errors.New("repeat times and max cannot be negative")
 	}
-	if r.Times == 0 && r.Until == "" {
-		return errors.New("repeat needs times or until")
-	}
-	if r.Times == 0 && r.Max == 0 {
+	switch {
+	case r.Each != "" && r.Times > 0:
+		return errors.New("repeat runs each line of each or times, not both")
+	case r.As != "" && r.Each == "":
+		return errors.New("as names the variable of each: it needs each")
+	case r.As != "" && !isVariable(r.As):
+		return fmt.Errorf("as %q must be letters, digits and _ only", r.As)
+	case r.Each != "":
+		// the lines end it; until and max may end it sooner
+	case r.Times == 0 && r.Until == "":
+		return errors.New("repeat needs times, each or until")
+	case r.Times == 0 && r.Max == 0:
 		return errors.New("repeat until needs max, so it cannot run forever")
 	}
 	if r.Every != "" {

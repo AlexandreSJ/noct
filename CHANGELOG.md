@@ -19,13 +19,37 @@ terminal's own background stays untouched.
 
 ### Added
 
+- The demo has `demo-triage`: it tells what is about to happen, asks how a made-up test should
+  fail (enter picks at random), and an AI agent reads only the test's output and decides whether
+  to run it again, explain it through the function `demo-explain`, or ask you for a missing
+  setting. It asks ollama, which runs a model on your machine, or the agent its `agent` param
+  names (`agent=default` for the config's), and ends with a report of how the test really failed
+  and whether the agent got it right. `noct setup` installs
+  it beside the others.
 - The MCP server lists functions (with who calls each) and the agents an agent step can ask, reads
   a function with `get_item`, and drafts one with `draft_function`. A draft function does not run,
   and the flows that call it wait for its promotion.
-- Agent steps: `agent: {ask: …}` asks an AI agent you have (`claude`, `ollama`, `opencode`, or a
-  command under `[agents]` in the config) and keeps its answer in `{{.answer}}`; with `choices`,
-  the answer is one of them, so an if can branch on it. The question never goes through a shell,
-  and the claude preset runs with no tools.
+- Agent steps: `agent: {ask: …}` asks an AI agent you have (`claude`, `codex`, `opencode`, `llm`,
+  `ollama`, or a command under `[agents]` in the config) and keeps its answer in `{{.answer}}`,
+  without the thinking a model prints first; with `choices`, the answer is one of them, so an if
+  can branch on it. The question never goes through a shell, and no preset can change anything.
+  `use: default`, or no `use`, asks the config's agent; by default (`agent = "auto"`) the first
+  agent this machine has. `use:` can come from a param. `noct agents` lists them and, when there
+  is none, says how to start with ollama; `noct agents default <name>` sets the config's agent.
+  In the inspect, `a` then `a` sets one up in a single form (the question, its answers, the agent
+  and a timeout) that `enter` adds from any field. The form always writes `use:`: `default`,
+  `auto`, an agent, the ones this machine has first, or `custom agent`, which asks a name and a
+  command and adds them under `[agents]`.
+- Flows have a `switch`: `switch: '{{.answer}}'` runs the first of its `cases` whose `is` holds the
+  value (`is: bug` or `is: [bug, regression]`), or its `else`. The inspect draws a column for each
+  case with its values on top; in **add step**, `o` asks for the value and the cases.
+- `repeat: {each: '{{.steps.ls.output}}', as: file}` runs its steps once for each line, the line in
+  `{{.file}}` (`{{.item}}` without `as`); in **add step**, `e` (for each line).
+- `retry: 3`, or `retry: {max: 3, every: 10s}`, runs a failed script, run or agent step again
+  before its `on_fail`. In the inspect, `R` sets it, and the card shows `retry 3× every 10s`.
+- The inspect tells about the selected block below the chart: what its kind of step does, its
+  whole text and how it went in the run shown. Select it with the keys or a click; the wheel
+  scrolls it. `?` lists every key of the inspect.
 - Functions: steps any flow can call, in a file of their own with params and returns. A `call:` step
   runs one in a scope of its own and gets back what it returns. The inspect lists functions after
   the flows (`F` makes one), shows which flows call each, and tells what a change reaches.
@@ -91,11 +115,23 @@ terminal's own background stays untouched.
   and one it makes goes when it ends unless the block exports it (`export: {count: passes}`, or
   `x` in the inspect). Script and run steps also set `{{.output}}`, `{{.exit}}`, `{{.ok}}` and
   their captures as short variables. A flow that read after an if a variable made inside it now
-  gets a warning; export the variable to keep it.
+  gets a warning; export the variable to keep it. An if whose `then` and `else` both make the
+  variable exports it without a warning.
 - The inspect's flowchart has round cards joined by longer arrows drawn with box lines (`│`,
   `↓`), no longer `▼`. The `+` gaps between cards are gone: `a` adds below the selected step,
   and the head of a list (the start, an if's yes or no, a repeat's way in) adds above its first
   step.
+- Each card in the inspect starts its title with a mark of its kind (`▸` script, `$` command, `◆`
+  AI agent, `ƒ` function, `◇` if, `↻` repeat, `◷` wait, `?` asks you, `=` set, `∅` unset) and
+  names the kind on its right; text that does not fit ends in `…`.
+- An empty list in the inspect's flowchart, as an if's `no` with no steps, shows only `∅` on its
+  line instead of a `∅ a adds` card. Its head (the start, `yes` or `no`, a repeat's way in) is
+  selectable even when the list is empty, and `a` there adds its first step.
+- A card moves with the mouse only with `alt` (or `ctrl`) held; dragged without either, the chart
+  pans. While it is carried, a dashed outline shows exactly where it lands: before or after any
+  card, at the top of an if's branch or a repeat, or in an empty list.
+- Hints at the bottom of panels and popups break into more lines instead of being cut; popups
+  grow to fit them.
 - Typing in a field no longer paints the whole row: the text shows in the selected color and the
   cursor is the cell under it on the selected color's background, so no mark shifts the text
   while the cursor moves.
@@ -120,6 +156,8 @@ terminal's own background stays untouched.
 
 ### Fixed
 
+- The `claude` agent preset no longer loads your MCP servers (`--strict-mcp-config`): with them, an
+  agent step's claude could reach noct's own tools.
 - Saving a script, its notes or a draft from an AI no longer leaves a half-written file when noct
   stops in the middle of the write.
 

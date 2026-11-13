@@ -396,14 +396,20 @@ func (p *logsPanel) showBoth() {
 
 // showKeys lists every key of the panel, as the binds have them, in a popup.
 func (p *logsPanel) showKeys() {
-	c, _ := keyContextNamed("logs")
-	pal := &p.app.palette
+	p.app.showContextKeys("logs", "logs keys")
+}
+
+// showContextKeys lists every key of a key context, as the binds have them now, then notes on
+// what the mouse does there.
+func (a *App) showContextKeys(context, title string, notes ...string) {
+	c, _ := keyContextNamed(context)
+	pal := &a.palette
 	type keyLine struct{ keys, label string }
 	var keyLines []keyLine
 	width := 0
 	for _, action := range c.actions {
 		var keys []string
-		for _, key := range p.app.pressedKeys(c.id, action) {
+		for _, key := range a.pressedKeys(c.id, action) {
 			keys = append(keys, prettyKey(key))
 		}
 		if len(keys) > 0 { // an action the binds left without keys has nothing to press
@@ -415,8 +421,14 @@ func (p *logsPanel) showKeys() {
 	for _, l := range keyLines {
 		lines = append(lines, styledLine{l.keys + strings.Repeat(" ", width-ansi.StringWidth(l.keys)+2) + l.label, pal.panelText})
 	}
-	lines = append(lines, styledLine{"", pal.panelText}, styledLine{"change them in the config: binds of every screen, logs", pal.panelMuted})
-	p.app.openInfo("logs keys", lines)
+	if len(notes) > 0 {
+		lines = append(lines, styledLine{"", pal.panelText})
+		for _, note := range notes {
+			lines = append(lines, styledLine{note, pal.panelText})
+		}
+	}
+	lines = append(lines, styledLine{"", pal.panelText}, styledLine{"change them in the config: binds of every screen, " + c.label, pal.panelMuted})
+	a.openInfo(title, lines)
 }
 
 // inspectRun opens a flow's run in the inspect, with how each of its blocks went.
@@ -518,11 +530,8 @@ func (p *logsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	case p.focusList:
 		hints = logsListHints
 	}
-	hintLines := wrapHints(p.app.hint("logs", hints), area.Dx()-2, 2)
-	for i, line := range hintLines {
-		drawText(screen, area.Min.X+1, area.Max.Y-len(hintLines)+i, area.Max.X, line, pal.panelMuted)
-	}
-	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, max(area.Max.Y-len(hintLines)-1, area.Min.Y))
+	rows := drawHints(screen, area, p.app.hint("logs", hints), pal.panelMuted)
+	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, max(area.Max.Y-rows-1, area.Min.Y))
 	lists, preview := p.splitView(body)
 	// drawn last, the log shows the selection the list settled on
 	defer func() {

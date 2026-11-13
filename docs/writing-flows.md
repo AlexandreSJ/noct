@@ -95,12 +95,13 @@ A step sets exactly one of these:
 
 | Key | Does | Extra keys it may have |
 |---|---|---|
-| `script: <id>` | Runs a registered script | `with`, `capture`, `expect`, `on_fail`, `timeout`, `pane`, `background` |
-| `run: <shell>` | Runs a shell line (a template) | `capture`, `expect`, `on_fail`, `timeout`, `pane`, `background` |
+| `script: <id>` | Runs a registered script | `with`, `capture`, `expect`, `on_fail`, `retry`, `timeout`, `pane`, `background` |
+| `run: <shell>` | Runs a shell line (a template) | `capture`, `expect`, `on_fail`, `retry`, `timeout`, `pane`, `background` |
 | `call: <function>` | Runs a function, its params from `with` | `with` |
-| `agent: {ask: <template>}` | Asks an AI agent; the answer goes to `{{.answer}}` | `use`, `choices` in `agent`; `capture`, `expect`, `on_fail`, `timeout` |
+| `agent: {ask: <template>}` | Asks an AI agent; the answer goes to `{{.answer}}` | `use`, `choices` in `agent`; `capture`, `expect`, `on_fail`, `retry`, `timeout` |
 | `if: <template>` | Runs `then` or `else` | `then`, `else`, `export` |
-| `repeat: {...}` | Runs `steps` in passes | `steps`, `export` |
+| `switch: <template>` | Runs the first case whose `is` holds the value, or `else` | `cases`, `else`, `export` |
+| `repeat: {...}` | Runs `steps` in passes: `times`, `until`, or once per line of `each` | `steps`, `export` |
 | `wait: <duration>` | Sleeps (`5s`, `1m30s`) | — |
 | `prompt: <template>` | Asks the user on the run's terminal; the answer goes to a variable | `var` (required), `default`, `type` |
 | `set: {name: <template>}` | Gives variables, new or not, a value | — |
@@ -139,10 +140,12 @@ steps:
 - Each script or run step also sets its results as variables of their own names: `{{.output}}`,
   `{{.exit}}`, `{{.ok}}`, its captures and its script's outputs, which the next such step sets
   again. `{{.steps.<id>.<field>}}` still reads one step's.
-- Ifs and repeats scope variables as blocks do in a language: setting a variable that exists
+- Ifs, switches and repeats scope variables as blocks do in a language: setting a variable that exists
   before the block changes it; one the block makes goes when it ends, unless the block exports it:
   `export: {count: passes}` keeps `count` after the block as `{{.passes}}` (`{count: ""}` keeps
-  its name). `steps.<id>` results are not scoped.
+  its name). `steps.<id>` results are not scoped. An if's export is surely set when both `then`
+  and `else` make it, a switch's when every case and its `else` do; otherwise `noct check` warns
+  that it may not be set.
 - `set` renders all its values first, then sets them, so `set: {a: '{{.b}}', b: '{{.a}}'}` swaps.
 - A `prompt` needs someone at the terminal. In noct's workspace it brings the run's pane to the
   screen before asking; a run nobody watches (a trigger) fails at the prompt instead of waiting.
@@ -183,36 +186,96 @@ returns:
 ```yaml
 - id: review
   agent:
-    ask: 'The deploy health check printed {{quote .output}}. Ship or roll back?'
-    use: claude               # optional: the config's agent (claude by default)
+    ask: 'The deploy health check printed {{.output}}. Ship or roll back?'
+    use: default              # the config's agent; or auto, or a name: claude, ollama...
+                              # a template too, so '{{.agent}}' lets a param pick
     choices: [ship, rollback] # optional: the answer must say one of them
+  timeout: 3m
 - if: '{{eq .answer "rollback"}}'
   then: [{script: demo/rollback}]
 ```
 
 - The question goes to the agent's command as its input, or as one argument in place of
-  `{prompt}`, never through a shell. noct knows `claude` (`claude -p --model haiku --tools ""`,
-  with no tools), `ollama` (`ollama run llama3.2`) and `opencode` (`opencode run --agent plan {prompt}`, its
-  read-only agent); the config's `[agents]` adds others or changes these, and `agent` picks the
-  default. noct does not install them. An agent of your own should not be able to act either: a
-  question carries text from programs and other people, which could ask it to.
-- `{{.answer}}` is the answer trimmed; with `choices`, the first choice it says as a word, in any
+  `{prompt}`, never through a shell.
+- `use: default`, or no `use` (or an empty one), asks the config's `agent`. Its default, `auto`,
+  asks the first agent that is ready here: the config's `[agents]` first, then claude, codex,
+  opencode, llm and ollama. `use: auto` asks that one whatever the config says. `noct agents`
+  lists them, the ready ones and the default; with none ready, it says how to start with ollama,
+  which runs on your machine for free. `noct agents default <name>` writes `agent = "<name>"`
+  into the config. `default` and `auto` name no agent of `[agents]`.
+- Write `use: default` for a flow others will run, so each person's own agent answers; a name
+  fixes the agent, so the flow asks the same one everywhere.
+- noct knows these, each set up so it cannot change anything:
+
+  | Agent | Command |
+  |---|---|
+  | `claude` | `claude -p --model haiku --tools "" --strict-mcp-config` (no tools) |
+  | `codex` | `codex exec --ephemeral --skip-git-repo-check --sandbox read-only -` |
+  | `opencode` | `opencode run --agent plan {prompt}` (its read-only agent) |
+  | `llm` | `llm` (only answers) |
+  | `ollama` | `ollama run --hidethinking llama3.2`; without llama3.2, a model ollama already has |
+
+- `[agents]` in the config changes one of these or adds yours, by name. To change the model, write
+  the command with it. These are starting points; check each one's flags in its own docs:
+
+  ```toml
+  agent = "ollama"                 # or auto, or any name below
+  [agents]
+  ollama = "ollama run --hidethinking qwen3.5:4b"
+  claude = 'claude -p --model sonnet --tools "" --strict-mcp-config'
+  codex = "codex exec --ephemeral --skip-git-repo-check --sandbox read-only -m <model> -"
+  llm = "llm -m gpt-4o-mini"
+  hermes = "hermes chat --oneshot -Q -t todo -q {prompt}"  # -t todo: no tool that acts
+  ```
+
+  An agent of your own should not be able to act: a question carries text from programs and
+  other people, which could ask it to. That includes MCP servers in its own config, which can
+  give it tools; noct's own tools that act still ask you first. noct does not install any of them.
+- In the inspect, `a` then `a` adds an agent step from one form: the question (`ctrl+t` types a
+  variable), the answers, the agent and the timeout; `enter` adds it from any field.
+- `{{.answer}}` is the answer trimmed, without the thinking a model prints first (ollama's
+  `Thinking...` and `<think>` tags); with `choices`, the first choice it says as a word, in any
   case, and an answer that says none fails the step (`on_fail` applies). `{{.output}}` is all it
   printed.
 - An answer is text an AI wrote from what the question carried: put it in a `run:` only through
   `{{quote .answer}}`.
 
+### Switch
+
+```yaml
+- switch: '{{.answer}}'
+  cases:
+    - is: flaky                  # one value alone
+      steps: [{script: tests}]
+    - is: [bug, regression]      # or several
+      steps: [{call: explain}]
+  else:                          # no case holds the value; may be left out
+    - prompt: What is it?
+      var: kind
+```
+
+- The template is rendered and trimmed; the first case with an equal value (trimmed too) runs, else
+  `else`. Values compare as text, exactly: `Bug` is not `bug`.
+- A value in two cases is refused, since only the first would ever run. `is: ""` matches an empty
+  value.
+- After an agent step with `choices`, a case for each choice reads its answer.
+- In paths, a case's steps are `<switch>/case0/<n>`, `case1`, ...; the else's, `<switch>/else/<n>`.
+
 ### Repeat
 
 - `times: N` runs N passes; `until: <template>` stops when it gives `true` and then `max` is
   required. Reaching `max` without `until` becoming true is a failure.
+- `each: <template>` runs one pass for each line of the text, trimmed, skipping empty lines, with
+  the line in `{{.item}}`, or in the variable `as` names: `{each: '{{.steps.ls.output}}', as:
+  file}`. That variable is the repeat's own: one of the same name outside is the same after it.
+  `until` may end it early and `max` caps the passes; no lines is no pass, not a failure.
 - `until` is checked after each pass, so it can read steps inside the repeat.
 - Each pass forgets the previous pass's inner steps: a step skipped in this pass reads as empty.
 
 ### Templates
 
-Go `text/template`, rendered in `run`, `with` values, `if`, `until`, `prompt`, `default` and `set`
-values.
+Go `text/template`, rendered in `run`, `with` values, `if`, `switch`, `until`, `each`, `prompt`,
+`default` and `set` values.
 
 | Reads | Value |
 |---|---|
@@ -240,9 +303,18 @@ ran before it, or accept the warning on purpose.
 
 ### When a step fails
 
-`on_fail` is `stop` (default), `continue`, or `ask`. `ask` asks on the run's terminal: retry,
-continue or stop. A run with no terminal to ask (started by a trigger) stops, so do not rely on
-`ask` in flows that run by themselves.
+```yaml
+- run: curl -fsS https://example.com/health
+  retry: {max: 3, every: 10s}   # or retry: 3, which does not wait
+  on_fail: continue
+```
+
+- `retry` runs a failed script, run or agent step again, at most `max` more times, waiting `every`
+  before each try. Only after the last try fails does `on_fail` apply. The flow's timeout ends the
+  tries too.
+- `on_fail` is `stop` (default), `continue`, or `ask`. `ask` asks on the run's terminal: retry,
+  continue or stop. A run with no terminal to ask (started by a trigger) stops, so do not rely on
+  `ask` in flows that run by themselves.
 
 ### Timeouts
 

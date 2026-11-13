@@ -1,4 +1,4 @@
-// Package examples embeds the demo scripts and flows the installer copies into a
+// Package examples embeds the demo scripts, flows and functions the installer copies into a
 // user's noct folders, so they can be explored without touching anything real.
 package examples
 
@@ -13,20 +13,22 @@ import (
 //go:embed demo
 var demo embed.FS
 
-// InstallDemo copies the demo scripts into scriptsDir and the demo flows into flowsDir, creating
-// the folders as needed. A file that already exists is left untouched, so a user's edits survive a
-// second install. It returns the paths it wrote, in the order it wrote them.
-func InstallDemo(scriptsDir, flowsDir string) (written []string, err error) {
-	scripts, err := copyTree("demo/scripts", scriptsDir)
-	if err != nil {
-		return written, err
+// InstallDemo copies the demo scripts, flows and functions into their folders, creating them as
+// needed. A file that already exists is left untouched, so a user's edits survive a second
+// install. It returns the paths it wrote, in the order it wrote them.
+func InstallDemo(scriptsDir, flowsDir, functionsDir string) (written []string, err error) {
+	for _, tree := range []struct{ root, dest string }{
+		{"demo/scripts", scriptsDir},
+		{"demo/flows", flowsDir},
+		{"demo/functions", functionsDir},
+	} {
+		files, err := copyTree(tree.root, tree.dest)
+		written = append(written, files...)
+		if err != nil {
+			return written, err
+		}
 	}
-	written = append(written, scripts...)
-	flows, err := copyTree("demo/flows", flowsDir)
-	if err != nil {
-		return written, err
-	}
-	return append(written, flows...), nil
+	return written, nil
 }
 
 // copyTree copies every file under root in the embedded FS to the matching path under dest,
