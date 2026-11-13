@@ -19,8 +19,8 @@ import (
 // on it. The question goes to the agent's command as its input, or in place of {prompt}, never
 // through a shell.
 
-// Agent is what an agent step asks: Ask, a template; Use, the agent, or "" for the default one;
-// Choices, the answers it may give.
+// Agent is what an agent step asks: Ask, a template; Use, the agent: a name, auto, or default
+// (also "") for the config's; Choices, the answers it may give.
 type Agent struct {
 	Ask     string   `yaml:"ask"`
 	Use     string   `yaml:"use,omitempty"`
@@ -117,7 +117,7 @@ func (x *running) runAgent(s Step, path string) bool {
 	if err != nil {
 		return x.stop(path, "use: "+err.Error(), 1)
 	}
-	name, command, err := ResolveAgent(x.Agents, cmp.Or(strings.TrimSpace(use), x.DefaultAgent, AutoAgent))
+	name, command, err := ResolveAgent(x.Agents, StepAgent(use, x.DefaultAgent))
 	if err != nil {
 		return x.stop(path, err.Error(), 1)
 	}

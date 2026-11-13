@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/AlexandreSJ/noct/internal/config"
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 )
 
@@ -48,5 +49,68 @@ func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 	}
 	if !strings.Contains(chartText(a.currentTab().focusedView().(*inspectPanel).chart), "→ pass | fail") {
 		t.Errorf("the agent's card does not tell its answers:\n%s", screenText(a))
+	}
+}
+
+// A new agent step says use: default unless another agent is picked, and its card tells it asks
+// the default agent.
+func TestAnAgentStepAsksTheDefaultAgentByName(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 50)
+	saveFlow(t, "review", "steps:\n  - {id: test, run: 'echo 3 failed'}\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	pressDrawn(a, letter('a'), letter('a'))
+	choices := a.form.fields[2].Choices
+	if choices[0] != "default" || choices[1] != "auto" || choices[len(choices)-1] != customAgent {
+		t.Fatalf("the agents offered: %v", choices)
+	}
+	typeDrawn(a, "Is it flaky?")
+	pressDrawn(a, tabPress, tabPress)
+	if !strings.Contains(screenText(a), "default, from the config") {
+		t.Errorf("the form does not tell what default asks:\n%s", screenText(a))
+	}
+	pressDrawn(a, enterPress)
+	steps := loadFlowSteps(t, "review")
+	if len(steps) != 2 || steps[1].Agent == nil || steps[1].Agent.Use != "default" {
+		t.Fatalf("steps %+v", steps)
+	}
+	if text := chartText(a.currentTab().focusedView().(*inspectPanel).chart); !strings.Contains(text, "asks the default agent") {
+		t.Errorf("the card does not say the default agent:\n%s", text)
+	}
+}
+
+// custom agent asks for a name and a command, adds them to the config's [agents], and the step
+// asks that agent; a reserved name is refused.
+func TestACustomAgentIsAddedToTheConfig(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 50)
+	saveFlow(t, "review", "steps:\n  - {id: test, run: 'echo 3 failed'}\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	pressDrawn(a, letter('a'), letter('a'))
+	typeDrawn(a, "Is it flaky?")
+	pressDrawn(a, tabPress, tabPress, leftPress)
+	if a.form.values["agent"] != customAgent {
+		t.Fatalf("left from default picked %q", a.form.values["agent"])
+	}
+	pressDrawn(a, enterPress)
+	typeDrawn(a, "auto")
+	pressDrawn(a, enterPress)
+	if !strings.Contains(a.statusMessage, "names another agent") {
+		t.Errorf("auto was taken as a name: %q", a.statusMessage)
+	}
+	pressDrawn(a, letter('a'), letter('a'))
+	typeDrawn(a, "Is it flaky?")
+	pressDrawn(a, tabPress, tabPress, leftPress, enterPress)
+	typeDrawn(a, "mymodel")
+	pressDrawn(a, enterPress)
+	typeDrawn(a, "ollama run qwen3.5:4b")
+	pressDrawn(a, enterPress)
+	saved, err := config.Load(a.configPath)
+	if err != nil || saved.Agents["mymodel"] != "ollama run qwen3.5:4b" || a.config.Agents["mymodel"] == "" {
+		t.Fatalf("config agents %v, %v", saved.Agents, err)
+	}
+	steps := loadFlowSteps(t, "review")
+	if len(steps) != 2 || steps[1].Agent.Use != "mymodel" {
+		t.Fatalf("steps %+v", steps)
 	}
 }

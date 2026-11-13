@@ -50,6 +50,8 @@ Usage:
                                     and warn about steps read where they may not have run
   noct agents                       list the AI agents a flow's agent step can ask, which
                                     of them this machine has, and the one it asks by default
+  noct agents default [name]        tell, or change in the config, the agent steps with
+                                    use: default ask (a name from noct agents, or auto)
   noct export theme [name] | config | keys
                                     print a theme (the one in use without a name), the
                                     settings you changed, or the keys and binds as one line
@@ -108,7 +110,7 @@ func run(args []string) error {
 	case "check":
 		return checkScripts(os.Stdout)
 	case "agents":
-		return listAgents(os.Stdout, loadConfig())
+		return agentsCommand(os.Stdout, args[1:])
 	case "run", "-s", "--script":
 		return runScript(args[1:])
 	case "flow":

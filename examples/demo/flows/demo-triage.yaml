@@ -4,13 +4,14 @@
 # failed, what the agent said, and whether that was right.
 #
 # The test is made up (demo/failing-test only prints), but the agent is real:
-# noct agents lists the ones it knows and which of them this machine has. With
-# agent = "auto" in the config (the default), steps ask the first one ready.
-# To ask another, give the agent param:
-#   noct flow run demo-triage agent=ollama
-#   noct flow run demo-triage agent=opencode
-# or set agent = "<name>" in the config. A model of your own goes under
-# [agents] in the config, by name, and then works the same:
+# noct agents lists the ones it knows and which of them this machine has. This
+# demo asks ollama, which runs a model on this machine with no account. To ask
+# another, give the agent param:
+#   noct flow run demo-triage agent=claude
+#   noct flow run demo-triage agent=default    # agent = "<name>" in the config
+# use: default asks the config's agent; noct agents default <name> changes it.
+# A model of your own goes under [agents] in the config, by name, and then
+# works the same (or add it from the inspect: a, a, agent: custom agent):
 #   [agents]
 #   ollama = "ollama run --hidethinking qwen3.5:4b"
 #   hermes = "hermes chat --oneshot -Q -t todo -q {prompt}"   # todo: no tool that acts
@@ -20,13 +21,15 @@
 description: A test fails; an AI agent you already use reads it and decides whether to run it again, explain it or ask you.
 
 params:
-  # Both can stay empty: the run asks how the test fails, and the agent is
-  # your default. fails=bug (or flaky, env) skips the question.
+  # fails can stay empty: the run asks how the test fails. fails=bug (or
+  # flaky, env) skips the question.
   fails:
     prompt: How the test fails (empty asks during the run)
-  # use is a template, so a param can pick the agent; empty asks the default.
+  # use is a template, so a param can pick the agent: ollama unless you give
+  # another name, or default for the config's.
   agent:
-    prompt: Agent (empty for your default)
+    prompt: Agent (a name from noct agents, or default)
+    default: ollama
 
 steps:
   - id: intro

@@ -6,7 +6,7 @@ description: Ask the agent what a failing test shows is wrong and where to look 
 
 params:
   log: {required: true, prompt: What the test printed}
-  agent: {prompt: Agent to ask (empty for the default)}
+  agent: {prompt: Agent to ask (default for the config's), default: default}
 
 steps:
   # Two agent steps in a row: the second reads the first's answer.

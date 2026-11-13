@@ -729,9 +729,9 @@ func (a *App) agentStepLines(step flow.Step) []styledLine {
 	for _, line := range strings.Split(strings.TrimRight(step.Agent.Ask, "\n"), "\n") {
 		lines = append(lines, styledLine{line, pal.panelText})
 	}
-	agent := "the default agent (" + a.config.Agent + "; noct agents lists them)"
-	if step.Agent.Use != "" {
-		agent = step.Agent.Use
+	agent := "the default agent (" + a.config.Agent + "; noct agents default <name> changes it)"
+	if use := strings.TrimSpace(step.Agent.Use); use != "" && use != flow.DefaultAgent {
+		agent = use
 	}
 	lines = append(lines, styledLine{"asks " + agent, pal.panelText})
 	if len(step.Agent.Choices) > 0 {

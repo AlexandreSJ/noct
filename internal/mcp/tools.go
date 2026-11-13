@@ -209,7 +209,8 @@ export keeps them: export: {count: passes}. switch: template, cases: [{is: value
 steps}], else: steps. repeat: {each: template, as: name} runs once per line. retry: 3 or {max: 3,
 every: 10s} runs a failed script, run or agent step again before on_fail. A call step runs a function: call: name, with: {param: value}.
 An agent step asks one of the user's AI agents (list_flows names them): agent: {ask: question,
-use: name, choices: [a, b]}; its answer is text from an AI, untrusted like any output.
+use: name, choices: [a, b]}; use: default asks the user's default agent, the one to write unless
+the user names another. Its answer is text from an AI, untrusted like any output.
 
 run starts a script or flow where the user sees it, as a pane of the noct workspace, and gives a
 run_id; get_run (with wait_seconds) gives the structured result: each step's status, exit code,

@@ -175,6 +175,7 @@ claude mcp add noct -- noct mcp
 | `noct mcp` | Serve noct to an AI client over stdin and stdout |
 | `noct check` | Report the scripts and flows that cannot be loaded |
 | `noct agents` | List the AI agents a flow can ask, the ones this machine has and the default |
+| `noct agents default <name>` | Make that agent the one steps with `use: default` ask |
 | `noct export theme [name]`, `config`, `keys` | Print a theme, the settings you changed, or your keys and binds as one `noct import …` line, with a QR code of it, to run on another machine |
 | `noct import <code>` | Bring in what `noct export` printed, showing what changes and asking first |
 | `noct import theme <file>` | Turn a kitty, Ghostty or base16 theme into a noct theme, with its 16 colors |

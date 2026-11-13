@@ -31,6 +31,28 @@ var presetOrder = []string{"claude", "codex", "opencode", "llm", "ollama"}
 // the presets in presetOrder.
 const AutoAgent = "auto"
 
+// DefaultAgent, as a step's use, asks the agent the config names as the default; a step with no
+// use asks it too.
+const DefaultAgent = "default"
+
+// ReservedAgent tells whether name stands for another agent, so no agent of the config may have it.
+func ReservedAgent(name string) bool {
+	return name == AutoAgent || name == DefaultAgent
+}
+
+// StepAgent is the agent a step's use, rendered, names: the default one, configured, for "" or
+// default, and auto when the config names none.
+func StepAgent(use, configured string) string {
+	use = strings.TrimSpace(use)
+	if use == "" || use == DefaultAgent {
+		use = strings.TrimSpace(configured)
+	}
+	if use == "" || use == DefaultAgent {
+		return AutoAgent
+	}
+	return use
+}
+
 // OllamaModel is the model the ollama preset runs, and the one to pull to start from nothing.
 const OllamaModel = "llama3.2"
 
@@ -43,7 +65,7 @@ const NoAgent = "no AI agent found here. noct knows claude, codex, opencode, llm
 // AgentNames are the agents a step can ask: the config's, then the presets, in the order auto
 // looks for them.
 func AgentNames(own map[string]string) []string {
-	names := slices.Sorted(maps.Keys(own))
+	names := slices.DeleteFunc(slices.Sorted(maps.Keys(own)), ReservedAgent)
 	for _, name := range presetOrder {
 		if !slices.Contains(names, name) {
 			names = append(names, name)
@@ -54,6 +76,9 @@ func AgentNames(own map[string]string) []string {
 
 // AgentCommand is the command of the agent called name: the config's, else noct's preset.
 func AgentCommand(own map[string]string, name string) (string, bool) {
+	if ReservedAgent(name) {
+		return "", false
+	}
 	if command, ok := own[name]; ok {
 		return command, true
 	}

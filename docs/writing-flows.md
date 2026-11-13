@@ -187,7 +187,8 @@ returns:
 - id: review
   agent:
     ask: 'The deploy health check printed {{.output}}. Ship or roll back?'
-    use: claude               # optional: a template too, so '{{.agent}}' lets a param pick
+    use: default              # the config's agent; or auto, or a name: claude, ollama...
+                              # a template too, so '{{.agent}}' lets a param pick
     choices: [ship, rollback] # optional: the answer must say one of them
   timeout: 3m
 - if: '{{eq .answer "rollback"}}'
@@ -196,10 +197,14 @@ returns:
 
 - The question goes to the agent's command as its input, or as one argument in place of
   `{prompt}`, never through a shell.
-- Without `use`, or with it empty, the step asks the config's `agent`. The default, `auto`, asks
-  the first agent that is ready here: the config's `[agents]` first, then claude, codex,
-  opencode, llm and ollama. `noct agents` lists them, the ready ones and the default; with none
-  ready, it says how to start with ollama, which runs on your machine for free.
+- `use: default`, or no `use` (or an empty one), asks the config's `agent`. Its default, `auto`,
+  asks the first agent that is ready here: the config's `[agents]` first, then claude, codex,
+  opencode, llm and ollama. `use: auto` asks that one whatever the config says. `noct agents`
+  lists them, the ready ones and the default; with none ready, it says how to start with ollama,
+  which runs on your machine for free. `noct agents default <name>` writes `agent = "<name>"`
+  into the config. `default` and `auto` name no agent of `[agents]`.
+- Write `use: default` for a flow others will run, so each person's own agent answers; a name
+  fixes the agent, so the flow asks the same one everywhere.
 - noct knows these, each set up so it cannot change anything:
 
   | Agent | Command |

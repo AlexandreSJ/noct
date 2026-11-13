@@ -22,8 +22,9 @@ terminal's own background stays untouched.
 - The demo has `demo-triage`: it tells what is about to happen, asks how a made-up test should
   fail (enter picks at random), and an AI agent reads only the test's output and decides whether
   to run it again, explain it through the function `demo-explain`, or ask you for a missing
-  setting. It asks the agent you already use, or the one its `agent` param names, and ends with a
-  report of how the test really failed and whether the agent got it right. `noct setup` installs
+  setting. It asks ollama, which runs a model on your machine, or the agent its `agent` param
+  names (`agent=default` for the config's), and ends with a report of how the test really failed
+  and whether the agent got it right. `noct setup` installs
   it beside the others.
 - The MCP server lists functions (with who calls each) and the agents an agent step can ask, reads
   a function with `get_item`, and drafts one with `draft_function`. A draft function does not run,
@@ -32,10 +33,13 @@ terminal's own background stays untouched.
   `ollama`, or a command under `[agents]` in the config) and keeps its answer in `{{.answer}}`,
   without the thinking a model prints first; with `choices`, the answer is one of them, so an if
   can branch on it. The question never goes through a shell, and no preset can change anything.
-  By default (`agent = "auto"`) a step asks the first agent this machine has, and `use:` can come
-  from a param. `noct agents` lists them and, when there is none, says how to start with ollama.
+  `use: default`, or no `use`, asks the config's agent; by default (`agent = "auto"`) the first
+  agent this machine has. `use:` can come from a param. `noct agents` lists them and, when there
+  is none, says how to start with ollama; `noct agents default <name>` sets the config's agent.
   In the inspect, `a` then `a` sets one up in a single form (the question, its answers, the agent
-  and a timeout) that `enter` adds from any field.
+  and a timeout) that `enter` adds from any field. The form always writes `use:`: `default`,
+  `auto`, an agent, the ones this machine has first, or `custom agent`, which asks a name and a
+  command and adds them under `[agents]`.
 - Flows have a `switch`: `switch: '{{.answer}}'` runs the first of its `cases` whose `is` holds the
   value (`is: bug` or `is: [bug, regression]`), or its `else`. The inspect draws a column for each
   case with its values on top; in **add step**, `o` asks for the value and the cases.

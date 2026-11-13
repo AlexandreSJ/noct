@@ -347,7 +347,11 @@ func (s chartStyle) boxText(step flow.Step) []string {
 		if len(step.Agent.Choices) > 0 {
 			lines = append(lines, "→ "+strings.Join(step.Agent.Choices, " | "))
 		}
-		lines = append(lines, "asks "+orDefault(shortTemplate(step.Agent.Use), "the default agent"))
+		use := strings.TrimSpace(step.Agent.Use)
+		if use == flow.DefaultAgent {
+			use = ""
+		}
+		lines = append(lines, "asks "+orDefault(shortTemplate(use), "the default agent"))
 	case flow.CallStep:
 		lines = append(lines, step.Call)
 		lines = append(lines, withText(step.With)...)

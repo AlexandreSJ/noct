@@ -158,6 +158,31 @@ func TestUseCanComeFromAParam(t *testing.T) {
 	}
 }
 
+// use: default asks the config's agent, as no use does; default and auto name no agent of the
+// config's own.
+func TestUseDefaultAsksTheConfigsAgent(t *testing.T) {
+	command, _ := fakeAgent(t, "ok")
+	r, out := testRunner(t, nil)
+	r.Agents = map[string]string{"mine": command, "default": "nothing", "auto": "nothing"}
+	r.DefaultAgent = "mine"
+	f := parse(t, "steps:\n  - agent: {ask: hi, use: default}\n  - agent: {ask: hi}\n")
+	if result := r.Run(f, nil); !result.OK || strings.Count(out.String(), "ask mine") != 2 {
+		t.Fatalf("result %+v:\n%s", result.Steps, out)
+	}
+	for use, want := range map[string]string{"": "mine", " default ": "mine", "auto": "auto", "ollama": "ollama"} {
+		if got := StepAgent(use, "mine"); got != want {
+			t.Errorf("StepAgent(%q) = %s, want %s", use, got, want)
+		}
+	}
+	if got := StepAgent("default", ""); got != AutoAgent {
+		t.Errorf("with no agent in the config, default is %s, want auto", got)
+	}
+	names := AgentNames(r.Agents)
+	if slices.Contains(names, "default") || slices.Contains(names, "auto") {
+		t.Errorf("a reserved name is listed as an agent: %v", names)
+	}
+}
+
 // A model that reasons aloud names choices it then turns down; the answer is what comes after.
 func TestTheAnswerLeavesOutTheThinking(t *testing.T) {
 	for _, said := range []string{

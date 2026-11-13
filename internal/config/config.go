@@ -72,10 +72,9 @@ type Config struct {
 	MCP         MCP          `toml:"mcp"`
 	// Notify is how noct tells that a run ended out of sight: NotifySystem, NotifyBell or NotifyOff.
 	Notify string `toml:"notify"`
-	// Agent is the AI agent a flow's agent step asks when it names none, auto for the first one
-	// installed; Agents are the commands
-	// of agents by name, over the ones noct knows, each taking the question as its input or in
-	// place of {prompt}.
+	// Agent is the AI agent a flow's agent step asks with use: default or none, auto for the first
+	// one installed; Agents are the commands of agents by name, over the ones noct knows, each
+	// taking the question as its input or in place of {prompt}.
 	Agent  string            `toml:"agent"`
 	Agents map[string]string `toml:"agents,omitempty"`
 	// Update says whether noct looks for new releases on its own.
@@ -496,7 +495,7 @@ func (c Config) normalized() Config {
 	if !slices.Contains(NotifyChoices, c.Notify) {
 		c.Notify = NotifySystem
 	}
-	if strings.TrimSpace(c.Agent) == "" {
+	if a := strings.TrimSpace(c.Agent); a == "" || a == "default" { // default would name itself
 		c.Agent = "auto"
 	}
 	return c

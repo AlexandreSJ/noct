@@ -6,7 +6,7 @@ run: |
   printf '  The agent sorted it:   %s  %s\n\n' {{quote .kind}} "$verdict"
   printf '  What came of it:\n'
   printf '%s\n' {{quote .summary}} | sed 's/^/    /'
-  printf '\nRun it again for another failure; agent=<name> asks another agent.\n'
+  printf '\nRun it again for another failure; agent=<name> asks another agent, agent=default the one in the config.\n'
 params:
   - name: kind
     prompt: What the agent sorted the failure as

@@ -97,7 +97,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/logs_heatmap.go` | The logs calendar's activity colors: each day's step by its logs, the style over it, and the legend |
 | `internal/app/logs_filter.go` | The logs filter line: words over name, date, time and status; size and line comparisons |
 | `internal/app/scope.go` | The inspect's scope pane (variables of the selected block with their last values) and the variable picker of template prompts (ctrl+t) |
-| `internal/app/flow_agents.go` | Adding an agent step in the inspect, from one form: what it asks, its answers, the agent and the timeout |
+| `internal/app/flow_agents.go` | Adding an agent step in the inspect, from one form: what it asks, its answers, the agent (default, auto, the agents, or a custom one it adds to the config) and the timeout |
 | `internal/app/flow_functions.go` | Functions in the inspect: making one, the call step's function and values, returns on the params card, which flows a change reaches |
 | `internal/app/flow_params.go` | A flow's params in the inspect: adding one with every type a param can have, changing its default, label and required, removing it |
 | `internal/app/flowchart_live.go` | A flow's run on its chart as it goes: the dots going down the arrow out of the step running, and the frames that move them |
@@ -168,8 +168,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/flow/timeout.go` | Flow and step timeouts: parsing and validation, the `noct check` warning, run and step deadlines, stopping a step's processes |
 | `internal/flow/validate.go` | Checking a flow and its steps: ids, fields that belong to each kind, patterns |
 | `internal/flow/agent.go` | Agent steps: a command split into words with the question as its input or in place of `{prompt}`, the answer without the model's thinking, and its choices |
-| `internal/flow/agents.go` | The agents noct knows (presets), the config's over them, which are ready on this machine, `auto` (the first ready one) and the ollama preset falling back to a model the machine has |
-| `cmd/noct/agents.go` | `noct agents`: the agents, which are ready, the default, and one to start from when none is |
+| `internal/flow/agents.go` | The agents noct knows (presets), the config's over them, which are ready on this machine, `auto` (the first ready one), `default` (the config's, for a step's use) and the ollama preset falling back to a model the machine has |
+| `cmd/noct/agents.go` | `noct agents`: the agents, which are ready, the default, and one to start from when none is; `noct agents default <name>` saves the config's agent |
 | `internal/flow/functions.go` | Functions: their folder, loading them with the flows (`LoadWithFunctions`), checking calls, who calls each (`Callers`), running a call in a scope of its own |
 | `internal/flow/progress.go` | The step a run is on, kept beside the flow's last result while it runs, for the inspect's live view |
 | `internal/flow/run.go` | Running a flow step by step in a terminal: commands, if, repeat, wait, captures (and scripts' outputs), expect |
