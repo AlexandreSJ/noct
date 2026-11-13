@@ -65,7 +65,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/scroll.go` | Scroll mode through a terminal's history: vim's keys and the arrows, shared with the logs preview; any other key leaves |
 | `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), the folder a new terminal opens in (`terminalDir`), tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach (in any session) |
 | `internal/app/view.go` | The `view` interface a pane shows: a terminal or a noct panel |
-| `internal/app/scripts_panel.go` | Scripts panel: list with versions, details and notes (with their images), keys to run, edit, create, delete |
+| `internal/app/scripts_panel.go` | Scripts panel: list with versions, details and notes (with their images), its filter, keys to run, edit, create, delete |
 | `internal/app/scripts.go` | Script actions: reload the library, run (form or not) as a tracked run with its log and exit code, create, edit in the configured editor, rename, delete |
 | `internal/app/form.go` | Parameters form shown before a script runs, or a flow (`p` in the inspect) |
 | `internal/app/run_view.go` | A script's run: its terminal plus a status line, held open with the exit code |
@@ -78,14 +78,14 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/lock.go` | The lock (prefix+b): which commands it holds back and the hint on how to unlock |
 | `internal/app/prompt.go` | Text prompt (tab and panel rename, new folder) and yes/no confirmation (quit, delete) |
 | `internal/app/choice.go` | A choice of a few options (new directory or script) |
-| `internal/app/info_popup.go` | An info popup (what a flow's step does, the logs view's keys) |
+| `internal/app/info_popup.go` | An info popup (what a flow's step does, a screen's keys), back to the screen it was opened from |
 | `internal/app/textfield.go` | The one-line text field every prompt, form, search and config row types into: cursor, shell editing keys, paste (bracketed or OSC 52), cursor view |
 | `internal/app/logs_panel.go` | Logs panel (prefix+v): month calendar marked by runs, the logs of a day (started or last written on it), sorting, clearing, where the log goes and whether it or the lists show, the hints of the part with the focus and the popup of every key; log pruning |
 | `internal/app/logs_columns.go` | The logs list's columns from the config: their widths over the whole list, dropping them on a narrow list, each cell (times, session, size, compact line counts), the titles |
 | `internal/app/logs_preview.go` | The selected log beside the logs panel's lists: a terminal that prints a part of 5000 lines of it, the last following its end, restarted as the selection or the part changes, and scrolling its history on into the parts before and after |
 | `internal/app/logs_search.go` | Searching the log shown (`/`, `n`, `N`, its matches lit) and filtering its lines (`f`) |
 | `internal/app/library_watch.go` | Reading scripts and flows again while a panel shows them and their files changed on disk |
-| `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks, alt+drag carrying a card to its place |
+| `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it, f filters it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks, alt+drag carrying a card to its place |
 | `internal/app/inspect_details.go` | The details under the inspect's chart: the selected block's kind, whole text and run, scrolled by the wheel |
 | `internal/app/flowchart.go` | Laying out and drawing a flow as a flowchart on its own canvas, and which block is where: steps with the mark and name of their kind, empty lists, the places a carried card drops at and its dashed outline; ranges and warnings marked |
 | `internal/app/triggers.go` | The daemon's trigger ticks, flows started by triggers (headless, logged, recorded), adding triggers from the inspect |
@@ -104,7 +104,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/flow_history.go` | Undo and redo of the inspect's changes to a flow: its file before each change, kept while noct runs |
 | `internal/app/flows.go` | Flow actions: create, run and test steps (as tracked runs), add, edit in the editor, move and remove steps, what a step does and its kept output |
 | `internal/app/keymap.go` | Changeable keys: the contexts and their actions (`keyContexts`), the keymap built from the config, turning a pressed key into the default one a handler knows, hints written with the keys as they are |
-| `internal/app/binds.go` | The config's binds page: a row per action, taking a key with conflicts, moving keys between actions, reset |
+| `internal/app/binds.go` | The config's binds page: a row per action, taking a key with conflicts, moving keys between actions, reset, ? listing its keys |
 | `internal/app/custom_binds.go` | The user's own binds: which key each takes and why one cannot be used, running a command, a script or a flow on it |
 | `internal/app/custom_binds_page.go` | The custom section of the binds page: adding a bind (key, kind, what it runs, name), editing and removing one |
 | `internal/app/complete_path.go` | Tab completion of a path param in the form, to the common prefix of the matches in its folder |
@@ -121,7 +121,10 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/selection.go` | Selecting text with the mouse in one pane, across scrolling, highlighting and copying it (OSC 52) |
 | `internal/app/rebuild.go` | Notices on attach that the noct binary was rebuilt after the daemon started |
 | `internal/app/prefix.go` | The configurable prefix key: parsing, matching, key names; capturing a new one and what it would take from shortcuts and programs |
-| `internal/app/config_panel.go` | Config panel: rows built section by section, key handling, how each row steps its setting, clicks and hover, applying and saving, reset to defaults, drawing |
+| `internal/app/config_panel.go` | Config panel: rows built section by section, key handling, how each row steps its setting, clicks and hover, applying and saving, reset to defaults, drawing (notes and hints wrapped) |
+| `internal/app/config_filter.go` | The filter of the config's settings and binds pages: which rows and sections it keeps, its keys, keeping the selection on a row shown |
+| `internal/app/config_agent.go` | The config's default agent row: auto, the agents ready and missing, and a custom agent added from there |
+| `internal/app/list_filter.go` | `listFilter`, the live filter of long lists (config, binds, scripts, flows): f or / opens it, matching every word, its keys and its line |
 | `internal/app/config_numbers.go` | Log limits typed by hand in the config: enter or a digit opens them, days and sizes in KB/MB/GB parsed, enter saves and esc gives up |
 | `internal/app/panel_kinds.go` | The kinds of panel a key opens (`panelKinds`), which `runAction` and the new tab setting read; opening a new tab |
 | `internal/app/panel.go` | Shared panel component: framed box, rows, list scrolling with a margin around the selection, the list keys shared by panels (`listJump`, `listMove`: arrows, j/k, g/G, home/end, pages), centered and corner placement |

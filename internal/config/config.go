@@ -282,6 +282,8 @@ type Appearance struct {
 	AnimateIntro string `toml:"animate_intro"`
 	// Animations is AnimationsOn or AnimationsOff, for every moment at once.
 	Animations string `toml:"animations"`
+	// FullscreenHint dashes, in fullscreen, the sides of the pane that have other panes beyond them.
+	FullscreenHint bool `toml:"fullscreen_hint"`
 }
 
 const (
@@ -426,7 +428,7 @@ func Default() Config {
 	return Config{
 		Prefix:         Prefix{Ctrl: true, Key: "space"},
 		Shortcut:       Shortcut{Alt: true},
-		Appearance:     Appearance{Theme: "noct", Mode: ModeDark, Background: BackgroundTerminal, AnimateIntro: IntroEmpty, Animations: AnimationsOn},
+		Appearance:     Appearance{Theme: "noct", Mode: ModeDark, Background: BackgroundTerminal, AnimateIntro: IntroEmpty, Animations: AnimationsOn, FullscreenHint: true},
 		Animations:     defaultAnimations,
 		AnimationTimes: defaultAnimationTimes,
 		NewTab:         NewTabTerminal,

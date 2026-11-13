@@ -404,8 +404,7 @@ func (p *logsPanel) showKeys() {
 func (a *App) showContextKeys(context, title string, notes ...string) {
 	c, _ := keyContextNamed(context)
 	pal := &a.palette
-	type keyLine struct{ keys, label string }
-	var keyLines []keyLine
+	var keyLines [][2]string
 	width := 0
 	for _, action := range c.actions {
 		var keys []string
@@ -413,14 +412,11 @@ func (a *App) showContextKeys(context, title string, notes ...string) {
 			keys = append(keys, prettyKey(key))
 		}
 		if len(keys) > 0 { // an action the binds left without keys has nothing to press
-			keyLines = append(keyLines, keyLine{strings.Join(keys, " "), action.label})
-			width = max(width, ansi.StringWidth(keyLines[len(keyLines)-1].keys))
+			keyLines = append(keyLines, [2]string{strings.Join(keys, " "), action.label})
+			width = max(width, ansi.StringWidth(keyLines[len(keyLines)-1][0]))
 		}
 	}
-	var lines []styledLine
-	for _, l := range keyLines {
-		lines = append(lines, styledLine{l.keys + strings.Repeat(" ", width-ansi.StringWidth(l.keys)+2) + l.label, pal.panelText})
-	}
+	lines := keyListLines(keyLines, width, a.infoTextWidth(), pal)
 	if len(notes) > 0 {
 		lines = append(lines, styledLine{"", pal.panelText})
 		for _, note := range notes {
@@ -429,6 +425,32 @@ func (a *App) showContextKeys(context, title string, notes ...string) {
 	}
 	lines = append(lines, styledLine{"", pal.panelText}, styledLine{"change them in the config: binds of every screen, " + c.label, pal.panelMuted})
 	a.openInfo(title, lines)
+}
+
+// keyListLines line up keys, each beside what it does, the keys width cells wide. What does not
+// fit in textWidth goes on under itself, past the keys.
+func keyListLines(keys [][2]string, width, textWidth int, pal *palette) []styledLine {
+	var lines []styledLine
+	indent := strings.Repeat(" ", width+2)
+	for _, k := range keys {
+		label := k[1]
+		if room := textWidth - width - 2; room >= 12 {
+			label = strings.ReplaceAll(ansi.Wrap(label, room, ""), "\n", "\n"+indent)
+		}
+		for _, part := range strings.Split(k[0]+strings.Repeat(" ", width-ansi.StringWidth(k[0])+2)+label, "\n") {
+			lines = append(lines, styledLine{part, pal.panelText})
+		}
+	}
+	return lines
+}
+
+// showKeyList lists the keys of a screen whose keys do not change, each beside what it does.
+func (a *App) showKeyList(title string, keys [][2]string) {
+	width := 0
+	for _, k := range keys {
+		width = max(width, ansi.StringWidth(k[0]))
+	}
+	a.openInfo(title, keyListLines(keys, width, a.infoTextWidth(), &a.palette))
 }
 
 // inspectRun opens a flow's run in the inspect, with how each of its blocks went.
@@ -740,10 +762,17 @@ func (p *logsPanel) drawDay(screen uv.Screen, area image.Rectangle, s dayStats) 
 	case p.allDays:
 		title, summary = "all days", plural(len(rows), "log")+" · "+totalSize(p.entries)
 	}
-	drawText(screen, area.Min.X, area.Min.Y, area.Max.X, title, titleStyle)
-	drawText(screen, area.Min.X, area.Min.Y+1, area.Max.X, summary, pal.panelText)
-	drawText(screen, area.Min.X, area.Min.Y+2, area.Max.X, "sorted by "+p.order+"; the bar goes from the lightest log to the heaviest", pal.panelMuted)
-	list := image.Rect(area.Min.X, min(area.Min.Y+4, area.Max.Y), area.Max.X, area.Max.Y) // image.Rect would swap the ends of an area too short
+	// a narrow list wraps its heading rather than cut it
+	y := area.Min.Y
+	for _, line := range []styledLine{{title, titleStyle}, {summary, pal.panelText}, {"sorted by " + p.order + "; the bar goes from the lightest log to the heaviest", pal.panelMuted}} {
+		for _, part := range wrapText(line.text, max(area.Dx(), 1)) {
+			if y < area.Max.Y {
+				drawText(screen, area.Min.X, y, area.Max.X, part, line.style)
+			}
+			y++
+		}
+	}
+	list := image.Rect(area.Min.X, min(y+1, area.Max.Y), area.Max.X, area.Max.Y) // image.Rect would swap the ends of an area too short
 	first := p.first
 	p.list, p.first, p.rowCount = list, 0, len(rows)
 	if len(rows) == 0 {
@@ -752,8 +781,8 @@ func (p *logsPanel) drawDay(screen uv.Screen, area image.Rectangle, s dayStats) 
 	}
 	p.current(rows)
 	columns := p.logColumns(list, rows)
-	if list.Min.Y == area.Min.Y+4 {
-		p.drawLogColumnHeaders(screen, list.Min.Y-1, columns)
+	if list.Min.Y == y+1 {
+		p.drawLogColumnHeaders(screen, y, columns)
 	}
 	lightest, heaviest := sizeRange(rows)
 	p.first = listFirst(first, p.selected, len(rows), list.Dy())

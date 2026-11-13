@@ -69,7 +69,7 @@ func (a *App) openAgentForm(insert func(flow.Step), pickVariable func()) {
 			a.askCustomAgent(func(name string) {
 				step.Agent.Use = name
 				insert(step)
-			})
+			}, nil)
 			return nil
 		},
 	}
@@ -77,16 +77,22 @@ func (a *App) openAgentForm(insert func(flow.Step), pickVariable func()) {
 }
 
 // askCustomAgent asks for an agent of the user's own, its name and then its command, adds it to
-// the config's [agents], and hands its name on.
-func (a *App) askCustomAgent(added func(name string)) {
+// the config's [agents], and hands its name on. back, when set, runs when either is cancelled or
+// refused, such as to show the panel that asked again.
+func (a *App) askCustomAgent(added func(name string), back func()) {
+	if back == nil {
+		back = func() {}
+	}
 	a.openPrompt("name of the agent", "", "{enter} next  esc cancel  letters, digits and _, as mymodel", func(name string) {
 		name = strings.TrimSpace(name)
 		switch {
 		case !naming.IsValid(name):
 			a.statusMessage = "an agent's name is letters, digits and _, as mymodel"
+			back()
 			return
 		case flow.ReservedAgent(name):
 			a.statusMessage = name + " names another agent: pick another name"
+			back()
 			return
 		}
 		initial, _ := flow.AgentCommand(a.config.Agents, name)
@@ -94,6 +100,7 @@ func (a *App) askCustomAgent(added func(name string)) {
 			command = strings.TrimSpace(command)
 			if _, _, err := flow.AgentArgv(command, "question"); err != nil {
 				a.statusMessage = "command of " + name + ": " + err.Error()
+				back()
 				return
 			}
 			next := a.config
@@ -105,7 +112,9 @@ func (a *App) askCustomAgent(added func(name string)) {
 			a.applyConfig(next)
 			added(name)
 		})
+		a.prompt.cancel = back
 	})
+	a.prompt.cancel = back
 }
 
 // agentFormNote is the line under the form: what the field selected takes, or, on the agent,

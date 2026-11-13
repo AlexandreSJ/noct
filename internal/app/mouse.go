@@ -128,7 +128,7 @@ func (a *App) handleClick(event uv.MouseEvent) {
 	a.drag, a.selection = nil, nil
 	switch a.mode {
 	case infoMode:
-		a.mode = normalMode // a click closes what it tells, as a key does
+		a.mode = a.info.back // a click closes what it tells, as a key does
 	case commandMode:
 		a.clickCommandShortcut(image.Pt(m.X, m.Y))
 	case configMode:

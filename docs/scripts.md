@@ -64,6 +64,8 @@ O **scripts panel** (`prefixo` + `s`) lista os scripts com a versão do programa
 | `n` / `Ctrl+N` | Novo script, no mesmo formulário vazio |
 | `Ctrl+O` | Abrir a pasta dos scripts no gerenciador de arquivos do config (padrão: um terminal na pasta) |
 | `Delete` | Apagar, depois de confirmar |
+| `f` / `/` | Filtrar: o que se digita deixa só os scripts com todas as palavras no nome, na descrição, na pasta ou na linha `run`, com as pastas abertas (uma pasta cujo nome casa fica inteira). `Enter` mantém o filtro, `esc` o limpa |
+| `?` | Todas as teclas do painel, num popup |
 | `Ctrl+D` | Fechar o painel |
 
 A biblioteca é relida ao abrir um scripts panel, quando o editor fecha e depois de criar ou apagar.

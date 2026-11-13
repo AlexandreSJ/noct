@@ -274,28 +274,20 @@ func TestConfigFollowsTheMouse(t *testing.T) {
 	}
 }
 
-// A note too wide for the panel scrolls, after a pause, only while the row above it is selected.
-func TestWideNoteScrollsWhileItsRowIsSelected(t *testing.T) {
+// A note too wide for the panel goes on in lines under itself, whole, rather than cut.
+func TestWideNoteWrapsUnderItself(t *testing.T) {
 	const note = "logs not written to for longer and, past the size, the least recent are deleted"
-	now := time.Unix(0, 0)
 	a := testApp(t, sideBySideTab(1, 2))
-	a.clock = func() time.Time { return now }
 	a.openConfig()
 	a.selectConfigRow(logsSizeRow)
-	if !strings.Contains(screenText(a), note[:40]) {
-		t.Fatalf("before the pause, the note shows its start:\n%s", screenText(a))
+	text := screenText(a)
+	for _, word := range strings.Fields(note) {
+		if !strings.Contains(text, word) {
+			t.Fatalf("the note lost %q:\n%s", word, text)
+		}
 	}
-	now = now.Add(noteHold + 2*noteStep)
-	if text := screenText(a); !strings.Contains(text, note[2:42]) || strings.Contains(text, note[:10]) {
-		t.Errorf("after the pause and two steps, the note moved two cells:\n%s", text)
-	}
-	if a.noteTick == nil {
-		t.Error("a scrolling note asks for its next frame")
-	}
-	a.selectConfigRow(logsTerminalsRow)
-	now = now.Add(noteHold + 2*noteStep)
-	if !strings.Contains(screenText(a), note[:40]) {
-		t.Errorf("with another row selected, the note stays at its start:\n%s", screenText(a))
+	if strings.Contains(text, "least recent are deleted") == strings.Contains(text, note) {
+		t.Errorf("the note should wrap onto a second line:\n%s", text)
 	}
 }
 
@@ -355,6 +347,8 @@ func TestConfigLinesStayInPlace(t *testing.T) {
 		"row background = terminal @8",
 		"row animate intro = < empty > @9",
 		"row mouse = on @11",
+		"row fullscreen hint = on @12",
+		"note in fullscreen, dashes mark the sides with other panes beyond them = ",
 		"heading Animations = ",
 		"row animations = off @10",
 		"row hover = < fade > @3000",
@@ -374,42 +368,44 @@ func TestConfigLinesStayInPlace(t *testing.T) {
 		"row activity = < fade > @3007",
 		"row   time = < 600 ms > @3107",
 		"heading Tabs = ",
-		"row new tab opens = < terminal (alt+p) > @12",
-		"row close when empty = on @13",
+		"row new tab opens = < terminal (alt+p) > @13",
+		"row close when empty = on @14",
 		"heading Programs = ",
-		"row editor = < custom > @14",
-		"typed command = noct-missing-editor -w @15",
+		"row editor = < custom > @15",
+		"typed command = noct-missing-editor -w @16",
 		"note command not found = ",
-		"row file manager = < terminal > @16",
+		"row file manager = < terminal > @17",
 		"heading Scripts = ",
-		"typed location = /nonexistent/noct-scripts @18",
+		"typed location = /nonexistent/noct-scripts @19",
 		"note enter edit · ctrl+c copy = ",
 		"note folder not found; it is created with the first script = ",
-		"row hints in new scripts = on @19",
-		"row sort = < alphabetical > @20",
+		"row hints in new scripts = on @20",
+		"row sort = < alphabetical > @21",
 		"heading Logs = ",
-		"row keep = < 90 days > @21",
-		"row max size = < 200 MB > @22",
+		"row keep = < 90 days > @22",
+		"row max size = < 200 MB > @23",
 		"bar 0% · 1 MB of 200 MB · 2 logs =  0.0050",
 		"note logs not written to for longer and, past the size, the least recent are deleted = ",
-		"row terminals = off @23",
+		"row terminals = off @24",
 		"note log what terminal panes print; runs are always logged = ",
-		"typed list columns = name size bogus @24",
+		"typed list columns = name size bogus @25",
 		"note enter edit · in order, out of edited started status name session bar size lines = ",
 		"warning not a column, left out: bogus = ",
-		"row log = < below > @25",
-		"row log size = < 50% > @26",
+		"row log = < below > @26",
+		"row log size = < 50% > @27",
 		"note where the logs view shows the selected log; there, p moves it and + - size it = ",
 		"heading Flows = ",
-		"row step output kept = < all (up to 1 MB) > @27",
+		"row default agent = < auto > @28",
+		"note agent steps with use: default, or no use, ask it = ",
+		"row step output kept = < all (up to 1 MB) > @29",
 		"note in each flow's last result; tests keep 4 KB = ",
-		"row tell when runs end = < system > @28",
+		"row tell when runs end = < system > @30",
 		"note runs out of sight: system notification, the terminal's bell, or off = ",
 		"heading Updates = ",
-		"row check for new versions = on @29",
+		"row check for new versions = on @31",
 		"note only checks; install with ctrl+space+c = ",
 		"heading Defaults = ",
-		"row reset all to defaults =  @30",
+		"row reset all to defaults =  @32",
 	}
 	var got []string
 	for _, line := range a.configLines() {

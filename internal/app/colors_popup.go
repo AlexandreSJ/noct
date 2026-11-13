@@ -185,8 +185,16 @@ func luminance(c color.Color) float64 {
 // making, and the contrast warning under the list.
 func (a *App) drawColors(screen uv.Screen) {
 	p := &a.colors
-	height := panelHeight(len(p.rows) + 3)
-	inner := a.drawPanel(screen, centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), themePanelWidth, max(height, stageMinHeight+4, panelHeight(pickerHeight+3))), "colors of the panel and tab")
+	hints := colorsHints
+	if p.picker != nil {
+		hints = p.picker.hints()
+	}
+	hints = a.hint("config", hints)
+	more := moreHintRows(hints, min(themePanelWidth, a.size.X))
+	height := panelHeight(len(p.rows) + 3 + more)
+	full := a.drawPanel(screen, centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), themePanelWidth, max(height, stageMinHeight+4+more, panelHeight(pickerHeight+3+more))), "colors of the panel and tab")
+	inner := full
+	inner.Max.Y -= more // the hints take the rows under it
 	list := inner
 	list.Max.X = min(inner.Min.X+themeListWidth, inner.Max.X)
 	pane, tab := a.colorsPreview()
@@ -233,9 +241,5 @@ func (a *App) drawColors(screen uv.Screen) {
 	pal := base.forPane(pane)
 	pal.activeTab, pal.tab = base.forTab(tab)
 	drawStage(screen, image.Rect(list.Max.X+2, inner.Min.Y, inner.Max.X, inner.Max.Y-2), &pal, theme.Background, false)
-	hints := colorsHints
-	if p.picker != nil {
-		hints = p.picker.hints()
-	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
+	drawHints(screen, full, hints, a.palette.panelMuted)
 }

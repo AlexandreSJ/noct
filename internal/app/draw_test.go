@@ -65,6 +65,11 @@ func TestFullscreenDashesTheSidesWithPanes(t *testing.T) {
 	if left, rightSide, across := gaps(); left != 0 || rightSide == 0 || across != 0 {
 		t.Errorf("focused on the left: %d gaps left, %d right, %d below", left, rightSide, across)
 	}
+	a.config.Appearance.FullscreenHint = false
+	if left, rightSide, across := gaps(); left+rightSide+across != 0 {
+		t.Errorf("with the fullscreen hint off: %d gaps", left+rightSide+across)
+	}
+	a.config.Appearance.FullscreenHint = true
 	press(a, prefixPress, letter('f'))
 	if left, rightSide, across := gaps(); left+rightSide+across != 0 {
 		t.Errorf("out of fullscreen: %d gaps", left+rightSide+across)

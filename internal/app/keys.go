@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/AlexandreSJ/noct/internal/layout"
 )
@@ -401,7 +402,12 @@ func (a *App) shortcutsPopupArea(visible []shortcut, note string) image.Rectangl
 // middle of the screen, with an optional note under them.
 func (a *App) drawShortcutsPopup(screen uv.Screen, title, context string, shortcuts []shortcut, note string) {
 	visible := a.availableShortcuts(shortcuts)
-	inner := a.drawPanel(screen, a.shortcutsPopupArea(visible, note), title)
+	area := a.shortcutsPopupArea(visible, note)
+	if width := ansi.StringWidth(title) + 8; width > area.Dx() {
+		// a question too long for the popup widens it rather than lose its end, as "delete…"
+		area = centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), min(width, a.size.X-2), area.Dy())
+	}
+	inner := a.drawPanel(screen, area, title)
 	for i, s := range visible {
 		drawRow(screen, inner, inner.Min.Y+i, a.hint(context, shortcutTemplate(s.keys)), s.label, a.palette.panelText)
 	}

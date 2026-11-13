@@ -249,13 +249,16 @@ func (a *App) drawScriptForm(screen uv.Screen) {
 	a.drawTypedField(screen, inner, inner.Min.Y, "name", nameField)
 	a.drawTypedField(screen, inner, inner.Min.Y+1, "program", programField)
 
-	boxes := image.Rect(inner.Min.X, inner.Min.Y+3, inner.Max.X, inner.Max.Y-2)
+	hints := wrapHints(a.hint("script-form", scriptFormHints), inner.Dx()-1, maxHintRows)
+	boxes := image.Rect(inner.Min.X, inner.Min.Y+3, inner.Max.X, inner.Max.Y-1-len(hints))
 	middleX, middleY := boxes.Min.X+boxes.Dx()/2, boxes.Min.Y+boxes.Dy()/2
 	a.drawPartBox(screen, image.Rect(boxes.Min.X, boxes.Min.Y, middleX, middleY), runPart)
 	a.drawPartBox(screen, image.Rect(middleX, boxes.Min.Y, boxes.Max.X, middleY), descriptionPart)
 	a.drawPartBox(screen, image.Rect(boxes.Min.X, middleY, middleX, boxes.Max.Y), paramsPart)
 	a.drawPartBox(screen, image.Rect(middleX, middleY, boxes.Max.X, boxes.Max.Y), notesPart)
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("script-form", scriptFormHints), a.palette.panelMuted)
+	for i, line := range hints {
+		drawText(screen, inner.Min.X+1, inner.Max.Y-len(hints)+i, inner.Max.X, line, a.palette.panelMuted)
+	}
 }
 
 func (a *App) drawTypedField(screen uv.Screen, inner image.Rectangle, y int, label string, field int) {
