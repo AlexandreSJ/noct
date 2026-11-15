@@ -11,6 +11,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+## v0.3.1 - 2026-11-15
+
 ### Added
 
 - `f` (or `/`) filters long lists as you type: the config (`prefix` + `,`, then `f` and any part
