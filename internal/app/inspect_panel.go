@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	flowsListHints = "{up}{down} flow  {enter} open  {a} new  {r} run  {E} edit file  {delete} delete  {?} all keys  {tab} hide list"
+	flowsListHints = "{up}{down} flow  {enter} open  {a} new  {r} run  {f} filter  {?} all keys  {tab} hide list"
 	flowStepHints  = "{up}{down}{left}{right} select  {enter} about  {a} add below  {e} edit  {delete} remove  {r} run  {t} test  {m} move  alt+drag move  {z} undo  {+} {-} zoom  {?} all keys  {tab} list"
 	flowMoveHints  = "{up}{down} move the step, in and out of blocks  {m} {enter} {esc} put it down"
 	flowGapHints   = "{up}{down}{left}{right} select  {a} add here  {r} run  {+} {-} zoom  {?} all keys  {tab} list"
@@ -61,6 +61,10 @@ type inspectPanel struct {
 	drag         *chartDrag
 	lastClick    time.Time
 	clickedKey   string
+	// filter narrows the list to the flows that hold what is typed; first is the list's row on its
+	// top line.
+	filter listFilter
+	first  int
 }
 
 // chartDrag is the mouse held down on the chart: it pans the chart, or, pressed on a step's card
@@ -122,9 +126,52 @@ func entryKey(f flow.Flow) string {
 	return f.Name
 }
 
+// shown are the entries the filter keeps: those whose name or description holds what is typed.
+func (p *inspectPanel) shown() []flow.Flow {
+	entries := p.entries()
+	if p.filter.query() == "" {
+		return entries
+	}
+	return slices.DeleteFunc(entries, func(f flow.Flow) bool {
+		kind := "flow"
+		if f.Function {
+			kind = "function"
+		}
+		return !p.filter.keeps(f.Name, f.Description, kind)
+	})
+}
+
+// takesText tells that the keys type in the filter, as they are pressed.
+func (p *inspectPanel) takesText() bool { return p.filter.typing }
+
+// filterKey runs the filter's keys: typing in it while it is open, f or / to open it, esc to clear
+// it. It tells whether it used the key.
+func (p *inspectPanel) filterKey(key uv.KeyPressEvent) bool {
+	if p.filter.typing {
+		used, changed := p.filter.handleKey(key)
+		if changed {
+			p.first = 0
+			if _, _, ok := p.current(); ok {
+				p.selected, p.centered, p.anchor, p.run = "", true, "", nil
+			}
+		}
+		return used
+	}
+	switch name := key.String(); {
+	case isFilterKey(name) && !p.moving:
+		p.filter.start()
+		p.focusChart, p.listHidden = false, false
+		return true
+	case name == "esc" && p.filter.on() && !p.focusChart:
+		p.filter.clear()
+		return true
+	}
+	return false
+}
+
 // current is the selected flow or function, following it by name as the list is read again.
 func (p *inspectPanel) current() (flow.Flow, int, bool) {
-	flows := p.entries()
+	flows := p.shown()
 	if len(flows) == 0 {
 		return flow.Flow{}, 0, false
 	}
@@ -138,12 +185,15 @@ func (p *inspectPanel) selectFlow(step int) {
 	if !ok {
 		return
 	}
-	entries := p.entries()
+	entries := p.shown()
 	i = min(max(i+step, 0), len(entries)-1)
 	p.flowName, p.selected, p.centered, p.anchor, p.run = entryKey(entries[i]), "", true, "", nil
 }
 
 func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
+	if p.filterKey(key) {
+		return
+	}
 	name := key.String()
 	f, _, ok := p.current()
 	switch name {
@@ -229,7 +279,7 @@ func (p *inspectPanel) listKey(name string, f flow.Flow) {
 		p.selectFlow(1)
 	case "pgup", "pgdown", "home", "end":
 		if _, i, ok := p.current(); ok {
-			to, _ := listJump(name, i, len(p.entries()), max(p.list.Dy()-2, 1)) // inside the frame
+			to, _ := listJump(name, i, len(p.shown()), max(p.list.Dy(), 1))
 			p.selectFlow(to - i)
 		}
 	case "enter", "right", "l":
@@ -551,6 +601,15 @@ func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	rows := drawHints(screen, area, p.hints(), pal.panelMuted)
 	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-rows)
 	f, _, ok := p.current()
+	if !ok && p.filter.on() {
+		p.chart, p.chartArea, p.details = nil, image.Rectangle{}, image.Rectangle{}
+		list := body // as the list alone shows: nothing matches, so there is no chart beside it
+		if body.Dx() >= flowsListWidth+40 {
+			list.Max.X = body.Min.X + flowsListWidth
+		}
+		p.list = p.drawFlows(screen, list).Sub(area.Min)
+		return
+	}
 	if !ok {
 		p.chart, p.list, p.chartArea = nil, image.Rectangle{}, image.Rectangle{}
 		drawCentered(screen, body, body.Min.Y+body.Dy()/2-1, "no flows yet", pal.panelHeading)
@@ -579,6 +638,9 @@ func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 }
 
 func (p *inspectPanel) hints() string {
+	if p.filter.typing {
+		return p.app.hint("flows", filterHints)
+	}
 	if !p.focusChart {
 		return p.app.hint("flows", flowsListHints)
 	}
@@ -605,14 +667,21 @@ func (p *inspectPanel) drawFlows(screen uv.Screen, area image.Rectangle) image.R
 	line, title := p.frameStyles(!p.focusChart)
 	drawFrame(screen, area, "flows", line, title)
 	inner := area.Inset(1)
-	_, selected, _ := p.current()
+	if p.filter.on() && inner.Dy() > 2 {
+		kept := fmt.Sprintf("%d of %d", len(p.shown()), len(p.entries()))
+		p.filter.draw(screen, inner.Min.X, inner.Min.Y, inner.Max.X, kept, &p.app.palette)
+		inner.Min.Y += 2
+	}
+	_, selected, ok := p.current()
+	entries := p.shown()
+	if !ok {
+		selected = -1
+	}
+	p.first = listFirst(p.first, max(selected, 0), len(entries), inner.Dy())
 	enabled := flow.Enabled(flow.TriggersFile())
-	for i, f := range p.entries() {
-		y := inner.Min.Y + i
-		if y >= inner.Max.Y {
-			break
-		}
-		drawRow(screen, inner, y, flowListMarks(f, enabled)+f.Name, "", p.flowRowStyle(i == selected))
+	for i := p.first; i < len(entries) && i-p.first < inner.Dy(); i++ {
+		f := entries[i]
+		drawRow(screen, inner, inner.Min.Y+i-p.first, flowListMarks(f, enabled)+f.Name, "", p.flowRowStyle(i == selected))
 	}
 	return inner
 }
@@ -763,7 +832,7 @@ func (p *inspectPanel) runText(r *flow.Result) string {
 // RowAt is the row of the flows' list under point, which a click selects.
 func (p *inspectPanel) RowAt(point image.Point) (image.Rectangle, bool, bool) {
 	_, selected, _ := p.current()
-	return listRowAt(p.list, point, 0, len(p.entries()), selected)
+	return listRowAt(p.list, point, p.first, len(p.shown()), selected)
 }
 
 // WantsMouseAt takes the mouse over the list and the chart.
@@ -782,7 +851,7 @@ func (p *inspectPanel) SendMouse(event uv.MouseEvent) {
 			return
 		}
 		if point.In(p.list) {
-			p.clickFlow(point.Y - p.list.Min.Y)
+			p.clickFlow(p.first + point.Y - p.list.Min.Y)
 			return
 		}
 		if point.In(p.details) {
@@ -835,7 +904,7 @@ func (p *inspectPanel) wheel(m uv.Mouse) {
 }
 
 func (p *inspectPanel) clickFlow(index int) {
-	entries := p.entries()
+	entries := p.shown()
 	if index < 0 || index >= len(entries) {
 		return
 	}

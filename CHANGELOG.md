@@ -11,6 +11,35 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Added
+
+- `f` (or `/`) filters long lists as you type: the config (`prefix` + `,`, then `f` and any part
+  of a setting, such as `agent` or `logs size`), the keys of every screen, the scripts panel and
+  the inspect's list of flows. Only the rows with every word stay, with their sections; the arrows
+  move among them, `Enter` keeps the filter and `Esc` clears it. The inspect's list now scrolls
+  when the flows do not fit.
+- The config's **Flows** section has **default agent**, the agent a step with `use: default` asks:
+  `auto`, the agents your machine has, the ones it lacks, and **custom agent**, where `Enter` asks
+  for a name and a command and makes it the default. Its note tells whether your machine has the
+  agent shown, and its command.
+- **Fullscreen hint** under **Appearance** turns off the dashes that, in fullscreen, mark the sides
+  with other panes beyond them. It is on by default.
+- `?` lists every key of the binds page and of the scripts panel, whose footers now show the main
+  ones.
+
+### Fixed
+
+- Hints at the bottom of the config, the binds, the theme editor, the panel colors, MCP, updates,
+  templates, the script form and setup wrap onto more lines instead of being cut, at any terminal
+  size. Long notes in the config wrap too, instead of scrolling slowly, and a long question, such
+  as deleting a function its flows call, widens its popup.
+- The updates popup reads each changelog paragraph as one, instead of breaking it where the file
+  does, and the logs list's heading wraps in a narrow pane.
+- Adding a custom agent showed `prompt` where its hint meant `{prompt}`.
+- A drag no longer sticks when the mouse button goes up outside where it started: off the
+  inspect's chart, over another pane, or outside the terminal's window. Leaving the window lets go
+  of the drag right there, and a card let go off the chart stays where it was.
+
 ## v0.3.0 - 2026-11-13
 
 Flows grow up. A step can ask an AI agent you already have (claude, codex, opencode, llm, ollama

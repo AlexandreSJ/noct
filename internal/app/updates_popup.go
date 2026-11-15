@@ -107,7 +107,7 @@ func (a *App) changelogLines() []styledLine {
 			heading, style = heading+" · new", pal.focusedTitle
 		}
 		lines = append(lines, styledLine{heading, style})
-		for _, note := range strings.Split(strings.TrimSpace(strings.ReplaceAll(r.Notes, "\r", "")), "\n") {
+		for _, note := range joinSoftBreaks(strings.Split(strings.TrimSpace(strings.ReplaceAll(r.Notes, "\r", "")), "\n")) {
 			if group, ok := strings.CutPrefix(note, "### "); ok { // a changelog group, such as Added
 				lines = append(lines, styledLine{group, pal.panelMuted})
 				continue
@@ -117,6 +117,24 @@ func (a *App) changelogLines() []styledLine {
 		lines = append(lines, styledLine{"", pal.panelText})
 	}
 	return lines[:len(lines)-1]
+}
+
+// joinSoftBreaks joins the lines of a changelog that only break a paragraph or a list item, so
+// the popup wraps them to its own width rather than at the file's: a line goes on the one before
+// it unless it is blank, a heading or a new item, or follows a blank line.
+func joinSoftBreaks(lines []string) []string {
+	var joined []string
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		startsNew := i == 0 || trimmed == "" || strings.TrimSpace(lines[i-1]) == "" ||
+			strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ")
+		if startsNew {
+			joined = append(joined, line)
+			continue
+		}
+		joined[len(joined)-1] += " " + trimmed
+	}
+	return joined
 }
 
 // updatesHints are the popup's keys that do something now.
@@ -152,12 +170,14 @@ func (a *App) drawUpdates(screen uv.Screen) {
 			lines = append(lines, styledLine{part, line.style})
 		}
 	}
-	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(len(lines)+2)), "updates · noct "+a.version)
-	visible := max(inner.Dy()-2, 1)
+	hints := a.updatesHints()
+	more := moreHintRows(hints, width)
+	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(len(lines)+2+more)), "updates · noct "+a.version)
+	visible := max(inner.Dy()-2-more, 1)
 	a.updates.first = min(a.updates.first, max(len(lines)-visible, 0))
 	a.updates.visible, a.updates.lines = visible, len(lines)
 	for i := a.updates.first; i < len(lines) && i-a.updates.first < visible; i++ {
 		drawText(screen, inner.Min.X+1, inner.Min.Y+i-a.updates.first, inner.Max.X-1, lines[i].text, lines[i].style)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.updatesHints(), a.palette.panelMuted)
+	drawHints(screen, inner, hints, a.palette.panelMuted)
 }

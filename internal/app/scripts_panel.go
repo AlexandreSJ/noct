@@ -18,7 +18,7 @@ import (
 // minDetailsWidth is the narrowest panel that shows the selected script's details beside the list.
 const minDetailsWidth = 70
 
-const scriptsHints = "{enter} run  {e} edit  {n} new  {P} promote draft  {a} add folder  {ctrl+o} open  {delete} delete  {ctrl+d} close"
+const scriptsHints = "{enter} run  {e} edit  {n} new  {f} filter  {?} all keys  {ctrl+d} close"
 
 // scriptsPanel lists the saved scripts, with the selected one's details and notes beside them.
 // Folders come first, closed until opened, each followed by its scripts behind a bar. It is where the
@@ -46,6 +46,8 @@ type scriptsPanel struct {
 	notes       string
 	// images are the pictures the notes show, read again when their files change.
 	images noteImages
+	// filter narrows the list to the scripts that hold what is typed, their folders open.
+	filter listFilter
 }
 
 // panelRow is a line of the list: a folder (script nil), or a script, inside folder when set.
@@ -63,23 +65,83 @@ func (r panelRow) key() string {
 
 // rows are the lines of the list: each folder with its scripts below it unless collapsed, then
 // the scripts outside folders.
+// While the filter narrows it, a folder shows open with the scripts it keeps, and whole when its
+// own name matches; folders it keeps nothing of are left out.
 func (p *scriptsPanel) rows() []panelRow {
 	lib := &p.app.scripts
+	filtering := p.filter.query() != ""
 	var rows []panelRow
 	for i := range lib.Folders {
 		f := &lib.Folders[i]
-		rows = append(rows, panelRow{folder: f})
-		if !p.app.expanded[f.Dir] {
-			continue
-		}
+		whole := filtering && p.filter.keeps(f.Name)
+		var kept []panelRow
 		for j := range f.Scripts {
-			rows = append(rows, panelRow{folder: f, script: &f.Scripts[j]})
+			if s := &f.Scripts[j]; whole || p.keepsScript(s) {
+				kept = append(kept, panelRow{folder: f, script: s})
+			}
+		}
+		switch {
+		case filtering && len(kept) == 0:
+		case filtering:
+			rows = append(append(rows, panelRow{folder: f}), kept...)
+		case p.app.expanded[f.Dir]:
+			rows = append(append(rows, panelRow{folder: f}), kept...)
+		default:
+			rows = append(rows, panelRow{folder: f})
 		}
 	}
 	for j := range lib.Scripts {
-		rows = append(rows, panelRow{script: &lib.Scripts[j]})
+		if s := &lib.Scripts[j]; p.keepsScript(s) {
+			rows = append(rows, panelRow{script: s})
+		}
 	}
 	return rows
+}
+
+// keepsScript tells whether the filter keeps a script: by its name, description, folder or what
+// it runs.
+func (p *scriptsPanel) keepsScript(s *script.Script) bool {
+	return p.filter.keeps(s.Name, s.Description, s.Folder, s.Run)
+}
+
+// reselect keeps the selection on its row when the filter still shows it, or moves it to the
+// first script shown.
+func (p *scriptsPanel) reselect() {
+	rows := p.rows()
+	p.first = 0
+	if i := slices.IndexFunc(rows, func(r panelRow) bool { return r.key() == p.selectedKey }); i >= 0 {
+		p.selected = i
+		return
+	}
+	p.selected = max(slices.IndexFunc(rows, func(r panelRow) bool { return r.script != nil }), 0)
+}
+
+// takesText tells that the keys type in the filter, as they are pressed.
+func (p *scriptsPanel) takesText() bool { return p.filter.typing }
+
+// filterKey runs the filter's keys: typing in it while it is open, f or / to open it, esc to clear
+// it. It tells whether it used the key.
+func (p *scriptsPanel) filterKey(key uv.KeyPressEvent) bool {
+	if p.filter.typing {
+		used, changed := p.filter.handleKey(key)
+		if changed {
+			p.reselect()
+		}
+		return used
+	}
+	switch name := key.String(); {
+	case isFilterKey(name):
+		p.filter.start()
+		return true
+	case name == "esc" && p.filter.on():
+		p.filter.clear()
+		p.reselect()
+		return true
+	case name == "?":
+		p.app.showContextKeys("scripts", "scripts keys", "click selects a script, or opens or closes a folder")
+		return true
+	}
+	return false
 }
 
 // current is the selected row, kept in range as the list changes.
@@ -101,6 +163,9 @@ func (p *scriptsPanel) current() (panelRow, bool) {
 
 func (p *scriptsPanel) SendKey(key uv.KeyPressEvent) {
 	p.current() // the list may have changed since the last key: find the selection first
+	if p.filterKey(key) {
+		return
+	}
 	name := key.String()
 	switch name {
 	case "ctrl+d":
@@ -174,10 +239,29 @@ func (p *scriptsPanel) selectKey(key string) {
 
 func (p *scriptsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	pal := &p.app.palette
-	rows := drawHints(screen, area, p.app.hint("scripts", scriptsHints), pal.panelMuted)
+	hints := scriptsHints
+	if p.filter.typing {
+		hints = filterHints
+	}
+	rows := drawHints(screen, area, p.app.hint("scripts", hints), pal.panelMuted)
 	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-rows)
 	body = p.drawProblems(screen, body)
+	if p.filter.on() && body.Dy() > 3 {
+		kept := 0
+		for _, r := range p.rows() {
+			if r.script != nil {
+				kept++
+			}
+		}
+		p.filter.draw(screen, body.Min.X+1, body.Min.Y, body.Max.X, plural(kept, "script"), pal)
+		body.Min.Y += 2
+	}
 	row, ok := p.current()
+	if !ok && p.filter.on() {
+		drawCentered(screen, body, body.Min.Y+body.Dy()/2, "no script matches; esc clears the filter", pal.panelMuted)
+		p.list = image.Rectangle{}
+		return
+	}
 	if !ok {
 		drawCentered(screen, body, body.Min.Y+body.Dy()/2-1, "no scripts yet", pal.panelHeading)
 		drawCentered(screen, body, body.Min.Y+body.Dy()/2+1, p.app.hint("scripts", "{n} creates a script or a directory, {a} adds a folder"), pal.panelMuted)
@@ -299,7 +383,7 @@ var folderKinds = map[script.FolderKind]string{script.GroupFolder: "", script.Li
 func (p *scriptsPanel) rowText(row panelRow) (label, value string) {
 	if row.script == nil {
 		sign := "+ "
-		if p.app.expanded[row.folder.Dir] {
+		if p.app.expanded[row.folder.Dir] || p.filter.query() != "" { // the filter opens the folders it keeps
 			sign = "- "
 		}
 		return sign + row.folder.Name, fmt.Sprintf("%s%d", folderKinds[row.folder.Kind], len(row.folder.Scripts))

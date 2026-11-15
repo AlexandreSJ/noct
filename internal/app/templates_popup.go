@@ -236,7 +236,11 @@ func drawLayoutStage(screen uv.Screen, area image.Rectangle, p *palette, shape l
 func (a *App) drawTemplates(screen uv.Screen) {
 	p := &a.templates
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	inner := a.drawPanel(screen, centeredRect(area, themePanelWidth, max(panelHeight(len(p.list)+2), 20)), "templates")
+	hints := a.hint("prompt", templatesHints)
+	more := moreHintRows(hints, min(themePanelWidth, a.size.X))
+	full := a.drawPanel(screen, centeredRect(area, themePanelWidth, max(panelHeight(len(p.list)+2+more), 20)), "templates")
+	inner := full
+	inner.Max.Y -= more // the hints take the rows under it
 	if len(p.list) == 0 {
 		drawText(screen, inner.Min.X+1, inner.Min.Y, inner.Max.X, "no templates yet: "+a.keysFor("R")+" saves the tab as one", a.palette.panelMuted)
 		drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, "esc close", a.palette.panelMuted)
@@ -272,7 +276,7 @@ func (a *App) drawTemplates(screen uv.Screen) {
 	} else {
 		a.drawTemplateLayout(screen, stage, selected.Template)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("prompt", templatesHints), a.palette.panelMuted)
+	drawHints(screen, full, hints, a.palette.panelMuted)
 }
 
 // drawTemplateLayout draws t's layout in area, each pane with its name, or its kind, and colors.

@@ -177,14 +177,15 @@ func (a *App) drawMCP(screen uv.Screen) {
 		lines = append(lines, a.mcpSetupDetailLines(setups[i], textWidth)...)
 	}
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(len(lines)+2)), "MCP")
+	more := moreHintRows(hints, width)
+	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(len(lines)+2+more)), "MCP")
 	for i, line := range lines {
-		if inner.Min.Y+i >= inner.Max.Y-2 {
+		if inner.Min.Y+i >= inner.Max.Y-2-more {
 			break
 		}
 		drawText(screen, inner.Min.X+1, inner.Min.Y+i, inner.Max.X, line.text, line.style)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, hints, pal.panelMuted)
+	drawHints(screen, inner, hints, pal.panelMuted)
 }
 
 func (a *App) mcpRowStyle(row int) uv.Style {

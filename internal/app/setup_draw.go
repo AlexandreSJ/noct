@@ -38,7 +38,8 @@ func (a *App) drawSetup(screen uv.Screen) {
 		drawText(screen, inner.Min.X, y, inner.Max.X, a.setupHeading(), a.palette.panelMuted)
 		y += 2
 	}
-	list := image.Rect(inner.Min.X, y, inner.Max.X, inner.Max.Y-2)
+	hints := wrapHints(a.setupHints(), inner.Dx(), maxHintRows)
+	list := image.Rect(inner.Min.X, y, inner.Max.X, inner.Max.Y-1-len(hints))
 	if w.step == setupThemes && list.Dx() > 2*stageMinWidth {
 		stage := list
 		stage.Min.X = list.Max.X - stageMinWidth - 8
@@ -46,7 +47,9 @@ func (a *App) drawSetup(screen uv.Screen) {
 		drawStage(screen, stage, &a.palette, -1, false)
 	}
 	a.drawSetupLines(screen, list, a.setupLines())
-	drawText(screen, inner.Min.X, inner.Max.Y-1, inner.Max.X, a.setupHints(), a.palette.panelMuted)
+	for i, line := range hints {
+		drawText(screen, inner.Min.X, inner.Max.Y-len(hints)+i, inner.Max.X, line, a.palette.panelMuted)
+	}
 }
 
 func (a *App) setupHeading() string {

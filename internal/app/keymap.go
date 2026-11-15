@@ -107,6 +107,8 @@ var keyContexts = []keyContext{
 		{"open-folder", "open the folder", []string{"ctrl+o"}},
 		{"promote", "promote a draft", []string{"P", "shift+p"}},
 		{"delete", "delete", []string{"delete"}},
+		{"filter", "filter the scripts by name, description or folder", []string{"f", "/"}},
+		{"keys", "these keys", []string{"?"}},
 		{"close", "close the panel", []string{"ctrl+d"}},
 	}},
 	{id: "flows", label: "inspect flows", actions: []keyAction{
@@ -150,6 +152,7 @@ var keyContexts = []keyContext{
 		{"pan-left", "pan left", []string{"ctrl+left"}},
 		{"pan-right", "pan right", []string{"ctrl+right"}},
 		{"keys", "these keys", []string{"?"}},
+		{"filter", "filter the flows by name or description", []string{"f", "/"}},
 		{"delete", "delete the flow, or remove the step", []string{"delete"}},
 		{"close", "close the panel", []string{"ctrl+d"}},
 	}},
@@ -504,6 +507,9 @@ func (a *App) modeKeyContext() string {
 
 // viewKeyContext is the context of a panel of noct; programs in panes get their keys as they are.
 func viewKeyContext(v view) string {
+	if t, ok := v.(interface{ takesText() bool }); ok && t.takesText() {
+		return "" // its filter is being typed: every key types as it is
+	}
 	switch v := v.(type) {
 	case *scriptsPanel:
 		return "scripts"
@@ -559,6 +565,12 @@ func (a *App) hint(context, text string) string {
 			}
 			out.WriteString(text[:max(open, 1)])
 			text = text[max(open, 1):]
+			continue
+		}
+		if _, ok := keyEvent(text[1:end]); !ok {
+			flush()
+			out.WriteString(text[:end+1]) // no key, as {prompt}: it stays as written
+			text = text[end+1:]
 			continue
 		}
 		group = append(group, a.keyAt(c, text[1:end]))

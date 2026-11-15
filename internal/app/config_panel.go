@@ -32,6 +32,7 @@ const (
 	animateIntroRow
 	animationsRow
 	mouseRow
+	fullscreenHintRow
 	newTabRow
 	closeEmptyTabsRow
 	editorRow
@@ -47,6 +48,7 @@ const (
 	logsColumnsRow
 	logsPreviewRow
 	logsPreviewPercentRow
+	agentRow
 	flowsOutputRow
 	notifyRow
 	updateCheckRow
@@ -63,7 +65,7 @@ const (
 	themePage
 )
 
-const configHints = "{up}{down} select  {left}{right} change  esc close"
+const configHints = "{up}{down} select  {left}{right} change  " + filterHint + "  esc close"
 
 // textColumn is where the text of a typed setting starts, after its label.
 const textColumn = 20
@@ -107,6 +109,11 @@ type configPanel struct {
 	edit *themeEdit
 	// preview is the animation the stage plays for the moment selected, nil when none plays.
 	preview *animation
+	// agents is the default agent's row, read once it is first needed: finding an agent may run
+	// a program, as ollama list.
+	agents *agentSetting
+	// filter narrows the settings or the binds to the rows that hold what is typed.
+	filter listFilter
 }
 
 // configLine is one line of the panel: a section heading, a row that can be selected, or a note
@@ -147,6 +154,9 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 		a.closeConfig() // the shortcut that opens the config closes it again
 		return
 	}
+	if a.configFilterKey(key) {
+		return
+	}
 	switch a.configPanel.page {
 	case bindsPage:
 		a.handleBindsKey(key)
@@ -183,6 +193,10 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 	if a.isTypedRow(a.configPanel.selected) && a.startsTyping(key) {
 		return
 	}
+	if a.configPanel.selected == agentRow && key.String() == "enter" && a.configPanel.agents != nil && a.configPanel.agents.custom {
+		a.addAgentFromConfig()
+		return
+	}
 	if m, ok := previewedMoment(a.configPanel.selected); ok && key.String() == "space" {
 		a.playStagePreview(m) // space plays it again; the arrows change it
 		return
@@ -217,6 +231,9 @@ func (a *App) selectConfigRow(row configRow) {
 	a.cancelNumberEdit()
 	a.configPanel.copied, a.configPanel.resetArmedAt, a.configPanel.typing = false, time.Time{}, false
 	a.configPanel.selected, a.configPanel.selectedAt = row, a.now()
+	if a.configPanel.agents != nil {
+		a.configPanel.agents.custom = false // a custom agent not added yet stays unsaved
+	}
 	if c, ok := themeRowAt(row); ok && a.configPanel.edit != nil {
 		a.lightComponent(c)
 	}
@@ -229,6 +246,9 @@ func (a *App) selectConfigRow(row configRow) {
 // moveConfigSelection selects the next row shown, saving what was typed in the row it leaves.
 func (a *App) moveConfigSelection(step int) {
 	rows := a.selectableConfigRows()
+	if len(rows) == 0 {
+		return // the filter keeps none
+	}
 	index := max(slices.Index(rows, a.configPanel.selected), 0)
 	a.selectConfigRow(rows[(index+step+len(rows))%len(rows)])
 }
@@ -236,6 +256,9 @@ func (a *App) moveConfigSelection(step int) {
 // jumpConfigSelection moves a page up or down, or to the first or last row, as listJump does.
 func (a *App) jumpConfigSelection(key string) {
 	rows := a.selectableConfigRows()
+	if len(rows) == 0 {
+		return
+	}
 	index := max(slices.Index(rows, a.configPanel.selected), 0)
 	if to, ok := listJump(key, index, len(rows), a.configLayout().visible()); ok {
 		a.selectConfigRow(rows[to])
@@ -357,6 +380,9 @@ func (a *App) commitTyped() {
 // no setting does.
 func (a *App) changeSetting(step int) {
 	row := a.configPanel.selected
+	if a.configPanel.filter.query() != "" && !slices.Contains(a.selectableConfigRows(), row) {
+		return // the filter hides the row: nothing it does may happen out of sight
+	}
 	if a.actOnRow(row, step) {
 		return
 	}
@@ -388,6 +414,8 @@ func (a *App) actOnRow(row configRow, step int) bool {
 		return true
 	}
 	switch row {
+	case agentRow:
+		a.stepAgent(step)
 	case prefixRow:
 		a.configPanel.capture = keyCapture{active: true}
 	case bindsRow:
@@ -441,6 +469,8 @@ func (a *App) stepSetting(next *config.Config, row configRow, step int) (after f
 		next.Appearance.AnimateIntro = cycle([]string{config.IntroEmpty, config.IntroAlways, config.IntroNever}, next.Appearance.AnimateIntro, step)
 	case mouseRow:
 		next.Mouse = !next.Mouse
+	case fullscreenHintRow:
+		next.Appearance.FullscreenHint = !next.Appearance.FullscreenHint
 	case newTabRow:
 		next.NewTab = cycle(newTabChoices(), next.NewTab, step)
 	case closeEmptyTabsRow:
@@ -576,14 +606,14 @@ func onOff(on bool) string {
 func (a *App) configLines() []configLine {
 	switch a.configPanel.page {
 	case bindsPage:
-		return a.bindLines()
+		return a.filterConfigLines(a.bindLines())
 	case themePage:
 		return a.themeEditorLines()
 	}
-	return slices.Concat(
+	return a.filterConfigLines(slices.Concat(
 		a.keysLines(), a.appearanceLines(), a.animationLines(), a.tabsLines(), a.programsLines(),
 		a.scriptsLines(), a.logsLines(), a.flowsLines(), a.updatesLines(), a.defaultsLines(),
-	)
+	))
 }
 
 // choiceValue marks a value that the arrows step through.
@@ -619,6 +649,8 @@ func (a *App) appearanceLines() []configLine {
 		{label: "background", value: a.config.Appearance.Background, row: backgroundRow},
 		{label: "animate intro", value: choiceValue(a.config.Appearance.AnimateIntro), row: animateIntroRow},
 		{label: "mouse", value: onOff(a.config.Mouse), row: mouseRow},
+		{label: "fullscreen hint", value: onOff(a.config.Appearance.FullscreenHint), row: fullscreenHintRow},
+		{label: "in fullscreen, dashes mark the sides with other panes beyond them", note: true},
 	}
 }
 
@@ -683,6 +715,8 @@ func (a *App) logsLines() []configLine {
 func (a *App) flowsLines() []configLine {
 	return []configLine{
 		{label: "Flows", heading: true},
+		{label: "default agent", value: choiceValue(a.shownAgent()), row: agentRow},
+		{label: a.agentNote(), note: true, warning: strings.HasPrefix(a.agentNote(), "✗")},
 		{label: "step output kept", value: choiceValue(flowOutputLabel(a.config.Flows.OutputKB)), row: flowsOutputRow},
 		{label: "in each flow's last result; tests keep 4 KB", note: true},
 		{label: "tell when runs end", value: choiceValue(a.config.Notify), row: notifyRow},
@@ -839,6 +873,8 @@ type configLayout struct {
 	list  image.Rectangle
 	// stage is where the animations' example plays under the list, empty when it does not show.
 	stage image.Rectangle
+	// hints are the lines of keys at the bottom, broken where they would be cut.
+	hints []string
 }
 
 // stageShare is the part of the panel's height the animations' example takes, under the rows.
@@ -846,16 +882,33 @@ const stageShare = 0.3
 
 func (a *App) configLayout() configLayout {
 	var l configLayout
+	width := 72
+	if a.configPanel.page == themePage {
+		width = themePanelWidth // the list of components and the stage side by side
+	}
+	noteWidth := min(width, a.size.X) - 4 - textColumn - 1
 	for i, line := range a.configLines() {
 		if line.heading && i > 0 {
 			l.rows = append(l.rows, configLine{note: true})
 		}
-		l.rows = append(l.rows, line)
+		if !line.note || line.bar || noteWidth < 12 || ansi.StringWidth(line.label) <= noteWidth {
+			l.rows = append(l.rows, line)
+			continue
+		}
+		for _, part := range strings.Split(ansi.Wrap(line.label, noteWidth, ""), "\n") {
+			wrapped := line
+			wrapped.label = part // a note too long for the panel goes on under itself
+			l.rows = append(l.rows, wrapped)
+		}
 	}
-	width, height := 72, panelHeight(len(l.rows)+2)
+	l.hints = wrapHints(a.configHints(), min(width, a.size.X)-5, maxHintRows)
+	filterRows := 0
+	if a.configPanel.page != themePage && a.configPanel.filter.on() {
+		filterRows = 2 // the filter and a blank line under it
+	}
+	height := panelHeight(len(l.rows) + 1 + len(l.hints) + filterRows)
 	if a.configPanel.page == themePage {
-		width = themePanelWidth                           // the list of components and the stage side by side
-		height = max(height, panelHeight(pickerHeight+2)) // the picker and the hints under it
+		height = max(height, panelHeight(pickerHeight+1+len(l.hints))) // the picker and the hints under it
 	}
 	showsStage := a.configShowsStage()
 	if showsStage {
@@ -863,7 +916,8 @@ func (a *App) configLayout() configLayout {
 	}
 	l.panel = centeredRect(image.Rect(0, 0, a.size.X, a.size.Y), width, height)
 	l.list = l.inner()
-	l.list.Max.Y -= 2 // the hints
+	l.list.Min.Y += filterRows
+	l.list.Max.Y -= 1 + len(l.hints) // a blank line, then the hints
 	if stage := int(float64(l.list.Dy()) * stageShare); showsStage && stage > stageMinHeight {
 		l.stage = image.Rect(l.list.Min.X, l.list.Max.Y-stage+1, l.list.Max.X, l.list.Max.Y) // under a rule
 		l.list.Max.Y -= stage
@@ -933,24 +987,49 @@ func (a *App) scrolledNote(text string, width int) string {
 	return ansi.Cut(text, offset, offset+width)
 }
 
+// configHints are the keys the page shown takes now.
+func (a *App) configHints() string {
+	hints := configHints
+	switch p := &a.configPanel; {
+	case p.page == themePage && p.edit.picker != nil:
+		hints = p.edit.picker.hints()
+	case p.page == themePage:
+		hints = themeEditorHints
+	case p.filter.typing:
+		hints = filterHints
+	case p.page == bindsPage:
+		hints = bindsHints
+	}
+	return a.hint("config", hints)
+}
+
+// drawConfigHints writes the hints on the last rows of the panel's inside.
+func (a *App) drawConfigHints(screen uv.Screen, inner image.Rectangle, hints []string) {
+	for i, line := range hints {
+		drawText(screen, inner.Min.X+1, inner.Max.Y-len(hints)+i, inner.Max.X, line, a.palette.panelMuted)
+	}
+}
+
 func (a *App) drawConfigPanel(screen uv.Screen) {
 	l := a.configLayout()
-	title, hints := "config", configHints
+	title := "config"
 	switch a.configPanel.page {
 	case bindsPage:
-		title, hints = "config › binds", bindsHints
+		title = "config › binds"
 	case themePage:
-		title, hints = "config › theme › "+a.configPanel.edit.theme.Name, themeEditorHints
+		title = "config › theme › " + a.configPanel.edit.theme.Name
 		if picker := a.configPanel.edit.picker; picker != nil {
 			title += " › " + theme.Components[a.configPanel.edit.selected].Label
-			hints = picker.hints()
 		}
 	}
 	inner := a.drawPanel(screen, l.panel, title)
 	if a.configPanel.page == themePage {
 		a.drawThemeEditor(screen, l, inner)
-		drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
+		a.drawConfigHints(screen, inner, l.hints)
 		return
+	}
+	if f := &a.configPanel.filter; f.on() {
+		f.draw(screen, l.list.Min.X+1, l.list.Min.Y-2, l.list.Max.X-1, a.configFilterCount(), &a.palette)
 	}
 	if !l.stage.Empty() {
 		rule := l.stage.Min.Y - 1
@@ -967,7 +1046,7 @@ func (a *App) drawConfigPanel(screen uv.Screen) {
 		}
 		a.drawConfigLine(screen, l.list, l.list.Min.Y+i-l.first, line)
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("config", hints), a.palette.panelMuted)
+	a.drawConfigHints(screen, inner, l.hints)
 }
 
 // clickConfig selects the row clicked. On a choice's arrows, a cell around each included, a click

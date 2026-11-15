@@ -155,8 +155,10 @@ func (a *App) templateOf(s *templateSave, name string) templates.Template {
 func (a *App) drawTemplateSave(screen uv.Screen) {
 	s := &a.templateSave
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	inner := a.drawPanel(screen, centeredRect(area, 72, panelHeight(len(s.panes)+4)), "save the tab as a template")
-	rows := max(inner.Dy()-4, 1)
+	hints := a.hint("prompt", templateSaveHints)
+	more := moreHintRows(hints, min(72, a.size.X))
+	inner := a.drawPanel(screen, centeredRect(area, 72, panelHeight(len(s.panes)+4+more)), "save the tab as a template")
+	rows := max(inner.Dy()-4-more, 1)
 	s.first = listFirst(s.first, max(s.selected-1, 0), len(s.panes), rows)
 	style := func(row int) uv.Style {
 		if row == s.selected {
@@ -186,5 +188,5 @@ func (a *App) drawTemplateSave(screen uv.Screen) {
 		}
 		drawRow(screen, inner, y, tail(label, inner.Dx()-len([]rune(value))-3), value, style(i+1))
 	}
-	drawText(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, a.hint("prompt", templateSaveHints), a.palette.panelMuted)
+	drawHints(screen, inner, hints, a.palette.panelMuted)
 }

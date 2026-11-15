@@ -360,9 +360,10 @@ func drawFrameStatus(screen uv.Screen, frame image.Rectangle, title, status stri
 
 // drawExits dashes, in fullscreen, the middle of each side of the frame that has a pane beyond
 // it, a cell of line and a cell of gap in turn, so the focus keys show where they lead. Only cells
-// still holding the plain line change: the title and the status stay over it.
+// still holding the plain line change: the title and the status stay over it. The config's
+// fullscreen hint turns it off.
 func (a *App) drawExits(screen uv.Screen, t *tab, frame image.Rectangle, lineStyle uv.Style) {
-	if !t.fullscreen || frame.Dx() < 3 || frame.Dy() < 3 {
+	if !t.fullscreen || !a.config.Appearance.FullscreenHint || frame.Dx() < 3 || frame.Dy() < 3 {
 		return
 	}
 	right, bottom := frame.Max.X-1, frame.Max.Y-1

@@ -15,10 +15,12 @@ type infoPopup struct {
 	first int
 	// visible and wrapped are how many lines were shown and how many the text took, as drawn.
 	visible, wrapped int
+	// back is the mode closing it goes back to, such as the config it was opened from.
+	back mode
 }
 
 func (a *App) openInfo(title string, lines []styledLine) {
-	a.info = infoPopup{title: title, lines: lines}
+	a.info = infoPopup{title: title, lines: lines, back: normalMode}
 	a.mode = infoMode
 }
 
@@ -33,16 +35,19 @@ func (a *App) handleInfoKey(key uv.KeyPressEvent) {
 		last := max(a.info.wrapped-a.info.visible, 0) // the first line that shows the end
 		a.info.first, _ = listJump(key.String(), a.info.first, last+1, a.info.visible)
 	default:
-		a.mode = normalMode
+		a.mode = a.info.back
 	}
 }
+
+// infoTextWidth is how wide a line of the about popup can be before it wraps.
+func (a *App) infoTextWidth() int { return min(78, a.size.X-4) - 6 }
 
 func (a *App) drawInfo(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	width := min(78, a.size.X-4)
 	var lines []styledLine
 	for _, line := range a.info.lines {
-		for _, part := range strings.Split(ansi.Wrap(line.text, width-6, ""), "\n") {
+		for _, part := range strings.Split(ansi.Wrap(line.text, a.infoTextWidth(), ""), "\n") {
 			lines = append(lines, styledLine{part, line.style})
 		}
 	}
@@ -55,7 +60,7 @@ func (a *App) drawInfo(screen uv.Screen) {
 	}
 	hints := "any key closes"
 	if len(lines) > visible {
-		hints = a.hint("info", "{up}{down} scroll  {pgup} {pgdown} page  any other key closes")
+		hints = a.hint("info", "{up}{down} scroll  {pgup}{pgdown} page  any other key closes")
 	}
-	drawTextCut(screen, inner.Min.X+1, inner.Max.Y-1, inner.Max.X, hints, a.palette.panelMuted)
+	drawHints(screen, inner, hints, a.palette.panelMuted)
 }

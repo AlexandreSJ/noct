@@ -12,8 +12,19 @@ import (
 	"github.com/AlexandreSJ/noct/internal/config"
 )
 
-// bindsHints are the keys of the binds page; its own keys (a, del) do not change.
-const bindsHints = "{up}{down} select  {enter} change  a add a key  del back to default  n new bind  esc back"
+// bindsHints are the keys of the binds page; its own keys (a, del) do not change. ? lists them all.
+const bindsHints = "{up}{down} select  {enter} change  " + filterHint + "  ? all keys  esc back"
+
+// bindsKeys are every key of the binds page, as ? lists them.
+var bindsKeys = [][2]string{
+	{"↑↓", "select an action"},
+	{"enter", "change its key; with several, ←→ choose which first"},
+	{"a", "add a key to the action"},
+	{"del", "the action's keys back to their defaults"},
+	{"n", "a new bind of yours: a key that runs a command, a script or a flow"},
+	{"f /", "filter the actions by name, screen or key"},
+	{"esc", "clear the filter, or back to the settings"},
+}
 
 // bindRowBase is the first row of the binds page: one row per action, in keyContexts' order.
 const bindRowBase configRow = 1000
@@ -125,6 +136,7 @@ func (a *App) pressedKeys(context string, action keyAction) []string {
 
 func (a *App) openBinds() {
 	a.commitTyped()
+	a.configPanel.filter.clear()
 	a.configPanel.page, a.configPanel.selected = bindsPage, bindRowBase
 	a.configPanel.resetArmedAt = time.Time{}
 }
@@ -147,8 +159,12 @@ func (a *App) handleBindsKey(key uv.KeyPressEvent) {
 	}
 	switch key.String() {
 	case "n":
+		a.configPanel.filter.clear() // the row that adds a bind shows
 		a.selectConfigRow(addCustomBindRow)
 		a.startCustomBind()
+	case "?":
+		a.showKeyList("binds keys", bindsKeys)
+		a.info.back = configMode
 	case "esc":
 		a.configPanel.page, a.configPanel.selected = settingsPage, bindsRow
 	case "up", "k":
