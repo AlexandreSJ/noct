@@ -198,6 +198,10 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 		a.playStagePreview(m) // space plays it again; the arrows change it
 		return
 	}
+	if a.configPanel.selected == notifyRow && key.String() == "space" {
+		a.notify("test notification") // as a run's end is told; the arrows change how
+		return
+	}
 	switch key.String() {
 	case "k":
 		a.moveConfigSelection(-1)
@@ -712,7 +716,7 @@ func (a *App) flowsLines() []configLine {
 		{label: "step output kept", value: choiceValue(flowOutputLabel(a.config.Flows.OutputKB)), row: flowsOutputRow},
 		{label: "in each flow's last result; tests keep 4 KB", note: true},
 		{label: "tell when runs end", value: choiceValue(a.config.Notify), row: notifyRow},
-		{label: "runs out of sight: system notification, the terminal's bell, or off", note: true},
+		{label: "space to test", note: true},
 	}...)
 }
 

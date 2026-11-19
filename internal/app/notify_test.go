@@ -143,3 +143,13 @@ func TestTheConfigStepsHowRunsAreTold(t *testing.T) {
 		t.Errorf("no notify row:\n%s", screenText(a))
 	}
 }
+
+func TestSpaceOnTheNotifyRowTestsIt(t *testing.T) {
+	a, n := notifyingApp(t, config.NotifySystem)
+	a.openConfig()
+	a.selectConfigRow(notifyRow)
+	press(a, spacePress)
+	if len(n.system) != 1 || a.config.Notify != config.NotifySystem {
+		t.Errorf("notifications %q, notify %q; want one test, the setting kept", n.system, a.config.Notify)
+	}
+}
