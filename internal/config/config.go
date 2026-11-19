@@ -74,9 +74,11 @@ type Config struct {
 	Notify string `toml:"notify"`
 	// Agent is the AI agent a flow's agent step asks with use: default or none, auto for the first
 	// one installed; Agents are the commands of agents by name, over the ones noct knows, each
-	// taking the question as its input or in place of {prompt}.
-	Agent  string            `toml:"agent"`
-	Agents map[string]string `toml:"agents,omitempty"`
+	// taking the question as its input or in place of {prompt}. AgentModels are the model each
+	// agent noct knows runs, by name, in noct's own command for it, so its flags stay noct's.
+	Agent       string            `toml:"agent"`
+	Agents      map[string]string `toml:"agents,omitempty"`
+	AgentModels map[string]string `toml:"agent_models,omitempty"`
 	// Update says whether noct looks for new releases on its own.
 	Update Update `toml:"update"`
 }

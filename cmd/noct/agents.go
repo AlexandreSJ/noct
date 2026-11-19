@@ -32,13 +32,16 @@ func agentsCommand(out io.Writer, args []string) error {
 	return errors.New("usage: noct agents [default [<name>]]")
 }
 
-// listAgents prints each agent a step can ask and whether this machine has it, then the one a
-// step with use: default asks; with none installed, it says how to get one.
+// listAgents prints each agent a step can ask, leaving out the ones noct knows that this machine
+// lacks, then the one a step with use: default asks; with none installed, it says how to get one.
 func listAgents(out io.Writer, cfg config.Config) error {
-	for _, a := range flow.Agents(cfg.Agents) {
-		if a.Problem != nil {
+	for _, a := range flow.Agents(agentConfig(cfg)) {
+		switch {
+		case !a.Own && !a.Installed:
+			continue
+		case a.Problem != nil:
 			fmt.Fprintf(out, "  · %-9s %s\n", a.Name, a.Problem)
-		} else {
+		default:
 			fmt.Fprintf(out, "  ✓ %-9s %s\n", a.Name, a.Command)
 		}
 	}
@@ -47,7 +50,7 @@ func listAgents(out io.Writer, cfg config.Config) error {
 			fmt.Fprintf(out, "  ✗ %-9s is not asked: %s names another agent, so [agents] cannot use it\n", name, name)
 		}
 	}
-	name, _, err := flow.ResolveAgent(cfg.Agents, cfg.Agent)
+	name, _, err := flow.ResolveAgent(agentConfig(cfg), cfg.Agent)
 	switch {
 	case err != nil && cfg.Agent == flow.AutoAgent:
 		fmt.Fprintf(out, "\nno agent is ready here. To start without an account, ollama runs models on this\n"+
@@ -64,15 +67,20 @@ func listAgents(out io.Writer, cfg config.Config) error {
 	if ready := readyAgents(cfg); len(ready) > 1 || err != nil {
 		fmt.Fprintf(out, "noct agents default <name> picks another, as noct agents default %s.\n", ready[len(ready)-1])
 	}
-	fmt.Fprint(out, "[agents] in the config (prefix+,) changes a command or adds another, such as a\n"+
-		"model of your own:\n  [agents]\n  ollama = \"ollama run --hidethinking qwen3.5:4b\"\n")
+	fmt.Fprint(out, "Models: config (prefix+,), default agent, m; or in the file:\n"+
+		"  [agent_models]\n  ollama = \"qwen3.5:4b\"\n[agents] adds an agent of your own.\n")
 	return nil
+}
+
+// agentConfig is what cfg says of the agents.
+func agentConfig(cfg config.Config) flow.AgentConfig {
+	return flow.AgentConfig{Own: cfg.Agents, Models: cfg.AgentModels}
 }
 
 // readyAgents are the names of the agents this machine has, with auto first.
 func readyAgents(cfg config.Config) []string {
 	ready := []string{flow.AutoAgent}
-	for _, a := range flow.Agents(cfg.Agents) {
+	for _, a := range flow.Agents(agentConfig(cfg)) {
 		if a.Problem == nil {
 			ready = append(ready, a.Name)
 		}
@@ -90,17 +98,17 @@ func setDefaultAgent(out io.Writer, path, name string) error {
 	if name == flow.DefaultAgent {
 		return errors.New("default is the agent this command sets: give an agent's name, or auto")
 	}
-	if _, known := flow.AgentCommand(cfg.Agents, name); !known && name != flow.AutoAgent {
+	if _, known := flow.AgentCommand(agentConfig(cfg), name); !known && name != flow.AutoAgent {
 		return fmt.Errorf("there is no agent %s; noct agents lists them, and [agents] in the config adds one", name)
 	}
 	cfg.Agent = name
 	if err := config.Save(path, cfg); err != nil {
 		return err
 	}
-	if _, _, err := flow.ResolveAgent(cfg.Agents, name); err != nil {
+	if _, _, err := flow.ResolveAgent(agentConfig(cfg), name); err != nil {
 		fmt.Fprintf(out, "Saved agent = %q, but it cannot be asked yet: %v\n", name, err)
 		return nil
 	}
-	fmt.Fprintf(out, "Saved agent = %q: steps with use: default, or no use, ask it from the next run.\n", name)
+	fmt.Fprintf(out, "Saved agent = %q.\n", name)
 	return nil
 }

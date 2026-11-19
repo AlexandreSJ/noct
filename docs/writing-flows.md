@@ -195,8 +195,8 @@ returns:
   then: [{script: demo/rollback}]
 ```
 
-- The question goes to the agent's command as its input, or as one argument in place of
-  `{prompt}`, never through a shell.
+- The question goes to the agent's command as one argument in place of `{prompt}`, or as its
+  input when the command ends in `< {prompt}` (or has no `{prompt}`), never through a shell.
 - `use: default`, or no `use` (or an empty one), asks the config's `agent`. Its default, `auto`,
   asks the first agent that is ready here: the config's `[agents]` first, then claude, codex,
   opencode, llm and ollama. `use: auto` asks that one whatever the config says. `noct agents`
@@ -209,22 +209,25 @@ returns:
 
   | Agent | Command |
   |---|---|
-  | `claude` | `claude -p --model haiku --tools "" --strict-mcp-config` (no tools) |
-  | `codex` | `codex exec --ephemeral --skip-git-repo-check --sandbox read-only -` |
+  | `claude` | `claude -p --model haiku --tools "" --strict-mcp-config < {prompt}` (no tools) |
+  | `codex` | `codex exec --ephemeral --skip-git-repo-check --sandbox read-only - < {prompt}` |
   | `opencode` | `opencode run --agent plan {prompt}` (its read-only agent) |
-  | `llm` | `llm` (only answers) |
-  | `ollama` | `ollama run --hidethinking llama3.2`; without llama3.2, a model ollama already has |
+  | `llm` | `llm < {prompt}` (only answers) |
+  | `ollama` | `ollama run --hidethinking llama3.2 < {prompt}`; without llama3.2, the first model ollama has |
 
-- `[agents]` in the config changes one of these or adds yours, by name. To change the model, write
-  the command with it. These are starting points; check each one's flags in its own docs:
+- `[agent_models]` in the config picks the model of each of these, and noct writes the command
+  around it (`--model`, or `-m` for llm), so the flags stay noct's to keep current. The config's
+  **default agent** (`prefix` + `,`, then `Enter` on it) picks it from a list, `m` on the agent:
+  claude's names for its models, the ones ollama has and the ones opencode and llm list.
+- `[agents]` adds an agent of your own by name, or replaces the command of one of these, which then
+  runs as written. Check its flags in its own docs:
 
   ```toml
   agent = "ollama"                 # or auto, or any name below
+  [agent_models]
+  ollama = "qwen3.5:4b"
+  claude = "sonnet"
   [agents]
-  ollama = "ollama run --hidethinking qwen3.5:4b"
-  claude = 'claude -p --model sonnet --tools "" --strict-mcp-config'
-  codex = "codex exec --ephemeral --skip-git-repo-check --sandbox read-only -m <model> -"
-  llm = "llm -m gpt-4o-mini"
   hermes = "hermes chat --oneshot -Q -t todo -q {prompt}"  # -t todo: no tool that acts
   ```
 

@@ -35,6 +35,7 @@ const (
 	templateSaveMode             // saving the tab as a template
 	templatesMode                // the templates, to open one as a new tab
 	setupMode                    // noct setup: keys, themes, animations, demo, AI clients, binds
+	agentsMode                   // the config's default agent: the agents and their models
 )
 
 // shortcut is one command as listed in the popups and on the home screen.
@@ -147,6 +148,8 @@ func (a *App) dispatchModeKey(key uv.KeyPressEvent) {
 		a.handleInfoKey(key)
 	case mcpMode:
 		a.handleMCPKey(key)
+	case agentsMode:
+		a.handleAgentsKey(key)
 	case sessionsMode:
 		a.handleSessionsKey(key)
 	case updatesMode:

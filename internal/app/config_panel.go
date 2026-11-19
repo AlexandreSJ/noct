@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/AlexandreSJ/noct/internal/config"
+	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/script"
 	"github.com/AlexandreSJ/noct/internal/theme"
 )
@@ -109,9 +110,9 @@ type configPanel struct {
 	edit *themeEdit
 	// preview is the animation the stage plays for the moment selected, nil when none plays.
 	preview *animation
-	// agents is the default agent's row, read once it is first needed: finding an agent may run
-	// a program, as ollama list.
-	agents *agentSetting
+	// agents are what the default agent's row and popup tell of each agent, read once they are
+	// first needed: finding an agent may run a program, as ollama list.
+	agents []flow.AgentStatus
 	// filter narrows the settings or the binds to the rows that hold what is typed.
 	filter listFilter
 }
@@ -193,10 +194,6 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 	if a.isTypedRow(a.configPanel.selected) && a.startsTyping(key) {
 		return
 	}
-	if a.configPanel.selected == agentRow && key.String() == "enter" && a.configPanel.agents != nil && a.configPanel.agents.custom {
-		a.addAgentFromConfig()
-		return
-	}
 	if m, ok := previewedMoment(a.configPanel.selected); ok && key.String() == "space" {
 		a.playStagePreview(m) // space plays it again; the arrows change it
 		return
@@ -231,9 +228,6 @@ func (a *App) selectConfigRow(row configRow) {
 	a.cancelNumberEdit()
 	a.configPanel.copied, a.configPanel.resetArmedAt, a.configPanel.typing = false, time.Time{}, false
 	a.configPanel.selected, a.configPanel.selectedAt = row, a.now()
-	if a.configPanel.agents != nil {
-		a.configPanel.agents.custom = false // a custom agent not added yet stays unsaved
-	}
 	if c, ok := themeRowAt(row); ok && a.configPanel.edit != nil {
 		a.lightComponent(c)
 	}
@@ -415,7 +409,7 @@ func (a *App) actOnRow(row configRow, step int) bool {
 	}
 	switch row {
 	case agentRow:
-		a.stepAgent(step)
+		a.openAgents()
 	case prefixRow:
 		a.configPanel.capture = keyCapture{active: true}
 	case bindsRow:
@@ -713,15 +707,13 @@ func (a *App) logsLines() []configLine {
 }
 
 func (a *App) flowsLines() []configLine {
-	return []configLine{
-		{label: "Flows", heading: true},
-		{label: "default agent", value: choiceValue(a.shownAgent()), row: agentRow},
-		{label: a.agentNote(), note: true, warning: strings.HasPrefix(a.agentNote(), "✗")},
+	lines := append([]configLine{{label: "Flows", heading: true}}, a.agentRowLines()...)
+	return append(lines, []configLine{
 		{label: "step output kept", value: choiceValue(flowOutputLabel(a.config.Flows.OutputKB)), row: flowsOutputRow},
 		{label: "in each flow's last result; tests keep 4 KB", note: true},
 		{label: "tell when runs end", value: choiceValue(a.config.Notify), row: notifyRow},
 		{label: "runs out of sight: system notification, the terminal's bell, or off", note: true},
-	}
+	}...)
 }
 
 func (a *App) updatesLines() []configLine {

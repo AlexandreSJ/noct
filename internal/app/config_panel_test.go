@@ -326,6 +326,7 @@ func TestConfigSetsTheLogsView(t *testing.T) {
 
 // TestConfigLinesStayInPlace pins every line of the settings page, in order, as the panel shows it.
 func TestConfigLinesStayInPlace(t *testing.T) {
+	machineAgents(t)
 	a := testApp(t, sideBySideTab(1, 2))
 	a.config.Editor = "noct-missing-editor -w" // custom: the command row and its note show
 	a.openConfig()
@@ -395,8 +396,7 @@ func TestConfigLinesStayInPlace(t *testing.T) {
 		"row log size = < 50% > @27",
 		"note where the logs view shows the selected log; there, p moves it and + - size it = ",
 		"heading Flows = ",
-		"row default agent = < auto > @28",
-		"note agent steps with use: default, or no use, ask it = ",
+		"row default agent = auto: ollama · qwen3.5:4b @28",
 		"row step output kept = < all (up to 1 MB) > @29",
 		"note in each flow's last result; tests keep 4 KB = ",
 		"row tell when runs end = < system > @30",
