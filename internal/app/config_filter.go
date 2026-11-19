@@ -93,9 +93,10 @@ func (a *App) configFilterKey(key uv.KeyPressEvent) bool {
 
 // configFilterCount says how many of the page's rows the filter keeps.
 func (a *App) configFilterCount() string {
-	n := len(a.selectableConfigRows())
-	if n == 0 {
-		return "nothing matches"
-	}
-	return plural(n, "row")
+	kept := len(a.selectableConfigRows())
+	filter := a.configPanel.filter
+	a.configPanel.filter = listFilter{} // the page's rows, all of them
+	total := len(a.selectableConfigRows())
+	a.configPanel.filter = filter
+	return filterCount(kept, total)
 }

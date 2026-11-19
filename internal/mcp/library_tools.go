@@ -170,7 +170,7 @@ type functionInfo struct {
 func (d Deps) agentNames() map[string]any {
 	cfg := d.Config()
 	var names, ready []string
-	for _, a := range flow.Agents(cfg.Agents) {
+	for _, a := range flow.Agents(flow.AgentConfig{Own: cfg.Agents, Models: cfg.AgentModels}) {
 		names = append(names, a.Name)
 		if a.Problem == nil {
 			ready = append(ready, a.Name)

@@ -30,12 +30,15 @@ type Agent struct {
 // promptPlaceholder in an agent's command is where the question goes, as one argument.
 const promptPlaceholder = "{prompt}"
 
-// AgentArgv is an agent's command as arguments, with the question in place of {prompt}, or, when
-// the command has no {prompt}, as the input it reads.
+// AgentArgv is an agent's command as arguments, with the question in place of {prompt}, or as the
+// input it reads when the command ends in < {prompt}, or has no {prompt}.
 func AgentArgv(command, question string) (argv []string, input string, err error) {
 	argv, err = splitCommand(command)
 	if err != nil || len(argv) == 0 {
 		return nil, "", cmp.Or(err, errors.New("the agent's command is empty"))
+	}
+	if n := len(argv); n > 2 && argv[n-2] == "<" && argv[n-1] == promptPlaceholder {
+		return argv[:n-2], question, nil
 	}
 	placed := false
 	for i, arg := range argv {

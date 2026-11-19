@@ -213,7 +213,7 @@ func newFlowRunner(lib script.Library) *flow.Runner {
 		OpenPane:     workspacePanes(),
 		Attention:    workspaceAttention(),
 		Function:     loadFunctions(lib),
-		Agents:       cfg.Agents,
+		Agents:       agentConfig(cfg),
 		DefaultAgent: cfg.Agent,
 	}
 }

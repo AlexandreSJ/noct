@@ -72,6 +72,8 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 		a.drawInfo(screen)
 	case mcpMode:
 		a.drawMCP(screen)
+	case agentsMode:
+		a.drawAgents(screen)
 	case sessionsMode:
 		a.drawSessions(screen)
 	case updatesMode:

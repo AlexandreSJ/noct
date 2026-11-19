@@ -1,11 +1,15 @@
 package app
 
 import (
+	"cmp"
+	"errors"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/AlexandreSJ/noct/internal/flow"
+	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 )
 
 // f on the settings opens the filter: what is typed keeps the rows that hold it, with their
@@ -67,7 +71,7 @@ func TestTheConfigFilterMatchesEveryWord(t *testing.T) {
 	if a.config.Logs.MaxSizeKB != before.Logs.MaxSizeKB || a.config.Logs.KeepDays != before.Logs.KeepDays {
 		t.Error("a key changed a setting the filter hides")
 	}
-	if !strings.Contains(screenText(a), "nothing matches") {
+	if !strings.Contains(screenText(a), "no match") {
 		t.Error("the filter does not say nothing matches")
 	}
 }
@@ -104,42 +108,136 @@ func TestTheBindsPageListsItsKeys(t *testing.T) {
 	}
 }
 
-// The default agent's row steps through auto and the agents, saving each; on custom agent, enter
-// asks for its name and command, adds it to [agents] and makes it the default.
+// machineAgents makes the agents popup see a machine that has ollama, with two models, and no
+// codex; the config's own agents are installed.
+func machineAgents(t *testing.T) {
+	t.Helper()
+	read, list := readAgents, listAgentModels
+	t.Cleanup(func() { readAgents, listAgentModels = read, list })
+	readAgents = func(c flow.AgentConfig) []flow.AgentStatus {
+		var statuses []flow.AgentStatus
+		for _, name := range slices.Sorted(maps.Keys(c.Own)) {
+			statuses = append(statuses, flow.AgentStatus{Name: name, Command: c.Own[name], Own: true, Installed: true})
+		}
+		model := cmp.Or(c.Models["ollama"], "qwen3.5:4b")
+		command, _ := flow.PresetCommand("ollama", model)
+		codex, _ := flow.PresetCommand("codex", "")
+		return append(statuses,
+			flow.AgentStatus{Name: "codex", Command: codex, Problem: errors.New("codex is not installed")},
+			flow.AgentStatus{Name: "ollama", Command: command, Model: model, Installed: true})
+	}
+	listAgentModels = func(name string) []string {
+		if name == "ollama" {
+			return []string{"qwen3.5:4b", "gpt-oss:20b"}
+		}
+		return nil
+	}
+}
+
+// enter on the default agent's row opens the agents popup, which leaves out the agents this
+// machine lacks; enter there makes the one selected the default and goes back to the config.
 func TestTheConfigSetsTheDefaultAgent(t *testing.T) {
+	machineAgents(t)
 	a := testApp(t)
 	a.openConfig()
 	a.selectConfigRow(agentRow)
-	press(a, rightPress)
-	if a.config.Agent == flow.AutoAgent {
-		t.Fatalf("right left the agent at auto")
-	}
-	for range len(flow.AgentNames(nil)) {
-		press(a, rightPress)
-	}
-	if a.shownAgent() != customAgent {
-		t.Fatalf("after the agents, the row shows %q", a.shownAgent())
-	}
-	saved := a.config.Agent
 	press(a, enterPress)
+	if a.mode != agentsMode {
+		t.Fatalf("enter on the row went to mode %v", a.mode)
+	}
+	text := screenText(a)
+	if !strings.Contains(text, "ollama") || strings.Contains(text, "codex") {
+		t.Errorf("the popup should show ollama and leave out codex:\n%s", text)
+	}
+	press(a, downPress, enterPress)
+	if a.mode != configMode || a.config.Agent != "ollama" {
+		t.Fatalf("mode %v, agent %q", a.mode, a.config.Agent)
+	}
+	if !strings.Contains(screenText(a), "ollama · qwen3.5:4b") {
+		t.Errorf("the row does not show the agent and its model:\n%s", screenText(a))
+	}
+}
+
+// m on an agent noct knows lists the models its program has, filtered as typed; the one picked
+// is saved in [agent_models] and noct writes the command around it.
+func TestTheAgentsPopupPicksAModel(t *testing.T) {
+	machineAgents(t)
+	a := testApp(t)
+	a.loopTasks, a.stopped = make(chan func()), make(chan struct{})
+	a.config.Agent = "ollama"
+	a.openConfig()
+	a.selectConfigRow(agentRow)
+	press(a, enterPress, letter('m'))
+	if !strings.Contains(screenText(a), "loading…") {
+		t.Errorf("no word of the models loading:\n%s", screenText(a))
+	}
+	press(a, enterPress) // nothing listed yet: enter must not pick the default model
+	if a.agentsPopup.models == nil || a.config.AgentModels != nil {
+		t.Fatalf("enter while loading: picker %v, models %v", a.agentsPopup.models, a.config.AgentModels)
+	}
+	runLoopTask(t, a)
+	press(a, letter('f'))
+	typeText(a, "gpt")
+	press(a, enterPress, enterPress)
+	if a.mode != agentsMode || a.config.AgentModels["ollama"] != "gpt-oss:20b" {
+		t.Fatalf("mode %v, models %v", a.mode, a.config.AgentModels)
+	}
+	if !strings.Contains(screenText(a), "ollama run --hidethinking gpt-oss:20b < {prompt}") {
+		t.Errorf("the popup does not show the command with the model:\n%s", screenText(a))
+	}
+}
+
+// e starts from the command the agent runs now, with the model it runs and where the question
+// goes; saving it as it was changes nothing.
+func TestTheAgentsPopupEditsTheCommandItRuns(t *testing.T) {
+	machineAgents(t)
+	a := testApp(t)
+	a.openConfig()
+	a.selectConfigRow(agentRow)
+	press(a, enterPress, downPress, letter('e'))
+	if a.mode != promptMode || a.prompt.input.String() != "ollama run --hidethinking qwen3.5:4b < {prompt}" {
+		t.Fatalf("mode %v, command %q", a.mode, a.prompt.input.String())
+	}
+	press(a, enterPress)
+	if a.mode != agentsMode || len(a.config.Agents) != 0 {
+		t.Errorf("saving it unchanged: mode %v, agents %v", a.mode, a.config.Agents)
+	}
+}
+
+// The custom agent's row asks for a name and a command, adds it to [agents] and makes it the
+// default; del removes it again, the default going back to auto.
+func TestTheAgentsPopupAddsAndRemovesACustomAgent(t *testing.T) {
+	machineAgents(t)
+	a := testApp(t)
+	a.openConfig()
+	a.selectConfigRow(agentRow)
+	press(a, enterPress, endPress, enterPress)
 	typeText(a, "mine")
 	press(a, enterPress)
 	typeText(a, "echo {prompt}")
 	press(a, enterPress)
 	if a.mode != configMode || a.config.Agent != "mine" || a.config.Agents["mine"] != "echo {prompt}" {
-		t.Fatalf("after adding: mode %v, agent %q, agents %v (was %q)", a.mode, a.config.Agent, a.config.Agents, saved)
+		t.Fatalf("after adding: mode %v, agent %q, agents %v", a.mode, a.config.Agent, a.config.Agents)
 	}
-	if !strings.Contains(screenText(a), "< mine >") {
-		t.Errorf("the row does not show mine:\n%s", screenText(a))
+	press(a, enterPress) // the popup opens on mine, the default
+	press(a, uv.KeyPressEvent{Code: uv.KeyDelete}, enterPress)
+	if a.mode != agentsMode || a.config.Agent != flow.AutoAgent || len(a.config.Agents) != 0 {
+		t.Errorf("after removing: mode %v, agent %q, agents %v", a.mode, a.config.Agent, a.config.Agents)
 	}
 }
 
-// esc while naming a custom agent goes back to the config, with the default as it was.
-func TestCancellingACustomAgentGoesBackToTheConfig(t *testing.T) {
+// esc while naming a custom agent goes back to the popup, and esc there to the config, with the
+// default as it was.
+func TestCancellingACustomAgentGoesBackToThePopup(t *testing.T) {
+	machineAgents(t)
 	a := testApp(t)
 	a.openConfig()
 	a.selectConfigRow(agentRow)
-	press(a, leftPress, enterPress, escPress)
+	press(a, enterPress, endPress, enterPress, escPress)
+	if a.mode != agentsMode {
+		t.Fatalf("esc on the name went to mode %v", a.mode)
+	}
+	press(a, escPress)
 	if a.mode != configMode || a.config.Agent != flow.AutoAgent {
 		t.Errorf("mode %v, agent %q after esc", a.mode, a.config.Agent)
 	}

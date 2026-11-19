@@ -170,6 +170,10 @@ func (a *App) handleClick(event uv.MouseEvent) {
 		if m.Button == uv.MouseLeft {
 			a.clickConfig(image.Pt(m.X, m.Y))
 		}
+	case agentsMode:
+		if m.Button == uv.MouseLeft {
+			a.clickAgents(image.Pt(m.X, m.Y))
+		}
 	case normalMode, scrollMode:
 		if m.Y == 0 {
 			if index, ok := a.tabAt(m.X); ok {

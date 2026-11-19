@@ -57,9 +57,9 @@ type Runner struct {
 	Progress func(path string)
 	// Function finds a function a call step names.
 	Function func(name string) (Flow, bool)
-	// Agents are the config's commands of agents by name, over AgentPresets; DefaultAgent is the
-	// one a step with use: default, or none, asks, or "" for AutoAgent.
-	Agents       map[string]string
+	// Agents are the config's commands and models of agents, over noct's presets; DefaultAgent
+	// is the one a step with use: default, or none, asks, or "" for AutoAgent.
+	Agents       AgentConfig
 	DefaultAgent string
 }
 

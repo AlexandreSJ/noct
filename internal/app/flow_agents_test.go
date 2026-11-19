@@ -2,6 +2,7 @@ package app
 
 import (
 	"image"
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 // An agent step is set up in one form, what it asks, its answers, the agent and the timeout,
 // and one enter adds it.
 func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
+	machineAgents(t)
 	a := testApp(t)
 	a.size = image.Pt(140, 50)
 	a.config.Agents = map[string]string{"local": "ollama run qwen"}
@@ -29,10 +31,13 @@ func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 	pressDrawn(a, tabPress)
 	typeDrawn(a, "pass fail")
 	pressDrawn(a, tabPress)
-	for _, want := range []string{"auto", "local", "claude", "codex", "ollama", "opencode"} {
-		if !strings.Contains(strings.Join(a.form.fields[2].Choices, " "), want) {
+	for _, want := range []string{"auto", "local", "ollama"} {
+		if !slices.Contains(a.form.fields[2].Choices, want) {
 			t.Errorf("the agents offered %v lack %q", a.form.fields[2].Choices, want)
 		}
+	}
+	if slices.Contains(a.form.fields[2].Choices, "codex") {
+		t.Errorf("the agents offered %v hold codex, which this machine lacks", a.form.fields[2].Choices)
 	}
 	pressDrawn(a, rightPress) // the agent after the default
 	if !strings.Contains(screenText(a), "enter add") {
@@ -66,7 +71,7 @@ func TestAnAgentStepAsksTheDefaultAgentByName(t *testing.T) {
 	}
 	typeDrawn(a, "Is it flaky?")
 	pressDrawn(a, tabPress, tabPress)
-	if !strings.Contains(screenText(a), "default, from the config") {
+	if !strings.Contains(screenText(a), "default: ") {
 		t.Errorf("the form does not tell what default asks:\n%s", screenText(a))
 	}
 	pressDrawn(a, enterPress)

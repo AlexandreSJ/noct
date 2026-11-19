@@ -11,6 +11,20 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Changed
+
+- **Default agent** in the config (`prefix` + `,`) opens a list on `Enter` instead of stepping
+  through the agents with the arrows. It shows only the agents your machine has, each with its
+  model; `Enter` makes one the default, `m` picks its model from the ones it lists (claude's
+  models, the ones ollama has, opencode's and llm's) or one you type, `e` changes its command and
+  `Del` removes an agent you added. The model is saved under `[agent_models]` and noct writes the
+  command around it, so its flags stay current with noct. The row shows the agent and its model,
+  and the popup the command it runs, ending in `< {prompt}` when the question goes as its input.
+- The agent step's form in the inspect and `noct agents` leave out the agents your machine lacks.
+- While you type in a list's filter, the footer keeps the list's keys; the filter's line shows
+  `enter`, which keeps it, and every list counts the same way: `3 of 12`, or `no match`.
+- Shorter notes and hints in the config, the binds' `?` list and the agent step's form.
+
 ## v0.3.1 - 2026-11-15
 
 ### Added

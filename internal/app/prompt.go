@@ -97,7 +97,8 @@ func (a *App) drawPrompt(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	matches, _ := a.prompt.suggestions()
 	rows := min(len(matches), maxSuggestions)
-	width := 50 + 20*min(rows, 1)
+	// wide enough for what is typed, such as an agent's command, up to the screen
+	width := max(50+20*min(rows, 1), min(len(a.prompt.input.String())+8, a.size.X-4))
 	hints := a.hint("prompt", a.prompt.hints)
 	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(3+rows+moreHintRows(hints, width))), a.prompt.title)
 	a.prompt.input.draw(screen, inner.Min.X+1, inner.Min.Y, inner.Dx()-2, false, a.palette.typing(), a.palette.selectedRow)

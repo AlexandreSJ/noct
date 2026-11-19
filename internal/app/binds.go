@@ -13,15 +13,15 @@ import (
 )
 
 // bindsHints are the keys of the binds page; its own keys (a, del) do not change. ? lists them all.
-const bindsHints = "{up}{down} select  {enter} change  " + filterHint + "  ? all keys  esc back"
+const bindsHints = "{up}{down} select  {enter} change  " + filterHint + "  {?} all keys  esc back"
 
 // bindsKeys are every key of the binds page, as ? lists them.
 var bindsKeys = [][2]string{
 	{"↑↓", "select an action"},
 	{"enter", "change its key; with several, ←→ choose which first"},
 	{"a", "add a key to the action"},
-	{"del", "the action's keys back to their defaults"},
-	{"n", "a new bind of yours: a key that runs a command, a script or a flow"},
+	{"del", "reset to the default keys"},
+	{"n", "new bind: a key that runs a command, script or flow"},
 	{"f /", "filter the actions by name, screen or key"},
 	{"esc", "clear the filter, or back to the settings"},
 }

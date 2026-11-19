@@ -204,6 +204,8 @@ type App struct {
 	// aiClients are the AI clients running noct mcp right now; mcpSelected is the MCP popup's row.
 	aiClients   []*aiClient
 	mcpSelected int
+	// agentsPopup is the config's default agent popup: the agents and their models.
+	agentsPopup agentsPopup
 
 	// version is the noct release the daemon runs, or update.Dev.
 	version string

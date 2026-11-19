@@ -42,6 +42,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 		Notify:        NotifyBell,
 		Agent:         "local",
 		Agents:        map[string]string{"local": "ollama run qwen"},
+		AgentModels:   map[string]string{"claude": "sonnet"},
 	}
 	if err := Save(path, want); err != nil {
 		t.Fatal(err)

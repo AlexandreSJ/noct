@@ -239,26 +239,28 @@ func (p *scriptsPanel) selectKey(key string) {
 
 func (p *scriptsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	pal := &p.app.palette
-	hints := scriptsHints
-	if p.filter.typing {
-		hints = filterHints
-	}
-	rows := drawHints(screen, area, p.app.hint("scripts", hints), pal.panelMuted)
+	rows := drawHints(screen, area, p.app.hint("scripts", scriptsHints), pal.panelMuted)
 	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-rows)
 	body = p.drawProblems(screen, body)
 	if p.filter.on() && body.Dy() > 3 {
-		kept := 0
+		kept, total := 0, len(p.app.scripts.Scripts)
 		for _, r := range p.rows() {
 			if r.script != nil {
 				kept++
 			}
 		}
-		p.filter.draw(screen, body.Min.X+1, body.Min.Y, body.Max.X, plural(kept, "script"), pal)
+		for _, f := range p.app.scripts.Folders {
+			total += len(f.Scripts)
+		}
+		if p.filter.query() == "" {
+			kept = total // nothing typed keeps them all, closed folders too
+		}
+		p.filter.draw(screen, body.Min.X+1, body.Min.Y, body.Max.X, filterCount(kept, total), pal)
 		body.Min.Y += 2
 	}
 	row, ok := p.current()
 	if !ok && p.filter.on() {
-		drawCentered(screen, body, body.Min.Y+body.Dy()/2, "no script matches; esc clears the filter", pal.panelMuted)
+		drawCentered(screen, body, body.Min.Y+body.Dy()/2, "no script matches", pal.panelMuted)
 		p.list = image.Rectangle{}
 		return
 	}

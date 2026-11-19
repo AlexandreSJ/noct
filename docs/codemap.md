@@ -123,7 +123,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/prefix.go` | The configurable prefix key: parsing, matching, key names; capturing a new one and what it would take from shortcuts and programs |
 | `internal/app/config_panel.go` | Config panel: rows built section by section, key handling, how each row steps its setting, clicks and hover, applying and saving, reset to defaults, drawing (notes and hints wrapped) |
 | `internal/app/config_filter.go` | The filter of the config's settings and binds pages: which rows and sections it keeps, its keys, keeping the selection on a row shown |
-| `internal/app/config_agent.go` | The config's default agent row: auto, the agents ready and missing, and a custom agent added from there |
+| `internal/app/config_agent.go` | The config's default agent row and its popup: auto, the agents this machine has with their models, a custom agent; the model picker (models listed in the background), and changing or removing an agent's command |
 | `internal/app/list_filter.go` | `listFilter`, the live filter of long lists (config, binds, scripts, flows): f or / opens it, matching every word, its keys and its line |
 | `internal/app/config_numbers.go` | Log limits typed by hand in the config: enter or a digit opens them, days and sizes in KB/MB/GB parsed, enter saves and esc gives up |
 | `internal/app/panel_kinds.go` | The kinds of panel a key opens (`panelKinds`), which `runAction` and the new tab setting read; opening a new tab |
@@ -170,8 +170,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/flow/flow.go` | A flow: steps (script, run, call, agent, if, switch, repeat with each, wait, prompt, set, unset, retry), the lists inside a step (`Branches`), loading, saving, creating, template functions |
 | `internal/flow/timeout.go` | Flow and step timeouts: parsing and validation, the `noct check` warning, run and step deadlines, stopping a step's processes |
 | `internal/flow/validate.go` | Checking a flow and its steps: ids, fields that belong to each kind, patterns |
-| `internal/flow/agent.go` | Agent steps: a command split into words with the question as its input or in place of `{prompt}`, the answer without the model's thinking, and its choices |
-| `internal/flow/agents.go` | The agents noct knows (presets), the config's over them, which are ready on this machine, `auto` (the first ready one), `default` (the config's, for a step's use) and the ollama preset falling back to a model the machine has |
+| `internal/flow/agent.go` | Agent steps: a command split into words with the question in place of `{prompt}`, or as its input after `< {prompt}` or with no `{prompt}`, the answer without the model's thinking, and its choices |
+| `internal/flow/agents.go` | The agents noct knows (presets, each a command with `{model}` and its default model), the models the config picks for them and the ones each program lists, the config's own commands over them, which are ready on this machine, `auto` (the first ready one), `default` (the config's, for a step's use) and the ollama preset falling back to a model the machine has |
 | `cmd/noct/agents.go` | `noct agents`: the agents, which are ready, the default, and one to start from when none is; `noct agents default <name>` saves the config's agent |
 | `internal/flow/functions.go` | Functions: their folder, loading them with the flows (`LoadWithFunctions`), checking calls, who calls each (`Callers`), running a call in a scope of its own |
 | `internal/flow/progress.go` | The step a run is on, kept beside the flow's last result while it runs, for the inspect's live view |
