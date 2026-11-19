@@ -400,7 +400,7 @@ func TestConfigLinesStayInPlace(t *testing.T) {
 		"row step output kept = < all (up to 1 MB) > @29",
 		"note in each flow's last result; tests keep 4 KB = ",
 		"row tell when runs end = < system > @30",
-		"note runs out of sight: system notification, the terminal's bell, or off = ",
+		"note space to test = ",
 		"heading Updates = ",
 		"row check for new versions = on @31",
 		"note only checks; install with ctrl+space+c = ",

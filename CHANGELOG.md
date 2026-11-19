@@ -11,6 +11,11 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Added
+
+- `Space` on **Flows → tell when runs end** in the config sends a test notification, the way a
+  run's end is told.
+
 ### Changed
 
 - **Default agent** in the config (`prefix` + `,`) opens a list on `Enter` instead of stepping
