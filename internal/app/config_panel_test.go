@@ -348,7 +348,7 @@ func TestConfigLinesStayInPlace(t *testing.T) {
 		"row animate intro = < empty > @9",
 		"row mouse = on @11",
 		"row fullscreen hint = on @12",
-		"note in fullscreen, dashes mark the sides with other panes beyond them = ",
+		"note dashes mark the sides with panes beyond = ",
 		"heading Animations = ",
 		"row animations = off @10",
 		"row hover = < fade > @3000",

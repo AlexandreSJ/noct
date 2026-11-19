@@ -650,7 +650,7 @@ func (a *App) appearanceLines() []configLine {
 		{label: "animate intro", value: choiceValue(a.config.Appearance.AnimateIntro), row: animateIntroRow},
 		{label: "mouse", value: onOff(a.config.Mouse), row: mouseRow},
 		{label: "fullscreen hint", value: onOff(a.config.Appearance.FullscreenHint), row: fullscreenHintRow},
-		{label: "in fullscreen, dashes mark the sides with other panes beyond them", note: true},
+		{label: "dashes mark the sides with panes beyond", note: true},
 	}
 }
 
@@ -995,8 +995,6 @@ func (a *App) configHints() string {
 		hints = p.edit.picker.hints()
 	case p.page == themePage:
 		hints = themeEditorHints
-	case p.filter.typing:
-		hints = filterHints
 	case p.page == bindsPage:
 		hints = bindsHints
 	}

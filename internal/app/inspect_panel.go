@@ -638,9 +638,6 @@ func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 }
 
 func (p *inspectPanel) hints() string {
-	if p.filter.typing {
-		return p.app.hint("flows", filterHints)
-	}
 	if !p.focusChart {
 		return p.app.hint("flows", flowsListHints)
 	}
@@ -668,8 +665,8 @@ func (p *inspectPanel) drawFlows(screen uv.Screen, area image.Rectangle) image.R
 	drawFrame(screen, area, "flows", line, title)
 	inner := area.Inset(1)
 	if p.filter.on() && inner.Dy() > 2 {
-		kept := fmt.Sprintf("%d of %d", len(p.shown()), len(p.entries()))
-		p.filter.draw(screen, inner.Min.X, inner.Min.Y, inner.Max.X, kept, &p.app.palette)
+		kept := filterCount(len(p.shown()), len(p.entries()))
+		p.filter.draw(screen, inner.Min.X+1, inner.Min.Y, inner.Max.X, kept, &p.app.palette)
 		inner.Min.Y += 2
 	}
 	_, selected, ok := p.current()

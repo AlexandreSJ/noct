@@ -67,7 +67,7 @@ func TestTheConfigFilterMatchesEveryWord(t *testing.T) {
 	if a.config.Logs.MaxSizeKB != before.Logs.MaxSizeKB || a.config.Logs.KeepDays != before.Logs.KeepDays {
 		t.Error("a key changed a setting the filter hides")
 	}
-	if !strings.Contains(screenText(a), "nothing matches") {
+	if !strings.Contains(screenText(a), "no match") {
 		t.Error("the filter does not say nothing matches")
 	}
 }

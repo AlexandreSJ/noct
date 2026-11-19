@@ -11,6 +11,12 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Changed
+
+- While you type in a list's filter, the footer keeps the list's keys; the filter's line shows
+  `enter`, which keeps it, and every list counts the same way: `3 of 12`, or `no match`.
+- Shorter notes and hints in the config and the binds' `?` list.
+
 ## v0.3.1 - 2026-11-15
 
 ### Added
