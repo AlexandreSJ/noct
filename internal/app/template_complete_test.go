@@ -41,7 +41,9 @@ func TestXExportsAVariableFromABlock(t *testing.T) {
 	saveFlow(t, "loop", "steps:\n  - repeat: {times: 2}\n    steps:\n      - {set: {count: '1'}}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	pressDrawn(a, letter('x'))
-	typeDrawn(a, "count as passes")
+	typeDrawn(a, "count")
+	pressDrawn(a, tabPress)
+	typeDrawn(a, "passes")
 	pressDrawn(a, enterPress)
 	steps := loadFlowSteps(t, "loop")
 	if steps[0].Export["count"] != "passes" {

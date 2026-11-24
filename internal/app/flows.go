@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -433,80 +432,6 @@ func (a *App) moveStep(f flow.Flow, path string, down bool, moved func(path stri
 		return
 	}
 	moved(to)
-}
-
-// exportFromBlock asks a variable an if, a switch or a repeat makes, to keep it after the block, under its
-// name or another: "count", or "count as passes"; the name alone again stops exporting it.
-func (a *App) exportFromBlock(f flow.Flow, path string) {
-	s, ok := f.Step(path)
-	if !ok || !s.IsBlock() {
-		a.statusMessage = "only an if, a switch or a repeat exports variables"
-		return
-	}
-	inside := s.Branches()[0] // the first list's end: what its steps make
-	vars := f.Scope(path, inside.Name, len(inside.Steps), a.scripts.Find)
-	a.openPrompt("export from "+s.Label(), "", "{enter} keep it after the block  esc cancel  name, or name as other; an exported name again stops it", func(text string) {
-		inner, outer, _ := strings.Cut(strings.Join(strings.Fields(text), " "), " as ")
-		err := a.changeFlow(f, func(f *flow.Flow) error {
-			step, _ := f.Step(path)
-			if step.Export == nil {
-				step.Export = map[string]string{}
-			}
-			if previous, exported := step.Export[inner]; exported && previous == outer {
-				delete(step.Export, inner)
-			} else {
-				step.Export[inner] = outer
-			}
-			return f.Replace(path, step)
-		})
-		if err != nil {
-			a.statusMessage = err.Error()
-		}
-	})
-	a.withVariables(vars)
-}
-
-// retryStep asks how many times a failed script, run or agent step runs again, and how long it
-// waits before each try: "3", or "3 every 10s"; 0 or nothing runs it once.
-func (a *App) retryStep(f flow.Flow, path string) {
-	s, ok := f.Step(path)
-	if kind := s.Kind(); !ok || kind != flow.ScriptStep && kind != flow.CommandStep && kind != flow.AgentStep {
-		a.statusMessage = "only a script, command or agent step retries"
-		return
-	}
-	initial := "3"
-	if s.Retry != nil {
-		initial = strings.TrimPrefix(retryText(s.Retry), "retry ")
-		initial = strings.Replace(initial, "×", "", 1)
-	}
-	a.openPrompt("retry "+s.Label(), initial, "{enter} set  esc cancel  times it runs again when it fails, as 3 or 3 every 10s; 0 none", func(text string) {
-		retry, err := parseRetry(text)
-		if err != nil {
-			a.statusMessage = err.Error()
-			return
-		}
-		err = a.changeFlow(f, func(f *flow.Flow) error {
-			step, _ := f.Step(path)
-			step.Retry = retry
-			return f.Replace(path, step)
-		})
-		if err != nil {
-			a.statusMessage = err.Error()
-		}
-	})
-}
-
-// parseRetry reads "3" or "3 every 10s"; 0 or nothing is no retry.
-func parseRetry(text string) (*flow.Retry, error) {
-	times, every, _ := strings.Cut(strings.Join(strings.Fields(text), " "), " every ")
-	if times == "" || times == "0" {
-		return nil, nil
-	}
-	n, err := strconv.Atoi(times)
-	if err != nil || n < 0 {
-		return nil, fmt.Errorf("retry %q: a number of times, as 3 or 3 every 10s", text)
-	}
-	return &flow.Retry{Max: n, Every: every}, nil
 }
 
 // dropStep moves the step at path to index of the list at parent's branch, as the flow is before

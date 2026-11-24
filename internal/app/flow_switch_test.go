@@ -77,7 +77,9 @@ func TestRShowsAndSetsAStepsRetry(t *testing.T) {
 	p := a.currentTab().focusedView().(*inspectPanel)
 	p.selected = stepKey("0")
 	pressDrawn(a, letter('R'), clearLine)
-	typeDrawn(a, "2 every 5s")
+	typeDrawn(a, "2")
+	pressDrawn(a, tabPress)
+	typeDrawn(a, "5s")
 	pressDrawn(a, enterPress)
 	steps := loadFlowSteps(t, "flaky")
 	if r := steps[0].Retry; r == nil || r.Max != 2 || r.Every != "5s" {

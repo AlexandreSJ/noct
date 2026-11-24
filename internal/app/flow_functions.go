@@ -55,32 +55,6 @@ func returnLines(f flow.Flow) []string {
 	return lines
 }
 
-// editReturn asks a function's return as name = template; a name alone removes it.
-func (a *App) editReturn(f flow.Flow) {
-	vars := f.Scope("", "", len(f.Steps), a.scripts.Find)
-	a.openPrompt("return of "+f.Name, "", "{enter} save  esc cancel  name = {{.template}}; a name alone removes it", func(text string) {
-		name, value, _ := strings.Cut(text, "=")
-		name, value = strings.TrimSpace(name), strings.TrimSpace(value)
-		err := a.changeFlow(f, func(f *flow.Flow) error {
-			if f.Returns == nil {
-				f.Returns = map[string]string{}
-			}
-			if value == "" {
-				delete(f.Returns, name)
-				return nil
-			}
-			f.Returns[name] = value
-			return nil
-		})
-		if err != nil {
-			a.statusMessage = err.Error()
-			return
-		}
-		a.notice = a.changedFunctionNotice(f)
-	})
-	a.withVariables(vars)
-}
-
 // changedFunctionNotice tells which flows a change to a function reaches.
 func (a *App) changedFunctionNotice(f flow.Flow) string {
 	callers := flow.Callers(append(slices.Clip(a.flows), a.functions...), f.Name)

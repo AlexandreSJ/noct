@@ -51,3 +51,23 @@ func TestAFunctionShowsWhoCallsItAndIsCalledFromAStep(t *testing.T) {
 		}
 	}
 }
+
+// r on a function's params card edits its returns in a form, a name and its template a row;
+// emptying a name takes its return away.
+func TestAFunctionsReturnsAreEditedInAForm(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFunction(t, "greet", "steps:\n  - {id: say, run: 'echo hi'}\nreturns: {old: x}\n")
+	pressDrawn(a, prefixPress, letter('i'))
+	p := a.currentTab().focusedView().(*inspectPanel)
+	p.flowName = "ƒ greet"
+	pressDrawn(a, tabPress, upPress, upPress, letter('r'), clearLine, downPress)
+	typeDrawn(a, "greeting")
+	pressDrawn(a, tabPress)
+	typeDrawn(a, "{{.output}}")
+	pressDrawn(a, enterPress)
+	fn, ok := flow.Find(a.functions, "greet")
+	if !ok || len(fn.Returns) != 1 || fn.Returns["greeting"] != "{{.output}}" {
+		t.Errorf("returns %+v", fn.Returns)
+	}
+}

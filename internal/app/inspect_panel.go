@@ -232,7 +232,7 @@ func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
 	switch name {
 	case "r":
 		if p.paramsSelected() && f.Function {
-			p.app.editReturn(f)
+			p.editReturns(f)
 			return
 		}
 		p.app.runFlow(f)
@@ -417,9 +417,9 @@ func (p *inspectPanel) stepKey(name string, f flow.Flow, path string) {
 	case "m":
 		p.moving = true
 	case "x":
-		p.app.exportFromBlock(f, path)
+		p.exportStep(f, path)
 	case "R", "shift+r":
-		p.app.retryStep(f, path)
+		p.retryStep(f, path)
 	}
 }
 

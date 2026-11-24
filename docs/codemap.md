@@ -104,6 +104,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/edit_grid.go` | `editGrid`: rows of cells typed in place (text, option, toggle), tab and the arrows through them as along one line, skipping cells that do not apply, and completing variables in template cells |
 | `internal/app/inspect_editor.go` | `inspectEditor`, what the inspect shows in place of the chart while params or a step are edited: its frame, the help beside it, hints kept to one row |
 | `internal/app/flow_step_form.go` | A step's form in the inspect: its rows, checking them, adding or saving the step, the variables beside it; opening the params table, adding and editing steps from the inspect |
+| `internal/app/flow_setting_forms.go` | The forms for a block's exports, a step's retry and a function's returns, opened from the inspect like a step's form |
 | `internal/app/flow_step_kinds.go` | What each kind of step's form asks (command, if, switch, repeat, for each, wait, prompt, set, unset, call, agent) and how its answers become the step, keeping what it does not ask |
 | `internal/app/flowchart_live.go` | A flow's run on its chart as it goes: the dots going down the arrow out of the step running, and the frames that move them |
 | `internal/app/flow_history.go` | Undo and redo of the inspect's changes to a flow: its file before each change, kept while noct runs |

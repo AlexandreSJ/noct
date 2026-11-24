@@ -47,6 +47,7 @@ the shortcut is `Alt` by default. How to write an entry is in
   instead of a chain of prompts. The variables the step can read are listed beside it, with
   their last values and examples written with them, and `{{.` (or `{{eq .`) completes them.
   Changing a step keeps what its form does not ask, such as its captures and the steps inside.
+  A block's exports (`x`), a step's retry (`R`) and a function's returns open the same way.
 - Neither editor locks noct: the prefix still reaches every panel and tab while you edit, and
   the editor is there when you come back. Their hints take one row, and `?` lists every key.
 - Param types are named `boolean` and `option`, for what were `bool` and `choice`; flows that

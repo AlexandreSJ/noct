@@ -141,12 +141,13 @@ func (s *stepForm) problem(row int) string {
 	return orDefault(s.nameProblem(row), s.valueProblem(row))
 }
 
-// nameProblem is why a named form's row cannot have its name; an empty one is left out.
+// nameProblem is why a named form's row cannot have its name. A row the form opened with is
+// left out once its name is emptied; a row added has its value lost without one.
 func (s *stepForm) nameProblem(row int) string {
 	name := strings.TrimSpace(s.grid.rows[row][stepFormLabelColumn].value())
 	value := strings.TrimSpace(s.grid.rows[row][stepFormValueColumn].value())
 	switch {
-	case !s.spec.named || name == "" && value == "":
+	case !s.spec.named || name == "" && (value == "" || row < len(s.spec.fields)):
 		return ""
 	case name == "":
 		return "a name is needed for this value"
@@ -453,15 +454,20 @@ func (p *inspectPanel) editStep(f flow.Flow, path string) {
 		p.app.editFlowStep(f, path)
 		return
 	}
-	replace := func(changed flow.Step) error {
+	p.openEditor(p.app.newStepForm(spec, vars, p.lastValues(f, vars), false, p.replaceStep(f, path, step)))
+}
+
+// replaceStep saves a changed step in the place of original at path, unless the flow moved or
+// changed it since the form opened.
+func (p *inspectPanel) replaceStep(f flow.Flow, path string, original flow.Step) func(flow.Step) error {
+	return func(changed flow.Step) error {
 		return p.app.changeFlow(f, func(f *flow.Flow) error {
-			if now, ok := f.Step(path); !ok || now.ID != step.ID || now.Kind() != step.Kind() {
-				return errors.New("the step moved or changed since the form opened: esc, then e on it again")
+			if now, ok := f.Step(path); !ok || now.ID != original.ID || now.Kind() != original.Kind() {
+				return errors.New("the step moved or changed since the form opened: esc, then open it again")
 			}
 			return f.Replace(path, changed)
 		})
 	}
-	p.openEditor(p.app.newStepForm(spec, vars, p.lastValues(f, vars), false, replace))
 }
 
 // lastValues are the variables' values in the run the chart shows, by name as templates read them.
