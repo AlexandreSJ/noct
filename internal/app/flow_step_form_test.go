@@ -139,3 +139,30 @@ func TestFormsKeepStepsAndAskForNames(t *testing.T) {
 		t.Errorf("a value without a name was taken:\n%s", screenText(a))
 	}
 }
+
+// A script with params is added with its with in one form, checked as a step runs it: without
+// asking, so a param without a default needs a value. e changes the values later.
+func TestAScriptStepAsksItsParamsInOneForm(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveScript(t, "deploy", "run: echo {{.env}} {{.tag}}\nparams:\n  - {name: env, choices: [dev, prod]}\n  - {name: tag, default: latest}\n")
+	saveFlow(t, "ship", "steps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, letter('a'), letter('s'))
+	typeDrawn(a, "deploy")
+	pressDrawn(a, enterPress, enterPress)
+	if !strings.Contains(screenText(a), "the script needs it") {
+		t.Errorf("env without a value was taken:\n%s", screenText(a))
+	}
+	typeDrawn(a, "prod")
+	pressDrawn(a, enterPress)
+	steps := loadFlowSteps(t, "ship")
+	if len(steps) != 1 || steps[0].Script != "deploy" || steps[0].With["env"] != "prod" || len(steps[0].With) != 1 {
+		t.Fatalf("steps %+v", steps)
+	}
+	pressDrawn(a, letter('e'), tabPress)
+	typeDrawn(a, "v2")
+	pressDrawn(a, enterPress)
+	if steps := loadFlowSteps(t, "ship"); steps[0].With["tag"] != "v2" || steps[0].ID != "deploy" {
+		t.Errorf("e made %+v", steps[0])
+	}
+}

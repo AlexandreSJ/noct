@@ -10,6 +10,7 @@ import (
 
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/naming"
+	"github.com/AlexandreSJ/noct/internal/script"
 )
 
 // The forms of each kind of step: what each asks, and how its answers become the step. Each
@@ -19,6 +20,10 @@ import (
 // stepFormFor is the form that changes s; false for the kinds changed as YAML, as a script step.
 func (a *App) stepFormFor(s flow.Step, vars []flow.Variable) (stepFormSpec, bool) {
 	switch s.Kind() {
+	case flow.ScriptStep:
+		if sc, ok := a.scripts.Find(s.Script); ok && len(sc.Params) > 0 {
+			return scriptStepForm(sc, s), true
+		}
 	case flow.CommandStep:
 		return commandForm(s), true
 	case flow.IfStep:
@@ -300,6 +305,60 @@ func unsetForm(s flow.Step) stepFormSpec {
 			return s, nil
 		},
 	}
+}
+
+// scriptStepForm asks the script step's with: a value for each of the script's params, templates
+// read where the step is.
+func scriptStepForm(sc script.Script, s flow.Step) stepFormSpec {
+	spec := stepFormSpec{title: "script " + sc.ID()}
+	for _, p := range sc.Params {
+		spec.fields = append(spec.fields, stepField{
+			label: p.Name, cell: textCellOf(s.With[p.Name]), template: true,
+			note:  scriptParamNote(p),
+			check: func(value string) string { return scriptValueProblem(p, value) },
+		})
+	}
+	spec.build = func(v []formValue) (flow.Step, error) {
+		s.Script, s.With = sc.ID(), map[string]string{}
+		for i, p := range sc.Params {
+			if v[i].value != "" {
+				s.With[p.Name] = v[i].value
+			}
+		}
+		if len(s.With) == 0 {
+			s.With = nil
+		}
+		return s, nil
+	}
+	return spec
+}
+
+// scriptParamNote tells what a script's param takes when a flow step gives it.
+func scriptParamNote(p script.Param) string {
+	note := orDefault(p.Prompt, p.Name)
+	switch {
+	case len(p.Choices) > 0:
+		note += ": one of " + strings.Join(p.Choices, ", ")
+	case p.From != "":
+		note += "; empty reads $" + strings.TrimPrefix(p.From, "env:")
+	case p.Default != "":
+		note += "; empty takes " + p.Default
+	}
+	return note
+}
+
+// scriptValueProblem is why a step's value cannot be the script's param; a step runs without
+// asking, so a param without a default needs one, and a template is known only when it runs.
+func scriptValueProblem(p script.Param, value string) string {
+	switch {
+	case strings.Contains(value, "{{"):
+		return ""
+	case value == "" && p.Default == "" && p.From == "":
+		return "the script needs it: a step runs without asking"
+	case value != "" && len(p.Choices) > 0 && !slices.Contains(p.Choices, value):
+		return "one of " + strings.Join(p.Choices, ", ")
+	}
+	return ""
 }
 
 // callForm asks a value for each of the function's params, templates read where the call is.

@@ -415,9 +415,16 @@ func (p *inspectPanel) addStep(f flow.Flow, at chartBlock) {
 		}
 		form(callForm(fn, flow.Step{}))()
 	}
+	scriptStep := func(step flow.Step) {
+		if sc, ok := p.app.scripts.Find(step.Script); ok && len(sc.Params) > 0 {
+			form(scriptStepForm(sc, step))()
+			return
+		}
+		p.app.reportError(insert(step))
+	}
 	var zero flow.Step
 	p.app.openChoice("add step",
-		choiceOption{key: "s", label: "script", pick: func() { p.app.pickScript(func(s flow.Step) { p.app.reportError(insert(s)) }) }},
+		choiceOption{key: "s", label: "script", pick: func() { p.app.pickScript(scriptStep) }},
 		choiceOption{key: "f", label: "function call", pick: func() { p.app.pickFunction(call) }},
 		choiceOption{key: "a", label: "AI agent", pick: agentForm},
 		choiceOption{key: "c", label: "command", pick: form(commandForm(zero))},
@@ -432,8 +439,8 @@ func (p *inspectPanel) addStep(f flow.Flow, at chartBlock) {
 	)
 }
 
-// editStep changes the step at path in its form, or as YAML in the editor for the kinds without
-// one.
+// editStep changes the step at path in its form, or as YAML in the editor for a script without
+// params or a call to a function without them.
 func (p *inspectPanel) editStep(f flow.Flow, path string) {
 	step, ok := f.Step(path)
 	if !ok {
