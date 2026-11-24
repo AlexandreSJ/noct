@@ -24,7 +24,7 @@ import (
 )
 
 const releasesJSON = `[
-	{"tag_name": "v0.1.0", "body": "- first beta", "published_at": "2026-10-16T12:00:00Z"},
+	{"tag_name": "v0.1.0", "body": "• first beta", "published_at": "2026-10-16T12:00:00Z"},
 	{"tag_name": "v0.2.0", "body": "### Changed\r\n\r\n- faster panes\r\n- a fix", "published_at": "2026-11-01T12:00:00Z"}
 ]`
 
@@ -85,7 +85,7 @@ func TestPrefixCChecksAndShowsTheChangelog(t *testing.T) {
 	runLoopTask(t, a)
 
 	text := screenText(a)
-	for _, want := range []string{"updates · noct v0.1.0", "v0.2.0 is out: u installs it", "v0.2.0 · Nov 1, 2026 · new", "- faster panes", "v0.1.0 · Oct 16, 2026 · this version", "- first beta", "u update  ↑↓ scroll"} {
+	for _, want := range []string{"updates · noct v0.1.0", "v0.2.0 is out: u installs it", "v0.2.0 · Nov 1, 2026 · new", "• faster panes", "v0.1.0 · Oct 16, 2026 · this version", "• first beta", "u update  ↑↓ scroll"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("popup lacks %q:\n%s", want, text)
 		}
@@ -240,7 +240,7 @@ func TestTheLastCheckIsKeptAcrossRuns(t *testing.T) {
 		t.Fatal("asked GitHub again, with a check from just now")
 	}
 	text := screenText(restarted)
-	for _, want := range []string{"v0.2.0 is out", "checked just now", "- faster panes", "- first beta"} {
+	for _, want := range []string{"v0.2.0 is out", "checked just now", "• faster panes", "• first beta"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("popup lacks %q:\n%s", want, text)
 		}
@@ -259,4 +259,26 @@ func TestTheLastCheckIsKeptAcrossRuns(t *testing.T) {
 		t.Fatal("a day-old check did not check again")
 	}
 	runLoopTask(t, restarted)
+}
+
+func TestTheWheelScrollsTheUpdates(t *testing.T) {
+	a := updatesApp(t, "v0.1.0")
+	a.size.Y = 12 // too short for the whole changelog
+	press(a, prefixPress, letter('c'))
+	runLoopTask(t, a)
+	screenText(a)
+	if a.updates.lines <= a.updates.visible {
+		t.Fatalf("%d lines in %d rows: nothing to scroll", a.updates.lines, a.updates.visible)
+	}
+	last := a.updates.lines - a.updates.visible
+	for range 10 {
+		a.handleEvent(uv.MouseWheelEvent{X: 5, Y: 5, Button: uv.MouseWheelDown})
+	}
+	if a.updates.first != last {
+		t.Errorf("first line %d after scrolling down, want the end at %d", a.updates.first, last)
+	}
+	a.handleEvent(uv.MouseWheelEvent{X: 5, Y: 5, Button: uv.MouseWheelUp})
+	if a.updates.first != max(last-wheelLines, 0) {
+		t.Errorf("first line %d after one step up, want %d", a.updates.first, max(last-wheelLines, 0))
+	}
 }

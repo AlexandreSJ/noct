@@ -84,18 +84,21 @@ func (a *App) updatesStatus() []styledLine {
 	return []styledLine{{"not checked yet: " + a.hint("updates", "{c}") + " checks", pal.panelMuted}}
 }
 
-// changelogLines are the releases and their notes, the newest first, marking the ones newer
-// than this noct and this noct's own.
-func (a *App) changelogLines() []styledLine {
+// changelogRows are the releases and their notes, the newest first, marking the ones newer
+// than this noct and this noct's own, with the notes' markdown drawn width wide.
+func (a *App) changelogRows(width int) [][]styledText {
 	pal := &a.palette
 	if len(a.updates.releases) == 0 {
 		if a.updates.checked {
-			return []styledLine{{"no release is published yet", pal.panelMuted}}
+			return [][]styledText{{{"no release is published yet", pal.panelMuted}}}
 		}
 		return nil
 	}
-	var lines []styledLine
-	for _, r := range a.updates.releases {
+	var rows [][]styledText
+	for i, r := range a.updates.releases {
+		if i > 0 {
+			rows = append(rows, nil)
+		}
 		heading, style := r.Version, pal.panelHeading
 		if !r.Published.IsZero() {
 			heading += " · " + r.Published.Format("Jan 2, 2006")
@@ -106,35 +109,10 @@ func (a *App) changelogLines() []styledLine {
 		case order > 0 && update.IsRelease(a.version):
 			heading, style = heading+" · new", pal.focusedTitle
 		}
-		lines = append(lines, styledLine{heading, style})
-		for _, note := range joinSoftBreaks(strings.Split(strings.TrimSpace(strings.ReplaceAll(r.Notes, "\r", "")), "\n")) {
-			if group, ok := strings.CutPrefix(note, "### "); ok { // a changelog group, such as Added
-				lines = append(lines, styledLine{group, pal.panelMuted})
-				continue
-			}
-			lines = append(lines, styledLine{note, pal.panelText})
-		}
-		lines = append(lines, styledLine{"", pal.panelText})
+		rows = append(rows, wrapPieces([]styledText{{heading, style}}, width, nil, nil)...)
+		rows = append(rows, pal.markdownRows(r.Notes, width)...)
 	}
-	return lines[:len(lines)-1]
-}
-
-// joinSoftBreaks joins the lines of a changelog that only break a paragraph or a list item, so
-// the popup wraps them to its own width rather than at the file's: a line goes on the one before
-// it unless it is blank, a heading or a new item, or follows a blank line.
-func joinSoftBreaks(lines []string) []string {
-	var joined []string
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		startsNew := i == 0 || trimmed == "" || strings.TrimSpace(lines[i-1]) == "" ||
-			strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ")
-		if startsNew {
-			joined = append(joined, line)
-			continue
-		}
-		joined[len(joined)-1] += " " + trimmed
-	}
-	return joined
+	return rows
 }
 
 // updatesHints are the popup's keys that do something now.
@@ -158,26 +136,29 @@ func (a *App) updatesHints() string {
 func (a *App) drawUpdates(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	width := min(updatesPanelWidth, a.size.X-4)
-	source := a.updatesStatus()
+	status := a.updatesStatus()
 	if !a.updates.lastChecked.IsZero() && !a.updates.checking {
-		source = append(source, styledLine{"checked " + lastUsed(a.updates.lastChecked, time.Now(), false), a.palette.panelMuted})
+		status = append(status, styledLine{"checked " + lastUsed(a.updates.lastChecked, time.Now(), false), a.palette.panelMuted})
 	}
-	source = append(source, styledLine{"", a.palette.panelText})
-	source = append(source, a.changelogLines()...)
-	var lines []styledLine
-	for _, line := range source {
+	var rows [][]styledText
+	for _, line := range status {
 		for _, part := range strings.Split(ansi.Wrap(line.text, width-6, ""), "\n") {
-			lines = append(lines, styledLine{part, line.style})
+			rows = append(rows, []styledText{{part, line.style}})
 		}
 	}
+	rows = append(rows, nil)
+	rows = append(rows, a.changelogRows(width-6)...)
 	hints := a.updatesHints()
 	more := moreHintRows(hints, width)
-	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(len(lines)+2+more)), "updates · noct "+a.version)
+	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(len(rows)+2+more)), "updates · noct "+a.version)
 	visible := max(inner.Dy()-2-more, 1)
-	a.updates.first = min(a.updates.first, max(len(lines)-visible, 0))
-	a.updates.visible, a.updates.lines = visible, len(lines)
-	for i := a.updates.first; i < len(lines) && i-a.updates.first < visible; i++ {
-		drawText(screen, inner.Min.X+1, inner.Min.Y+i-a.updates.first, inner.Max.X-1, lines[i].text, lines[i].style)
+	a.updates.first = min(a.updates.first, max(len(rows)-visible, 0))
+	a.updates.visible, a.updates.lines = visible, len(rows)
+	for i := a.updates.first; i < len(rows) && i-a.updates.first < visible; i++ {
+		x := inner.Min.X + 1
+		for _, piece := range rows[i] {
+			x = drawText(screen, x, inner.Min.Y+i-a.updates.first, inner.Max.X-1, piece.text, piece.style)
+		}
 	}
 	drawHints(screen, inner, hints, a.palette.panelMuted)
 }

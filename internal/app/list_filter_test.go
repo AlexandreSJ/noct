@@ -294,12 +294,3 @@ func TestHintsKeepBracesThatAreNoKey(t *testing.T) {
 		t.Errorf("hint %q", got)
 	}
 }
-
-// A changelog's paragraph and list items, broken in the file, read as one line each.
-func TestChangelogSoftBreaksJoin(t *testing.T) {
-	got := joinSoftBreaks([]string{"Flows grow up. A step", "can ask.", "", "### Added", "", "- one", "  two", "- three"})
-	want := []string{"Flows grow up. A step can ask.", "", "### Added", "", "- one two", "- three"}
-	if !slices.Equal(got, want) {
-		t.Errorf("got %q, want %q", got, want)
-	}
-}

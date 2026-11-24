@@ -255,8 +255,12 @@ func (a *App) dragDivider(m uv.Mouse) {
 // handleWheel over the tab bar changes tab. Elsewhere it goes to a view that takes the mouse,
 // or scrolls the terminal's history.
 func (a *App) handleWheel(event uv.MouseEvent) {
-	if a.mode == configMode {
+	switch a.mode {
+	case configMode:
 		a.wheelConfig(event.Mouse().Button)
+		return
+	case updatesMode:
+		a.wheelUpdates(event.Mouse().Button)
 		return
 	}
 	t := a.currentTab()
@@ -299,6 +303,17 @@ func (a *App) wheelConfig(button uv.MouseButton) {
 		a.moveConfigSelection(-1)
 	case uv.MouseWheelDown:
 		a.moveConfigSelection(1)
+	}
+}
+
+// wheelUpdates scrolls the updates popup's changelog, stopping where its end shows.
+func (a *App) wheelUpdates(button uv.MouseButton) {
+	last := max(a.updates.lines-a.updates.visible, 0)
+	switch button {
+	case uv.MouseWheelUp:
+		a.updates.first = max(a.updates.first-wheelLines, 0)
+	case uv.MouseWheelDown:
+		a.updates.first = min(a.updates.first+wheelLines, last)
 	}
 }
 
