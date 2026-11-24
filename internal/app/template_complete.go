@@ -1,11 +1,13 @@
 package app
 
 import (
-	"image"
 	"strings"
 
 	"github.com/AlexandreSJ/noct/internal/flow"
 )
+
+// maxSuggestions is how many variables a template field offers at once.
+const maxSuggestions = 6
 
 // A template field offers the variables in scope as soon as {{. is typed: the ones that start as
 // typed show beside it, up and down pick one, and tab puts it in, closing the braces.
@@ -61,43 +63,4 @@ func completeTemplate(field *textField, chosen string, from int) {
 	if alone {
 		field.cursor += 2
 	}
-}
-
-// maxSuggestions is how many variables show under a prompt's field.
-const maxSuggestions = 6
-
-// suggestions are the variables that complete what is typed in a template prompt.
-func (p *textPrompt) suggestions() ([]string, int) {
-	return templateSuggestions(&p.input, p.variables)
-}
-
-// complete puts in the suggestion picked, closing the braces.
-func (p *textPrompt) complete() {
-	matches, from := p.suggestions()
-	if len(matches) > 0 {
-		completeTemplate(&p.input, matches[min(p.suggested, len(matches)-1)], from)
-		p.suggested = 0
-	}
-}
-
-// moveSuggestion picks the suggestion above or below.
-func (p *textPrompt) moveSuggestion(step int) {
-	if matches, _ := p.suggestions(); len(matches) > 0 {
-		p.suggested = (p.suggested + step + len(matches)) % len(matches)
-	}
-}
-
-// drawSuggestions lists the variables that complete what is typed, under the field at y.
-func (a *App) drawSuggestions(inner image.Rectangle, y int, draw func(x, y, maxX int, text string, selected bool)) int {
-	matches, _ := a.prompt.suggestions()
-	shown := matches[:min(len(matches), maxSuggestions)]
-	for i, m := range shown {
-		draw(inner.Min.X+3, y+i, inner.Max.X-1, m, i == min(a.prompt.suggested, len(shown)-1))
-	}
-	return len(shown)
-}
-
-// withVariables lets a prompt complete the variables readable where its template goes.
-func (a *App) withVariables(vars []flow.Variable) {
-	a.prompt.variables = flow.Readable(vars)
 }

@@ -70,7 +70,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/scripts.go` | Script actions: reload the library, run (form or not) as a tracked run with its log and exit code, create, edit in the configured editor, rename, delete |
 | `internal/app/form.go` | Parameters form shown before a script runs, or a flow (`p` in the inspect) |
 | `internal/app/run_view.go` | A script's run: its terminal plus a status line, held open with the exit code |
-| `internal/app/template_complete.go` | Completing the variables in scope as `{{.` (or `.` after a function, `{{eq .`) is typed in a template field: a step form's row or a template prompt |
+| `internal/app/template_complete.go` | Completing the variables in scope as `{{.` (or `.` after a function, `{{eq .`) is typed in a step form's template row |
 | `internal/app/finder.go` | Fuzzy search over scripts, actions and tabs (prefix+space), or over given items (a flow step's script) |
 | `internal/app/help.go` | Help for the focused terminal's foreground program (prefix+?) |
 | `internal/app/home.go` | Home screen (no tabs or an empty tab): title, raven, intro and when it plays (animate intro), per-character flicker on hover, shortcuts reveal and timer |
