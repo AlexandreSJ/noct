@@ -9,8 +9,8 @@ import (
 )
 
 // Functions show in the inspect's list after the flows, marked ƒ, and are built like a flow: their
-// params card also lists what they return. F makes one; a call step runs one, asking a value for
-// each of its params.
+// params card also lists what they return. F makes one; a call step runs one, with a value for each
+// of its params from its step form (callForm).
 
 // newFunction asks a new function's name and makes it, empty.
 func (a *App) newFunction(created func(key string)) {
@@ -25,12 +25,12 @@ func (a *App) newFunction(created func(key string)) {
 	})
 }
 
-// pickFunction asks which function a call step runs, then the value of each of its params.
-func (a *App) pickFunction(picked func(flow.Step)) {
+// pickFunction asks which function a call step runs.
+func (a *App) pickFunction(picked func(fn flow.Flow)) {
 	var items []finderItem
 	for _, fn := range a.functions {
 		if fn.Problem == nil {
-			items = append(items, finderItem{label: fn.Name, kind: fn.Description, open: func() { a.askCallValues(fn, picked) }})
+			items = append(items, finderItem{label: fn.Name, kind: fn.Description, open: func() { picked(fn) }})
 		}
 	}
 	if len(items) == 0 {
@@ -38,30 +38,6 @@ func (a *App) pickFunction(picked func(flow.Step)) {
 		return
 	}
 	a.openFinderWith("function to call", items)
-}
-
-// askCallValues asks a call step's value for each param of fn in turn, offering its default.
-func (a *App) askCallValues(fn flow.Flow, picked func(flow.Step)) {
-	names := slices.Sorted(maps.Keys(fn.Params))
-	step := flow.Step{Call: fn.Name, With: map[string]string{}}
-	var ask func(i int)
-	ask = func(i int) {
-		if i == len(names) {
-			if len(step.With) == 0 {
-				step.With = nil
-			}
-			picked(step)
-			return
-		}
-		p := fn.Params[names[i]]
-		a.openPrompt(fn.Name+": "+p.Label(names[i]), p.Default, "{enter} next  esc cancel  a template, like {{.env}}", func(value string) {
-			if value != "" && value != p.Default {
-				step.With[names[i]] = value
-			}
-			ask(i + 1)
-		})
-	}
-	ask(0)
 }
 
 // returnLines are what a function's params card lists of its returns.

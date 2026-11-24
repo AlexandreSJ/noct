@@ -29,7 +29,7 @@ params:
   - name: sides        # read as {{.sides}} in run
     prompt: Sides
     default: "6"
-outputs: [number]      # the first line number=... becomes .steps.<id>.number
+outputs: [number]      # the first line number=... becomes {{.number}} in the flow
 ```
 
 - `run` is a shell text; `{{.param}}` is replaced before it runs. Write `{{quote .param}}` for a
@@ -37,7 +37,7 @@ outputs: [number]      # the first line number=... becomes .steps.<id>.number
 - Give every param a `default`, or have every flow step that calls the script set it in `with`.
   A name in `with` that is not one of the script's params fails validation.
   A step runs without asking, so a param with `choices` and no value fails.
-- To pass another step's output as an argument, write `{{quote .steps.<id>.output}}`. To read a
+- To pass the last step's output as an argument, write `{{quote .output}}`. To read a
   multi-line value line by line (a list of files), use a quoted heredoc so quotes and `$` in it are
   not interpreted:
 
@@ -105,7 +105,7 @@ A step sets exactly one of these:
 | `wait: <duration>` | Sleeps (`5s`, `1m30s`) | — |
 | `prompt: <template>` | Asks the user on the run's terminal; the answer goes to a variable | `var` (required), `default`, `type` |
 | `set: {name: <template>}` | Gives variables, new or not, a value | — |
-| `unset: [name, steps.<id>]` | Clears variables and steps' results | — |
+| `unset: [name, steps.build]` | Clears variables and a step's results | — |
 
 `id` is optional on any step; give one to every step something later reads.
 
@@ -127,11 +127,16 @@ steps:
   - unset: [sum, steps.add]       # reads as empty after this
 ```
 
-- A param is its default alone, or a mapping with `default`, `type` (`text`, `number`, `bool`
-  for true or false, `choice` with its `choices: [a, b]`, or `path`, which tab completes in the
-  form),
-  `prompt` (the label in the form), `required`, `from` and `secret`. `noct flow run` and the
-  form refuse a `number` that is not one and a `required` param left empty.
+- A param is its default alone, or a mapping with `default`, `type` (`text`, `number`, `boolean`
+  for true or false, `option` with its `choices: [a, b]`, `path`, which tab completes in the
+  form, `list` or `object`), `prompt` (the label in the form), `required`, `from` and `secret`.
+  `noct flow run` and the form refuse a value its type does not take and a `required` param left
+  empty. Flows written with `bool` and `choice` still load, as `boolean` and `option`.
+- `list` and `object` hold JSON, lists and objects inside each other at any depth:
+  `hosts: {type: list, default: '["a", "b"]'}`, `cfg: {type: object, default: '{"db": {"port": 5432}}'}`.
+  Templates read inside them: `{{index .hosts 0}}`, `{{.cfg.db.port}}`, `{{range .hosts}}{{.}} {{end}}`;
+  `{{.hosts}}` alone writes the compact JSON, and `{{quote .hosts}}` makes it one shell word. A
+  repeat goes through a list with `each: '{{range .hosts}}{{println .}}{{end}}'`.
 - `from: env:NAME` takes the value from the variable `NAME` when it is set, and the form does not
   ask for it; unset, the param is asked like any other. A value given as `name=value` wins.
   Typed in the form, it goes to the run as `NAME`, never on its command line. `secret: true`
@@ -139,11 +144,14 @@ steps:
 - Params, `set` and `prompt` share one namespace: `{{.name}}`. `steps` is not a valid name.
 - Each script or run step also sets its results as variables of their own names: `{{.output}}`,
   `{{.exit}}`, `{{.ok}}`, its captures and its script's outputs, which the next such step sets
-  again. `{{.steps.<id>.<field>}}` still reads one step's.
+  again. `{{.steps.build.output}}` reads the step whose `id` is `build`, for an earlier step's
+  field a later one set again. When two steps give the same capture before a template that reads
+  it short, `noct check` warns which one the short name reads (`scope: version is set by build and
+  test; ...`); `output`, `exit`, `ok` and `answer` never warn, since the last one is the one meant.
 - Ifs, switches and repeats scope variables as blocks do in a language: setting a variable that exists
   before the block changes it; one the block makes goes when it ends, unless the block exports it:
   `export: {count: passes}` keeps `count` after the block as `{{.passes}}` (`{count: ""}` keeps
-  its name). `steps.<id>` results are not scoped. An if's export is surely set when both `then`
+  its name). `steps.build` results are not scoped. An if's export is surely set when both `then`
   and `else` make it, a switch's when every case and its `else` do; otherwise `noct check` warns
   that it may not be set.
 - `set` renders all its values first, then sets them, so `set: {a: '{{.b}}', b: '{{.a}}'}` swaps.
@@ -234,8 +242,9 @@ returns:
   An agent of your own should not be able to act: a question carries text from programs and
   other people, which could ask it to. That includes MCP servers in its own config, which can
   give it tools; noct's own tools that act still ask you first. noct does not install any of them.
-- In the inspect, `a` then `a` adds an agent step from one form: the question (`ctrl+t` types a
-  variable), the answers, the agent and the timeout; `enter` adds it from any field.
+- In the inspect, `a` then `a` adds an agent step from one form in place of the chart: the
+  question (`{{.` completes a variable), the answers, the agent and the timeout; `enter` adds it
+  from any row.
 - `{{.answer}}` is the answer trimmed, without the thinking a model prints first (ollama's
   `Thinking...` and `<think>` tags); with `choices`, the first choice it says as a word, in any
   case, and an answer that says none fails the step (`on_fail` applies). `{{.output}}` is all it
@@ -283,12 +292,14 @@ Go `text/template`, rendered in `run`, `with` values, `if`, `switch`, `until`, `
 | Reads | Value |
 |---|---|
 | `{{.<name>}}` | A flow param, or a variable a `set` or `prompt` gave |
-| `{{.steps.<id>.output}}` | Output without colors, trailing newlines removed |
-| `{{.steps.<id>.exit}}` | Exit code, as a string: `"0"` |
-| `{{.steps.<id>.ok}}` | `"true"` or `"false"` |
-| `{{.steps.<id>.<name>}}` | A capture, or an output the script declares |
+| `{{.output}}` | The last step's output without colors, trailing newlines removed |
+| `{{.exit}}` | The last step's exit code, as a string: `"0"` |
+| `{{.ok}}` | `"true"` or `"false"` |
+| `{{.<capture>}}` | A capture, or an output the script declares |
+| `{{.steps.build.output}}` | Any of the above for the step whose `id` is `build` |
 
-- **Every value is a string.** Compare with strings: `{{eq .steps.x.exit "0"}}`, not `0`.
+- **Every value is a string**, but for `list` and `object` params. Compare with strings:
+  `{{eq .exit "0"}}`, not `0`.
   `gt`/`lt` compare text, so `"10" < "9"`; do number comparisons inside a `run` step instead.
 - `if` and `until` must render to `true`, `false` or empty (false); anything else fails the step.
 - Functions: Go's built-ins (`eq`, `ne`, `and`, `or`, `not`, `gt`, `lt`, `printf`, ...),

@@ -57,7 +57,7 @@ func TestAForEachIsAddedAndTitledByItsLines(t *testing.T) {
 	p.selected = stepKey("0")
 	pressDrawn(a, letter('a'), letter('e'), clearLine)
 	typeDrawn(a, "{{.steps.list.output}}")
-	pressDrawn(a, enterPress, clearLine)
+	pressDrawn(a, tabPress, clearLine)
 	typeDrawn(a, "host")
 	pressDrawn(a, enterPress)
 	steps := loadFlowSteps(t, "hosts")

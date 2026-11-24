@@ -68,6 +68,8 @@ Encadear scripts num editor visual (ver [fluxos.md](fluxos.md)).
 10. **Agente:** um passo `agent:` com um prompt que roda um agente de linha de comando do usuário (`claude -p`, `ollama run`, `opencode run`, ou um comando próprio) e devolve a resposta, opcionalmente uma entre `choices`, para os passos seguintes decidirem.
 11. **MCP:** as ferramentas leem e rascunham funções, passos de agente, tipos e o escopo novo, com a mesma política de aprovação.
 
+**Editores no painel (pedido do mantenedor, 2026-11-24; ADR-071, na branch `feat/flow-editor`).** Os params numa tabela, um por linha em colunas, e cada passo num formulário, os dois no lugar do fluxograma e sem travar o noct, com as variáveis do escopo e exemplos ao lado; tipos `boolean`, `option`, `list` e `object` (JSON com recursão); nomes curtos em toda lista e o aviso de escopo; sem o `Ctrl+T`, e dicas numa linha só. Com isso saem do "Próximo no inspect" acima: editar um passo existente num formulário (menos o script, ainda em YAML), os `every`/`max` do `repeat` e definir os params do fluxo.
+
 **Pronto quando:** um teste de ponta a ponta com várias etapas é montado sem editar YAML à mão, roda sozinho por cron, para no passo certo em caso de falha, e a execução de ontem é encontrada pelo calendário.
 
 ## Fase 3 — IA (MCP)

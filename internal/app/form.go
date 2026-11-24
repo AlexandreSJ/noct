@@ -33,10 +33,8 @@ type paramsForm struct {
 	submit func(values map[string]string) error
 	// dir is where the program runs, which path fields complete from.
 	dir string
-	// verb is what enter does, "run" when empty; pick, when set, lets ctrl+t search for a
-	// variable to type into the field.
+	// verb is what enter does, "run" when empty.
 	verb string
-	pick func()
 }
 
 func (a *App) openForm(s script.Script, values map[string]string, closeOnSuccess bool) {
@@ -91,10 +89,6 @@ func (a *App) handleFormKey(key uv.KeyPressEvent) {
 		f.move(1)
 	case "shift+tab", "up":
 		f.move(-1)
-	case "ctrl+t":
-		if field, _ := f.typedField(); f.pick != nil && field != nil {
-			f.pick()
-		}
 	case "left", "right":
 		if choices := f.field().Choices; len(choices) > 0 {
 			step := map[string]int{"left": -1, "right": 1}[key.String()]
@@ -119,15 +113,11 @@ func (f *paramsForm) typedField() (*textField, func()) {
 	return &f.input, func() { f.values[p.Name] = f.input.String() }
 }
 
-// hints tell the arrows' choosing only on a field with choices, tab completing on a path, and
-// ctrl+t on a field a variable can be typed into.
+// hints tell the arrows' choosing only on a field with choices, and tab completing on a path.
 func (f *paramsForm) hints() string {
 	hints := f.baseHints()
 	if f.verb != "" {
 		hints = strings.Replace(hints, "{enter} run", "{enter} "+f.verb, 1)
-	}
-	if field, _ := f.typedField(); f.pick != nil && field != nil {
-		hints += "  {ctrl+t} variable"
 	}
 	return hints
 }

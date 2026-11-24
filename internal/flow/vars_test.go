@@ -360,7 +360,7 @@ steps: [{run: 'true'}]
 	for content, problem := range map[string]string{
 		"params:\n  a: {type: choice}\nsteps: [{run: 'true'}]\n":                           "needs its choices",
 		"params:\n  a: {type: bool, default: yes}\nsteps: [{run: 'true'}]\n":               "the default must be one of",
-		"params:\n  a: {type: date}\nsteps: [{run: 'true'}]\n":                             "one of text, number, bool, choice, path",
+		"params:\n  a: {type: date}\nsteps: [{run: 'true'}]\n":                             "one of text, number, boolean, option, path, list, object",
 		"params:\n  a: {type: choice, choices: [x], default: y}\nsteps: [{run: 'true'}]\n": "the default must be one of x",
 	} {
 		if err := parse(t, content).Validate(nil); err == nil || !strings.Contains(err.Error(), problem) {

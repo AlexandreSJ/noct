@@ -70,6 +70,10 @@ func (f Flow) check(path, text string, sc *scope) []Warning {
 			problem = "variable " + ref.field + " may not be set here"
 		case i >= 0 && sc.vars[i].Certainty == Maybe:
 			problem = "step " + ref.step + " may not have run here"
+		case i >= 0 && ref.step == "":
+			if problem = sc.ambiguity(ref.field); problem == "" {
+				continue
+			}
 		case i >= 0:
 			continue
 		case ref.step == "":
@@ -82,6 +86,29 @@ func (f Flow) check(path, text string, sc *scope) []Warning {
 		warnings = append(warnings, Warning{Path: path, Text: problem})
 	}
 	return warnings
+}
+
+// everyStepField are the fields every step that runs something has: the last step's is the one
+// meant, so reading them short is never ambiguous.
+var everyStepField = []string{"output", "exit", "ok", "answer"}
+
+// ambiguity is the scope warning for a short name that more than one step before the point sets,
+// as two steps capturing version: the short name reads the last, and steps.<id> picks another.
+func (sc *scope) ambiguity(name string) string {
+	if slices.Contains(everyStepField, name) {
+		return ""
+	}
+	var steps []string
+	for _, v := range sc.vars {
+		if v.Step != "" && v.Field == name && !slices.Contains(steps, v.Step) {
+			steps = append(steps, v.Step)
+		}
+	}
+	if len(steps) < 2 {
+		return ""
+	}
+	last := steps[len(steps)-1]
+	return fmt.Sprintf("scope: %s is set by %s; .%s reads %s's, .steps.%s.%s reads %s's", name, strings.Join(steps, " and "), name, last, steps[0], name, steps[0])
 }
 
 // missing tells why a step's field is not in scope: no such step, no such field, or the step

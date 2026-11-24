@@ -43,6 +43,29 @@ func (v Variable) Template() string {
 	return "{{.steps." + v.Step + "." + v.Field + "}}"
 }
 
+// Readable are vars as a template reads them most simply, the short names first: a step's field
+// is left out where its short name, {{.field}}, reads that same step; a field a later step set
+// again stays, since only {{.steps.<id>.<field>}} reaches it.
+func Readable(vars []Variable) []Variable {
+	setBy := map[string]string{}
+	for _, v := range vars {
+		if v.Step == "" {
+			setBy[v.Field] = v.Path
+		}
+	}
+	var short, long []Variable
+	for _, v := range vars {
+		path, set := setBy[v.Field]
+		switch {
+		case v.Step == "":
+			short = append(short, v)
+		case !set || path != v.Path:
+			long = append(long, v)
+		}
+	}
+	return append(short, long...)
+}
+
 // Scope lists what a template can read at index of parent's branch (parent "" for the flow's own
 // steps): the parameters, then the fields of the steps that run before that point, in order.
 func (f Flow) Scope(parent, branch string, index int, lookup func(id string) (script.Script, bool)) []Variable {

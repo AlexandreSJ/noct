@@ -70,7 +70,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/scripts.go` | Script actions: reload the library, run (form or not) as a tracked run with its log and exit code, create, edit in the configured editor, rename, delete |
 | `internal/app/form.go` | Parameters form shown before a script runs, or a flow (`p` in the inspect) |
 | `internal/app/run_view.go` | A script's run: its terminal plus a status line, held open with the exit code |
-| `internal/app/prompt_complete.go` | Completing the variables in scope as `{{.` is typed in a template prompt |
+| `internal/app/template_complete.go` | Completing the variables in scope as `{{.` (or `.` after a function, `{{eq .`) is typed in a template field: a step form's row or a template prompt |
 | `internal/app/finder.go` | Fuzzy search over scripts, actions and tabs (prefix+space), or over given items (a flow step's script) |
 | `internal/app/help.go` | Help for the focused terminal's foreground program (prefix+?) |
 | `internal/app/home.go` | Home screen (no tabs or an empty tab): title, raven, intro and when it plays (animate intro), per-character flicker on hover, shortcuts reveal and timer |
@@ -97,10 +97,14 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/pane_request.go` | Opening the pane a flow's step asks for, beside its run, and answering with its exit code; stopping it at the step's timeout; bringing a run to the screen for its prompt (`attention`) |
 | `internal/app/logs_heatmap.go` | The logs calendar's activity colors: each day's step by its logs, the style over it, and the legend |
 | `internal/app/logs_filter.go` | The logs filter line: words over name, date, time and status; size and line comparisons |
-| `internal/app/scope.go` | The inspect's scope pane (variables of the selected block with their last values) and the variable picker of template prompts (ctrl+t) |
-| `internal/app/flow_agents.go` | Adding an agent step in the inspect, from one form: what it asks, its answers, the agent (default, auto, the agents, or a custom one it adds to the config) and the timeout |
-| `internal/app/flow_functions.go` | Functions in the inspect: making one, the call step's function and values, returns on the params card, which flows a change reaches |
-| `internal/app/flow_params.go` | A flow's params in the inspect: adding one with every type a param can have, changing its default, label and required, removing it |
+| `internal/app/scope.go` | The inspect's scope pane: the variables of the selected block by their short names, with their last values |
+| `internal/app/flow_agents.go` | The agents an agent step's form offers (default, auto, the installed ones, a custom one), what each note says, and adding a custom agent to the config |
+| `internal/app/flow_functions.go` | Functions in the inspect: making one, picking a call step's function, returns on the params card, which flows a change reaches |
+| `internal/app/flow_params.go` | A flow's params table in the inspect, a param a row in columns (type, name, default, options, from env, label, required, secret): checking each row, saving it as the focus leaves it, the help of each column, how the card writes a param |
+| `internal/app/edit_grid.go` | `editGrid`: rows of cells typed in place (text, option, toggle), tab and the arrows through them as along one line, skipping cells that do not apply, and completing variables in template cells |
+| `internal/app/inspect_editor.go` | `inspectEditor`, what the inspect shows in place of the chart while params or a step are edited: its frame, the help beside it, hints kept to one row |
+| `internal/app/flow_step_form.go` | A step's form in the inspect: its rows, checking them, adding or saving the step, the variables beside it; opening the params table, adding and editing steps from the inspect |
+| `internal/app/flow_step_kinds.go` | What each kind of step's form asks (command, if, switch, repeat, for each, wait, prompt, set, unset, call, agent) and how its answers become the step, keeping what it does not ask |
 | `internal/app/flowchart_live.go` | A flow's run on its chart as it goes: the dots going down the arrow out of the step running, and the frames that move them |
 | `internal/app/flow_history.go` | Undo and redo of the inspect's changes to a flow: its file before each change, kept while noct runs |
 | `internal/app/flows.go` | Flow actions: create, run and test steps (as tracked runs), add, edit in the editor, move and remove steps, what a step does and its kept output |
@@ -179,7 +183,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/flow/run.go` | Running a flow step by step in a terminal: commands, if, repeat, wait, captures (and scripts' outputs), expect |
 | `internal/flow/result.go` | A run's result with each step's output and status; saving and loading the last one |
 | `internal/flow/try.go` | Testing a range of sibling steps over the last result (its steps' fields and variables), and merging what they did into it |
-| `internal/flow/vars.go` | Params with a type (text, number), required and a label, and checking values; running prompt, set and unset steps |
+| `internal/flow/vars.go` | Params with a type (text, number, boolean, option, path, list, object; `bool` and `choice` read as before), required and a label, and checking values; running prompt, set and unset steps |
+| `internal/flow/json.go` | List and object params: decoding their JSON, lists and objects inside each other, for templates to read inside and print whole as JSON |
 | `internal/flow/trigger.go` | Triggers (manual, cron, watch, after) in YAML, their validation, globs with `**`, loops of after triggers, which flows have them enabled |
 | `internal/flow/cron.go` | Five-field cron schedules: parsing and matching a minute |
 | `internal/flow/pane.go` | Steps in a pane of their own (`pane: new`, `background`): validation, asking noct's workspace, running inline outside it |
@@ -189,7 +194,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/mcp/run_tools.go` | Tools over runs and logs: list, the structured result, search, paged reading |
 | `internal/mcp/workspace_tools.go` | Tools the running workspace does: panes, runs the user sees, command lines, typing |
 | `internal/schedule/schedule.go` | Deciding when enabled flows start: cron minutes (each wall-clock minute once, across daylight saving), watched files settling, another flow's run ending |
-| `internal/flow/scope.go` | What templates can read at each point of a flow (parameters, variables set and unset, earlier steps' fields, how sure) |
-| `internal/flow/warnings.go` | Warnings for what templates read that may not be there |
+| `internal/flow/scope.go` | What templates can read at each point of a flow (parameters, variables set and unset, earlier steps' fields, how sure), and the shortest name each is read by (`Readable`) |
+| `internal/flow/warnings.go` | Warnings for what templates read that may not be there, and the scope warning for a short name two steps set |
 | `internal/flow/edit.go` | Editing a flow by step path: insert, replace, remove, move (through any block's lists), unique ids |
 | `internal/script/version.go` | Program version detection, in the background and cached |

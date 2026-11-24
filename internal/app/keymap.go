@@ -270,7 +270,17 @@ var keyContexts = []keyContext{
 		{"submit", "submit", []string{"enter"}},
 		{"erase", "erase a character", []string{"backspace"}},
 		{"clear", "erase to the start", []string{"ctrl+u"}},
-		{"pick", "pick from a list", []string{"ctrl+t"}},
+	}},
+	{id: "flow-editor", label: "flow params and step forms", typing: true, actions: []keyAction{
+		{"next", "next cell", []string{"tab"}},
+		{"previous", "previous cell", []string{"shift+tab"}},
+		{"up", "the row above, or the variable above", []string{"up"}},
+		{"down", "the row below, or the variable below", []string{"down"}},
+		{"left", "left, past the text to the cell before", []string{"left"}},
+		{"right", "right, past the text to the cell after", []string{"right"}},
+		{"enter", "a new param, or add or save the step", []string{"enter"}},
+		{"erase", "erase a character", []string{"backspace"}},
+		{"clear", "erase to the start", []string{"ctrl+u"}},
 	}},
 	{id: "form", label: "params form", typing: true, actions: []keyAction{
 		{"run", "run", []string{"enter"}},
@@ -514,6 +524,9 @@ func viewKeyContext(v view) string {
 	case *scriptsPanel:
 		return "scripts"
 	case *inspectPanel:
+		if v.editor != nil {
+			return "flow-editor"
+		}
 		return "flows"
 	case *logsPanel:
 		return "logs"

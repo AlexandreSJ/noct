@@ -108,3 +108,35 @@ func TestReferencesInsideActionsAndBranches(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
+
+// Readable leaves out a step's field that its short name reads, and keeps the ones a later step
+// set again, which only steps.<id> reaches.
+func TestReadableKeepsOnlyTheNamesThatNeedTheirStep(t *testing.T) {
+	f := parse(t, `params: {env: dev}
+steps:
+  - {id: build, run: make, capture: {version: 'v(\S+)'}}
+  - {id: test, run: go test}
+`)
+	got := names(Readable(f.Scope("", "", 2, nil)))
+	want := []string{"{{.env}}", "{{.output}}", "{{.exit}}", "{{.ok}}", "{{.version}}", "{{.steps.build.output}}", "{{.steps.build.exit}}", "{{.steps.build.ok}}"}
+	if !slices.Equal(got, want) {
+		t.Errorf("readable\n got %v\nwant %v", got, want)
+	}
+}
+
+// A short name two steps set warns which one it reads; output and the like never do.
+func TestScopeWarningForAShortNameTwoStepsSet(t *testing.T) {
+	f := parse(t, `steps:
+  - {id: build, run: make, capture: {version: 'v(\S+)'}}
+  - {id: test, run: go test, capture: {version: 'v(\S+)'}}
+  - {run: 'echo {{.version}} {{.output}} {{.steps.build.version}}'}
+`)
+	var texts []string
+	for _, w := range f.Warnings(nil) {
+		texts = append(texts, w.Text)
+	}
+	want := []string{"scope: version is set by build and test; .version reads test's, .steps.build.version reads build's"}
+	if !slices.Equal(texts, want) {
+		t.Errorf("warnings %q, want %q", texts, want)
+	}
+}

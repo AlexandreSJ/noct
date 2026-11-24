@@ -15,6 +15,11 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - `Space` on **Flows → tell when runs end** in the config sends a test notification, the way a
   run's end is told.
+- Flow params can be a `list` or an `object`: JSON that holds lists and objects at any depth.
+  Steps read inside them, as `{{index .hosts 0}}`, `{{.cfg.db.port}}` and
+  `{{range .hosts}}…{{end}}`, and `{{.hosts}}` alone writes the JSON again.
+- A scope warning tells when two steps give the same capture before a step reads it by its short
+  name: `{{.version}}` reads the last one, and `{{.steps.build.version}}` picks another.
 
 ### Changed
 
@@ -32,6 +37,27 @@ the shortcut is `Alt` by default. How to write an entry is in
 - While you type in a list's filter, the footer keeps the list's keys; the filter's line shows
   `enter`, which keeps it, and every list counts the same way: `3 of 12`, or `no match`.
 - Shorter notes and hints in the config, the binds' `?` list and the agent step's form.
+- `Enter` on a flow's params card in the inspect (`prefix` + `i`) opens its params as a table in
+  place of the chart, a param a row like declarations in code: type, name, default, options,
+  environment variable, label, required and secret in columns. `Tab` and the arrows go through
+  the cells as along one line, a letter picks a type, and each row is saved as you leave it; a
+  cell that keeps its row from being saved turns red and says why. Emptying a name removes the
+  param, and `esc` closes the table.
+- Adding a step (`a`) or changing one (`e`) in the inspect fills one form in place of the chart
+  instead of a chain of prompts. The variables the step can read are listed beside it, with
+  their last values and examples written with them, and `{{.` (or `{{eq .`) completes them.
+  Changing a step keeps what its form does not ask, such as its captures and the steps inside.
+- Neither editor locks noct: the prefix still reaches every panel and tab while you edit, and
+  the editor is there when you come back. Their hints take one row, and `?` lists every key.
+- Param types are named `boolean` and `option`, for what were `bool` and `choice`; flows that
+  use the old names still work. Secret and environment variable are settings of any type.
+- The inspect names variables by their short names, as `{{.output}}` and `{{.version}}`;
+  `{{.steps.build.output}}` shows only for an earlier step's value a later step replaced.
+
+### Removed
+
+- `ctrl+t` in the inspect's prompts and forms, which many terminals take to open a tab: the
+  variables are listed beside the step's form now.
 
 ### Fixed
 

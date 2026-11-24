@@ -14,21 +14,26 @@ import (
 	"github.com/AlexandreSJ/noct/internal/naming"
 )
 
-// Types a parameter or a prompt's answer can have; a parameter can also be yes or no, one of its
-// choices, or a path.
+// Types a parameter or a prompt's answer can have; a parameter can also be a boolean, one of its
+// options, a path, or JSON: a list or an object, which may hold lists and objects in turn.
 const (
-	TextParam   = "text"
-	NumberParam = "number"
-	BoolParam   = "bool"
-	ChoiceParam = "choice"
-	PathParam   = "path"
+	TextParam    = "text"
+	NumberParam  = "number"
+	BooleanParam = "boolean"
+	OptionParam  = "option"
+	PathParam    = "path"
+	ListParam    = "list"
+	ObjectParam  = "object"
 )
 
 // ParamTypes are the types a parameter can have, in the order the inspect offers them.
-var ParamTypes = []string{TextParam, NumberParam, BoolParam, ChoiceParam, PathParam}
+var ParamTypes = []string{TextParam, NumberParam, BooleanParam, OptionParam, PathParam, ListParam, ObjectParam}
 
-// BoolValues are what a yes or no parameter holds.
-var BoolValues = []string{"true", "false"}
+// legacyParamTypes are the names flows written before ADR-071 use, read as the names now.
+var legacyParamTypes = map[string]string{"bool": BooleanParam, "choice": OptionParam}
+
+// BooleanValues are what a boolean parameter holds.
+var BooleanValues = []string{"true", "false"}
 
 const maxPromptTries = 3
 
@@ -38,7 +43,7 @@ type Param struct {
 	Default string `yaml:"default,omitempty" json:"default,omitempty"`
 	// Type is one of ParamTypes; empty is TextParam.
 	Type string `yaml:"type,omitempty" json:"type,omitempty"`
-	// Choices are the values a ChoiceParam can take.
+	// Choices are the values an OptionParam can take.
 	Choices []string `yaml:"choices,omitempty" json:"choices,omitempty"`
 	// Prompt is what the params form shows instead of the name.
 	Prompt string `yaml:"prompt,omitempty" json:"prompt,omitempty"`
@@ -64,7 +69,13 @@ func (p *Param) UnmarshalYAML(node *yaml.Node) error {
 		*p = Param{Default: node.Value}
 		return nil
 	}
-	return node.Decode((*paramFields)(p))
+	if err := node.Decode((*paramFields)(p)); err != nil {
+		return err
+	}
+	if current, ok := legacyParamTypes[p.Type]; ok {
+		p.Type = current
+	}
+	return nil
 }
 
 func (p Param) MarshalYAML() (any, error) {
@@ -121,7 +132,7 @@ func (f Flow) CheckParams(values map[string]string) error {
 		if p.Required && strings.TrimSpace(value) == "" {
 			return fmt.Errorf("%s is required", name)
 		}
-		if problem := p.fits(value); problem != "" {
+		if problem := p.Fits(value); problem != "" {
 			return fmt.Errorf("%s %s", name, problem)
 		}
 	}
@@ -136,16 +147,16 @@ func (p Param) onlyDefault() bool {
 // Values are what the parameter can take, for the types that have a few; nil for any.
 func (p Param) Values() []string {
 	switch p.Type {
-	case BoolParam:
-		return BoolValues
-	case ChoiceParam:
+	case BooleanParam:
+		return BooleanValues
+	case OptionParam:
 		return p.Choices
 	}
 	return nil
 }
 
-// fits tells why value is not one the parameter takes, or "".
-func (p Param) fits(value string) string {
+// Fits tells why value is not one the parameter takes, or "".
+func (p Param) Fits(value string) string {
 	switch {
 	case value == "":
 		return ""
@@ -153,6 +164,10 @@ func (p Param) fits(value string) string {
 		return fmt.Sprintf("must be a number, not %q", value)
 	case p.Values() != nil && !slices.Contains(p.Values(), value):
 		return fmt.Sprintf("must be one of %s, not %q", strings.Join(p.Values(), ", "), value)
+	case p.Type == ListParam || p.Type == ObjectParam:
+		if _, err := DecodeJSON(p.Type, value); err != nil {
+			return "must be " + err.Error()
+		}
 	}
 	return ""
 }
@@ -172,10 +187,10 @@ func checkParam(p Param) error {
 	if p.Type != "" && !slices.Contains(ParamTypes, p.Type) {
 		return fmt.Errorf("type %q is one of %s", p.Type, strings.Join(ParamTypes, ", "))
 	}
-	if p.Type == ChoiceParam && len(p.Choices) == 0 {
-		return errors.New("a choice needs its choices")
+	if p.Type == OptionParam && len(p.Choices) == 0 {
+		return errors.New("an option needs its choices")
 	}
-	if problem := p.fits(p.Default); problem != "" {
+	if problem := p.Fits(p.Default); problem != "" {
 		return errors.New("the default " + problem)
 	}
 	return nil

@@ -457,8 +457,9 @@ func parseTemplate(text string) (*template.Template, error) {
 // templateFuncs are the functions templates can call besides Go's own.
 var templateFuncs = template.FuncMap{
 	// match tells whether text matches a regex: {{if match .steps.mail.output "sent"}}.
-	"match": func(text, pattern string) (bool, error) {
-		return regexp.MatchString(pattern, text)
+	"match": func(text any, pattern string) (bool, error) {
+		return regexp.MatchString(pattern, fmt.Sprint(text))
 	},
-	"quote": script.Quote,
+	// quote makes a value one shell word; a list or object param quotes as its JSON.
+	"quote": func(value any) string { return script.Quote(fmt.Sprint(value)) },
 }

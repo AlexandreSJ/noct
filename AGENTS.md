@@ -19,6 +19,9 @@
 - Tests that start processes use `sh -c`/`printf`, never the user's shell config.
 - App tests replace `App.launch` with fake views instead of starting real programs.
 - `third_party/` holds patched copies of two Charm libraries; change them only as `third_party/README.md` says.
+- Inspect editing happens in the panel (`inspectEditor`), never in a chain of prompts; a new step kind gets its form in `internal/app/flow_step_kinds.go` (ADR-071).
+- Editor hints fit one row (`hintsInOneRow`); what does not fit goes to `?`.
+- UI, docs and examples name variables short (`{{.output}}`); `{{.steps.<id>.…}}` only where `flow.Readable` keeps it.
 
 ## Commands
 

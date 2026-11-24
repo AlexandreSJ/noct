@@ -17,8 +17,6 @@ type textPrompt struct {
 	submit func(text string)
 	// cancel, when set, runs after esc.
 	cancel func()
-	// pick, when set, lets ctrl+t search for text to type, such as a flow's variables.
-	pick func()
 	// variables are what a template typed here can read, offered as {{. is typed; suggested is
 	// the one picked.
 	variables []flow.Variable
@@ -75,10 +73,6 @@ func (a *App) handlePromptKey(key uv.KeyPressEvent) {
 	case "enter":
 		a.mode = normalMode // before submit, which may open another panel
 		a.prompt.submit(strings.TrimSpace(a.prompt.input.String()))
-	case "ctrl+t":
-		if a.prompt.pick != nil {
-			a.prompt.pick()
-		}
 	case "tab":
 		a.prompt.complete()
 	case "up", "down":

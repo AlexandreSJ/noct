@@ -25,7 +25,8 @@ const stepHints = `# One step: script (with, capture, expect, on_fail, retry, ti
 # (times, each with as, or until with max; every; steps) or wait (5s, 1m).
 # timeout stops a script or run step that runs longer: 30s, 10m, 1h30m. retry: 3 runs a failed
 # step again up to 3 times; retry: {max: 3, every: 10s} waits between tries.
-# Templates read {{.steps.<id>.output}}, .exit, .ok and captures. See docs/fluxos.md.
+# Templates read {{.output}}, {{.exit}}, {{.ok}} and captures by name; {{.steps.build.output}}
+# reads an earlier step's. See docs/fluxos.md.
 `
 
 // reloadFlows reads the flows again, checking their scripts against the library.
@@ -351,29 +352,9 @@ func (a *App) changeFlow(f flow.Flow, change func(*flow.Flow) error) error {
 	return nil
 }
 
-// addStep asks what kind of step to add, and its main setting, and puts it where the selected
-// block is: at a gap or into an empty list, or right after a step. added gets the new step's path.
-func (a *App) addStep(f flow.Flow, at chartBlock, added func(path string)) {
-	parent, branch, index := at.slot.parent, at.slot.branch, at.index
-	if !at.isInsertion() {
-		parent, branch, index = flow.SplitPath(at.path)
-		index++
-	}
-	insert := func(step flow.Step) { a.insertFlowStep(f, parent, branch, index, step, added) }
-	// Templates typed here read what runs before the new step; ctrl+t searches it.
-	vars := f.Scope(parent, branch, index, a.scripts.Find)
-	templatePrompt := func(title, initial, hints string, submit func(text string)) {
-		a.openPrompt(title, initial, hints+"  ctrl+t variable", submit)
-		a.prompt.pick = func() { a.pickVariable(f, vars) }
-		a.withVariables(vars)
-	}
-	options := a.flowStepChoices(insert, templatePrompt, func() { a.pickVariable(f, vars) })
-	options = append(options, a.variableStepChoices(insert, templatePrompt)...)
-	a.openChoice("add step", options...)
-}
-
-// insertFlowStep adds step to f at the slot, naming a script or command step that has no id.
-func (a *App) insertFlowStep(f flow.Flow, parent, branch string, index int, step flow.Step, added func(path string)) {
+// insertStep adds step to f at the slot, naming a script, command, call or agent step that has
+// no id, and gives its path.
+func (a *App) insertStep(f flow.Flow, parent, branch string, index int, step flow.Step) (string, error) {
 	var path string
 	err := a.changeFlow(f, func(f *flow.Flow) error {
 		if step.ID == "" && (step.Script != "" || step.Run != "" || step.Call != "" || step.Agent != nil) {
@@ -383,88 +364,13 @@ func (a *App) insertFlowStep(f flow.Flow, parent, branch string, index int, step
 		path, err = f.Insert(parent, branch, index, step)
 		return err
 	})
+	return path, err
+}
+
+// reportError shows err in the status line, when there is one.
+func (a *App) reportError(err error) {
 	if err != nil {
 		a.statusMessage = err.Error()
-		return
-	}
-	added(path)
-}
-
-type stepTemplatePrompt func(title, initial, hints string, submit func(text string))
-
-// flowStepChoices are the add step options that run something or shape the flow.
-func (a *App) flowStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt, pickVariable func()) []choiceOption {
-	return []choiceOption{
-		{key: "s", label: "script", pick: func() { a.pickScript(insert) }},
-		{key: "f", label: "call a function", pick: func() { a.pickFunction(insert) }},
-		{key: "a", label: "AI agent", pick: func() { a.openAgentForm(insert, pickVariable) }},
-		{key: "c", label: "command line", pick: func() {
-			templatePrompt("command line", "", "{enter} add  esc cancel", func(text string) {
-				insert(flow.Step{Run: text})
-			})
-		}},
-		{key: "i", label: "if / else", pick: func() {
-			templatePrompt("if", `{{eq .steps.<id>.<capture> "value"}}`, "{enter} add  esc cancel  true runs then", func(text string) {
-				insert(flow.Step{If: text})
-			})
-		}},
-		{key: "o", label: "switch: one of cases", pick: func() {
-			templatePrompt("switch on", "{{.answer}}", "{enter} next  esc cancel  the value the cases compare", func(value string) {
-				a.openPrompt("cases", "", "{enter} add  esc cancel  the values, a space between: flaky bug env; | joins two in one case: bug|regression", func(text string) {
-					step, err := switchStep(value, text)
-					if err != nil {
-						a.statusMessage = err.Error()
-						return
-					}
-					insert(step)
-				})
-			})
-		}},
-		{key: "l", label: "repeat", pick: func() {
-			templatePrompt("repeat", "3", "{enter} add  esc cancel  times, or until", func(text string) {
-				insert(repeatStep(text))
-			})
-		}},
-		{key: "e", label: "for each line", pick: func() {
-			templatePrompt("for each line of", "{{.output}}", "{enter} next  esc cancel  a text; its steps run once per line", func(each string) {
-				a.openPrompt("each line in variable", flow.DefaultEachVar, "{enter} add  esc cancel  the steps read it as {{.name}}", func(name string) {
-					step := flow.Step{Repeat: &flow.Repeat{Each: each}}
-					if name = strings.TrimSpace(name); name != flow.DefaultEachVar {
-						step.Repeat.As = name
-					}
-					insert(step)
-				})
-			})
-		}},
-		{key: "w", label: "wait", pick: func() {
-			a.openPrompt("wait", "5s", "{enter} add  esc cancel  like 5s, 1m30s", func(text string) {
-				insert(flow.Step{Wait: text})
-			})
-		}},
-	}
-}
-
-// variableStepChoices are the add step options that ask for, set or clear variables.
-func (a *App) variableStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt) []choiceOption {
-	return []choiceOption{
-		{key: "p", label: "prompt the user", pick: func() {
-			templatePrompt("prompt", "", "{enter} next  esc cancel  the question asked", func(question string) {
-				a.openPrompt("into variable", "", "{enter} add  esc cancel  new, or one to change", func(name string) {
-					insert(flow.Step{Prompt: question, Var: strings.TrimSpace(name)})
-				})
-			})
-		}},
-		{key: "v", label: "set variable", pick: func() {
-			templatePrompt("set", "name = ", "{enter} add  esc cancel  name = value", func(text string) {
-				name, value, _ := strings.Cut(text, "=")
-				insert(flow.Step{Set: map[string]string{strings.TrimSpace(name): strings.TrimSpace(value)}})
-			})
-		}},
-		{key: "u", label: "unset variables", pick: func() {
-			a.openPrompt("unset", "", "{enter} add  esc cancel  names, steps.<id>", func(text string) {
-				insert(flow.Step{Unset: strings.FieldsFunc(text, func(r rune) bool { return r == ',' || r == ' ' })})
-			})
-		}},
 	}
 }
 
@@ -473,26 +379,6 @@ func orDefault(value, fallback string) string {
 		return fallback
 	}
 	return value
-}
-
-// switchStep compares value with a case for each word of cases; values joined by | share one.
-func switchStep(value, cases string) (flow.Step, error) {
-	step := flow.Step{Switch: value}
-	for _, word := range strings.Fields(cases) {
-		step.Cases = append(step.Cases, flow.Case{Is: strings.Split(word, "|")})
-	}
-	if len(step.Cases) == 0 {
-		return flow.Step{}, errors.New("cases: the values the switch compares, as flaky bug env")
-	}
-	return step, nil // changing the flow checks it, a value in two cases too
-}
-
-// repeatStep repeats a number of times, or until a condition, at most 10 times.
-func repeatStep(text string) flow.Step {
-	if times, err := strconv.Atoi(text); err == nil {
-		return flow.Step{Repeat: &flow.Repeat{Times: times}}
-	}
-	return flow.Step{Repeat: &flow.Repeat{Until: text, Max: 10}}
 }
 
 // pickScript searches the scripts for the one a step runs.
@@ -737,7 +623,7 @@ func (a *App) agentStepLines(step flow.Step) []styledLine {
 	if len(step.Agent.Choices) > 0 {
 		lines = append(lines, styledLine{"the answer must be one of " + strings.Join(step.Agent.Choices, ", ") + "; one that says none fails the step", pal.panelMuted})
 	}
-	return append(lines, styledLine{"later steps read it as {{.answer}} and {{.steps." + orDefault(step.ID, "<id>") + ".answer}}", pal.panelMuted})
+	return append(lines, styledLine{"later steps read it as {{.answer}}, until another agent answers", pal.panelMuted})
 }
 
 // callStepLines tell which function a call step runs and what comes back from it.
@@ -783,7 +669,7 @@ func (a *App) stepResultLines(step flow.Step) []styledLine {
 		add(fmt.Sprintf("captures %s from %s", name, step.Capture[name]), pal.panelText)
 	}
 	if step.ID != "" && (step.Kind() == flow.ScriptStep || step.Kind() == flow.CommandStep) {
-		add("later steps read {{.steps."+step.ID+".output}}, .exit, .ok and the captures", pal.panelMuted)
+		add("later steps read {{.output}}, {{.exit}}, {{.ok}} and the captures, until another step gives its own; {{.steps."+step.ID+".output}} reads this one's after that", pal.panelMuted)
 	}
 	if step.Timeout != "" {
 		add("stopped, and failed, after "+step.Timeout+" (timeout)", pal.panelMuted)

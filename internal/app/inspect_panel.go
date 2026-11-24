@@ -65,6 +65,10 @@ type inspectPanel struct {
 	// top line.
 	filter listFilter
 	first  int
+	// editor edits the flow's params or a step in place of the chart; paramDrafts keep, by flow,
+	// the params tables closed with rows not saved.
+	editor      inspectEditor
+	paramDrafts map[string]*paramsTable
 }
 
 // chartDrag is the mouse held down on the chart: it pans the chart, or, pressed on a step's card
@@ -191,6 +195,12 @@ func (p *inspectPanel) selectFlow(step int) {
 }
 
 func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
+	if p.editor != nil {
+		if p.editor.handleKey(key) {
+			p.closeEditor()
+		}
+		return
+	}
 	if p.filterKey(key) {
 		return
 	}
@@ -330,7 +340,7 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 	case "enter", "space", "e":
 		switch {
 		case selected && block.params:
-			p.app.editFlowParams(f)
+			p.openParams(f)
 		case name == "e":
 			if selected && !block.isInsertion() {
 				p.stepKey(name, f, block.path)
@@ -341,9 +351,12 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 	case "a":
 		switch {
 		case selected && block.params:
-			p.app.addFlowParam(f)
+			p.openParams(f)
+			table := p.editor.(*paramsTable)
+			table.addRow("", flow.Param{})
+			table.grid.focus(len(table.grid.rows)-1, paramTypeColumn)
 		case selected:
-			p.app.addStep(f, block, func(path string) { p.selected = stepKey(path) })
+			p.addStep(f, block)
 		}
 	default:
 		if p.chartViewKey(name) {
@@ -394,7 +407,7 @@ func (p *inspectPanel) stepKey(name string, f flow.Flow, path string) {
 	p.anchor = ""
 	switch name {
 	case "e":
-		p.app.editFlowStep(f, path)
+		p.editStep(f, path)
 	case "delete":
 		p.app.removeStep(f, path)
 	case "J", "shift+j":
@@ -598,7 +611,11 @@ func (p *inspectPanel) centerPan() {
 
 func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	pal := &p.app.palette
-	rows := drawHints(screen, area, p.hints(), pal.panelMuted)
+	hints := p.hints()
+	if p.editor != nil {
+		hints = hintsInOneRow(hints, area.Dx()-1)
+	}
+	rows := drawHints(screen, area, hints, pal.panelMuted)
 	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-rows)
 	f, _, ok := p.current()
 	if !ok && p.filter.on() {
@@ -633,11 +650,19 @@ func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 		p.chart, p.chartArea, p.details = nil, image.Rectangle{}, image.Rectangle{}
 		return
 	}
+	if p.editor != nil {
+		p.chart, p.chartArea, p.details = nil, image.Rectangle{}, image.Rectangle{}
+		p.drawEditor(screen, chartArea)
+		return
+	}
 	p.drawFlowChart(screen, chartArea, f)
 	p.chartArea, p.details = p.chartArea.Sub(area.Min), p.details.Sub(area.Min)
 }
 
 func (p *inspectPanel) hints() string {
+	if p.editor != nil {
+		return p.app.hint("flow-editor", p.editor.hints())
+	}
 	if !p.focusChart {
 		return p.app.hint("flows", flowsListHints)
 	}
@@ -840,6 +865,9 @@ func (p *inspectPanel) WantsMouseAt(point image.Point) bool {
 // SendMouse selects the flow or the block clicked; a double click on a step tells what it does.
 // Dragging the chart moves it, and the wheel scrolls it (with shift, across).
 func (p *inspectPanel) SendMouse(event uv.MouseEvent) {
+	if p.editor != nil {
+		return // the editor takes keys only; the chart is back once it closes
+	}
 	m := event.Mouse()
 	point := image.Pt(m.X, m.Y)
 	switch event.(type) {
@@ -985,8 +1013,12 @@ func (p *inspectPanel) clickChart(point image.Point) {
 }
 
 func (p *inspectPanel) Resize(pty.Size) {}
-func (p *inspectPanel) Paste(string)    {}
-func (p *inspectPanel) Close()          {}
+func (p *inspectPanel) Paste(text string) {
+	if p.editor != nil {
+		p.editor.paste(text)
+	}
+}
+func (p *inspectPanel) Close() {}
 
 func (p *inspectPanel) Cursor() (uv.Position, bool) {
 	return image.Point{}, false

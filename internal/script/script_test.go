@@ -414,7 +414,8 @@ func TestFromCommandAsksEachValueAsAPath(t *testing.T) {
 	}
 }
 
-func TestWalkFieldsVisitsEveryFieldInOrder(t *testing.T) {
+// Fields inside a range or with read the item, so only the ones reading the template's data count.
+func TestWalkFieldsVisitsTheTemplatesFieldsInOrder(t *testing.T) {
 	text := `{{.a}}{{if .steps.x.ok}}{{.b | printf "%s"}}{{else}}{{range .c}}{{.d.e}}{{end}}{{end}}{{with .f}}{{end}}`
 	tree, err := template.New("").Parse(text)
 	if err != nil {
@@ -422,7 +423,7 @@ func TestWalkFieldsVisitsEveryFieldInOrder(t *testing.T) {
 	}
 	var visited []string
 	WalkFields(tree.Root, func(ident []string) { visited = append(visited, strings.Join(ident, ".")) })
-	if got := strings.Join(visited, " "); got != "a steps.x.ok b c d.e f" {
+	if got := strings.Join(visited, " "); got != "a steps.x.ok b c f" {
 		t.Errorf("visited %s", got)
 	}
 }

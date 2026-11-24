@@ -7,11 +7,37 @@ import (
 	"testing"
 
 	"github.com/AlexandreSJ/noct/internal/config"
-	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 )
 
-// An agent step is set up in one form, what it asks, its answers, the agent and the timeout,
-// and one enter adds it.
+// openStepForm is the step form the focused inspect shows in place of its chart.
+func openStepForm(t *testing.T, a *App) *stepForm {
+	t.Helper()
+	p, ok := a.currentTab().focusedView().(*inspectPanel)
+	if !ok {
+		t.Fatalf("the focused view is not the inspect")
+	}
+	form, ok := p.editor.(*stepForm)
+	if !ok {
+		t.Fatalf("the inspect shows no step form:\n%s", screenText(a))
+	}
+	return form
+}
+
+// pickOption presses space on the focused option cell until it holds value.
+func pickOption(t *testing.T, a *App, value string) {
+	t.Helper()
+	form := openStepForm(t, a)
+	for range form.grid.cell().options {
+		if form.grid.cell().value() == value {
+			return
+		}
+		pressDrawn(a, spacePress)
+	}
+	t.Fatalf("no option %q in %v", value, form.grid.cell().options)
+}
+
+// An agent step is set up in one form in place of the chart, what it asks, its answers, the
+// agent and the timeout, and one enter adds it; {{. completes the variables in scope.
 func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 	machineAgents(t)
 	a := testApp(t)
@@ -20,26 +46,29 @@ func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 	saveFlow(t, "review", "steps:\n  - {id: test, run: 'echo 3 failed'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	pressDrawn(a, letter('a'), letter('a'))
-	if a.mode != formMode {
-		t.Fatalf("a, a opened mode %v, want the agent form", a.mode)
+	form := openStepForm(t, a)
+	if a.mode != normalMode {
+		t.Errorf("the form took noct's mode %v; it belongs to the panel", a.mode)
 	}
-	typeDrawn(a, "Did ")
-	pressDrawn(a, uv.KeyPressEvent{Code: 't', Mod: uv.ModCtrl})
-	typeDrawn(a, "steps.test.output")
-	pressDrawn(a, enterPress)
+	typeDrawn(a, "Did {{.ou")
+	if !strings.Contains(screenText(a), "variables here") {
+		t.Errorf("the help does not list the variables:\n%s", screenText(a))
+	}
+	pressDrawn(a, tabPress)
 	typeDrawn(a, " pass?")
 	pressDrawn(a, tabPress)
 	typeDrawn(a, "pass fail")
 	pressDrawn(a, tabPress)
+	options := form.grid.cell().options
 	for _, want := range []string{"auto", "local", "ollama"} {
-		if !slices.Contains(a.form.fields[2].Choices, want) {
-			t.Errorf("the agents offered %v lack %q", a.form.fields[2].Choices, want)
+		if !slices.Contains(options, want) {
+			t.Errorf("the agents offered %v lack %q", options, want)
 		}
 	}
-	if slices.Contains(a.form.fields[2].Choices, "codex") {
-		t.Errorf("the agents offered %v hold codex, which this machine lacks", a.form.fields[2].Choices)
+	if slices.Contains(options, "codex") {
+		t.Errorf("the agents offered %v hold codex, which this machine lacks", options)
 	}
-	pressDrawn(a, rightPress) // the agent after the default
+	pressDrawn(a, spacePress) // the agent after the default
 	if !strings.Contains(screenText(a), "enter add") {
 		t.Errorf("the form does not say enter adds:\n%s", screenText(a))
 	}
@@ -49,7 +78,7 @@ func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 		t.Fatalf("steps %+v", steps)
 	}
 	agent := steps[1].Agent
-	if agent.Ask != "Did {{.steps.test.output}} pass?" || agent.Use != a.form.fields[2].Choices[1] || strings.Join(agent.Choices, ",") != "pass,fail" || steps[1].Timeout != agentStepTimeout {
+	if agent.Ask != "Did {{.output}} pass?" || agent.Use != options[1] || strings.Join(agent.Choices, ",") != "pass,fail" || steps[1].Timeout != agentStepTimeout {
 		t.Errorf("agent %+v, timeout %q", agent, steps[1].Timeout)
 	}
 	if !strings.Contains(chartText(a.currentTab().focusedView().(*inspectPanel).chart), "→ pass | fail") {
@@ -65,12 +94,12 @@ func TestAnAgentStepAsksTheDefaultAgentByName(t *testing.T) {
 	saveFlow(t, "review", "steps:\n  - {id: test, run: 'echo 3 failed'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	pressDrawn(a, letter('a'), letter('a'))
-	choices := a.form.fields[2].Choices
-	if choices[0] != "default" || choices[1] != "auto" || choices[len(choices)-1] != customAgent {
-		t.Fatalf("the agents offered: %v", choices)
-	}
 	typeDrawn(a, "Is it flaky?")
 	pressDrawn(a, tabPress, tabPress)
+	options := openStepForm(t, a).grid.cell().options
+	if options[0] != "default" || options[1] != "auto" || options[len(options)-1] != customAgent {
+		t.Fatalf("the agents offered: %v", options)
+	}
 	if !strings.Contains(screenText(a), "default: ") {
 		t.Errorf("the form does not tell what default asks:\n%s", screenText(a))
 	}
@@ -93,10 +122,8 @@ func TestACustomAgentIsAddedToTheConfig(t *testing.T) {
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	pressDrawn(a, letter('a'), letter('a'))
 	typeDrawn(a, "Is it flaky?")
-	pressDrawn(a, tabPress, tabPress, leftPress)
-	if a.form.values["agent"] != customAgent {
-		t.Fatalf("left from default picked %q", a.form.values["agent"])
-	}
+	pressDrawn(a, tabPress, tabPress)
+	pickOption(t, a, customAgent)
 	pressDrawn(a, enterPress)
 	typeDrawn(a, "auto")
 	pressDrawn(a, enterPress)
@@ -105,7 +132,9 @@ func TestACustomAgentIsAddedToTheConfig(t *testing.T) {
 	}
 	pressDrawn(a, letter('a'), letter('a'))
 	typeDrawn(a, "Is it flaky?")
-	pressDrawn(a, tabPress, tabPress, leftPress, enterPress)
+	pressDrawn(a, tabPress, tabPress)
+	pickOption(t, a, customAgent)
+	pressDrawn(a, enterPress)
 	typeDrawn(a, "mymodel")
 	pressDrawn(a, enterPress)
 	typeDrawn(a, "ollama run qwen3.5:4b")

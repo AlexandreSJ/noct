@@ -140,7 +140,7 @@ func (x *running) runCall(s Step, path string) bool {
 	x.header("ƒ", s.Label(), "call "+fn.Name)
 	start := time.Now()
 	caller := *x
-	x.vars, x.steps, x.blocks = values, map[string]map[string]string{}, nil
+	x.vars, x.jsonVars, x.steps, x.blocks = values, fn.jsonParams(), map[string]map[string]string{}, nil
 	x.depth++
 	ran := x.runSteps(fn.Steps, path, "call")
 	returns := map[string]string{}
@@ -153,7 +153,7 @@ func (x *running) runCall(s Step, path string) bool {
 			break
 		}
 	}
-	x.vars, x.steps, x.blocks, x.depth = caller.vars, caller.steps, caller.blocks, caller.depth
+	x.vars, x.jsonVars, x.steps, x.blocks, x.depth = caller.vars, caller.jsonVars, caller.steps, caller.blocks, caller.depth
 	if !ran {
 		x.result.Steps[path] = StepResult{Status: StatusFailed, Exit: x.result.Exit, Duration: time.Since(start), Message: "function " + fn.Name + " stopped"}
 		return false

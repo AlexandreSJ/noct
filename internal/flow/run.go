@@ -68,6 +68,8 @@ type running struct {
 	*Runner
 	// vars are the flow's variables: its parameters, and what set and prompt steps gave.
 	vars map[string]string
+	// jsonVars are the list and object params among vars, by name, which templates read as JSON.
+	jsonVars map[string]string
 	// steps holds, by step id, output, exit, ok and the captures, for the templates.
 	steps  map[string]map[string]string
 	result Result
@@ -105,10 +107,11 @@ func (r *Runner) getenv(name string) string {
 // start begins a run of the flow with the parameters given over its defaults.
 func (r *Runner) start(f Flow, params map[string]string) *running {
 	x := &running{
-		Runner: r,
-		vars:   f.Values(r.getenv),
-		steps:  map[string]map[string]string{},
-		result: Result{Flow: f.Name, Start: time.Now(), Steps: map[string]StepResult{}, OK: true},
+		Runner:   r,
+		vars:     f.Values(r.getenv),
+		jsonVars: f.jsonParams(),
+		steps:    map[string]map[string]string{},
+		result:   Result{Flow: f.Name, Start: time.Now(), Steps: map[string]StepResult{}, OK: true},
 	}
 	maps.Copy(x.vars, params)
 	x.startDeadline(f)
@@ -563,7 +566,7 @@ func (x *running) render(text string) (string, error) {
 	}
 	data := map[string]any{"steps": x.steps}
 	for name, value := range x.vars {
-		data[name] = value
+		data[name] = readAs(x.jsonVars[name], value)
 	}
 	// A variable not set, or unset, reads as empty rather than as <no value>.
 	script.WalkFields(t.Root, func(ident []string) {

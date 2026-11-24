@@ -66,7 +66,7 @@ type Script struct {
 	Workdir     string  `yaml:"workdir,omitempty"`
 	Params      []Param `yaml:"params,omitempty"`
 	// Outputs are what the script gives back to a flow: the first line name=value of its output
-	// becomes {{.steps.<id>.name}}.
+	// becomes {{.name}} in the flow, and the step's {{.steps.<id>.name}}.
 	Outputs []string `yaml:"outputs,omitempty"`
 	// Draft marks a script an AI wrote: it does not run until the user reviews and promotes it.
 	Draft bool `yaml:"draft,omitempty"`
@@ -209,10 +209,17 @@ func WalkFields(node parse.Node, visit func(ident []string)) {
 	case *parse.IfNode:
 		walkBranch(&n.BranchNode, visit)
 	case *parse.RangeNode:
-		walkBranch(&n.BranchNode, visit)
+		walkRebound(&n.BranchNode, visit)
 	case *parse.WithNode:
-		walkBranch(&n.BranchNode, visit)
+		walkRebound(&n.BranchNode, visit)
 	}
+}
+
+// walkRebound walks a range or with, whose body reads the fields of the value it sets the dot
+// to, not the template's: only its pipeline and else read those.
+func walkRebound(b *parse.BranchNode, visit func(ident []string)) {
+	WalkFields(b.Pipe, visit)
+	WalkFields(b.ElseList, visit)
 }
 
 func walkBranch(b *parse.BranchNode, visit func(ident []string)) {

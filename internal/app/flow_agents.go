@@ -1,7 +1,6 @@
 package app
 
 import (
-	"errors"
 	"maps"
 	"slices"
 	"strings"
@@ -9,13 +8,12 @@ import (
 	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/naming"
-	"github.com/AlexandreSJ/noct/internal/script"
 )
 
-// An agent step is added in the inspect from one form: what it asks, the answers it may give,
-// which of the user's agents it asks (default, the config's; auto; the ones noct knows and the
-// config's [agents]; or a custom one it adds) and how long it may take. enter adds it from any
-// field. The step always says its agent in use: a use deleted by hand asks the default one.
+// An agent step is added in the inspect from its step form (agentForm): what it asks, the answers
+// it may give, which of the user's agents it asks (default, the config's; auto; the ones noct knows
+// and the config's [agents]; or a custom one it adds) and how long it may take. The step always
+// says its agent in use: a use deleted by hand asks the default one.
 
 // agentStepTimeout is the timeout a new agent step starts with, so a slow model cannot hold the
 // flow forever.
@@ -30,51 +28,6 @@ func agentChoices(all []flow.AgentStatus) []flow.AgentStatus {
 	agents := slices.DeleteFunc(slices.Clone(all), func(s flow.AgentStatus) bool { return !s.Own && !s.Installed })
 	ready := slices.DeleteFunc(slices.Clone(agents), func(s flow.AgentStatus) bool { return s.Problem != nil })
 	return append(ready, slices.DeleteFunc(agents, func(s flow.AgentStatus) bool { return s.Problem == nil })...)
-}
-
-// openAgentForm asks for an agent step's settings in one form, and adds the step. Its agent is
-// default (the config's), auto, one of the agents, or a custom agent the form then asks for.
-func (a *App) openAgentForm(insert func(flow.Step), pickVariable func()) {
-	all := readAgents(agentConfigOf(a.config))
-	agents := agentChoices(all)
-	names := []string{flow.DefaultAgent, flow.AutoAgent}
-	for _, agent := range agents {
-		names = append(names, agent.Name)
-	}
-	names = append(names, customAgent)
-	notes := agentNotes(a.config, all) // the default's note says why, even for one this machine lacks
-	a.form = paramsForm{
-		title: "ask an AI agent",
-		fields: []script.Param{
-			{Name: "ask", Prompt: "ask"},
-			{Name: "answers", Prompt: "answers"},
-			{Name: "agent", Prompt: "agent", Choices: names},
-			{Name: "timeout", Prompt: "timeout"},
-		},
-		values: map[string]string{"agent": flow.DefaultAgent, "timeout": agentStepTimeout},
-		verb:   "add",
-		pick:   pickVariable,
-		preview: func(values map[string]string) string {
-			return agentFormNote(a.form.field().Name, values["agent"], notes)
-		},
-		submit: func(values map[string]string) error {
-			ask := strings.TrimSpace(values["ask"])
-			if ask == "" {
-				return errors.New("ask: what the agent is asked")
-			}
-			step := flow.Step{Agent: &flow.Agent{Ask: ask, Use: values["agent"], Choices: strings.Fields(values["answers"])}, Timeout: strings.TrimSpace(values["timeout"])}
-			if step.Agent.Use != customAgent {
-				insert(step)
-				return nil
-			}
-			a.askCustomAgent(func(name string) {
-				step.Agent.Use = name
-				insert(step)
-			}, nil)
-			return nil
-		},
-	}
-	a.mode = formMode
 }
 
 // askCustomAgent asks for an agent of the user's own, its name and then its command, adds it to
@@ -136,20 +89,6 @@ func (a *App) askAgentCommand(name, initial string, added func(name string), bac
 		added(name)
 	})
 	a.prompt.cancel = back
-}
-
-// agentFormNote is the line under the form: what the field selected takes, or, on the agent,
-// what agentNotes says of it.
-func agentFormNote(field, name string, notes map[string]string) string {
-	switch field {
-	case "ask":
-		return "a template; ctrl+t types a variable, as a step's output"
-	case "answers":
-		return "a space between, as: flaky bug env; empty takes any"
-	case "timeout":
-		return "like 30s or 5m; empty waits for as long as it takes"
-	}
-	return notes[name]
 }
 
 // agentNotes tell, for each agent the form offers, whether it can be asked now, with its model.

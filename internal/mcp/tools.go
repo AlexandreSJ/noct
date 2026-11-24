@@ -201,8 +201,9 @@ user reviews and promotes them in noct, so tell the user what you drafted and as
 it. draft_function does the same for a function; a draft function does not run, and the flows
 that call it wait for its promotion. check and flow_scope tell problems and what a step can read.
 
-Flow params have a type: text, number, bool, choice (with choices) or path; a param with from:
-env:NAME reads the variable. Each script, run, call and agent step also sets short variables
+Flow params have a type: text, number, boolean, option (with choices), path, list or object; a
+list or object holds JSON, which templates read inside ({{index .hosts 0}}, {{.cfg.db.port}},
+{{range .hosts}}) and print whole as JSON. A param with from: env:NAME reads the variable. Each script, run, call and agent step also sets short variables
 ({{.output}}, {{.exit}}, {{.ok}}, captures, a call's returns, an agent's {{.answer}}); an if,
 switch or repeat changes variables made before it, and the ones it makes go when it ends unless its
 export keeps them: export: {count: passes}. switch: template, cases: [{is: value or [values],
@@ -219,5 +220,7 @@ show the terminals; run_command and send_input act in them and, like run with pa
 the user's approval, which they give in noct (prefix+y); a denied call says so, do not retry it
 unasked.
 
-Templates are Go text/template and every value is a string: compare with {{eq .steps.x.exit "0"}}.
-In a run line, write {{quote .name}} or {{quote .steps.x.output}} so a value is one shell word.`
+Templates are Go text/template and every value but a list or object is a string: compare with
+{{eq .exit "0"}}. Prefer the short names; {{.steps.<id>.<field>}} only reads an earlier step's field
+a later one set again. In a run line, write {{quote .name}} or {{quote .output}} so a value is one
+shell word.`

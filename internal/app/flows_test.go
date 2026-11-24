@@ -52,7 +52,7 @@ func TestInspectBuildsAFlowStepByStep(t *testing.T) {
 	}
 	pressDrawn(a, letter('a'))
 	typeDrawn(a, "explore")
-	pressDrawn(a, enterPress, letter('a'), letter('l'), clearLine)
+	pressDrawn(a, enterPress, letter('a'), letter('l'), clearLine, tabPress) // no times: until
 	typeDrawn(a, `{{ne .steps.dice.number "6"}}`)
 	pressDrawn(a, enterPress, downPress, letter('a'), letter('s'))
 	typeDrawn(a, "where")
