@@ -113,8 +113,8 @@ func TestAnAgentStepAsksTheDefaultAgentByName(t *testing.T) {
 	}
 }
 
-// custom agent asks for a name and a command, adds them to the config's [agents], and the step
-// asks that agent; a reserved name is refused.
+// custom agent shows rows for the agent's name and command in the same form; enter adds them to
+// the config's [agents] and the step asks that agent, and a reserved name is refused in place.
 func TestACustomAgentIsAddedToTheConfig(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 50)
@@ -123,20 +123,19 @@ func TestACustomAgentIsAddedToTheConfig(t *testing.T) {
 	pressDrawn(a, letter('a'), letter('a'))
 	typeDrawn(a, "Is it flaky?")
 	pressDrawn(a, tabPress, tabPress)
+	if strings.Contains(screenText(a), "command") {
+		t.Errorf("the custom agent's rows show before it is picked:\n%s", screenText(a))
+	}
 	pickOption(t, a, customAgent)
-	pressDrawn(a, enterPress)
+	pressDrawn(a, tabPress, tabPress)
 	typeDrawn(a, "auto")
 	pressDrawn(a, enterPress)
-	if !strings.Contains(a.statusMessage, "names another agent") {
-		t.Errorf("auto was taken as a name: %q", a.statusMessage)
+	if !strings.Contains(screenText(a), "names another agent") || a.mode != normalMode {
+		t.Errorf("auto was taken as a name:\n%s", screenText(a))
 	}
-	pressDrawn(a, letter('a'), letter('a'))
-	typeDrawn(a, "Is it flaky?")
-	pressDrawn(a, tabPress, tabPress)
-	pickOption(t, a, customAgent)
-	pressDrawn(a, enterPress)
+	pressDrawn(a, clearLine)
 	typeDrawn(a, "mymodel")
-	pressDrawn(a, enterPress)
+	pressDrawn(a, tabPress)
 	typeDrawn(a, "ollama run qwen3.5:4b")
 	pressDrawn(a, enterPress)
 	saved, err := config.Load(a.configPath)

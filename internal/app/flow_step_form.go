@@ -28,6 +28,9 @@ type stepField struct {
 	check func(value string) string
 	// describe, when set, tells about the value chosen instead of note.
 	describe func(value string) string
+	// when, when set, shows the row only while the form's values give true, as the name of a
+	// custom agent only once custom agent is picked.
+	when func(values []formValue) bool
 }
 
 // stepFormSpec is what a kind of step asks and how the answers make the step.
@@ -39,8 +42,11 @@ type stepFormSpec struct {
 	named    bool
 	rowField stepField
 	build    func(values []formValue) (flow.Step, error)
-	// finish, when set, saves the step built in its own way, as asking a custom agent first.
+	// finish, when set, saves the step built in its own way, as adding a custom agent first.
 	finish func(step flow.Step, save func(flow.Step) error) error
+	// saveValues, when set, saves the answers itself, for a form that makes no step, as a
+	// function's returns.
+	saveValues func(values []formValue) error
 }
 
 // formValue is what a row of a step form holds: its name, in a named form, and its value.
@@ -72,8 +78,23 @@ func (a *App) newStepForm(spec stepFormSpec, vars []flow.Variable, values map[st
 	if spec.named {
 		form.grid.rows = append(form.grid.rows, form.row(spec.rowField))
 	}
+	form.showRows()
 	form.grid.focus(0, form.firstColumn())
 	return form
+}
+
+// showRows hides the rows whose when the values make false; a hidden row is never focused.
+func (s *stepForm) showRows() {
+	values := s.formValues()
+	for i := range s.grid.rows {
+		if when := s.field(i).when; when != nil {
+			s.grid.rows[i][stepFormValueColumn].skip = !when(values)
+		}
+	}
+}
+
+func (s *stepForm) hidden(row int) bool {
+	return !s.spec.named && s.grid.rows[row][stepFormValueColumn].skip
 }
 
 func (s *stepForm) firstColumn() int {
@@ -135,7 +156,7 @@ func (s *stepForm) nameProblem(row int) string {
 
 func (s *stepForm) valueProblem(row int) string {
 	check := s.field(row).check
-	if check == nil || s.spec.named && strings.TrimSpace(s.grid.rows[row][stepFormLabelColumn].value()) == "" {
+	if check == nil || s.hidden(row) || s.spec.named && strings.TrimSpace(s.grid.rows[row][stepFormLabelColumn].value()) == "" {
 		return ""
 	}
 	return check(strings.TrimSpace(s.grid.rows[row][stepFormValueColumn].value()))
@@ -158,15 +179,22 @@ func (s *stepForm) handleKey(key uv.KeyPressEvent) bool {
 		return s.submit()
 	}
 	s.message = ""
-	if s.grid.handleKey(key) && s.spec.named {
-		s.keepAnEmptyRow()
+	if s.grid.handleKey(key) {
+		s.changed()
 	}
 	return false
 }
 
-func (s *stepForm) paste(text string) {
-	if s.grid.paste(text) && s.spec.named {
+func (s *stepForm) changed() {
+	if s.spec.named {
 		s.keepAnEmptyRow()
+	}
+	s.showRows()
+}
+
+func (s *stepForm) paste(text string) {
+	if s.grid.paste(text) {
+		s.changed()
 	}
 }
 
@@ -188,6 +216,9 @@ func (s *stepForm) submit() bool {
 			return false
 		}
 	}
+	if s.spec.saveValues != nil {
+		return s.done(s.spec.saveValues(s.formValues()))
+	}
 	step, err := s.spec.build(s.formValues())
 	switch {
 	case err != nil:
@@ -196,6 +227,11 @@ func (s *stepForm) submit() bool {
 	default:
 		err = s.save(step)
 	}
+	return s.done(err)
+}
+
+// done tells the form is done unless err keeps it open with the reason.
+func (s *stepForm) done(err error) bool {
 	if err != nil {
 		s.message = err.Error()
 		return false
@@ -210,8 +246,11 @@ func (s *stepForm) draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 		labelWidth = max(labelWidth, ansi.StringWidth(row[stepFormLabelColumn].value()))
 	}
 	valueX := area.Min.X + 1 + labelWidth + 2
+	y := area.Min.Y
 	for i, row := range s.grid.rows {
-		y := area.Min.Y + i
+		if s.hidden(i) {
+			continue
+		}
 		if y >= area.Max.Y-2 {
 			break
 		}
@@ -222,6 +261,7 @@ func (s *stepForm) draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 			}
 			s.drawCell(screen, x, y, width, i, column, &cell)
 		}
+		y++
 	}
 	if !helpBeside {
 		s.drawSuggestions(screen, area, valueX)
@@ -238,7 +278,7 @@ func (s *stepForm) draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 func (s *stepForm) drawSuggestions(screen uv.Screen, area image.Rectangle, x int) {
 	matches, _ := s.grid.suggestions()
 	for i, name := range matches[:min(len(matches), maxSuggestions)] {
-		y := area.Min.Y + s.grid.row + 1 + i
+		y := area.Min.Y + s.shownAbove(s.grid.row) + 1 + i
 		if y >= area.Max.Y-1 {
 			return
 		}
@@ -249,6 +289,17 @@ func (s *stepForm) drawSuggestions(screen uv.Screen, area image.Rectangle, x int
 		fillRect(screen, image.Rect(x, y, area.Max.X-1, y+1), s.app.palette.panelText)
 		drawTextCut(screen, x, y, area.Max.X-1, name, style)
 	}
+}
+
+// shownAbove counts the rows drawn above row, which is where row is drawn.
+func (s *stepForm) shownAbove(row int) int {
+	count := 0
+	for i := range row {
+		if !s.hidden(i) {
+			count++
+		}
+	}
+	return count
 }
 
 func (s *stepForm) drawCell(screen uv.Screen, x, y, width, row, column int, cell *gridCell) {

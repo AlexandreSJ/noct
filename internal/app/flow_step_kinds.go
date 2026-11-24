@@ -341,7 +341,9 @@ func callValueProblem(p flow.Param, value string) string {
 	return p.Fits(value)
 }
 
-// agentForm asks what an agent step asks, the answers it may give, which agent and its timeout.
+// agentForm asks what an agent step asks, the answers it may give, which agent and its timeout;
+// custom agent also asks the name and command of an agent of the user's own, which it adds to the
+// config.
 func (a *App) agentForm(s flow.Step) stepFormSpec {
 	agent := flow.Agent{Use: flow.DefaultAgent}
 	if s.Agent != nil {
@@ -359,6 +361,9 @@ func (a *App) agentForm(s flow.Step) stepFormSpec {
 		names = append(names, agent.Use)
 	}
 	notes := agentNotes(a.config, all)
+	custom := func(v []formValue) bool { return v[2].value == customAgent }
+	var adding bool
+	var newAgent, command string
 	return stepFormSpec{
 		title: "AI agent",
 		fields: []stepField{
@@ -366,23 +371,32 @@ func (a *App) agentForm(s flow.Step) stepFormSpec {
 			{label: "answers", cell: textCellOf(strings.Join(agent.Choices, " ")), note: "the answers it may give, a space between; empty takes any"},
 			{label: "agent", cell: optionCellOf(agent.Use, append(names, customAgent)), describe: func(name string) string { return orDefault(notes[name], "space picks another") }},
 			{label: "timeout", cell: textCellOf(s.Timeout), check: checkDuration, note: "as 30s or 5m; empty waits as long as it takes"},
+			{label: "name", cell: textCellOf(""), when: custom, check: customAgentProblem, note: "your agent's name, as mymodel; the config keeps it in [agents]"},
+			{label: "command", cell: textCellOf(""), when: custom, check: checkAgentCommand, note: "the command it runs; {prompt} is the question, or it goes as its input"},
 		},
 		build: func(v []formValue) (flow.Step, error) {
 			agent.Ask, agent.Choices, agent.Use = v[0].value, strings.Fields(v[1].value), v[2].value
+			adding, newAgent, command = agent.Use == customAgent, v[4].value, v[5].value
+			if adding {
+				agent.Use = newAgent
+			}
 			s.Agent, s.Timeout = &agent, v[3].value
 			return s, nil
 		},
 		finish: func(step flow.Step, save func(flow.Step) error) error {
-			if step.Agent.Use != customAgent {
-				return save(step)
-			}
-			a.askCustomAgent(func(name string) {
-				step.Agent.Use = name
-				if err := save(step); err != nil {
-					a.statusMessage = err.Error()
+			if adding {
+				if err := a.saveAgentCommand(newAgent, command, ""); err != nil {
+					return err
 				}
-			}, nil)
-			return nil
+			}
+			return save(step)
 		},
 	}
+}
+
+func checkAgentCommand(command string) string {
+	if _, _, err := flow.AgentArgv(command, "question"); err != nil {
+		return err.Error()
+	}
+	return ""
 }

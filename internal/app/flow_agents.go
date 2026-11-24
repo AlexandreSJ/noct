@@ -39,13 +39,8 @@ func (a *App) askCustomAgent(added func(name string), back func()) {
 	}
 	a.openPrompt("name of the agent", "", "{enter} next  esc cancel  letters, digits and _, as mymodel", func(name string) {
 		name = strings.TrimSpace(name)
-		switch {
-		case !naming.IsValid(name):
-			a.statusMessage = "an agent's name is letters, digits and _, as mymodel"
-			back()
-			return
-		case flow.ReservedAgent(name):
-			a.statusMessage = name + " names another agent: pick another name"
+		if problem := customAgentProblem(name); problem != "" {
+			a.statusMessage = problem
 			back()
 			return
 		}
@@ -66,34 +61,52 @@ func (a *App) askCustomAgent(added func(name string), back func()) {
 // keep current. back runs when it is cancelled or refused.
 func (a *App) askAgentCommand(name, initial string, added func(name string), back func()) {
 	a.openPrompt("command of "+name, initial, "{enter} save  esc cancel  {prompt} is the question", func(command string) {
-		command = strings.TrimSpace(command)
-		if _, _, err := flow.AgentArgv(command, "question"); err != nil {
+		if err := a.saveAgentCommand(name, strings.TrimSpace(command), initial); err != nil {
 			a.statusMessage = "command of " + name + ": " + err.Error()
 			back()
 			return
 		}
-		if command == initial {
-			added(name)
-			return
-		}
-		next := a.config
-		next.Agents = maps.Clone(a.config.Agents)
-		if next.Agents == nil {
-			next.Agents = map[string]string{}
-		}
-		next.Agents[name] = command
-		if preset, ok := flow.PresetCommand(name, a.config.AgentModels[name]); ok && preset == command {
-			delete(next.Agents, name)
-		}
-		a.applyConfig(next)
 		added(name)
 	})
 	a.prompt.cancel = back
 }
 
+// saveAgentCommand puts the agent's command in the config's [agents], or takes it out when it is
+// the one noct writes for an agent it knows; initial, the command it runs now, changes nothing.
+func (a *App) saveAgentCommand(name, command, initial string) error {
+	if _, _, err := flow.AgentArgv(command, "question"); err != nil {
+		return err
+	}
+	if command == initial {
+		return nil
+	}
+	next := a.config
+	next.Agents = maps.Clone(a.config.Agents)
+	if next.Agents == nil {
+		next.Agents = map[string]string{}
+	}
+	next.Agents[name] = command
+	if preset, ok := flow.PresetCommand(name, a.config.AgentModels[name]); ok && preset == command {
+		delete(next.Agents, name)
+	}
+	a.applyConfig(next)
+	return nil
+}
+
+// customAgentProblem is why name cannot be a custom agent's, or "".
+func customAgentProblem(name string) string {
+	switch {
+	case !naming.IsValid(name):
+		return "an agent's name is letters, digits and _, as mymodel"
+	case flow.ReservedAgent(name):
+		return name + " names another agent: pick another name"
+	}
+	return ""
+}
+
 // agentNotes tell, for each agent the form offers, whether it can be asked now, with its model.
 func agentNotes(cfg config.Config, agents []flow.AgentStatus) map[string]string {
-	notes := map[string]string{customAgent: "asks its name and command"}
+	notes := map[string]string{customAgent: "an agent of your own: its name and command below"}
 	var auto flow.AgentStatus
 	for _, agent := range agents {
 		notes[agent.Name] = "✓ " + agentLabel(agent)
