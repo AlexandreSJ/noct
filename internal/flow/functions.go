@@ -9,7 +9,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/AlexandreSJ/noct/internal/naming"
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
@@ -37,10 +36,10 @@ func LoadFunctions(dir string, lookup func(id string) (script.Script, bool)) ([]
 
 // CreateFunction writes a new, empty function called name in dir.
 func CreateFunction(dir, name string) (Flow, error) {
-	if !naming.IsValid(name) {
-		return Flow{}, fmt.Errorf("function name %q: use letters, digits, . - _", name)
+	if err := ValidName("function", name); err != nil {
+		return Flow{}, err
 	}
-	f := Flow{Name: name, File: filepath.Join(dir, name+Ext), Function: true}
+	f := Flow{Name: name, File: FilePath(dir, name), Function: true}
 	if _, err := os.Stat(f.File); err == nil {
 		return Flow{}, fmt.Errorf("function %s already exists", name)
 	}

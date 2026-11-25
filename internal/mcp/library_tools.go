@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -37,7 +36,7 @@ func libraryTools(d Deps) []Tool {
 			Params: []Param{
 				{Name: "flow", Type: "string", Description: "The flow's name."},
 				{Name: "function", Type: "string", Description: "The function's name."},
-				{Name: "script", Type: "string", Description: "The script's id: name, or folder/name."},
+				{Name: "script", Type: "string", Description: "The script's id: name, or folders/name (ops/db/backup)."},
 			},
 			Run: noWait(d.getItem),
 		},
@@ -60,7 +59,7 @@ func libraryTools(d Deps) []Tool {
 			Name: "draft_flow", Title: "Write a flow as a draft", Policy: config.PolicyAllow,
 			Description: "Creates or replaces a flow from its YAML, marked as a draft: it runs, by hand or by trigger, only after the user reviews and promotes it in noct. Replacing a flow that was not a draft keeps a copy as <name>.yaml.bak. Answers the problems and scope warnings found.",
 			Params: []Param{
-				{Name: "name", Type: "string", Description: "The flow's name: letters, digits, . - _", Required: true},
+				{Name: "name", Type: "string", Description: "The flow's name: letters, digits, . - _, with / to put it in folders (ops/deploy)", Required: true},
 				{Name: "yaml", Type: "string", Description: "The whole flow file: description, params, triggers, steps.", Required: true},
 			},
 			Summary: func(args json.RawMessage) string { return argText(args, "name", "yaml") },
@@ -70,7 +69,7 @@ func libraryTools(d Deps) []Tool {
 			Name: "draft_function", Title: "Write a function as a draft", Policy: config.PolicyAllow,
 			Description: "Creates or replaces a function (params, steps, returns) from its YAML, marked as a draft: no flow runs it, and flows that call it have a problem, until the user reviews and promotes it in noct. Replacing a function that was not a draft keeps a copy as <name>.yaml.bak; the answer names the flows that call it.",
 			Params: []Param{
-				{Name: "name", Type: "string", Description: "The function's name: letters, digits, . - _", Required: true},
+				{Name: "name", Type: "string", Description: "The function's name: letters, digits, . - _, with / to put it in folders (utils/greet)", Required: true},
 				{Name: "yaml", Type: "string", Description: "The whole function file: description, params, steps, returns.", Required: true},
 			},
 			Summary: func(args json.RawMessage) string { return argText(args, "name", "yaml") },
@@ -80,7 +79,7 @@ func libraryTools(d Deps) []Tool {
 			Name: "draft_script", Title: "Write a script as a draft", Policy: config.PolicyAllow,
 			Description: "Creates or replaces one of the user's scripts from its script.yaml (and notes.md), marked as a draft: it runs only after the user promotes it. Replacing a script keeps a copy of its script.yaml as script.yaml.bak.",
 			Params: []Param{
-				{Name: "name", Type: "string", Description: "The script's name, or folder/name for a folder of scripts.", Required: true},
+				{Name: "name", Type: "string", Description: "The script's name, or folders/name to put it in folders (ops/db/backup).", Required: true},
 				{Name: "yaml", Type: "string", Description: "The script.yaml: description, run, params, outputs.", Required: true},
 				{Name: "notes", Type: "string", Description: "notes.md: how and why to use it; left as it is when omitted."},
 			},
@@ -389,14 +388,14 @@ func (d Deps) draftFlow(args json.RawMessage) (any, error) {
 	if err := decode(args, &ask); err != nil {
 		return nil, err
 	}
-	if !naming.IsValid(ask.Name) {
-		return nil, fmt.Errorf("flow name %q: use letters, digits, . - _", ask.Name)
+	if err := flow.ValidName("flow", ask.Name); err != nil {
+		return nil, err
 	}
 	var f flow.Flow
 	if err := yaml.Unmarshal([]byte(ask.YAML), &f); err != nil {
 		return nil, fmt.Errorf("the YAML does not read as a flow: %w", err)
 	}
-	f.Name, f.File, f.Draft = ask.Name, filepath.Join(flow.Dir(), ask.Name+flow.Ext), true
+	f.Name, f.File, f.Draft = ask.Name, flow.FilePath(flow.Dir(), ask.Name), true
 	backup, err := keepBackup(f.File, func(content []byte) bool {
 		var old flow.Flow
 		return yaml.Unmarshal(content, &old) == nil && !old.Draft
@@ -424,14 +423,14 @@ func (d Deps) draftFunction(args json.RawMessage) (any, error) {
 	if err := decode(args, &ask); err != nil {
 		return nil, err
 	}
-	if !naming.IsValid(ask.Name) {
-		return nil, fmt.Errorf("function name %q: use letters, digits, . - _", ask.Name)
+	if err := flow.ValidName("function", ask.Name); err != nil {
+		return nil, err
 	}
 	var fn flow.Flow
 	if err := yaml.Unmarshal([]byte(ask.YAML), &fn); err != nil {
 		return nil, fmt.Errorf("the YAML does not read as a function: %w", err)
 	}
-	fn.Name, fn.File, fn.Draft, fn.Function = ask.Name, filepath.Join(flow.FunctionsDir(), ask.Name+flow.Ext), true, true
+	fn.Name, fn.File, fn.Draft, fn.Function = ask.Name, flow.FilePath(flow.FunctionsDir(), ask.Name), true, true
 	backup, err := keepBackup(fn.File, func(content []byte) bool {
 		var old flow.Flow
 		return yaml.Unmarshal(content, &old) == nil && !old.Draft
@@ -478,10 +477,10 @@ func (d Deps) draftScript(args json.RawMessage) (any, error) {
 	if err := decode(args, &ask); err != nil {
 		return nil, err
 	}
-	parts := strings.Split(ask.Name, "/")
-	if len(parts) > 2 || slices.ContainsFunc(parts, func(p string) bool { return !naming.IsValid(p) }) {
-		return nil, fmt.Errorf("script name %q: name or folder/name, each letters, digits, . - _", ask.Name)
+	if !naming.IsValidPath(ask.Name) {
+		return nil, fmt.Errorf("script name %q: name, or folders/name, each letters, digits, . - _", ask.Name)
 	}
+	parts := strings.Split(ask.Name, "/")
 	content, err := markedDraft(ask.YAML)
 	if err != nil {
 		return nil, err

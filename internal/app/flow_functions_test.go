@@ -12,10 +12,11 @@ import (
 
 func saveFunction(t *testing.T, name, content string) {
 	t.Helper()
-	if err := os.MkdirAll(flow.FunctionsDir(), 0o755); err != nil {
+	file := flow.FilePath(flow.FunctionsDir(), name) // a name with / goes in folders
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(flow.FunctionsDir(), name+flow.Ext), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -38,7 +39,7 @@ func TestAFunctionShowsWhoCallsItAndIsCalledFromAStep(t *testing.T) {
 	if !strings.Contains(screenText(a), "ƒ greet") {
 		t.Errorf("the call's card does not tell the function:\n%s", screenText(a))
 	}
-	pressDrawn(a, tabPress, letter('j'))
+	pressDrawn(a, tabPress, letter('j'), letter('j')) // past the ƒ functions folder, open
 	p := a.currentTab().focusedView().(*inspectPanel)
 	if f, _, _ := p.current(); !f.Function || f.Name != "greet" {
 		t.Fatalf("the list's next entry is %+v, want the function", f)

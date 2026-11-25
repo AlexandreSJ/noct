@@ -255,3 +255,33 @@ steps:
 		t.Errorf("output = %q", got)
 	}
 }
+
+// Flows in folders are named by their path, and found by their name alone while it is the only one.
+func TestFlowsInFoldersAreNamedByTheirPath(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"ops/db/backup", "ops/deploy", "deploy"} {
+		if _, err := Create(dir, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := Create(dir, "../out"); err == nil {
+		t.Error("a name that leaves the folder was taken")
+	}
+	flows, err := LoadAll(dir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, f := range flows {
+		names = append(names, f.Name)
+	}
+	if want := []string{"deploy", "ops/db/backup", "ops/deploy"}; strings.Join(names, ",") != strings.Join(want, ",") {
+		t.Errorf("names %v, want %v", names, want)
+	}
+	if f, ok := Find(flows, "backup"); !ok || f.Name != "ops/db/backup" || f.Folder() != "ops/db" || f.Base() != "backup" {
+		t.Errorf("backup: %+v", f)
+	}
+	if f, ok := Find(flows, "deploy"); !ok || f.Name != "deploy" {
+		t.Errorf("deploy is the one outside folders: %+v", f)
+	}
+}

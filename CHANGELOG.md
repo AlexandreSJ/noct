@@ -24,6 +24,15 @@ the shortcut is `Alt` by default. How to write an entry is in
 - A flow param's `default` can read the params written before it, from the environment too:
   `default: '{"user": {{json .user}}}'` makes an object of them. `json` puts a value in JSON,
   quoted and escaped. Only the default renders: a value typed in the form is taken as it is.
+- Scripts, flows and functions can be kept in folders inside folders, at any depth. A flow in
+  `flows/ops/deploy.yaml` is `ops/deploy` (`noct flow run ops/deploy`, or `deploy` while no
+  other flow has that name), and `call: utils/greet` runs a function in a folder. The inspect's
+  list shows flows in their folders like the scripts panel does, with the functions under
+  `ƒ functions`; `a` in a folder starts the new flow's name with its path, and a `/` makes
+  folders.
+- The inspect opens on the flow selected last, and a saved session remembers the flow of each
+  inspect and the script of each scripts panel. One that is gone leaves the panel on the first
+  of its list.
 - Dragging the mouse over a cell's text in the inspect's params table and step forms selects it
   and copies it; `Ctrl+C` while typing copies the selection or the whole cell.
 

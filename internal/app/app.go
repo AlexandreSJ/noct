@@ -176,6 +176,8 @@ type App struct {
 	themeProblem string
 	// expanded are the folders open in the scripts panels, by path; folders start closed.
 	expanded map[string]bool
+	// lastFlow is the flow or function the inspect selected last, which a new inspect opens on.
+	lastFlow string
 	versions *script.Versions
 	memory   *script.Memory
 	flows    []flow.Flow

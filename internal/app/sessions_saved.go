@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"image"
 	"os"
 	"reflect"
@@ -88,9 +89,9 @@ func (a *App) savedPane(t *tab, id layout.PaneID) (saved.Pane, bool) {
 	p := saved.Pane{ID: id, Name: t.paneNames[id], Colors: t.paneColors[id].saved()}
 	switch v := t.views[id].(type) {
 	case *scriptsPanel:
-		p.Kind = saved.Scripts
+		p.Kind, p.Item = saved.Scripts, v.selectedKey
 	case *inspectPanel:
-		p.Kind = saved.Inspect
+		p.Kind, p.Item = saved.Inspect, v.flowName
 	case *logsPanel:
 		p.Kind = saved.Logs
 	default:
@@ -182,9 +183,18 @@ func (a *App) restoreView(id layout.PaneID, p saved.Pane) (view, error) {
 		}
 		return v, err
 	case saved.Scripts:
-		return a.startScripts(id, area)
+		v, err := a.startScripts(id, area)
+		if panel, ok := v.(*scriptsPanel); ok && p.Item != "" {
+			panel.selectedKey = p.Item // found again on the first look at the list
+		}
+		return v, err
 	case saved.Inspect:
-		return a.startInspect(id, area)
+		a.lastFlow = cmp.Or(a.lastFlow, p.Item)
+		v, err := a.startInspect(id, area)
+		if panel, ok := v.(*inspectPanel); ok && p.Item != "" {
+			panel.flowName = p.Item
+		}
+		return v, err
 	case saved.Logs:
 		return a.startLogs(id, area)
 	}

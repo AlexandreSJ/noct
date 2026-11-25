@@ -459,3 +459,29 @@ func TestQuoteRendersAValueAsOneShellWord(t *testing.T) {
 		t.Errorf("command %q, %v; want %q", command, err, want)
 	}
 }
+
+// Folders hold folders at any depth, in the personal folder and in a linked one.
+func TestTheLibraryReadsFoldersInFolders(t *testing.T) {
+	personal, linked := t.TempDir(), t.TempDir()
+	writeScript(t, filepath.Join(personal, "ops", "db"), "backup", "run: echo backup")
+	writeScript(t, filepath.Join(personal, "ops"), "deploy", "run: echo deploy")
+	writeScript(t, filepath.Join(linked, "net"), "ping", "run: ping")
+	lib := LoadLibrary(personal, []string{linked}, "")
+	parents := map[string]string{}
+	for _, f := range lib.Folders {
+		parents[f.Name] = f.Parent
+	}
+	ops, db, net := filepath.Join(personal, "ops"), filepath.Join(personal, "ops", "db"), filepath.Base(linked)+"/net"
+	if parents["ops"] != "" || parents["ops/db"] != ops || parents[net] != linked {
+		t.Fatalf("folders and their parents: %v", parents)
+	}
+	if s, ok := lib.Find("ops/db/backup"); !ok || s.Dir != filepath.Join(db, "backup") {
+		t.Errorf("ops/db/backup: %+v", s)
+	}
+	if s, ok := lib.Find("backup"); !ok || s.ID() != "ops/db/backup" {
+		t.Errorf("a name in a single folder: %+v", s)
+	}
+	if s, ok := lib.Find(net + "/ping"); !ok || s.Run != "ping" {
+		t.Errorf("a script in a linked folder's folder: %+v", s)
+	}
+}

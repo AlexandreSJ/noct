@@ -9,10 +9,15 @@ reasons behind it are in [fluxos.md](fluxos.md) and [scripts.md](scripts.md); th
 | What | Path | Name used in YAML |
 |---|---|---|
 | Flow | `~/.local/share/noct/flows/<name>.yaml` | `<name>` (from the file name) |
-| Function | `~/.local/share/noct/functions/<name>.yaml` | `<name>`, in `call:` |
+| Flow in folders | `~/.local/share/noct/flows/<folder>/<name>.yaml` | `<folder>/<name>`, as `ops/deploy` |
+| Function | `~/.local/share/noct/functions/<name>.yaml`, or in folders | `<name>` or `<folder>/<name>`, in `call:` |
 | Script | `~/.local/share/noct/scripts/<name>/script.yaml` | `<name>` |
-| Script in a folder | `~/.local/share/noct/scripts/<folder>/<name>/script.yaml` | `<folder>/<name>` |
+| Script in folders | `~/.local/share/noct/scripts/<folder>/<name>/script.yaml` | `<folder>/<name>`, as `ops/db/backup` |
 | Script notes (optional) | `notes.md` beside `script.yaml` | — |
+
+Folders nest at any depth. A flow, function or script inside them is named by its path,
+`noct flow run ops/deploy`, and by its name alone while no other one has it (`call: greet`
+finds `utils/greet`).
 
 `$XDG_DATA_HOME` replaces `~/.local/share` when set. Flow names and ids use letters, digits, `.`,
 `-` and `_`; step ids, params and capture names use letters, digits and `_` only.

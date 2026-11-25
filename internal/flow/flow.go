@@ -3,7 +3,6 @@
 package flow
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/atomicfile"
 	"github.com/AlexandreSJ/noct/internal/naming"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/tree"
 )
 
 // Ext is the extension of a flow's file; the name before it is the flow's name.
@@ -372,22 +372,16 @@ func Load(file string) (Flow, error) {
 	return f, nil
 }
 
-// LoadAll reads every flow in dir, by name. A flow that cannot be read or is not valid comes with
-// its Problem; lookup finds the scripts the steps name.
+// LoadAll reads every flow in dir and in the folders inside it, each named by its path from dir
+// (ops/deploy). A flow that cannot be read or is not valid comes with its Problem; lookup finds
+// the scripts the steps name.
 func LoadAll(dir string, lookup func(id string) (script.Script, bool)) ([]Flow, error) {
-	files, err := os.ReadDir(dir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("reading the flows: %w", err)
-	}
 	var flows []Flow
-	for _, file := range files {
-		if file.IsDir() || filepath.Ext(file.Name()) != Ext {
-			continue
-		}
-		f, err := Load(filepath.Join(dir, file.Name()))
+	err := tree.Walk(dir, func(_ string, entry fs.DirEntry) bool {
+		return !entry.IsDir() && filepath.Ext(entry.Name()) == Ext
+	}, nil, func(folder, file string) {
+		f, err := Load(file)
+		f.Name = folderName(folder, f.Name)
 		if err == nil {
 			if err = f.Validate(lookup); err != nil {
 				err = fmt.Errorf("flow %s: %w", f.Name, err)
@@ -395,27 +389,67 @@ func LoadAll(dir string, lookup func(id string) (script.Script, bool)) ([]Flow, 
 		}
 		f.Problem = err
 		flows = append(flows, f)
+	})
+	if err != nil {
+		err = fmt.Errorf("reading the flows: %w", err)
 	}
 	markAfterLoops(flows)
-	return flows, nil
+	return flows, err
 }
 
-func Find(flows []Flow, name string) (Flow, bool) {
-	i := slices.IndexFunc(flows, func(f Flow) bool { return f.Name == name })
-	if i < 0 {
-		return Flow{}, false
+// folderName is a name inside a folder path, or the name alone outside folders.
+func folderName(folder, name string) string {
+	if folder == "" {
+		return name
 	}
-	return flows[i], true
+	return folder + "/" + name
+}
+
+// Folder is the path of the folders the flow is in, as ops in ops/deploy, or "".
+func (f Flow) Folder() string { return tree.Parent(f.Name) }
+
+// Base is the flow's name without its folders: deploy in ops/deploy.
+func (f Flow) Base() string { return tree.Base(f.Name) }
+
+// FilePath is the file of the flow or function named name, which may be inside folders, in dir.
+func FilePath(dir, name string) string {
+	return filepath.Join(dir, filepath.FromSlash(name)+Ext)
+}
+
+// ValidName tells why name cannot name a flow or function, or "": letters, digits, . - and _,
+// with / between folders.
+func ValidName(kind, name string) error {
+	if !naming.IsValidPath(name) {
+		return fmt.Errorf("%s name %q: use letters, digits, . - _, and / to put it in a folder", kind, name)
+	}
+	return nil
+}
+
+// Find is the flow named name, or the only one whose name without folders is name.
+func Find(flows []Flow, name string) (Flow, bool) {
+	if i := slices.IndexFunc(flows, func(f Flow) bool { return f.Name == name }); i >= 0 {
+		return flows[i], true
+	}
+	var found []Flow
+	for _, f := range flows {
+		if f.Base() == name {
+			found = append(found, f)
+		}
+	}
+	if len(found) == 1 {
+		return found[0], true
+	}
+	return Flow{}, false
 }
 
 const exactlyOne = "a step sets exactly one of script, call, agent, run, if, repeat, wait, prompt, set and unset"
 
-// Create writes a new, empty flow called name in dir.
+// Create writes a new, empty flow called name in dir; a name with / makes its folders.
 func Create(dir, name string) (Flow, error) {
-	if !naming.IsValid(name) {
-		return Flow{}, fmt.Errorf("flow name %q: use letters, digits, . - _", name)
+	if err := ValidName("flow", name); err != nil {
+		return Flow{}, err
 	}
-	f := Flow{Name: name, File: filepath.Join(dir, name+Ext)}
+	f := Flow{Name: name, File: FilePath(dir, name)}
 	if _, err := os.Stat(f.File); err == nil {
 		return Flow{}, fmt.Errorf("flow %s already exists", name)
 	}

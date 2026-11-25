@@ -14,11 +14,11 @@ scripts/
 Locais:
 
 - `~/.local/share/noct/scripts/` (ou `$XDG_DATA_HOME/noct/scripts/`): pessoais. O local pode ser trocado no config (`Scripts → location`).
-- **Pastas de scripts** dentro dela: uma subpasta sem `script.yaml` é uma pasta que agrupa scripts (ex.: `scripts/tests-noct/greet/`). Um nível só: pastas dentro de pastas não são lidas.
+- **Pastas de scripts** dentro dela: uma subpasta sem `script.yaml` é uma pasta que agrupa scripts (ex.: `scripts/tests-noct/greet/`), e pode ter outras pastas dentro, em qualquer profundidade (`scripts/ops/db/backup/`); pastas vinculadas e a do projeto também (ADR-072).
 - **Pastas vinculadas:** qualquer pasta de scripts em outro lugar, adicionada pelo caminho (`a` no scripts panel; fica em `script_folders` no config). Os arquivos continuam onde estão.
 - `.noct/scripts/` do projeto: o mais próximo, subindo a partir do diretório em que o `noct` foi aberto, como o git acha o repositório. Aparece como a pasta `project`.
 
-O nome do script é o nome da sua pasta: letras, dígitos, `.`, `-` e `_`. O **ID** de um script é `pasta/nome` dentro de uma pasta, ou só `nome` fora delas; é por ele que valores lembrados, histórico de execuções e `noct -s` o identificam. Scripts com o mesmo nome em pastas diferentes convivem.
+O nome do script é o nome da sua pasta: letras, dígitos, `.`, `-` e `_`. O **ID** de um script é o caminho das pastas e o nome (`ops/db/backup`), ou só `nome` fora delas; é por ele que valores lembrados, histórico de execuções e `noct -s` o identificam. Scripts com o mesmo nome em pastas diferentes convivem.
 
 ## Formato
 

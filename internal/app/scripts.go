@@ -74,17 +74,24 @@ func (a *App) setExpanded(dir string, expanded bool) {
 // createInLibrary asks whether to make a folder or a script; the script goes into folder.
 func (a *App) createInLibrary(folder *script.Folder) {
 	a.openChoice("new",
-		choiceOption{key: "d", label: "directory", pick: a.newFolder},
+		choiceOption{key: "d", label: "directory", pick: func() { a.newFolder(folder) }},
 		choiceOption{key: "s", label: "script", pick: func() { a.openScriptForm(nil, folder) }},
 	)
 }
 
-// newFolder asks for a name and makes a folder of scripts in the scripts folder.
-func (a *App) newFolder() {
-	a.openPrompt("new folder", "", "{enter} create  esc cancel  letters, digits, . - _", func(name string) {
-		if _, err := script.CreateFolder(a.scriptsDir(), name); err != nil {
+// newFolder asks for a name and makes a folder of scripts in parent, or in the scripts folder.
+func (a *App) newFolder(parent *script.Folder) {
+	root, title := a.scriptsDir(), "new folder"
+	if parent != nil {
+		root, title = parent.Dir, "new folder in "+parent.Name
+	}
+	a.openPrompt(title, "", "{enter} create  esc cancel  letters, digits, . - _", func(name string) {
+		if _, err := script.CreateFolder(root, name); err != nil {
 			a.statusMessage = err.Error()
 			return
+		}
+		if parent != nil {
+			a.setExpanded(parent.Dir, true) // to show the folder made in it
 		}
 		a.reloadScripts()
 	})
@@ -106,15 +113,17 @@ func (a *App) linkFolder() {
 
 // removeFolder deletes a folder of scripts, or stops showing a linked one, after asking.
 func (a *App) removeFolder(f script.Folder) {
-	switch f.Kind {
-	case script.GroupFolder:
+	switch {
+	case f.Kind != script.GroupFolder && f.Parent != "":
+		a.statusMessage = f.Name + " is inside a folder noct only shows: change it where it is"
+	case f.Kind == script.GroupFolder:
 		a.askToConfirm(fmt.Sprintf("delete folder %s and its %d scripts?", f.Name, len(f.Scripts)), func() {
 			if err := script.DeleteFolder(f); err != nil {
 				a.statusMessage = err.Error()
 			}
 			a.reloadScripts()
 		})
-	case script.LinkedFolder:
+	case f.Kind == script.LinkedFolder:
 		a.askToConfirm("stop showing "+f.Name+"? its files stay", func() {
 			next := a.config
 			next.ScriptFolders = slices.DeleteFunc(slices.Clone(next.ScriptFolders), func(path string) bool {
@@ -237,7 +246,7 @@ func runName(run script.Run) string {
 // logNameOf names a run's log after its script, or after its flow.
 func logNameOf(run script.Run) string {
 	if run.Flow != "" {
-		return "flow-" + run.Flow
+		return "flow-" + strings.ReplaceAll(run.Flow, "/", "-")
 	}
 	return strings.ReplaceAll(run.Script, "/", "-")
 }

@@ -11,14 +11,19 @@ import (
 
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/tree"
 )
 
 // libraryCheckInterval is how often a panel showing scripts or flows looks for changes on disk,
 // such as a draft the AI wrote through the MCP.
 const libraryCheckInterval = time.Second
 
-// scriptsDepth reaches the files of a script in a folder: <dir>/<folder>/<script>/<file>.
-const scriptsDepth = 3
+// scriptsDepth reaches the files of a script in the deepest folders read; flowsDepth those of a
+// flow.
+const (
+	scriptsDepth = tree.MaxDepth + 2
+	flowsDepth   = tree.MaxDepth + 1
+)
 
 // checkLibrary reloads the library when a panel shows it and its files changed, telling whether
 // it did. Only names, sizes and times are compared, so an unchanged library costs a few stats.
@@ -31,7 +36,7 @@ func (a *App) checkLibrary() bool {
 		a.reloadFlows() // flows are checked against the scripts
 		return true
 	}
-	if dirSignature([]string{flow.Dir(), flow.FunctionsDir()}, 1) != a.flowsSignature {
+	if dirSignature([]string{flow.Dir(), flow.FunctionsDir()}, flowsDepth) != a.flowsSignature {
 		a.reloadFlows()
 		return true
 	}

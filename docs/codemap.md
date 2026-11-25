@@ -86,6 +86,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/logs_preview.go` | The selected log beside the logs panel's lists: a terminal that prints a part of 5000 lines of it, the last following its end, restarted as the selection or the part changes, and scrolling its history on into the parts before and after |
 | `internal/app/logs_search.go` | Searching the log shown (`/`, `n`, `N`, its matches lit) and filtering its lines (`f`) |
 | `internal/app/library_watch.go` | Reading scripts and flows again while a panel shows them and their files changed on disk |
+| `internal/app/tree_list.go` | The rows of a list of items in folders inside folders (`treeList`), for the scripts panel and the inspect: open folders, the filter, counts, the bars of each level |
+| `internal/app/inspect_list.go` | The inspect's list in folders: flows by their folders, functions under ƒ functions, the selected row (a folder or the flow), its keys and new flows in a folder |
 | `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it, f filters it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks, alt+drag carrying a card to its place |
 | `internal/app/inspect_details.go` | The details under the inspect's chart: the selected block's kind, whole text and run, scrolled by the wheel |
 | `internal/app/flowchart.go` | Laying out and drawing a flow as a flowchart on its own canvas, and which block is where: steps with the mark and name of their kind, empty lists, the places a carried card drops at and its dashed outline; ranges and warnings marked |
@@ -161,7 +163,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/kittygfx/placeholder.go` | Placeholder cell text and color for an image cell |
 | `internal/kittygfx/diacritics.go` | Kitty's fixed row/column diacritics table |
 | `internal/atomicfile/atomicfile.go` | Replacing files whole through a temp file of their own (`Write`) and changing shared state files under a `flock` on `<file>.lock` (`Update`) |
-| `internal/naming/naming.go` | The rules for names of scripts, flows, templates and themes (`IsValid`) and for template identifiers (`IsIdentifier`) |
+| `internal/naming/naming.go` | The rules for names of scripts, flows, templates and themes (`IsValid`), for names inside folders (`IsValidPath`) and for template identifiers (`IsIdentifier`) |
+| `internal/tree/tree.go` | Folders inside folders, read in name order to `MaxDepth`: the scripts', flows' and functions' (`Walk`), and a path's `Parent` and `Base` |
 | `internal/config/config.go` | Settings file: defaults, validation, atomic load and save |
 | `third_party/ultraviolet`, `third_party/vt` | Copies of charmbracelet/ultraviolet and x/vt with throughput and rendering fixes (`noct:` comments); see `third_party/README.md`. `noct_render_test.go` replays the renderer's output into the emulator |
 | `docs/demo/record.sh`, `docs/demo/*.tape` | The README's GIFs (`make demo`): VHS tapes run noct in a home of its own, with the demo scripts and flows of `docs/demo/scripts` and `docs/demo/flows` |

@@ -94,7 +94,7 @@ func promote(name string) error {
 		if err != nil {
 			return err
 		}
-		fresh.Draft = false
+		fresh.Name, fresh.Draft = f.Name, false
 		return fresh.Save()
 	}
 	if s, ok := lib.Find(name); ok {

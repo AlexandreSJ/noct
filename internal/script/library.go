@@ -2,7 +2,6 @@ package script
 
 import (
 	"cmp"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/AlexandreSJ/noct/internal/naming"
+	"github.com/AlexandreSJ/noct/internal/tree"
 )
 
 // ProjectDirName is the folder, at a project's root, that holds its noct files.
@@ -75,11 +75,16 @@ const (
 	ProjectFolder
 )
 
-// Folder groups scripts: each of its subfolders with a script.yaml is a script.
+// Folder groups scripts: each of its subfolders with a script.yaml is a script, and any other is
+// a folder inside it, at any depth.
 type Folder struct {
-	Name    string
-	Dir     string
-	Kind    FolderKind
+	// Name is the folder's path among the folders, ops/db inside ops: the start of its scripts' IDs.
+	Name string
+	Dir  string
+	// Kind is where it comes from; a folder inside a linked or project folder has that folder's.
+	Kind FolderKind
+	// Parent is the Dir of the folder it is inside, or "" for a folder at the top.
+	Parent  string
 	Scripts []Script
 }
 
@@ -143,25 +148,17 @@ func LoadLibrary(personal string, linked []string, workDir string) Library {
 		lib.addFolder("project", project, ProjectFolder)
 	}
 	slices.SortStableFunc(lib.Folders, func(a, b Folder) int { return cmp.Compare(a.Name, b.Name) })
+	for i := range lib.Folders {
+		SortByName(lib.Folders[i].Scripts)
+	}
 	SortByName(lib.Scripts)
 	return lib
 }
 
 // addPersonal adds the scripts of the personal folder, where a subfolder without a script.yaml
-// is a folder of scripts.
+// is a folder of scripts, and so on inside it.
 func (l *Library) addPersonal(personal string) {
-	entries, err := readDir(personal)
-	if err != nil {
-		l.Problems = append(l.Problems, err)
-	}
-	for _, entry := range entries {
-		dir := filepath.Join(personal, entry)
-		if isScript(dir) {
-			l.Scripts = append(l.Scripts, loadScript(dir, ""))
-		} else {
-			l.addFolder(entry, dir, GroupFolder)
-		}
-	}
+	l.addTree(personal, "", "", GroupFolder)
 }
 
 // addLinked adds a linked folder, unless it is already listed.
@@ -177,37 +174,40 @@ func (l *Library) addLinked(path, personal string) {
 	l.addFolder(filepath.Base(dir), dir, LinkedFolder)
 }
 
+// addFolder adds a linked or project folder, named name, with the folders inside it.
 func (l *Library) addFolder(name, dir string, kind FolderKind) {
-	folder := Folder{Name: name, Dir: dir, Kind: kind}
-	entries, err := readDir(dir)
+	l.Folders = append(l.Folders, Folder{Name: name, Dir: dir, Kind: kind})
+	l.addTree(dir, name, dir, kind)
+}
+
+// addTree adds the scripts and folders under dir: those at its top go to the folder named name
+// (outside folders when name is ""), whose Dir is top.
+func (l *Library) addTree(dir, name, top string, kind FolderKind) {
+	at := map[string]int{} // a folder's path from dir, to the index of its Folder
+	if name != "" {
+		at[""] = len(l.Folders) - 1
+	}
+	named := func(path string) string { return strings.TrimPrefix(name+"/"+path, "/") }
+	err := tree.Walk(dir, func(parent string, entry fs.DirEntry) bool {
+		return entry.IsDir() && isScript(filepath.Join(parent, entry.Name()))
+	}, func(path string) {
+		parent := top
+		if up := tree.Parent(path); up != "" {
+			parent = l.Folders[at[up]].Dir
+		}
+		at[path] = len(l.Folders)
+		l.Folders = append(l.Folders, Folder{Name: named(path), Dir: filepath.Join(dir, filepath.FromSlash(path)), Kind: kind, Parent: parent})
+	}, func(folder, path string) {
+		i, ok := at[folder]
+		if !ok {
+			l.Scripts = append(l.Scripts, loadScript(path, ""))
+			return
+		}
+		l.Folders[i].Scripts = append(l.Folders[i].Scripts, loadScript(path, l.Folders[i].Name))
+	})
 	if err != nil {
 		l.Problems = append(l.Problems, err)
 	}
-	for _, entry := range entries {
-		if scriptDir := filepath.Join(dir, entry); isScript(scriptDir) {
-			folder.Scripts = append(folder.Scripts, loadScript(scriptDir, name))
-		}
-	}
-	SortByName(folder.Scripts)
-	l.Folders = append(l.Folders, folder)
-}
-
-// readDir lists the subfolders of dir; a missing dir has none.
-func readDir(dir string) ([]string, error) {
-	if dir == "" {
-		return nil, nil
-	}
-	entries, err := os.ReadDir(dir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	var names []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			names = append(names, entry.Name())
-		}
-	}
-	return names, err
 }
 
 func isScript(dir string) bool {

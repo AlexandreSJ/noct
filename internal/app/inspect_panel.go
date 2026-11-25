@@ -31,7 +31,9 @@ type inspectPanel struct {
 	app   *App
 	close func()
 
-	flowName   string
+	flowName string
+	// rowKey is the folder selected in the list, or "" while the selection is flowName's row.
+	rowKey     string
 	focusChart bool
 	listHidden bool
 	// anchor is the step a range started at with shift, or "" for the selected step alone.
@@ -89,11 +91,8 @@ type chartDrag struct {
 func (a *App) startInspect(id layout.PaneID, _ image.Rectangle) (view, error) {
 	a.reloadScripts()
 	a.reloadFlows()
-	p := &inspectPanel{app: a, close: func() { a.detachView(id) }, zoom: 1, centered: true}
-	if len(a.flows) > 0 {
-		p.flowName = entryKey(a.flows[0])
-	}
-	return p, nil
+	// It opens on the flow selected last; current falls back to the list's first when it is gone.
+	return &inspectPanel{app: a, close: func() { a.detachView(id) }, zoom: 1, centered: true, flowName: a.lastFlow}, nil
 }
 
 // openFlowRun shows a flow's chart with how each block went in one of its runs.
@@ -186,19 +185,28 @@ func (p *inspectPanel) current() (flow.Flow, int, bool) {
 	if len(flows) == 0 {
 		return flow.Flow{}, 0, false
 	}
-	i := max(slices.IndexFunc(flows, func(f flow.Flow) bool { return entryKey(f) == p.flowName }), 0)
+	i := slices.IndexFunc(flows, func(f flow.Flow) bool { return entryKey(f) == p.flowName })
+	if i < 0 {
+		i = p.firstShown(flows)
+		p.selected, p.centered, p.anchor, p.run = "", true, "", nil
+	}
 	p.flowName = entryKey(flows[i])
+	p.app.lastFlow = p.flowName
 	return flows[i], i, true
 }
 
-func (p *inspectPanel) selectFlow(step int) {
-	_, i, ok := p.current()
-	if !ok {
-		return
+// firstShown is the first of flows the list shows at its top, or the first of all when every
+// one is in a closed folder.
+func (p *inspectPanel) firstShown(flows []flow.Flow) int {
+	for _, row := range p.rows() {
+		if row.entry == nil {
+			continue
+		}
+		if i := slices.IndexFunc(flows, func(f flow.Flow) bool { return entryKey(f) == entryKey(*row.entry) }); i >= 0 {
+			return i
+		}
 	}
-	entries := p.shown()
-	i = min(max(i+step, 0), len(entries)-1)
-	p.flowName, p.selected, p.centered, p.anchor, p.run = entryKey(entries[i]), "", true, "", nil
+	return 0
 }
 
 // editorKey gives the key to the editor open, but v, which hides its help, while nothing is typed.
@@ -251,9 +259,14 @@ func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
 		return
 	case "?":
 		p.app.showContextKeys("flows", "inspect keys",
+			"enter or space opens a folder of the list; h closes it, or goes up to the folder it is in",
 			"click selects a block; a double click tells about it",
 			"alt+drag (or ctrl+drag) carries a card: the dashed outline is where it lands",
 			"drag pans the chart; the wheel scrolls it, or the details under it")
+		return
+	}
+	if row, _, selected := p.selectedRow(); selected && row.entry == nil && !p.focusChart {
+		p.folderKey(name, row)
 		return
 	}
 	if !ok || !p.focusChart && name == "a" {
@@ -314,18 +327,14 @@ func triggersText(f flow.Flow, on bool) string {
 // listKey runs the list's keys; f is the zero flow when there are none.
 func (p *inspectPanel) listKey(name string, f flow.Flow) {
 	switch name {
-	case "a":
-		p.app.newFlow(func(created string) { p.flowName, p.focusChart, p.selected = created, true, "" })
-	case "F", "shift+f":
-		p.app.newFunction(func(created string) { p.flowName, p.focusChart, p.selected = created, true, "" })
-	case "up", "k":
-		p.selectFlow(-1)
-	case "down", "j":
-		p.selectFlow(1)
-	case "pgup", "pgdown", "home", "end":
-		if _, i, ok := p.current(); ok {
-			to, _ := listJump(name, i, len(p.shown()), max(p.list.Dy(), 1))
-			p.selectFlow(to - i)
+	case "a", "F", "shift+f":
+		row, _, _ := p.selectedRow()
+		p.newEntry(name != "a", row)
+	case "up", "k", "down", "j", "pgup", "pgdown", "home", "end":
+		p.listMoveKey(name)
+	case "left", "h":
+		if row, _, ok := p.selectedRow(); ok {
+			p.selectFolderOf(row)
 		}
 	case "enter", "right", "l":
 		p.focusChart = true
@@ -724,21 +733,33 @@ func (p *inspectPanel) drawFlows(screen uv.Screen, area image.Rectangle) image.R
 	line, title := p.frameStyles(!p.focusChart)
 	drawFrame(screen, area, "flows", line, title)
 	inner := area.Inset(1)
+	pal := &p.app.palette
 	if p.filter.on() && inner.Dy() > 2 {
 		kept := filterCount(len(p.shown()), len(p.entries()))
-		p.filter.draw(screen, inner.Min.X+1, inner.Min.Y, inner.Max.X, kept, &p.app.palette)
+		p.filter.draw(screen, inner.Min.X+1, inner.Min.Y, inner.Max.X, kept, pal)
 		inner.Min.Y += 2
 	}
-	_, selected, ok := p.current()
-	entries := p.shown()
-	if !ok {
-		selected = -1
-	}
-	p.first = listFirst(p.first, max(selected, 0), len(entries), inner.Dy())
+	row, selected, _ := p.selectedRow()
+	rows := p.rows()
+	p.first = listFirst(p.first, max(selected, 0), len(rows), inner.Dy())
 	enabled := flow.Enabled(flow.TriggersFile())
-	for i := p.first; i < len(entries) && i-p.first < inner.Dy(); i++ {
-		f := entries[i]
-		drawRow(screen, inner, inner.Min.Y+i-p.first, flowListMarks(f, enabled)+f.Name, "", p.flowRowStyle(i == selected))
+	active := row.folder // the folder of the row selected, or the folder selected
+	for i := p.first; i < len(rows) && i-p.first < inner.Dy(); i++ {
+		r := rows[i]
+		label, value := p.rowLabel(r, enabled)
+		style := p.flowRowStyle(i == selected)
+		if r.entry == nil && i != selected {
+			style = pal.panelHeading
+		}
+		parent := r.folder
+		if r.entry == nil {
+			parent = folderParent(r.folder)
+		}
+		bar := pal.unfocusedFrame
+		if parent != "" && parent == active {
+			bar = pal.focusedFrame
+		}
+		drawTreeRow(screen, inner, inner.Min.Y+i-p.first, r.depth, label, value, style, pal.unfocusedFrame, bar)
 	}
 	return inner
 }
@@ -893,8 +914,8 @@ func (p *inspectPanel) RowAt(point image.Point) (image.Rectangle, bool, bool) {
 		rect, focused, ok := p.editor.hitAt(point.Add(p.origin))
 		return rect.Sub(p.origin), focused, ok
 	}
-	_, selected, _ := p.current()
-	return listRowAt(p.list, point, p.first, len(p.shown()), selected)
+	_, selected, _ := p.selectedRow()
+	return listRowAt(p.list, point, p.first, len(p.rows()), selected)
 }
 
 // WantsMouseAt takes the mouse over the list and the chart.
@@ -969,12 +990,18 @@ func (p *inspectPanel) wheel(m uv.Mouse) {
 	p.panBy(heading)
 }
 
+// clickFlow selects the row at index, opening or closing it when it is a folder.
 func (p *inspectPanel) clickFlow(index int) {
-	entries := p.shown()
-	if index < 0 || index >= len(entries) {
+	rows := p.rows()
+	if index < 0 || index >= len(rows) {
 		return
 	}
-	p.flowName, p.focusChart, p.selected, p.centered, p.anchor, p.run = entryKey(entries[index]), false, "", true, "", nil
+	row := rows[index]
+	p.selectRow(row)
+	p.focusChart = false
+	if row.entry == nil {
+		p.app.setExpanded(row.folder, !p.app.folderOpen(row.folder))
+	}
 }
 
 // blockAt is the chart's block under point of the panel.

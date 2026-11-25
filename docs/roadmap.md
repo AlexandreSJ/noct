@@ -70,6 +70,8 @@ Encadear scripts num editor visual (ver [fluxos.md](fluxos.md)).
 
 **Editores no painel (pedido do mantenedor, 2026-11-24; ADR-071, na branch `feat/flow-editor`).** Os params numa tabela, um por linha em colunas, e cada passo num formulário, os dois no lugar do fluxograma e sem travar o noct, com as variáveis do escopo e exemplos ao lado; tipos `boolean`, `option`, `list` e `object` (JSON com recursão); nomes curtos em toda lista e o aviso de escopo; sem o `Ctrl+T`, e dicas numa linha só. Depois, a pedido também: navegar com `hjkl` e editar com `Enter` ou clique, menus e listas com filtro embaixo da célula (as opções de um `option` com a padrão marcada, os itens de um `list`), `+ add param`, mover (`J`/`K`), remover (`Ctrl+Delete`), desfazer (`Ctrl+Z`/`Ctrl+Y`), a ordem dos params guardada, `v` para esconder a ajuda e o fluxo `demo-params`. Com isso saem do "Próximo no inspect" acima: editar um passo existente num formulário (menos o script, ainda em YAML), os `every`/`max` do `repeat` e definir os params do fluxo.
 
+**Pastas e onde parou (pedido do mantenedor, 2026-11-25; ADR-072, na mesma branch).** Scripts, fluxos e funções em pastas dentro de pastas, lidas pelo mesmo código (`internal/tree`) e listadas pela mesma árvore no scripts panel e no inspect, com as funções na pasta `ƒ functions`; o nome de um fluxo numa pasta é o caminho (`ops/deploy`). O inspect abre no último fluxo, e a sessão lembra o fluxo e o script de cada painel.
+
 **Pronto quando:** um teste de ponta a ponta com várias etapas é montado sem editar YAML à mão, roda sozinho por cron, para no passo certo em caso de falha, e a execução de ontem é encontrada pelo calendário.
 
 ## Fase 3 — IA (MCP)

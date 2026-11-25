@@ -13,6 +13,7 @@ import (
 
 	"github.com/AlexandreSJ/noct/internal/pty"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/tree"
 )
 
 // minDetailsWidth is the narrowest panel that shows the selected script's details beside the list.
@@ -50,10 +51,13 @@ type scriptsPanel struct {
 	filter listFilter
 }
 
-// panelRow is a line of the list: a folder (script nil), or a script, inside folder when set.
+// panelRow is a line of the list: a folder (script nil), or a script, inside folder when set,
+// depth folders deep. count is how many scripts a folder shows, in its folders too.
 type panelRow struct {
 	folder *script.Folder
 	script *script.Script
+	depth  int
+	count  int
 }
 
 func (r panelRow) key() string {
@@ -63,37 +67,40 @@ func (r panelRow) key() string {
 	return "folder:" + r.folder.Dir
 }
 
-// rows are the lines of the list: each folder with its scripts below it unless collapsed, then
-// the scripts outside folders.
+// rows are the lines of the list: each folder with its folders and scripts below it unless
+// collapsed, then the scripts outside folders.
 // While the filter narrows it, a folder shows open with the scripts it keeps, and whole when its
 // own name matches; folders it keeps nothing of are left out.
 func (p *scriptsPanel) rows() []panelRow {
 	lib := &p.app.scripts
-	filtering := p.filter.query() != ""
-	var rows []panelRow
+	byDir := map[string]*script.Folder{}
+	var folders []treeFolder
+	var scripts []*script.Script
+	var in []string
 	for i := range lib.Folders {
 		f := &lib.Folders[i]
-		whole := filtering && p.filter.keeps(f.Name)
-		var kept []panelRow
+		byDir[f.Dir] = f
+		folders = append(folders, treeFolder{id: f.Dir, parent: f.Parent, name: f.Name})
 		for j := range f.Scripts {
-			if s := &f.Scripts[j]; whole || p.keepsScript(s) {
-				kept = append(kept, panelRow{folder: f, script: s})
-			}
-		}
-		switch {
-		case filtering && len(kept) == 0:
-		case filtering:
-			rows = append(append(rows, panelRow{folder: f}), kept...)
-		case p.app.expanded[f.Dir]:
-			rows = append(append(rows, panelRow{folder: f}), kept...)
-		default:
-			rows = append(rows, panelRow{folder: f})
+			scripts, in = append(scripts, &f.Scripts[j]), append(in, f.Dir)
 		}
 	}
 	for j := range lib.Scripts {
-		if s := &lib.Scripts[j]; p.keepsScript(s) {
-			rows = append(rows, panelRow{script: s})
+		scripts, in = append(scripts, &lib.Scripts[j]), append(in, "")
+	}
+	list := treeList{
+		folders: folders, in: in, filtering: p.filter.query() != "",
+		open:       func(id string) bool { return p.app.expanded[id] },
+		keepItem:   func(i int) bool { return p.keepsScript(scripts[i]) },
+		keepFolder: func(id string) bool { return p.filter.keeps(byDir[id].Name) },
+	}
+	var rows []panelRow
+	for _, r := range list.rows() {
+		row := panelRow{folder: byDir[r.folder], depth: r.depth, count: r.count}
+		if !r.isFolder() {
+			row.script = scripts[r.item]
 		}
+		rows = append(rows, row)
 	}
 	return rows
 }
@@ -201,6 +208,10 @@ func (p *scriptsPanel) folderKey(name string, row panelRow) {
 	case "enter", "space":
 		p.app.setExpanded(row.folder.Dir, !expanded)
 	case "left", "h":
+		if !expanded && row.folder.Parent != "" { // closed already: up to the folder it is in
+			p.selectKey("folder:" + row.folder.Parent)
+			return
+		}
 		p.app.setExpanded(row.folder.Dir, false)
 	case "right", "l":
 		p.app.setExpanded(row.folder.Dir, true)
@@ -349,18 +360,23 @@ func (p *scriptsPanel) drawList(screen uv.Screen, area image.Rectangle) {
 		row, y := rows[i], area.Min.Y+i-first
 		label, value := p.rowText(row)
 		inActive := row.folder != nil && row.folder == active
-		style := p.rowStyle(row, i == p.selected, inActive)
-		if row.script == nil || row.folder == nil {
-			drawRow(screen, area, y, label, value, style)
-			continue
-		}
 		bar := pal.unfocusedFrame
-		if inActive {
+		if active != nil && rowParent(row) == active.Dir {
 			bar = pal.focusedFrame
 		}
-		drawRow(screen, image.Rect(area.Min.X+2, area.Min.Y, area.Max.X, area.Max.Y), y, label, value, style)
-		setRune(screen, area.Min.X+1, y, "│", bar)
+		drawTreeRow(screen, area, y, row.depth, label, value, p.rowStyle(row, i == p.selected, inActive), pal.unfocusedFrame, bar)
 	}
+}
+
+// rowParent is the Dir of the folder a row hangs from: a script's folder, or the one a folder is in.
+func rowParent(row panelRow) string {
+	switch {
+	case row.folder == nil:
+		return ""
+	case row.script != nil:
+		return row.folder.Dir
+	}
+	return row.folder.Parent
 }
 
 // rowStyle colors the selected row, folders as headings, and the folder being browsed in the accent.
@@ -384,11 +400,12 @@ var folderKinds = map[script.FolderKind]string{script.GroupFolder: "", script.Li
 // open; the bar before the scripts of a folder is drawn apart.
 func (p *scriptsPanel) rowText(row panelRow) (label, value string) {
 	if row.script == nil {
-		sign := "+ "
-		if p.app.expanded[row.folder.Dir] || p.filter.query() != "" { // the filter opens the folders it keeps
-			sign = "- "
+		open := p.app.expanded[row.folder.Dir] || p.filter.query() != "" // the filter opens the folders it keeps
+		name := row.folder.Name
+		if row.folder.Parent != "" {
+			name = tree.Base(name)
 		}
-		return sign + row.folder.Name, fmt.Sprintf("%s%d", folderKinds[row.folder.Kind], len(row.folder.Scripts))
+		return folderSign(open) + name, fmt.Sprintf("%s%d", folderKinds[row.folder.Kind], row.count)
 	}
 	s := row.script
 	if s.Problem != nil {

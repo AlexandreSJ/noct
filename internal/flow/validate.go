@@ -188,7 +188,7 @@ func (s Step) validateKind(kind Kind, lookup func(id string) (script.Script, boo
 		}
 		return s.validatePatterns()
 	case CallStep:
-		if !naming.IsValid(s.Call) {
+		if !naming.IsValidPath(s.Call) {
 			return fmt.Errorf("call %q is not a function's name", s.Call)
 		}
 		for name := range s.With {

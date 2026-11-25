@@ -30,7 +30,7 @@ const stepHints = `# One step: script (with, capture, expect, on_fail, retry, ti
 
 // reloadFlows reads the flows again, checking their scripts against the library.
 func (a *App) reloadFlows() {
-	a.flowsSignature = dirSignature([]string{flow.Dir(), flow.FunctionsDir()}, 1) // before reading: a change meanwhile shows next time
+	a.flowsSignature = dirSignature([]string{flow.Dir(), flow.FunctionsDir()}, flowsDepth) // before reading: a change meanwhile shows next time
 	flows, functions, err := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), a.scripts.Find)
 	if err != nil {
 		a.statusMessage = err.Error()
@@ -47,9 +47,10 @@ func (a *App) scriptDescription(id string) string {
 	return s.Description
 }
 
-// newFlow asks for a name and creates an empty flow, telling created its name.
-func (a *App) newFlow(created func(name string)) {
-	a.openPrompt("new flow", "", "{enter} create  esc cancel  letters, digits, . - _", func(name string) {
+// newFlow asks for a name, starting with folder, and creates an empty flow, telling created its
+// name; a / in the name puts it in a folder, which it makes.
+func (a *App) newFlow(folder string, created func(name string)) {
+	a.openPrompt("new flow", folder, "{enter} create  esc cancel  letters, digits, . - _  / for folders", func(name string) {
 		f, err := flow.Create(flow.Dir(), name)
 		if err != nil {
 			a.statusMessage = err.Error()
@@ -338,6 +339,7 @@ func (a *App) changeFlow(f flow.Flow, change func(*flow.Flow) error) error {
 	if err != nil {
 		return err
 	}
+	fresh.Name = f.Name // with its folders, which the file alone does not tell
 	before := fresh.Validate(a.scripts.Find)
 	if err := change(&fresh); err != nil {
 		return err

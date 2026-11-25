@@ -154,10 +154,11 @@ func addCommand(a *App, command string) {
 
 func saveFlow(t *testing.T, name, content string) {
 	t.Helper()
-	if err := os.MkdirAll(flow.Dir(), 0o755); err != nil {
+	file := flow.FilePath(flow.Dir(), name) // a name with / goes in folders
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(flow.Dir(), name+flow.Ext), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

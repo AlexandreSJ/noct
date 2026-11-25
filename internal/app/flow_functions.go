@@ -12,9 +12,9 @@ import (
 // params card also lists what they return. F makes one; a call step runs one, with a value for each
 // of its params from its step form (callForm).
 
-// newFunction asks a new function's name and makes it, empty.
-func (a *App) newFunction(created func(key string)) {
-	a.openPrompt("new function", "", "{enter} create  esc cancel  letters, digits, . - _", func(name string) {
+// newFunction asks a new function's name, starting with folder, and makes it, empty.
+func (a *App) newFunction(folder string, created func(key string)) {
+	a.openPrompt("new function", folder, "{enter} create  esc cancel  letters, digits, . - _  / for folders", func(name string) {
 		f, err := flow.CreateFunction(flow.FunctionsDir(), name)
 		if err != nil {
 			a.statusMessage = err.Error()
