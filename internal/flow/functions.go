@@ -78,7 +78,7 @@ func (f Flow) CheckCalls(functions []Flow) error {
 				return
 			}
 		}
-		for _, name := range slices.Sorted(maps.Keys(fn.Params)) {
+		for _, name := range fn.ParamNames() {
 			if p := fn.Params[name]; p.Required && p.Default == "" && s.With[name] == "" {
 				problem = fmt.Errorf("step %s leaves out %s, which function %s needs", s.Label(), name, fn.Name)
 				return

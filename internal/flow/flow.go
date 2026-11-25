@@ -43,6 +43,8 @@ type Flow struct {
 	Draft bool `yaml:"draft,omitempty"`
 	// Params are values the steps' templates read as {{.name}}, with their defaults.
 	Params map[string]Param `yaml:"params,omitempty"`
+	// ParamOrder is the order of Params, as ParamNames gives it.
+	ParamOrder []string `yaml:"-" json:"-"`
 	// Triggers start the flow on their own, once enabled on this machine.
 	Triggers []Trigger `yaml:"triggers,omitempty"`
 	// Timeout bounds the whole run, as a duration like 1h30m; empty is no limit.

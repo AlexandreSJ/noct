@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -97,4 +98,55 @@ func readAs(kind, value string) any {
 		return value
 	}
 	return decoded
+}
+
+// ListItems splits a list param's JSON into its items as the inspect edits them, one each: a
+// string as its text, unless its text reads as JSON, and anything else as its JSON. It tells
+// whether text is a JSON list; an empty text is an empty list.
+func ListItems(text string) ([]string, bool) {
+	if strings.TrimSpace(text) == "" {
+		return nil, true
+	}
+	if _, err := DecodeJSON(ListParam, text); err != nil {
+		return nil, false
+	}
+	var raw []json.RawMessage
+	if err := json.Unmarshal([]byte(text), &raw); err != nil {
+		return nil, false
+	}
+	items := make([]string, len(raw))
+	for i, item := range raw {
+		var s string
+		if json.Unmarshal(item, &s) == nil && !json.Valid([]byte(s)) {
+			items[i] = s
+			continue
+		}
+		items[i] = compactRaw(item)
+	}
+	return items, true
+}
+
+// ItemsJSON joins items into a list param's JSON, reading each as ListItems writes it; no items
+// is no default.
+func ItemsJSON(items []string) string {
+	if len(items) == 0 {
+		return ""
+	}
+	raw := make([]json.RawMessage, len(items))
+	for i, item := range items {
+		if json.Valid([]byte(item)) {
+			raw[i] = json.RawMessage(compactRaw([]byte(item)))
+			continue
+		}
+		raw[i], _ = json.Marshal(item) // a string always encodes
+	}
+	return compactJSON(raw)
+}
+
+func compactRaw(raw []byte) string {
+	var out bytes.Buffer
+	if err := json.Compact(&out, raw); err != nil {
+		return string(raw)
+	}
+	return out.String()
 }

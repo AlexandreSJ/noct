@@ -123,7 +123,7 @@ func (f Flow) CheckParams(values map[string]string) error {
 			return fmt.Errorf("flow %s has no parameter %s", f.Name, name)
 		}
 	}
-	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
+	for _, name := range f.ParamNames() {
 		p := f.Params[name]
 		value, given := values[name]
 		if !given {

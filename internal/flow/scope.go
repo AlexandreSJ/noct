@@ -74,7 +74,7 @@ func (f Flow) Scope(parent, branch string, index int, lookup func(id string) (sc
 
 func (f Flow) scope(parent, branch string, index int, lookup func(id string) (script.Script, bool)) *scope {
 	sc := &scope{cleared: map[string]bool{}, ended: map[string]bool{}, lookup: lookup, functions: f.functions}
-	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
+	for _, name := range f.ParamNames() {
 		sc.vars = append(sc.vars, Variable{Field: name})
 	}
 	levels := f.levelsTo(parent, branch, index)

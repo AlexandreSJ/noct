@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -147,5 +148,25 @@ func TestAnEmptyListOrObjectReadsAsEmpty(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "[] [] {}") {
 		t.Errorf("output:\n%s", out)
+	}
+}
+
+func TestListItemsRoundTrip(t *testing.T) {
+	items, ok := ListItems(`["a", 3, "3", {"k": [1, 2]}, true]`)
+	want := []string{"a", "3", `"3"`, `{"k":[1,2]}`, "true"}
+	if !ok || !slices.Equal(items, want) {
+		t.Fatalf("items %q, %v; want %q", items, ok, want)
+	}
+	if got := ItemsJSON(items); got != `["a",3,"3",{"k":[1,2]},true]` {
+		t.Errorf("joined %s", got)
+	}
+	if _, ok := ListItems(`{"a": 1}`); ok {
+		t.Error("an object read as a list")
+	}
+	if items, ok := ListItems(""); !ok || items != nil || ItemsJSON(nil) != "" {
+		t.Error("an empty list is no default")
+	}
+	if got := ItemsJSON([]string{"two words", "{not json"}); got != `["two words","{not json"]` {
+		t.Errorf("text items joined as %s", got)
 	}
 }
