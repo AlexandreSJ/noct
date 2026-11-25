@@ -163,7 +163,7 @@ func (a *App) handleClick(event uv.MouseEvent) {
 	a.drag, a.selection, a.mouseHeld = nil, nil, nil
 	switch a.mode {
 	case infoMode:
-		a.mode = a.info.back // a click closes what it tells, as a key does
+		a.clickInfo(image.Pt(m.X, m.Y)) // a click outside closes it, as a key does
 	case commandMode:
 		a.clickCommandShortcut(image.Pt(m.X, m.Y))
 	case configMode:
@@ -261,6 +261,9 @@ func (a *App) handleWheel(event uv.MouseEvent) {
 		return
 	case updatesMode:
 		a.wheelUpdates(event.Mouse().Button)
+		return
+	case infoMode:
+		a.wheelInfo(event.Mouse().Button)
 		return
 	}
 	t := a.currentTab()

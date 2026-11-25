@@ -36,6 +36,12 @@ the shortcut is `Alt` by default. How to write an entry is in
   list shows flows in their folders like the scripts panel does, with the functions under
   `ƒ functions`; `a` in a folder starts the new flow's name with its path, and a `/` makes
   folders.
+- In the inspect's list, `N` makes a folder, `m` moves or renames a flow, a function or a folder
+  (a `/` puts it in folders, none takes it out), `c` copies a flow or function, `delete` removes
+  a folder, and dragging a flow onto a folder moves it there. Remembered values, the last result
+  and triggers go with a moved flow, and the calls of a moved function follow it.
+- The keys popup (`?`) and other text popups filter their lines with `f` or `/`, scroll with the
+  mouse wheel and tell which lines show when the text is taller than the popup.
 - The inspect opens on the flow selected last, and a saved session remembers the flow of each
   inspect and the script of each scripts panel. One that is gone leaves the panel on the first
   of its list.

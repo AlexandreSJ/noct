@@ -178,9 +178,12 @@ type App struct {
 	expanded map[string]bool
 	// lastFlow is the flow or function the inspect selected last, which a new inspect opens on.
 	lastFlow string
-	versions *script.Versions
-	memory   *script.Memory
-	flows    []flow.Flow
+	// flowFolders and functionFolders are the folders the flows and functions are kept in, the
+	// empty ones too, by their paths.
+	flowFolders, functionFolders []string
+	versions                     *script.Versions
+	memory                       *script.Memory
+	flows                        []flow.Flow
 	// functions are the steps flows call by name (flow.FunctionsDir).
 	functions []flow.Flow
 

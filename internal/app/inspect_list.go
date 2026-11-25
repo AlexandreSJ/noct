@@ -77,16 +77,25 @@ func listFolderName(id string) string {
 	return tree.Base(strings.TrimSuffix(folderPath(id), "/"))
 }
 
-// listFolders are the folders the flows and functions are in, and those folders are in in turn,
-// in name order, and the folder of all the functions, last.
-func listFolders(entries []flow.Flow) []treeFolder {
+// listFolders are the folders the flows and functions are in, those on disk with none, and the
+// folders those are in in turn, in name order, and the folder of all the functions, last.
+func listFolders(entries []flow.Flow, flowDirs, functionDirs []string) []treeFolder {
 	seen := map[string]bool{}
 	var folders []treeFolder
-	for _, f := range entries {
-		for id := folderID(f); id != "" && !seen[id]; id = folderParent(id) {
+	add := func(id string) {
+		for ; id != "" && !seen[id]; id = folderParent(id) {
 			seen[id] = true
 			folders = append(folders, treeFolder{id: id, parent: folderParent(id), name: listFolderName(id), last: id == functionFolders})
 		}
+	}
+	for _, f := range entries {
+		add(folderID(f))
+	}
+	for _, path := range flowDirs {
+		add(flowFolders + path)
+	}
+	for _, path := range functionDirs {
+		add(functionFolders + path)
 	}
 	// Siblings share their ids up to their names, so the ids' order is their names'.
 	slices.SortFunc(folders, func(a, b treeFolder) int { return strings.Compare(a.id, b.id) })
@@ -105,7 +114,7 @@ func (a *App) folderOpen(id string) bool {
 // rows are the lines of the list, as the filter and the open folders leave them.
 func (p *inspectPanel) rows() []inspectRow {
 	entries := p.entries()
-	folders := listFolders(entries)
+	folders := listFolders(entries, p.app.flowFolders, p.app.functionFolders)
 	in := make([]string, len(entries))
 	for i, f := range entries {
 		in[i] = folderID(f)
@@ -243,8 +252,10 @@ func (p *inspectPanel) folderKey(name string, row inspectRow) {
 		p.newEntry(false, row)
 	case "F", "shift+f":
 		p.newEntry(true, row)
+	case "N", "shift+n", "m", "c":
+		p.organizeKey(name, row)
 	case "delete":
-		p.app.notice = "a folder goes with the last flow in it: delete its flows, or the folder in " + flow.Dir()
+		p.deleteFolder(row)
 	default:
 		p.listMoveKey(name)
 	}

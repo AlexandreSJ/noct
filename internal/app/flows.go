@@ -36,6 +36,7 @@ func (a *App) reloadFlows() {
 		a.statusMessage = err.Error()
 	}
 	a.flows, a.functions = flows, functions
+	a.flowFolders, a.functionFolders = flow.Folders(flow.Dir()), flow.Folders(flow.FunctionsDir())
 }
 
 // scriptDescription is what a script does, for the boxes of the steps that run it.

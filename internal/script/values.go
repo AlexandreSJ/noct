@@ -98,6 +98,11 @@ func (m *Memory) RememberFlow(name string, values map[string]string) error {
 	return m.keep(flowKey+name, values)
 }
 
+// RenameFlow moves a flow's remembered values to its new name.
+func (m *Memory) RenameFlow(oldName, newName string) error {
+	return m.Rename(flowKey+oldName, flowKey+newName)
+}
+
 // flowKey starts a flow's key in the file, apart from the scripts' IDs.
 const flowKey = "flow:"
 

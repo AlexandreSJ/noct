@@ -61,6 +61,7 @@ type inspectPanel struct {
 	detailsFirst int
 	detailsKey   string
 	drag         *chartDrag
+	listDrag     *listDrag
 	lastClick    time.Time
 	clickedKey   string
 	// filter narrows the list to the flows that hold what is typed; first is the list's row on its
@@ -260,6 +261,7 @@ func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
 	case "?":
 		p.app.showContextKeys("flows", "inspect keys",
 			"enter or space opens a folder of the list; h closes it, or goes up to the folder it is in",
+			"m on a flow or folder asks where it goes: a / puts it in folders, none takes it out; dragging a flow onto a folder moves it there",
 			"click selects a block; a double click tells about it",
 			"alt+drag (or ctrl+drag) carries a card: the dashed outline is where it lands",
 			"drag pans the chart; the wheel scrolls it, or the details under it")
@@ -335,6 +337,10 @@ func (p *inspectPanel) listKey(name string, f flow.Flow) {
 	case "left", "h":
 		if row, _, ok := p.selectedRow(); ok {
 			p.selectFolderOf(row)
+		}
+	case "N", "shift+n", "m", "c":
+		if row, _, ok := p.selectedRow(); ok {
+			p.organizeKey(name, row)
 		}
 	case "enter", "right", "l":
 		p.focusChart = true
@@ -932,13 +938,12 @@ func (p *inspectPanel) SendMouse(event uv.MouseEvent) {
 	}
 	m := event.Mouse()
 	point := image.Pt(m.X, m.Y)
+	if p.listMouse(event, point) {
+		return
+	}
 	switch event.(type) {
 	case uv.MouseClickEvent:
 		if m.Button != uv.MouseLeft {
-			return
-		}
-		if point.In(p.list) {
-			p.clickFlow(p.first + point.Y - p.list.Min.Y)
 			return
 		}
 		if point.In(p.details) {

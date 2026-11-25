@@ -79,7 +79,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/lock.go` | The lock (prefix+b): which commands it holds back and the hint on how to unlock |
 | `internal/app/prompt.go` | Text prompt (tab and panel rename, new folder) and yes/no confirmation (quit, delete) |
 | `internal/app/choice.go` | A choice of a few options (new directory or script) |
-| `internal/app/info_popup.go` | An info popup (what a flow's step does, a screen's keys), back to the screen it was opened from |
+| `internal/app/info_popup.go` | An info popup (what a flow's step does, a screen's keys): its filter, scrolling by keys and wheel, back to the screen it was opened from |
 | `internal/app/textfield.go` | The one-line text field every prompt, form, search and config row types into: cursor, shell editing keys, paste (bracketed or OSC 52), the text a drag marks, cursor view |
 | `internal/app/logs_panel.go` | Logs panel (prefix+v): month calendar marked by runs, the logs of a day (started or last written on it), sorting, clearing, where the log goes and whether it or the lists show, the hints of the part with the focus and the popup of every key; log pruning |
 | `internal/app/logs_columns.go` | The logs list's columns from the config: their widths over the whole list, dropping them on a narrow list, each cell (times, session, size, compact line counts), the titles |
@@ -87,6 +87,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/logs_search.go` | Searching the log shown (`/`, `n`, `N`, its matches lit) and filtering its lines (`f`) |
 | `internal/app/library_watch.go` | Reading scripts and flows again while a panel shows them and their files changed on disk |
 | `internal/app/tree_list.go` | The rows of a list of items in folders inside folders (`treeList`), for the scripts panel and the inspect: open folders, the filter, counts, the bars of each level |
+| `internal/app/inspect_folders.go` | Organizing the inspect's list: new folders (N), moving or renaming flows, functions and folders (m, dragging), copies (c), deleting folders |
 | `internal/app/inspect_list.go` | The inspect's list in folders: flows by their folders, functions under ƒ functions, the selected row (a folder or the flow), its keys and new flows in a folder |
 | `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it, f filters it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks, alt+drag carrying a card to its place |
 | `internal/app/inspect_details.go` | The details under the inspect's chart: the selected block's kind, whole text and run, scrolled by the wheel |
@@ -191,6 +192,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/flow/vars.go` | Params with a type (text, number, boolean, option, path, list, object; `bool` and `choice` read as before), required and a label, and checking values; running prompt, set and unset steps |
 | `internal/flow/json.go` | List and object params: decoding their JSON, lists and objects inside each other, for templates to read inside and print whole as JSON; a list's items as the inspect edits them (`ListItems`, `ItemsJSON`) |
 | `internal/flow/dollar.go` | `$name` in flow templates: the names a flow knows (`knownNames`) and `expandDollars`, which rewrites them as `{{ }}` escaped for a run line's quotes or a JSON default |
+| `internal/flow/move.go` | Flows and functions as files in folders: `Folders`, `CreateFolder`, `DeleteFolder`, `Copy`, `Rename` and `MoveFolder` (with the last result and triggers), `RenameCalls` |
 | `internal/flow/param_defaults.go` | Params' defaults as templates over the params before them (`withDefaults`, `DefaultProblem`), and the `json` template function |
 | `internal/flow/param_order.go` | The order of a flow's params: read and written as the YAML has them (`ParamOrder`), and `ParamNames` in that order |
 | `internal/flow/trigger.go` | Triggers (manual, cron, watch, after) in YAML, their validation, globs with `**`, loops of after triggers, which flows have them enabled |

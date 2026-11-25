@@ -243,6 +243,10 @@ func (a *App) typedField() (*textField, func()) {
 		if a.templateSave.selected == 0 {
 			return &a.templateSave.name, nil
 		}
+	case infoMode:
+		if a.info.filter.typing {
+			return &a.info.filter.field, func() { a.info.first = 0 }
+		}
 	}
 	return nil, nil
 }
