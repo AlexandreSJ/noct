@@ -39,12 +39,13 @@ the shortcut is `Alt` by default. How to write an entry is in
   `enter`, which keeps it, and every list counts the same way: `3 of 12`, or `no match`.
 - Shorter notes and hints in the config, the binds' `?` list and the agent step's form.
 - `Enter` on a flow's params card in the inspect (`prefix` + `i`) opens its params as a table in
-  place of the chart, a param a row like declarations in code: type, name, default, environment
+  place of the chart, a param a row like declarations in code: type, name, value, environment
   variable, label, required and secret in columns. `hjkl` or the arrows move from cell to cell
   (with `Ctrl`, to the first or last), and `Enter` or a click edits one: it types in a text, or
-  opens the choices of a type or a boolean right under the cell. An option's default is the list
-  of its options, shown as `"dev" +2`: add one, mark the default with `Space`, filter with `f`.
-  A list's default is a list of its items too. `+ add param`, the last row, adds a param;
+  opens the choices of a type or a boolean right under the cell. An option's value is the list
+  of its options, shown with the one it holds and how many there are, as `"dev" · 3 options`:
+  add one, mark the one it holds with `Space`, filter with `f`. A list's value is a list of its
+  items too. `+ add param`, the last row, adds a param;
   `J`/`K` move one, `Ctrl+Delete` removes it and `Ctrl+Z`/`Ctrl+Y` undo and redo. The table is
   saved as it changes; a cell that keeps its row from being saved turns red and says why. `v`
   hides the help beside it, and `esc` closes it.

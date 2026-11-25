@@ -3,7 +3,6 @@ package app
 import (
 	"image"
 	"slices"
-	"strconv"
 	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -421,12 +420,4 @@ func drawBox(screen uv.Screen, box image.Rectangle, title string, pal *palette) 
 	fillRect(screen, box, pal.panelText)
 	drawFrame(screen, box, title, pal.focusedFrame, pal.focusedTitle)
 	return box.Inset(1)
-}
-
-// moreText tells how many items there are past the one shown, as +22, or +9999 and more.
-func moreText(n int) string {
-	if n > 9999 {
-		return "+9999 and more"
-	}
-	return "+" + strconv.Itoa(n)
 }

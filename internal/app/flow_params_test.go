@@ -191,8 +191,8 @@ func TestTheParamsTableAddsEveryType(t *testing.T) {
 		pressDrawn(a, enterPress)
 	}
 	pressDrawn(a, spacePress, escPress)
-	if !strings.Contains(screenText(a), `"prod" +1`) {
-		t.Errorf("the default cell does not show prod and one more:\n%s", screenText(a))
+	if !strings.Contains(screenText(a), `"prod" · 2 options`) {
+		t.Errorf("the value cell does not show prod and the count:\n%s", screenText(a))
 	}
 	pressDrawn(a, escPress)
 	got := loadFlowParams(t, "typed")["env"]
@@ -226,8 +226,8 @@ func TestAListParamTakesItsItemsInAList(t *testing.T) {
 	saveFlow(t, "hosts", "params: {hosts: {type: list, default: '[\"a\"]'}}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress, letter('l'), letter('l'))
 	addItems(a, "b c", `{"port": 1}`)
-	if !strings.Contains(screenText(a), `"a" +2`) {
-		t.Errorf("the default cell does not show a and two more:\n%s", screenText(a))
+	if !strings.Contains(screenText(a), `"a" · 3 items`) {
+		t.Errorf("the value cell does not show a and the count:\n%s", screenText(a))
 	}
 	if got := loadFlowParams(t, "hosts")["hosts"]; got.Default != `["a","b c",{"port":1}]` {
 		t.Errorf("saved %q", got.Default)
@@ -263,7 +263,7 @@ func TestAParamRowThatIsNotValidWaitsToBeFixed(t *testing.T) {
 	typeDrawn(a, "port")
 	pressDrawn(a, enterPress, letter('h'), enterPress, letter('j'), enterPress, letter('l'), letter('l'))
 	setCell(a, "x")
-	if !strings.Contains(screenText(a), `✗ default: the default must be a number, not "x"`) {
+	if !strings.Contains(screenText(a), `✗ value: the value must be a number, not "x"`) {
 		t.Errorf("the table does not say why the row waits:\n%s", screenText(a))
 	}
 	pressDrawn(a, escPress)

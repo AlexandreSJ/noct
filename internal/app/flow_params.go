@@ -40,7 +40,7 @@ type gridColumn struct {
 var paramColumns = []gridColumn{
 	{title: "type", width: 7},
 	{title: "name", width: 10, grows: true},
-	{title: "default", width: 12, grows: true},
+	{title: "value", width: 18, grows: true},
 	{title: "from env", width: 8, grows: true},
 	{title: "label", width: 8, grows: true},
 	{title: "required", width: 8},
@@ -196,7 +196,7 @@ func (t *paramsTable) problems(i int) map[int]string {
 	if problem := optionsProblem(p); problem != "" {
 		problems[paramDefaultColumn] = problem
 	} else if problem := p.Fits(p.Default); problem != "" {
-		problems[paramDefaultColumn] = "the default " + problem
+		problems[paramDefaultColumn] = "the value " + problem
 	}
 	if env, ok := p.EnvName(); ok && !naming.IsIdentifier(env) {
 		problems[paramEnvColumn] = "an environment variable's name is letters, digits and _"
@@ -424,24 +424,21 @@ func (t *paramsTable) cellText(i, c int) string {
 	return cell.value()
 }
 
-// listText shows a list cell in a row: its marked item, or its first, and how many more.
+// listText shows a list cell in a row: its marked item, or its first, and how many items it
+// has, all of them counted.
 func listText(c *gridCell) string {
-	shown := c.marked
+	count := plural(len(c.items), c.noun)
 	switch {
 	case len(c.items) == 0:
 		return "no " + c.noun + "s"
-	case c.marking && shown < 0 && len(c.field.text) > 0:
-		return strconv.Quote(c.field.String()) + " " + moreText(len(c.items))
-	case c.marking && shown < 0:
-		return plural(len(c.items), c.noun)
-	case !c.marking:
-		shown = 0
+	case c.marking && c.marked < 0 && len(c.field.text) > 0:
+		return strconv.Quote(c.field.String()) + " · " + count
+	case c.marking && c.marked < 0:
+		return count
+	case c.marking:
+		return itemText(c.items[c.marked]) + " · " + count
 	}
-	text := itemText(c.items[shown])
-	if len(c.items) > 1 {
-		text += " " + moreText(len(c.items)-1)
-	}
-	return text
+	return itemText(c.items[0]) + " · " + count
 }
 
 // itemText is an item quoted as a string, or as its JSON.
@@ -501,13 +498,13 @@ func defaultNote(p flow.Param) string {
 	case flow.BooleanParam:
 		return "none leaves it empty"
 	case flow.OptionParam:
-		return "its options, ★ on the default"
+		return "its options, ★ on the one it holds"
 	case flow.ListParam:
 		return "its items, each text or JSON"
 	case flow.ObjectParam:
 		return "lists and objects hold each other: {\"db\": {\"tags\": [\"a\"]}}"
 	}
-	return "empty has no default"
+	return "empty holds none"
 }
 
 // readingExamples show how steps read a param of the type.

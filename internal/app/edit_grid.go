@@ -704,7 +704,7 @@ func (g *editGrid) hints(idle string) string {
 	case g.menu != nil:
 		return "{enter} pick  {f} filter  esc back"
 	case g.list != nil && g.list.marking:
-		return "{enter} edit  {space} default  {f} filter  esc back"
+		return "{enter} edit  {space} mark  {f} filter  esc back"
 	case g.list != nil:
 		return "{enter} edit  {f} filter  esc back"
 	}

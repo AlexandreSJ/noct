@@ -234,10 +234,19 @@ func TestTheGridTakesClicks(t *testing.T) {
 	}
 }
 
-func TestMoreTextCountsUpTo9999(t *testing.T) {
-	for n, want := range map[int]string{22: "+22", 9999: "+9999", 10000: "+9999 and more"} {
-		if got := moreText(n); got != want {
-			t.Errorf("%d: %q", n, got)
+func TestAListCellShowsItsItemAndExactCount(t *testing.T) {
+	for _, c := range []struct {
+		cell gridCell
+		want string
+	}{
+		{listCellOf([]string{"dev", "prod"}, 1, true, "option"), `"prod" · 2 options`},
+		{listCellOf([]string{"dev", "prod"}, -1, true, "option"), "2 options"},
+		{listCellOf(make([]string, 10001), 0, true, "option"), `"" · 10001 options`},
+		{listCellOf([]string{"a", "3"}, -1, false, "item"), `"a" · 2 items`},
+		{listCellOf(nil, -1, false, "item"), "no items"},
+	} {
+		if got := listText(&c.cell); got != c.want {
+			t.Errorf("%q, want %q", got, c.want)
 		}
 	}
 }

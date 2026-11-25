@@ -288,7 +288,7 @@ var keyContexts = []keyContext{
 		{"remove", "remove the row", []string{"ctrl+delete"}},
 		{"undo", "undo", []string{"ctrl+z"}},
 		{"redo", "redo", []string{"ctrl+y"}},
-		{"space", "flip, or mark the default in a list", []string{"space"}},
+		{"space", "flip, or mark the value in a list", []string{"space"}},
 		{"filter", "filter a list", []string{"f", "/"}},
 		{"save", "save the step", []string{"ctrl+s"}},
 		{"help", "hide or show the help", []string{"v"}},
