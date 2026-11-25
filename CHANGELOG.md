@@ -42,6 +42,9 @@ the shortcut is `Alt` by default. How to write an entry is in
   and triggers go with a moved flow, and the calls of a moved function follow it.
 - The keys popup (`?`) and other text popups filter their lines with `f` or `/`, scroll with the
   mouse wheel and tell which lines show when the text is taller than the popup.
+- The demo installs its flows and functions in a folder `demo`, as its scripts, and moves the
+  ones an older noct installed outside it there; they still run by their names alone, as
+  `noct flow run demo-deploy`.
 - The inspect opens on the flow selected last, and a saved session remembers the flow of each
   inspect and the script of each scripts panel. One that is gone leaves the panel on the first
   of its list.
