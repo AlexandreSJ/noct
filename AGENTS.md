@@ -21,6 +21,8 @@
 - `third_party/` holds patched copies of two Charm libraries; change them only as `third_party/README.md` says.
 - Inspect editing happens in the panel (`inspectEditor`), never in a chain of prompts; a new step kind gets its form in `internal/app/flow_step_kinds.go` (ADR-071).
 - Editor hints fit one row (`hintsInOneRow`); what does not fit goes to `?`.
+- Inspect editors are `editGrid`s: navigate first, `enter` or a click edits; new editor keys go in the `flow-editor` context, never `alt` (noct's direct shortcut).
+- List a flow's params with `f.ParamNames()`, never by sorting `f.Params`: their order is the user's.
 - UI, docs and examples name variables short (`{{.output}}`); `{{.steps.<id>.…}}` only where `flow.Readable` keeps it.
 
 ## Commands

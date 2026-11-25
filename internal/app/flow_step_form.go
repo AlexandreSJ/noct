@@ -12,8 +12,8 @@ import (
 )
 
 // A step is added or changed in the inspect from one form in place of the chart: a row for each
-// thing it takes, with the variables it can read listed beside them. enter adds or saves it from
-// any row, and esc leaves it as it was.
+// thing it takes, with the variables it can read listed beside them. ctrl+s, or the button after
+// the rows, adds or saves it, and esc leaves it as it was.
 
 // stepField is one row of a step form.
 type stepField struct {
@@ -37,10 +37,11 @@ type stepField struct {
 type stepFormSpec struct {
 	title  string
 	fields []stepField
-	// named rows take a name in the label column too, as a set step's variables, with an empty
-	// row last to add one more, which asks what rowField does.
+	// named rows take a name in the label column too, as a set step's variables; each asks what
+	// rowField does, and the button + add <adds> adds one.
 	named    bool
 	rowField stepField
+	adds     string
 	build    func(values []formValue) (flow.Step, error)
 	// finish, when set, saves the step built in its own way, as adding a custom agent first.
 	finish func(step flow.Step, save func(flow.Step) error) error
@@ -49,16 +50,19 @@ type stepFormSpec struct {
 	saveValues func(values []formValue) error
 }
 
-// formValue is what a row of a step form holds: its name, in a named form, and its value.
-type formValue struct{ name, value string }
+// formValue is what a row of a step form holds: its name, in a named form, and its value, with
+// a list's items.
+type formValue struct {
+	name, value string
+	items       []string
+}
 
 type stepForm struct {
 	app  *App
 	spec stepFormSpec
 	grid editGrid
-	// adding tells enter's word: add for a new step, save for a step changed.
-	adding  bool
-	save    func(flow.Step) error
+	save func(flow.Step) error
+	// message is why the last save was refused.
 	message string
 	// values are the variables in scope with their last values, for the help.
 	values map[string]string
@@ -70,16 +74,18 @@ const (
 )
 
 func (a *App) newStepForm(spec stepFormSpec, vars []flow.Variable, values map[string]string, adding bool, save func(flow.Step) error) *stepForm {
-	form := &stepForm{app: a, spec: spec, adding: adding, save: save, values: values}
+	form := &stepForm{app: a, spec: spec, save: save, values: values}
 	form.grid.variables = flow.Readable(vars)
+	form.grid.arranged = spec.named
 	for _, field := range spec.fields {
 		form.grid.rows = append(form.grid.rows, form.row(field))
 	}
 	if spec.named {
-		form.grid.rows = append(form.grid.rows, form.row(spec.rowField))
+		form.grid.buttons = append(form.grid.buttons, "+ add "+orDefault(spec.adds, "row"))
 	}
+	form.grid.buttons = append(form.grid.buttons, map[bool]string{true: "add step", false: "save"}[adding && spec.saveValues == nil])
 	form.showRows()
-	form.grid.focus(0, form.firstColumn())
+	form.grid.focusNear(0, form.firstColumn())
 	return form
 }
 
@@ -88,13 +94,10 @@ func (s *stepForm) showRows() {
 	values := s.formValues()
 	for i := range s.grid.rows {
 		if when := s.field(i).when; when != nil {
-			s.grid.rows[i][stepFormValueColumn].skip = !when(values)
+			s.grid.rows[i].hidden = !when(values)
 		}
 	}
-}
-
-func (s *stepForm) hidden(row int) bool {
-	return !s.spec.named && s.grid.rows[row][stepFormValueColumn].skip
+	s.grid.keepFocus()
 }
 
 func (s *stepForm) firstColumn() int {
@@ -104,16 +107,16 @@ func (s *stepForm) firstColumn() int {
 	return stepFormValueColumn
 }
 
-func (s *stepForm) row(field stepField) []gridCell {
+func (s *stepForm) row(field stepField) gridRow {
 	label := textCellOf(field.label)
 	label.skip = !s.spec.named
 	field.cell.template = field.template
-	return []gridCell{label, field.cell}
+	return gridRow{cells: []gridCell{label, field.cell}}
 }
 
-// field is the spec of a row; the rows a named form adds ask what its rowField does.
+// field is the spec of a row: a named form's rows all ask what its rowField does.
 func (s *stepForm) field(row int) stepField {
-	if row >= len(s.spec.fields) {
+	if s.spec.named || row >= len(s.spec.fields) {
 		return s.spec.rowField
 	}
 	return s.spec.fields[row]
@@ -121,9 +124,12 @@ func (s *stepForm) field(row int) stepField {
 
 // note tells about the focused row: what it takes, or about the value chosen.
 func (s *stepForm) note() string {
+	if _, onButton := s.grid.button(); onButton {
+		return ""
+	}
 	field := s.field(s.grid.row)
 	if field.describe != nil {
-		return field.describe(s.grid.rows[s.grid.row][stepFormValueColumn].value())
+		return field.describe(s.grid.at(s.grid.row, stepFormValueColumn).value())
 	}
 	return field.note
 }
@@ -131,88 +137,96 @@ func (s *stepForm) note() string {
 func (s *stepForm) formValues() []formValue {
 	values := make([]formValue, len(s.grid.rows))
 	for i, row := range s.grid.rows {
-		values[i] = formValue{strings.TrimSpace(row[stepFormLabelColumn].value()), strings.TrimSpace(row[stepFormValueColumn].value())}
+		cell := row.cells[stepFormValueColumn]
+		values[i] = formValue{strings.TrimSpace(row.cells[stepFormLabelColumn].value()), strings.TrimSpace(cell.value()), cell.items}
 	}
 	return values
 }
 
 // problem is why a row's name or value does not fit, or "".
 func (s *stepForm) problem(row int) string {
+	if row >= len(s.grid.rows) {
+		return ""
+	}
 	return orDefault(s.nameProblem(row), s.valueProblem(row))
 }
 
-// nameProblem is why a named form's row cannot have its name. A row the form opened with is
-// left out once its name is emptied; a row added has its value lost without one.
+// nameProblem is why a named form's row cannot have its name; a row without a name or a value
+// is left out.
 func (s *stepForm) nameProblem(row int) string {
-	name := strings.TrimSpace(s.grid.rows[row][stepFormLabelColumn].value())
-	value := strings.TrimSpace(s.grid.rows[row][stepFormValueColumn].value())
+	name := strings.TrimSpace(s.grid.at(row, stepFormLabelColumn).value())
+	value := strings.TrimSpace(s.grid.at(row, stepFormValueColumn).value())
 	switch {
-	case !s.spec.named || name == "" && (value == "" || row < len(s.spec.fields)):
+	case !s.spec.named || name == "" && value == "":
 		return ""
 	case name == "":
-		return "a name is needed for this value"
+		return "a name is needed for this value; ctrl+delete removes it"
 	}
 	return checkVariable(name)
 }
 
 func (s *stepForm) valueProblem(row int) string {
 	check := s.field(row).check
-	if check == nil || s.hidden(row) || s.spec.named && strings.TrimSpace(s.grid.rows[row][stepFormLabelColumn].value()) == "" {
+	if check == nil || s.grid.rows[row].hidden || s.spec.named && strings.TrimSpace(s.grid.at(row, stepFormLabelColumn).value()) == "" {
 		return ""
 	}
-	return check(strings.TrimSpace(s.grid.rows[row][stepFormValueColumn].value()))
+	return check(strings.TrimSpace(s.grid.at(row, stepFormValueColumn).value()))
 }
 
 func (s *stepForm) title() string { return s.spec.title }
 
 func (s *stepForm) hints() string {
-	if s.adding {
-		return "{enter} add  {tab} next  esc cancel"
-	}
-	return "{enter} save  {tab} next  esc cancel"
+	return s.grid.hints("{enter} edit  {ctrl+s} save  esc cancel  {?} keys")
 }
+
+func (s *stepForm) typing() bool { return s.grid.typing() }
 
 func (s *stepForm) handleKey(key uv.KeyPressEvent) bool {
-	switch key.String() {
-	case "esc":
-		return true
-	case "enter":
+	switch name := key.String(); {
+	case name == "ctrl+s":
+		s.after(s.grid.settle())
 		return s.submit()
+	case s.grid.busy():
+	case name == "esc":
+		return true
+	case name == "?":
+		s.app.showContextKeys("flow-editor", "step form keys")
+		return false
 	}
+	return s.after(s.grid.handleKey(key))
+}
+
+func (s *stepForm) mouse(event uv.MouseEvent, at image.Point) bool {
+	return s.after(s.grid.mouse(event, at))
+}
+
+// after adds a named row or saves the step when a button is pressed, telling whether the form
+// is done, and shows the rows the values now call for.
+func (s *stepForm) after(out gridOutcome) bool {
 	s.message = ""
-	if s.grid.handleKey(key) {
-		s.changed()
+	if out&gridChanged != 0 {
+		s.showRows()
 	}
-	return false
+	if out&gridPressed == 0 {
+		return false
+	}
+	if button, _ := s.grid.button(); s.spec.named && button == 0 {
+		s.grid.addRow(s.row(s.spec.rowField))
+		s.grid.focus(len(s.grid.rows)-1, stepFormLabelColumn)
+		s.grid.startEdit()
+		return false
+	}
+	return s.submit()
 }
 
-func (s *stepForm) changed() {
-	if s.spec.named {
-		s.keepAnEmptyRow()
-	}
-	s.showRows()
-}
-
-func (s *stepForm) paste(text string) {
-	if s.grid.paste(text) {
-		s.changed()
-	}
-}
-
-// keepAnEmptyRow adds a row to a named form once its last one has a name.
-func (s *stepForm) keepAnEmptyRow() {
-	last := s.grid.rows[len(s.grid.rows)-1]
-	if last[stepFormLabelColumn].value() != "" {
-		s.grid.rows = append(s.grid.rows, s.row(s.spec.rowField))
-	}
-}
+func (s *stepForm) paste(text string) { s.grid.paste(text) }
 
 // submit makes the step and saves it, telling whether the form is done; a value that does not
 // fit, or a step the flow refuses, keeps it open with the reason.
 func (s *stepForm) submit() bool {
 	for i := range s.grid.rows {
 		if problem := s.problem(i); problem != "" {
-			s.grid.focus(i, stepFormValueColumn)
+			s.grid.focusNear(i, stepFormValueColumn)
 			s.message = problem
 			return false
 		}
@@ -242,45 +256,49 @@ func (s *stepForm) done(err error) bool {
 
 func (s *stepForm) draw(screen uv.Screen, area image.Rectangle, helpBeside bool) {
 	pal := &s.app.palette
+	s.grid.hits = s.grid.hits[:0]
 	labelWidth := 8
 	for _, row := range s.grid.rows {
-		labelWidth = max(labelWidth, ansi.StringWidth(row[stepFormLabelColumn].value()))
+		labelWidth = max(labelWidth, ansi.StringWidth(row.cells[stepFormLabelColumn].value()))
 	}
-	valueX := area.Min.X + 1 + labelWidth + 2
+	left := area.Min.X + 1
+	if s.spec.named {
+		left = area.Min.X + moveGutter
+	}
+	valueX := left + labelWidth + 2
 	y := area.Min.Y
-	for i, row := range s.grid.rows {
-		if s.hidden(i) {
+	for _, row := range s.grid.window(area.Dy() - 1) {
+		if b, ok := s.grid.buttonAt(row); ok {
+			s.grid.drawButton(screen, image.Rect(left, y, area.Max.X-1, y+1), row, b, pal)
+			y++
 			continue
 		}
-		if y >= area.Max.Y-2 {
-			break
+		if row == s.grid.row {
+			s.grid.drawMoveArrows(screen, image.Pt(area.Min.X, y), pal)
 		}
-		for column, cell := range row {
-			x, width := area.Min.X+1, labelWidth
-			if column == stepFormValueColumn {
-				x, width = valueX, area.Max.X-1-valueX
-			}
-			s.drawCell(screen, x, y, width, i, column, &cell)
-		}
+		s.drawCell(screen, image.Rect(left, y, left+labelWidth, y+1), row, stepFormLabelColumn)
+		s.drawCell(screen, image.Rect(valueX, y, area.Max.X-1, y+1), row, stepFormValueColumn)
 		y++
 	}
 	if !helpBeside {
 		s.drawSuggestions(screen, area, valueX)
 	}
 	note, style := s.note(), pal.panelMuted
-	if s.message != "" || s.problem(s.grid.row) != "" {
-		note, style = "✗ "+orDefault(s.message, s.problem(s.grid.row)), pal.failure
+	if problem := orDefault(s.message, s.problem(s.grid.row)); problem != "" {
+		note, style = "✗ "+problem, pal.failure
 	}
 	drawTextCut(screen, area.Min.X+1, area.Max.Y-1, area.Max.X-1, note, style)
+	s.grid.drawOverlay(screen, area, pal)
 }
 
-// drawSuggestions lists under the focused row the variables that complete what is typed, for a
+// drawSuggestions lists under the cell typed in the variables that complete what is typed, for a
 // panel too narrow for the help beside.
 func (s *stepForm) drawSuggestions(screen uv.Screen, area image.Rectangle, x int) {
 	matches, _ := s.grid.suggestions()
+	at, ok := s.grid.focusRect()
 	for i, name := range matches[:min(len(matches), maxSuggestions)] {
-		y := area.Min.Y + s.shownAbove(s.grid.row) + 1 + i
-		if y >= area.Max.Y-1 {
+		y := at.Max.Y + i
+		if !ok || y >= area.Max.Y-1 {
 			return
 		}
 		style := s.app.palette.panelMuted
@@ -292,34 +310,28 @@ func (s *stepForm) drawSuggestions(screen uv.Screen, area image.Rectangle, x int
 	}
 }
 
-// shownAbove counts the rows drawn above row, which is where row is drawn.
-func (s *stepForm) shownAbove(row int) int {
-	count := 0
-	for i := range row {
-		if !s.hidden(i) {
-			count++
-		}
-	}
-	return count
-}
-
-func (s *stepForm) drawCell(screen uv.Screen, x, y, width, row, column int, cell *gridCell) {
+func (s *stepForm) drawCell(screen uv.Screen, rect image.Rectangle, row, column int) {
 	pal := &s.app.palette
-	focused := row == s.grid.row && column == s.grid.col
+	cell := s.grid.at(row, column)
 	style := pal.panelText
 	switch {
 	case column == stepFormLabelColumn && !s.spec.named:
 		style = pal.panelMuted
 	case column == stepFormLabelColumn && s.nameProblem(row) != "", column == stepFormValueColumn && s.valueProblem(row) != "":
 		style = pal.failure
-	case focused:
-		style = pal.typing()
 	}
-	if focused && cell.kind == textCell {
-		s.grid.rows[row][column].field.draw(screen, x, y, width, false, style, pal.selectedRow)
+	text := cell.value()
+	switch cell.kind {
+	case optionCell:
+		text = optionText(text)
+	case listCell:
+		text = listText(cell)
+	}
+	if cell.skip {
+		drawTextCut(screen, rect.Min.X, rect.Min.Y, rect.Max.X, text, style)
 		return
 	}
-	drawTextCut(screen, x, y, x+width, cell.value(), style)
+	s.grid.drawCell(screen, rect, row, column, text, style, pal)
 }
 
 // help is the row's note and examples, then the variables in scope: the ones that complete what
@@ -327,8 +339,10 @@ func (s *stepForm) drawCell(screen uv.Screen, x, y, width, row, column int, cell
 func (s *stepForm) help() []styledLine {
 	pal := &s.app.palette
 	lines := []styledLine{{s.note(), pal.panelText}}
-	for _, example := range s.field(s.grid.row).examples {
-		lines = append(lines, styledLine{example, pal.panelMuted})
+	if _, onButton := s.grid.button(); !onButton {
+		for _, example := range s.field(s.grid.row).examples {
+			lines = append(lines, styledLine{example, pal.panelMuted})
+		}
 	}
 	lines = append(lines, styledLine{"", pal.panelText}, styledLine{"variables here", pal.panelHeading})
 	matches, _ := s.grid.suggestions()

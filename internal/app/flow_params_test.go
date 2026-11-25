@@ -9,6 +9,7 @@ import (
 
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/script"
+	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 )
 
 const calcFlow = `params:
@@ -80,16 +81,16 @@ func TestInspectAddsVariableSteps(t *testing.T) {
 	saveFlow(t, "vars", "params: {b: \"1\"}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	pressDrawn(a, letter('a'), letter('p'))
-	typeDrawn(a, "New b?")
-	pressDrawn(a, tabPress)
-	typeDrawn(a, "b")
-	pressDrawn(a, enterPress, letter('a'), letter('v'))
+	setCell(a, "New b?")
+	pressDrawn(a, letter('j'))
+	setCell(a, "b")
+	pressDrawn(a, ctrlS, letter('a'), letter('v'), enterPress)
 	typeDrawn(a, "sum")
 	pressDrawn(a, tabPress)
-	typeDrawn(a, "{{.b}}")
-	pressDrawn(a, enterPress, letter('a'), letter('u'))
-	typeDrawn(a, "sum, steps.x b")
-	pressDrawn(a, enterPress)
+	setCell(a, "{{.b}}")
+	pressDrawn(a, ctrlS, letter('a'), letter('u'))
+	addItems(a, "sum", "steps.x", "b")
+	pressDrawn(a, ctrlS)
 	if a.statusMessage != "" {
 		t.Fatalf("status: %s", a.statusMessage)
 	}
@@ -136,7 +137,7 @@ func TestAFlowParamFromTheEnvironment(t *testing.T) {
 	if a.mode != formMode || len(a.form.fields) != 2 || !a.form.fields[slices.IndexFunc(a.form.fields, func(p script.Param) bool { return p.Name == "token" })].Secret {
 		t.Fatalf("p with DEPLOY_TOKEN unset: mode %v, fields %+v; want token asked, masked", a.mode, a.form.fields)
 	}
-	pressDrawn(a, tabPress, clearLine) // env, then token
+	pressDrawn(a, clearLine) // token first, as the flow writes it
 	typeDrawn(a, "typed")
 	if strings.Contains(screenText(a), "typed") {
 		t.Errorf("the token shows as typed:\n%s", screenText(a))
@@ -158,8 +159,9 @@ func TestAFlowParamFromTheEnvironment(t *testing.T) {
 	}
 }
 
-// a on the params card opens the params table on a new row: a letter picks the type, tab goes
-// to the next cell that applies, and esc saves the rows that are valid.
+// a on the params card opens the params table on a new row, its name typed in at once; the type
+// is picked from a menu, an option's options are a list with its default marked, and each row is
+// saved as it changes.
 func TestTheParamsTableAddsEveryType(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 50)
@@ -170,17 +172,29 @@ func TestTheParamsTableAddsEveryType(t *testing.T) {
 		t.Fatalf("up twice from the first step selected %q:\n%s", p.selected, screenText(a))
 	}
 	pressDrawn(a, letter('a'))
+	typeDrawn(a, "env")
+	pressDrawn(a, enterPress, letter('h'))
 	screen := screenText(a)
 	for _, kind := range flow.ParamTypes {
 		if !strings.Contains(screen, kind+"  "+paramTypeNotes[kind]) {
 			t.Errorf("the help lacks the type %s:\n%s", kind, screen)
 		}
 	}
-	pressDrawn(a, letter('o'), tabPress)
-	typeDrawn(a, "env")
-	pressDrawn(a, tabPress, tabPress)
-	typeDrawn(a, "dev prod")
-	pressDrawn(a, backTab, spacePress, spacePress, escPress)
+	pressDrawn(a, enterPress, letter('j'), letter('j'), letter('j'), enterPress, letter('l'), letter('l'))
+	if !strings.Contains(screenText(a), "no options") {
+		t.Errorf("an option without options does not say so:\n%s", screenText(a))
+	}
+	pressDrawn(a, enterPress)
+	for _, option := range []string{"dev", "prod"} {
+		pressDrawn(a, ctrlDown, enterPress)
+		typeDrawn(a, option)
+		pressDrawn(a, enterPress)
+	}
+	pressDrawn(a, spacePress, escPress)
+	if !strings.Contains(screenText(a), `"prod" +1`) {
+		t.Errorf("the default cell does not show prod and one more:\n%s", screenText(a))
+	}
+	pressDrawn(a, escPress)
 	got := loadFlowParams(t, "typed")["env"]
 	if got.Type != flow.OptionParam || !slices.Equal(got.Choices, []string{"dev", "prod"}) || got.Default != "prod" {
 		t.Fatalf("saved %+v, want an option of dev and prod, prod by default", got)
@@ -189,10 +203,10 @@ func TestTheParamsTableAddsEveryType(t *testing.T) {
 		t.Errorf("the params card does not list env:\n%s", screenText(a))
 	}
 
-	pressDrawn(a, letter('a'), tabPress)
+	pressDrawn(a, letter('a'))
 	typeDrawn(a, "token")
-	pressDrawn(a, tabPress, tabPress) // the default, then past the options a text has not
-	typeDrawn(a, "TOKEN")
+	pressDrawn(a, enterPress, letter('l'), letter('l'))
+	setCell(a, "TOKEN")
 	pressDrawn(a, escPress)
 	if got := loadFlowParams(t, "typed")["token"]; got.From != "env:TOKEN" {
 		t.Errorf("saved %+v, want it read from $TOKEN", got)
@@ -202,6 +216,21 @@ func TestTheParamsTableAddsEveryType(t *testing.T) {
 	field := a.form.fields[slices.IndexFunc(a.form.fields, func(p script.Param) bool { return p.Name == "env" })]
 	if !slices.Equal(field.Choices, []string{"dev", "prod"}) {
 		t.Errorf("the form's env is %+v, want its choices", field)
+	}
+}
+
+// A list param's default is a list of items, each text or JSON, saved as a JSON list.
+func TestAListParamTakesItsItemsInAList(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "hosts", "params: {hosts: {type: list, default: '[\"a\"]'}}\nsteps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress, letter('l'), letter('l'))
+	addItems(a, "b c", `{"port": 1}`)
+	if !strings.Contains(screenText(a), `"a" +2`) {
+		t.Errorf("the default cell does not show a and two more:\n%s", screenText(a))
+	}
+	if got := loadFlowParams(t, "hosts")["hosts"]; got.Default != `["a","b c",{"port":1}]` {
+		t.Errorf("saved %q", got.Default)
 	}
 }
 
@@ -229,51 +258,56 @@ func openParamsTable(t *testing.T, a *App) *paramsTable {
 func TestAParamRowThatIsNotValidWaitsToBeFixed(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "hosts", "params: {env: dev}\nsteps: []\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, letter('a'), letter('l'), tabPress)
-	typeDrawn(a, "hosts")
-	pressDrawn(a, tabPress)
-	typeDrawn(a, "a, b")
-	if !strings.Contains(screenText(a), `✗ default: the default must be a JSON list, as ["a", "b"]`) {
+	saveFlow(t, "ports", "params: {env: dev}\nsteps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, letter('a'))
+	typeDrawn(a, "port")
+	pressDrawn(a, enterPress, letter('h'), enterPress, letter('j'), enterPress, letter('l'), letter('l'))
+	setCell(a, "x")
+	if !strings.Contains(screenText(a), `✗ default: the default must be a number, not "x"`) {
 		t.Errorf("the table does not say why the row waits:\n%s", screenText(a))
 	}
 	pressDrawn(a, escPress)
-	if _, saved := loadFlowParams(t, "hosts")["hosts"]; saved {
-		t.Fatal("a list param with a default that is not JSON was saved")
+	if got := loadFlowParams(t, "ports")["port"]; got.Default != "" || got.Type != flow.NumberParam {
+		t.Fatalf("saved %+v, want the number as it was before x", got)
 	}
 	if !strings.Contains(a.notice, "1 param not saved") {
 		t.Errorf("notice %q", a.notice)
 	}
 	pressDrawn(a, enterPress)
 	table := openParamsTable(t, a)
-	if name, p := table.param(table.grid.row); name != "hosts" || p.Default != "a, b" {
+	if name, p := table.param(table.grid.row); name != "port" || p.Default != "x" {
 		t.Fatalf("the table opened again on %q %+v, want the row left", name, p)
 	}
-	pressDrawn(a, clearLine)
-	typeDrawn(a, `["a", "b"]`)
+	setCell(a, "8080")
 	pressDrawn(a, escPress)
-	if got := loadFlowParams(t, "hosts")["hosts"]; got.Type != flow.ListParam || got.Default != `["a", "b"]` {
+	if got := loadFlowParams(t, "ports")["port"]; got.Type != flow.NumberParam || got.Default != "8080" {
 		t.Errorf("saved %+v", got)
 	}
 }
 
-// Emptying a param's name removes it once the focus leaves its row; a name another row has, or
-// still has in the file, waits until that row lets it go.
-func TestTheParamsTableRemovesAndRenames(t *testing.T) {
+// ctrl+delete removes a param and K moves it, both saved at once; undo and
+// redo walk them back and forth, and a name another row has is told.
+func TestTheParamsTableRemovesMovesAndRenames(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
 	saveFlow(t, "pair", "params: {a: '1', b: '2', c: '3'}\nsteps: []\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress, tabPress, clearLine)
-	typeDrawn(a, "b")
-	pressDrawn(a, downPress, clearLine)
-	typeDrawn(a, "a")
-	if !strings.Contains(screenText(a), "another param is a") {
-		t.Errorf("two rows named a are not told:\n%s", screenText(a))
+	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress, letter('l'))
+	setCell(a, "b")
+	if !strings.Contains(screenText(a), "another param is b") {
+		t.Errorf("two rows named b are not told:\n%s", screenText(a))
 	}
-	pressDrawn(a, downPress, clearLine, escPress)
-	params := loadFlowParams(t, "pair")
-	if _, removed := params["c"]; len(params) != 2 || removed || params["a"].Default != "1" || params["b"].Default != "2" {
-		t.Errorf("params %+v, want c removed and a and b as they were", params)
+	pressDrawn(a, ctrlZ, letter('j'), letter('j'), ctrlDelete)
+	if params := loadFlowParams(t, "pair"); len(params) != 2 || params["a"].Default != "1" {
+		t.Fatalf("params %+v, want c removed and a as it was", params)
+	}
+	pressDrawn(a, ctrlZ)
+	if _, back := loadFlowParams(t, "pair")["c"]; !back {
+		t.Fatal("undo did not bring c back")
+	}
+	pressDrawn(a, ctrlY, letter('k'), moveUp, escPress)
+	f, err := flow.Load(filepath.Join(flow.Dir(), "pair"+flow.Ext))
+	if err != nil || !slices.Equal(f.ParamNames(), []string{"b", "a"}) {
+		t.Errorf("params %v, %v; want b moved above a, c removed again", f.ParamNames(), err)
 	}
 }
 
@@ -304,8 +338,8 @@ func TestANewParamRowNeedsAName(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
 	saveFlow(t, "named", "steps: []\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, letter('a'), tabPress, tabPress)
-	typeDrawn(a, "dev")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, letter('a'), escPress, letter('l'))
+	setCell(a, "dev")
 	if !strings.Contains(screenText(a), "✗ name: a param needs a name") {
 		t.Errorf("the row does not ask for a name:\n%s", screenText(a))
 	}
@@ -315,15 +349,66 @@ func TestANewParamRowNeedsAName(t *testing.T) {
 	}
 }
 
-// A param whose default its type refuses can still be removed by emptying its name.
+// A param whose default its type refuses can still be removed.
 func TestAParamWithABadDefaultCanBeRemoved(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
 	saveFlow(t, "bad", "params: {n: {type: number, default: '1'}, keep: x}\nsteps: []\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress, downPress, tabPress, tabPress)
-	typeDrawn(a, "z")
-	pressDrawn(a, backTab, clearLine, escPress)
+	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress, letter('l'), letter('l'))
+	setCell(a, "z")
+	pressDrawn(a, ctrlDelete, escPress)
 	if params := loadFlowParams(t, "bad"); len(params) != 1 || params["keep"].Default != "x" {
 		t.Errorf("params %+v, want n removed", params)
+	}
+}
+
+// A click on a cell edits it as enter does, a click on + add param adds one, and the wheel
+// moves through the rows.
+func TestTheParamsTableTakesTheMouse(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "clicks", "params: {a: '1', b: '2'}\nsteps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress)
+	table := openParamsTable(t, a)
+	click := func(row, col int) {
+		t.Helper()
+		for _, h := range table.grid.hits {
+			if h.row == row && h.col == col {
+				a.handleEvent(uv.MouseClickEvent{X: h.rect.Min.X, Y: h.rect.Min.Y, Button: uv.MouseLeft})
+				drawApp(a)
+				return
+			}
+		}
+		t.Fatalf("no cell %d,%d drawn", row, col)
+	}
+	click(1, paramNameColumn)
+	if table.grid.row != 1 || table.grid.col != paramNameColumn || !table.grid.editing {
+		t.Fatalf("the click left the focus on %d,%d, editing %v", table.grid.row, table.grid.col, table.grid.editing)
+	}
+	click(2, 0)
+	if len(table.grid.rows) != 3 || !table.grid.editing || table.grid.col != paramNameColumn {
+		t.Fatalf("a click on + add param: %d rows, editing %v", len(table.grid.rows), table.grid.editing)
+	}
+	pressDrawn(a, escPress)
+	at := table.grid.hits[0].rect.Min
+	a.handleEvent(uv.MouseWheelEvent{X: at.X, Y: at.Y, Button: uv.MouseWheelUp})
+	if table.grid.row != 1 {
+		t.Errorf("the wheel up went to row %d", table.grid.row)
+	}
+}
+
+// An option's default that is none of its options is told, and kept as the file has it.
+func TestAnOptionDefaultOutsideItsOptionsIsKept(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "zones", "params: {region: {type: option, choices: [a, b], default: c}}\nsteps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress, ctrlRight, letter('h'), letter('h'))
+	setCell(a, "Region")
+	if !strings.Contains(screenText(a), `must be one of a, b, not "c"`) {
+		t.Errorf("the default c is not told:\n%s", screenText(a))
+	}
+	pressDrawn(a, escPress)
+	if got := loadFlowParams(t, "zones")["region"]; got.Default != "c" || got.Prompt != "" {
+		t.Errorf("saved %+v, want the row kept as the file has it", got)
 	}
 }

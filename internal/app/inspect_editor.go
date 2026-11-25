@@ -15,6 +15,10 @@ type inspectEditor interface {
 	// handleKey tells whether the editor is done and closes.
 	handleKey(key uv.KeyPressEvent) (done bool)
 	paste(text string)
+	// mouse clicks or scrolls the editor at a point on the screen, and tells whether it is done.
+	mouse(event uv.MouseEvent, at image.Point) (done bool)
+	// typing tells the keys type text as they are pressed, so none of them is a shortcut.
+	typing() bool
 	// draw draws the editor in area; without the help beside it, it shows what it must itself.
 	draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 	// help is what the focused cell takes and what it can read, for the pane beside.
@@ -28,7 +32,7 @@ const editorHelpWidth = 40
 // drawEditor frames the editor in area, with its help beside it when there is room.
 func (p *inspectPanel) drawEditor(screen uv.Screen, area image.Rectangle) {
 	pal := &p.app.palette
-	helpBeside := area.Dx() >= editorHelpWidth+40
+	helpBeside := !p.helpHidden && area.Dx() >= editorHelpWidth+40
 	if helpBeside {
 		helpArea := image.Rect(area.Max.X-editorHelpWidth, area.Min.Y, area.Max.X, area.Max.Y)
 		area.Max.X = helpArea.Min.X

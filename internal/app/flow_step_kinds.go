@@ -147,28 +147,27 @@ func switchForm(s flow.Step) stepFormSpec {
 		title: "switch",
 		fields: []stepField{
 			{label: "on", cell: textCellOf(s.Switch), template: true, check: needed("the value"), note: "the value the cases compare", examples: []string{"{{.answer}}", "{{.env}}"}},
-			{label: "cases", cell: textCellOf(casesText(s.Cases)), check: needed("a case"), note: "a case for each word; | puts two in one: bug|regression"},
+			{label: "cases", cell: listCellOf(caseItems(s.Cases), -1, false, "case"), check: needed("a case"), note: "the values each case runs on; | puts two in one: bug|regression"},
 		},
 		build: func(v []formValue) (flow.Step, error) {
-			s.Switch, s.Cases = v[0].value, switchCases(s.Cases, v[1].value)
+			s.Switch, s.Cases = v[0].value, switchCases(s.Cases, v[1].items)
 			return s, nil
 		},
 	}
 }
 
-func casesText(cases []flow.Case) string {
-	var words []string
+func caseItems(cases []flow.Case) []string {
+	var items []string
 	for _, c := range cases {
-		words = append(words, strings.Join(c.Is, "|"))
+		items = append(items, strings.Join(c.Is, "|"))
 	}
-	return strings.Join(words, " ")
+	return items
 }
 
-// switchCases makes a case for each word of text, keeping the steps of the cases already there:
-// a word kept keeps its case's steps, and a word changed takes those of the case it replaced, in
+// switchCases makes a case for each of words, keeping the steps of the cases already there: a
+// word kept keeps its case's steps, and a word changed takes those of the case it replaced, in
 // the same place.
-func switchCases(old []flow.Case, text string) []flow.Case {
-	words := strings.Fields(text)
+func switchCases(old []flow.Case, words []string) []flow.Case {
 	kept := map[string]bool{}
 	for _, word := range words {
 		kept[word] = true
@@ -260,7 +259,7 @@ func promptForm(s flow.Step) stepFormSpec {
 		fields: []stepField{
 			{label: "ask", cell: textCellOf(s.Prompt), template: true, check: needed("a question"), note: "the question whoever watches the run answers"},
 			{label: "into", cell: textCellOf(s.Var), check: checkVariable, note: "the variable the answer goes to, new or not"},
-			{label: "type", cell: optionCellOf(orDefault(s.Type, flow.TextParam), []string{flow.TextParam, flow.NumberParam}), note: "a number asks again until the answer is one; space changes it"},
+			{label: "type", cell: optionCellOf(orDefault(s.Type, flow.TextParam), []string{flow.TextParam, flow.NumberParam}), note: "a number asks again until the answer is one"},
 			{label: "default", cell: textCellOf(s.Default), template: true, note: "what an empty answer gives"},
 		},
 		build: func(v []formValue) (flow.Step, error) {
@@ -275,7 +274,7 @@ func promptForm(s flow.Step) stepFormSpec {
 
 func setForm(s flow.Step) stepFormSpec {
 	row := stepField{note: "a name, then its value: a template; {{.name}} reads it after", template: true}
-	spec := stepFormSpec{title: "set", named: true, rowField: row}
+	spec := stepFormSpec{title: "set", named: true, rowField: row, adds: "variable"}
 	for _, name := range slices.Sorted(maps.Keys(s.Set)) {
 		field := row
 		field.label, field.cell = name, textCellOf(s.Set[name])
@@ -299,9 +298,9 @@ func setForm(s flow.Step) stepFormSpec {
 func unsetForm(s flow.Step) stepFormSpec {
 	return stepFormSpec{
 		title:  "unset",
-		fields: []stepField{{label: "names", cell: textCellOf(strings.Join(s.Unset, " ")), check: needed("a name"), note: "variables, a space between; steps.build clears what step build gave"}},
+		fields: []stepField{{label: "names", cell: listCellOf(s.Unset, -1, false, "name"), check: needed("a name"), note: "the variables it clears; steps.build clears what step build gave"}},
 		build: func(v []formValue) (flow.Step, error) {
-			s.Unset = strings.FieldsFunc(v[0].value, func(r rune) bool { return r == ',' || r == ' ' })
+			s.Unset = v[0].items
 			return s, nil
 		},
 	}
@@ -364,7 +363,7 @@ func scriptValueProblem(p script.Param, value string) string {
 // callForm asks a value for each of the function's params, templates read where the call is.
 func callForm(fn flow.Flow, s flow.Step) stepFormSpec {
 	spec := stepFormSpec{title: "call " + fn.Name}
-	names := slices.Sorted(maps.Keys(fn.Params))
+	names := fn.ParamNames()
 	for _, name := range names {
 		p := fn.Params[name]
 		spec.fields = append(spec.fields, stepField{
@@ -427,14 +426,14 @@ func (a *App) agentForm(s flow.Step) stepFormSpec {
 		title: "AI agent",
 		fields: []stepField{
 			{label: "ask", cell: textCellOf(agent.Ask), template: true, check: needed("a question"), note: "what the agent is asked; {{.answer}} is its answer after"},
-			{label: "answers", cell: textCellOf(strings.Join(agent.Choices, " ")), note: "the answers it may give, a space between; empty takes any"},
-			{label: "agent", cell: optionCellOf(agent.Use, append(names, customAgent)), describe: func(name string) string { return orDefault(notes[name], "space picks another") }},
+			{label: "answers", cell: listCellOf(agent.Choices, -1, false, "answer"), note: "the answers it may give; none takes any"},
+			{label: "agent", cell: optionCellOf(agent.Use, append(names, customAgent)), describe: func(name string) string { return orDefault(notes[name], "the agent that answers") }},
 			{label: "timeout", cell: textCellOf(s.Timeout), check: checkDuration, note: "as 30s or 5m; empty waits as long as it takes"},
 			{label: "name", cell: textCellOf(""), when: custom, check: customAgentProblem, note: "your agent's name, as mymodel; the config keeps it in [agents]"},
 			{label: "command", cell: textCellOf(""), when: custom, check: checkAgentCommand, note: "the command it runs; {prompt} is the question, or it goes as its input"},
 		},
 		build: func(v []formValue) (flow.Step, error) {
-			agent.Ask, agent.Choices, agent.Use = v[0].value, strings.Fields(v[1].value), v[2].value
+			agent.Ask, agent.Choices, agent.Use = v[0].value, v[1].items, v[2].value
 			adding, newAgent, command = agent.Use == customAgent, v[4].value, v[5].value
 			if adding {
 				agent.Use = newAgent

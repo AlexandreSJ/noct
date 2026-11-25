@@ -29,8 +29,8 @@ func TestAFunctionShowsWhoCallsItAndIsCalledFromAStep(t *testing.T) {
 	pressDrawn(a, letter('a'), letter('f'))
 	typeDrawn(a, "greet")
 	pressDrawn(a, enterPress)
-	typeDrawn(a, "{{.output}}")
-	pressDrawn(a, enterPress)
+	setCell(a, "{{.output}}")
+	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "morning")
 	if len(steps) != 2 || steps[1].Call != "greet" || steps[1].With["who"] != "world{{.output}}" && steps[1].With["who"] != "{{.output}}" {
 		t.Fatalf("steps %+v, want a call to greet after wake", steps)
@@ -53,7 +53,7 @@ func TestAFunctionShowsWhoCallsItAndIsCalledFromAStep(t *testing.T) {
 }
 
 // r on a function's params card edits its returns in a form, a name and its template a row;
-// emptying a name takes its return away.
+// ctrl+delete takes a return away.
 func TestAFunctionsReturnsAreEditedInAForm(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
@@ -61,11 +61,11 @@ func TestAFunctionsReturnsAreEditedInAForm(t *testing.T) {
 	pressDrawn(a, prefixPress, letter('i'))
 	p := a.currentTab().focusedView().(*inspectPanel)
 	p.flowName = "ƒ greet"
-	pressDrawn(a, tabPress, upPress, upPress, letter('r'), clearLine, downPress)
+	pressDrawn(a, tabPress, upPress, upPress, letter('r'), ctrlDelete, enterPress)
 	typeDrawn(a, "greeting")
 	pressDrawn(a, tabPress)
-	typeDrawn(a, "{{.output}}")
-	pressDrawn(a, enterPress)
+	setCell(a, "{{.output}}")
+	pressDrawn(a, ctrlS)
 	fn, ok := flow.Find(a.functions, "greet")
 	if !ok || len(fn.Returns) != 1 || fn.Returns["greeting"] != "{{.output}}" {
 		t.Errorf("returns %+v", fn.Returns)

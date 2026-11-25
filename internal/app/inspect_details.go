@@ -120,7 +120,7 @@ func (p *inspectPanel) paramDetails(f flow.Flow) []styledLine {
 		return []styledLine{{"No params: a run asks nothing. a adds one.", pal.panelText}}
 	}
 	lines := []styledLine{{"A run asks for these in a form, or takes them as name=value:", pal.panelHeading}}
-	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
+	for _, name := range f.ParamNames() {
 		param := f.Params[name]
 		lines = append(lines, styledLine{name + "  " + paramText(param), pal.panelText})
 		if param.Prompt != "" {

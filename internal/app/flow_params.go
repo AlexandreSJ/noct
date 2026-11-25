@@ -2,10 +2,12 @@ package app
 
 import (
 	"cmp"
+	"encoding/json"
 	"image"
 	"maps"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -15,15 +17,13 @@ import (
 )
 
 // A flow's params are edited in the inspect as a table, a param a row, like declarations in code:
-// type, name, default and the rest in columns. Each row is saved when the focus leaves it, if it
-// is valid; a cell in the failure color tells what keeps its row from being saved. Emptying a
-// param's name removes it.
+// type, name, default and the rest in columns. A row is saved as it changes, when it is valid, in
+// the order the rows are in; a cell in the failure color tells what keeps it from being saved.
 
 const (
 	paramTypeColumn = iota
 	paramNameColumn
 	paramDefaultColumn
-	paramOptionsColumn
 	paramEnvColumn
 	paramLabelColumn
 	paramRequiredColumn
@@ -35,22 +35,20 @@ type gridColumn struct {
 	width int
 	// grows takes a share of the room the columns leave.
 	grows bool
-	// text columns type ? as text rather than open the keys.
-	text bool
 }
 
 var paramColumns = []gridColumn{
 	{title: "type", width: 7},
 	{title: "name", width: 10, grows: true},
-	{title: "default", width: 10, grows: true, text: true},
-	{title: "options", width: 8, grows: true, text: true},
+	{title: "default", width: 12, grows: true},
 	{title: "from env", width: 8, grows: true},
-	{title: "label", width: 8, grows: true, text: true},
+	{title: "label", width: 8, grows: true},
 	{title: "required", width: 8},
 	{title: "secret", width: 6},
 }
 
-const paramsTableHints = "{tab} next  {enter} new param  esc close  {?} all keys"
+// moveGutter is the room before a row, where the focused one has the arrows that move it.
+const moveGutter = 3
 
 // paramTypeNotes say what each type holds, for the help beside the table.
 var paramTypeNotes = map[string]string{
@@ -63,98 +61,141 @@ var paramTypeNotes = map[string]string{
 	flow.ObjectParam:  `JSON: {"key": "value"}`,
 }
 
+var booleanOptions = append([]string{""}, flow.BooleanValues...)
+
 type paramsTable struct {
 	app  *App
 	flow flow.Flow
 	grid editGrid
-	// names are each row's param name in the file, "" for a row not saved yet; edited marks the
-	// rows changed since they were saved.
-	names  []string
-	edited []bool
+	// seen are the names the table has had, so a save keeps the params added to the file since.
+	seen map[string]bool
 }
 
 func (a *App) newParamsTable(f flow.Flow) *paramsTable {
-	t := &paramsTable{app: a, flow: f}
-	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
-		t.addRow(name, f.Params[name])
-	}
-	if len(f.Params) == 0 {
-		t.addRow("", flow.Param{})
+	t := &paramsTable{app: a, flow: f, seen: map[string]bool{}}
+	t.grid.buttons, t.grid.arranged = []string{"+ add param"}, true
+	for _, name := range f.ParamNames() {
+		t.grid.rows = append(t.grid.rows, paramRow(name, f.Params[name]))
+		t.seen[name] = true
 	}
 	return t
 }
 
-func (t *paramsTable) addRow(name string, p flow.Param) {
+func paramRow(name string, p flow.Param) gridRow {
 	env, _ := p.EnvName()
-	row := make([]gridCell, len(paramColumns))
-	row[paramTypeColumn] = optionCellOf(cmp.Or(p.Type, flow.TextParam), flow.ParamTypes)
-	row[paramNameColumn] = textCellOf(name)
-	row[paramDefaultColumn] = textCellOf(p.Default)
-	row[paramOptionsColumn] = textCellOf(strings.Join(p.Choices, " "))
-	row[paramEnvColumn] = textCellOf(env)
-	row[paramLabelColumn] = textCellOf(p.Prompt)
-	row[paramRequiredColumn] = gridCell{kind: toggleCell, on: p.Required}
-	row[paramSecretColumn] = gridCell{kind: toggleCell, on: p.Secret}
-	t.grid.rows = append(t.grid.rows, row)
-	t.names = append(t.names, name)
-	t.edited = append(t.edited, false)
-	t.fitRow(len(t.grid.rows) - 1)
+	cells := make([]gridCell, len(paramColumns))
+	cells[paramTypeColumn] = optionCellOf(cmp.Or(p.Type, flow.TextParam), flow.ParamTypes)
+	cells[paramNameColumn] = textCellOf(name)
+	cells[paramDefaultColumn] = defaultCell(p)
+	cells[paramEnvColumn] = textCellOf(env)
+	cells[paramLabelColumn] = textCellOf(p.Prompt)
+	cells[paramRequiredColumn] = gridCell{kind: toggleCell, on: p.Required}
+	cells[paramSecretColumn] = gridCell{kind: toggleCell, on: p.Secret}
+	return gridRow{cells: cells, key: name}
 }
 
-// fitRow makes a row's cells follow its type: options only for an option, and a default picked
-// from the values of a boolean or an option.
-func (t *paramsTable) fitRow(i int) {
-	row := t.grid.rows[i]
-	row[paramOptionsColumn].skip = row[paramTypeColumn].value() != flow.OptionParam
-	_, p := t.param(i)
-	if values := p.Values(); values != nil {
-		row[paramDefaultColumn] = optionCellOf(p.Default, append([]string{""}, values...))
-		return
+// defaultCell is how a param's default is given for its type: picked for a boolean, marked
+// among the options of an option, as items for a list, typed for the rest.
+func defaultCell(p flow.Param) gridCell {
+	var cell gridCell
+	switch items, isList := flow.ListItems(p.Default); {
+	case p.Type == flow.BooleanParam:
+		cell = optionCellOf(p.Default, booleanOptions)
+	case p.Type == flow.OptionParam:
+		cell = listCellOf(p.Choices, slices.Index(p.Choices, p.Default), true, "option")
+		cell.field = newTextField(p.Default) // kept when it is no option, to be told and fixed
+	case p.Type == flow.ListParam && isList:
+		cell = listCellOf(items, -1, false, "item")
+	default:
+		cell = textCellOf(p.Default)
 	}
-	row[paramDefaultColumn] = gridCell{kind: textCell, field: row[paramDefaultColumn].field}
+	cell.secret = p.Secret
+	return cell
+}
+
+// fitDefault remakes a row's default when its type wants another kind of cell.
+func fitDefault(row gridRow) {
+	cells := row.cells
+	kind := cells[paramTypeColumn].value()
+	want := defaultCell(flow.Param{Type: kind})
+	if old := cells[paramDefaultColumn]; want.kind != old.kind || want.marking != old.marking {
+		cells[paramDefaultColumn] = convertDefault(old, kind)
+	}
+	cells[paramDefaultColumn].secret = cells[paramSecretColumn].on
+}
+
+// convertDefault makes a default of the type from what old held: a text becomes the item of a
+// list or an option, a list's items the options of an option, and back.
+func convertDefault(old gridCell, kind string) gridCell {
+	text, items, marked := old.value(), old.items, -1
+	switch {
+	case old.kind == listCell && !old.marking:
+		text = flow.ItemsJSON(old.items)
+	case old.kind == listCell:
+	case kind == flow.ListParam:
+		if decoded, ok := flow.ListItems(text); ok {
+			items = decoded
+			break
+		}
+		fallthrough
+	case text != "":
+		items, marked = []string{text}, 0
+	}
+	switch kind {
+	case flow.OptionParam:
+		return listCellOf(items, marked, true, "option")
+	case flow.ListParam:
+		return listCellOf(items, -1, false, "item")
+	case flow.BooleanParam:
+		return optionCellOf(map[bool]string{true: text}[slices.Contains(flow.BooleanValues, text)], booleanOptions)
+	}
+	return textCellOf(text)
 }
 
 // param is the param a row holds, with its name.
 func (t *paramsTable) param(i int) (string, flow.Param) {
-	row := t.grid.rows[i]
+	cells := t.grid.rows[i].cells
 	p := flow.Param{
-		Default:  row[paramDefaultColumn].value(),
-		Prompt:   strings.TrimSpace(row[paramLabelColumn].value()),
-		Required: row[paramRequiredColumn].on,
-		Secret:   row[paramSecretColumn].on,
+		Prompt:   strings.TrimSpace(cells[paramLabelColumn].value()),
+		Required: cells[paramRequiredColumn].on,
+		Secret:   cells[paramSecretColumn].on,
 	}
-	if kind := row[paramTypeColumn].value(); kind != flow.TextParam {
+	if kind := cells[paramTypeColumn].value(); kind != flow.TextParam {
 		p.Type = kind
 	}
-	if p.Type == flow.OptionParam {
-		p.Choices = strings.FieldsFunc(row[paramOptionsColumn].value(), func(r rune) bool { return r == ' ' || r == ',' || r == '|' })
+	switch def := &cells[paramDefaultColumn]; {
+	case def.kind == listCell && def.marking:
+		p.Choices, p.Default = def.items, def.markedItem()
+		if def.marked < 0 {
+			p.Default = def.field.String()
+		}
+	case def.kind == listCell:
+		p.Default = flow.ItemsJSON(def.items)
+	default:
+		p.Default = def.value()
 	}
-	if env := strings.TrimSpace(row[paramEnvColumn].value()); env != "" {
+	if env := strings.TrimSpace(cells[paramEnvColumn].value()); env != "" {
 		p.From = "env:" + env
 	}
-	return strings.TrimSpace(row[paramNameColumn].value()), p
+	return strings.TrimSpace(cells[paramNameColumn].value()), p
 }
 
 // problems tell, by column, what keeps a row from being saved.
 func (t *paramsTable) problems(i int) map[int]string {
 	name, p := t.param(i)
 	problems := map[int]string{}
-	if t.removed(i) {
-		return problems // its values go with it
-	}
 	switch {
-	case name == "" && t.names[i] == "" && holdsValues(p):
-		problems[paramNameColumn] = "a param needs a name"
+	case name == "" && (t.grid.rows[i].key != "" || holdsValues(p)):
+		problems[paramNameColumn] = "a param needs a name; ctrl+delete removes it"
 	case name == "":
 	case !naming.IsIdentifier(name) || name == "steps":
 		problems[paramNameColumn] = "a name is letters, digits and _, and not steps"
 	case t.nameTaken(i, name):
 		problems[paramNameColumn] = "another param is " + name
 	}
-	if p.Type == flow.OptionParam && len(p.Choices) == 0 {
-		problems[paramOptionsColumn] = "an option needs its options, a space between"
-	}
-	if problem := p.Fits(p.Default); problem != "" {
+	if problem := optionsProblem(p); problem != "" {
+		problems[paramDefaultColumn] = problem
+	} else if problem := p.Fits(p.Default); problem != "" {
 		problems[paramDefaultColumn] = "the default " + problem
 	}
 	if env, ok := p.EnvName(); ok && !naming.IsIdentifier(env) {
@@ -163,58 +204,46 @@ func (t *paramsTable) problems(i int) map[int]string {
 	return problems
 }
 
-// holdsValues tells a param with anything typed past its type, which a row without a name loses.
+func optionsProblem(p flow.Param) string {
+	if p.Type != flow.OptionParam {
+		return ""
+	}
+	if len(p.Choices) == 0 {
+		return "an option needs its options"
+	}
+	for i, choice := range p.Choices {
+		if slices.Contains(p.Choices[:i], choice) {
+			return choice + " is an option twice"
+		}
+	}
+	return ""
+}
+
+// holdsValues tells a param with anything given past its type, which a row without a name loses.
 func holdsValues(p flow.Param) bool {
 	return p.Default != "" || p.Prompt != "" || p.From != "" || p.Required || p.Secret || len(p.Choices) > 0
 }
 
-// nameTaken tells whether another row has the name, or still has it in the file until saved.
+// nameTaken tells whether another row has the name, or keeps it in the file until it is fixed.
 func (t *paramsTable) nameTaken(i int, name string) bool {
 	for j := range t.grid.rows {
 		other, _ := t.param(j)
-		if j != i && (other == name || t.names[j] == name) {
+		if j != i && (other == name || t.grid.rows[j].key == name) {
 			return true
 		}
 	}
 	return false
 }
 
-// removed tells a param's row whose name was emptied, which saving removes.
-func (t *paramsTable) removed(i int) bool {
-	name, _ := t.param(i)
-	return name == "" && t.names[i] != ""
-}
-
-// saving are the rows a save writes: changed, valid, and named or emptied of a param's name.
-func (t *paramsTable) saving() []int {
-	var rows []int
-	for i := range t.grid.rows {
-		name, _ := t.param(i)
-		if t.edited[i] && len(t.problems(i)) == 0 && (name != "" || t.names[i] != "") {
-			rows = append(rows, i)
-		}
-	}
-	return rows
-}
-
-// save writes the rows saving gives, every old name out before the new ones go in, so a row
-// can take the name another row gave up in the same save.
+// save writes the params as the rows hold them, in their order.
 func (t *paramsTable) save() {
-	rows := t.saving()
-	if len(rows) == 0 {
-		return
-	}
+	var saved map[int]string
 	err := t.app.changeFlow(t.flow, func(f *flow.Flow) error {
-		for _, i := range rows {
-			delete(f.Params, t.names[i])
-		}
-		for _, i := range rows {
-			if name, p := t.param(i); name != "" {
-				if f.Params == nil {
-					f.Params = map[string]flow.Param{}
-				}
-				f.Params[name] = p
-			}
+		var params map[string]flow.Param
+		params, f.ParamOrder, saved = t.paramsFor(*f)
+		f.Params = params
+		if len(params) == 0 {
+			f.Params, f.ParamOrder = nil, nil
 		}
 		return nil
 	})
@@ -222,34 +251,46 @@ func (t *paramsTable) save() {
 		t.app.statusMessage = err.Error()
 		return
 	}
-	for _, i := range rows {
-		t.names[i], _ = t.param(i)
-		t.edited[i] = false
+	for i, name := range saved {
+		t.grid.rows[i].key, t.seen[name] = name, true
 	}
-	t.dropEmptyRows()
 }
 
-// dropEmptyRows takes out the rows without a param, keeping one row to type in.
-func (t *paramsTable) dropEmptyRows() {
-	for i := len(t.grid.rows) - 1; i >= 0 && len(t.grid.rows) > 1; i-- {
-		if name, _ := t.param(i); name == "" && t.names[i] == "" && i != t.grid.row {
-			t.grid.rows = slices.Delete(t.grid.rows, i, i+1)
-			t.names = slices.Delete(t.names, i, i+1)
-			t.edited = slices.Delete(t.edited, i, i+1)
-			if i < t.grid.row {
-				t.grid.row--
+// paramsFor are the params the rows make of f's, in order, and the name each row is saved
+// under. A row with a problem keeps its param as f has it, and a param added to f while the
+// table was open stays, last.
+func (t *paramsTable) paramsFor(f flow.Flow) (map[string]flow.Param, []string, map[int]string) {
+	params, order, saved := map[string]flow.Param{}, []string{}, map[int]string{}
+	add := func(name string, p flow.Param) {
+		params[name], order = p, append(order, name)
+	}
+	for i, row := range t.grid.rows {
+		name, p := t.param(i)
+		if len(t.problems(i)) > 0 {
+			kept, ok := f.Params[row.key]
+			if !ok {
+				continue
 			}
+			name, p = row.key, kept
+		}
+		if name != "" {
+			add(name, p)
+			saved[i] = name
 		}
 	}
+	for _, name := range f.ParamNames() {
+		if _, ok := params[name]; !ok && !t.seen[name] {
+			add(name, f.Params[name])
+		}
+	}
+	return params, order, saved
 }
 
-// unsaved counts the rows with changes a save could not write, for a problem or a flow that
-// refused them.
+// unsaved counts the rows a problem keeps from being saved.
 func (t *paramsTable) unsaved() int {
 	count := 0
 	for i := range t.grid.rows {
-		name, p := t.param(i)
-		if t.edited[i] && (name != "" || t.names[i] != "" || holdsValues(p)) {
+		if len(t.problems(i)) > 0 {
 			count++
 		}
 	}
@@ -258,139 +299,194 @@ func (t *paramsTable) unsaved() int {
 
 func (t *paramsTable) title() string { return "params of " + t.flow.Name }
 
-func (t *paramsTable) hints() string { return paramsTableHints }
+func (t *paramsTable) hints() string { return t.grid.hints("{enter} edit  esc close  {?} keys") }
+
+func (t *paramsTable) typing() bool { return t.grid.typing() }
 
 func (t *paramsTable) handleKey(key uv.KeyPressEvent) bool {
-	name := key.String()
-	switch {
-	case name == "esc":
-		t.save()
-		if n := t.unsaved(); n > 0 {
-			t.app.notice = plural(n, "param") + " not saved: open the params again to fix the cells in red"
+	if !t.grid.busy() {
+		switch key.String() {
+		case "esc":
+			if n := t.unsaved(); n > 0 {
+				t.app.notice = plural(n, "param") + " not saved: open the params again to fix the cells in red"
+			}
+			return true
+		case "?":
+			t.app.showContextKeys("flow-editor", "params keys", "rows are saved as they change; a red cell keeps its row as it was")
+			return false
 		}
-		return true
-	case name == "?" && !paramColumns[t.grid.col].text:
-		t.app.showContextKeys("flow-editor", "params keys",
-			"a letter picks a type, space the next one; space flips required and secret",
-			"each row is saved as you leave it; red cells keep it from being saved",
-			"emptying a name removes its param")
-		return false
-	case name == "enter":
-		t.save()
-		t.addRow("", flow.Param{})
-		t.grid.focus(len(t.grid.rows)-1, paramTypeColumn)
-		return false
 	}
-	row := t.grid.row
-	if t.grid.handleKey(key) {
-		t.edited[row] = true
-		t.fitRow(row)
-	}
-	if t.grid.row != row {
-		t.save()
-	}
+	t.after(t.grid.handleKey(key))
 	return false
 }
 
-func (t *paramsTable) paste(text string) {
-	if t.grid.paste(text) {
-		t.edited[t.grid.row] = true
+func (t *paramsTable) mouse(event uv.MouseEvent, at image.Point) bool {
+	t.after(t.grid.mouse(event, at))
+	return false
+}
+
+// after adds a row when + add param is pressed, its name typed at once, and saves a change.
+func (t *paramsTable) after(out gridOutcome) {
+	if out&gridPressed != 0 {
+		t.addParam()
+	}
+	if out&gridChanged != 0 {
+		if t.grid.row < len(t.grid.rows) {
+			fitDefault(t.grid.rows[t.grid.row])
+		}
+		t.save()
 	}
 }
 
+// addParam adds a row last, its name typed in at once.
+func (t *paramsTable) addParam() {
+	t.grid.addRow(paramRow("", flow.Param{}))
+	t.grid.focus(len(t.grid.rows)-1, paramNameColumn)
+	t.grid.startEdit()
+}
+
+func (t *paramsTable) paste(text string) { t.grid.paste(text) }
+
 func (t *paramsTable) draw(screen uv.Screen, area image.Rectangle, _ bool) {
 	pal := &t.app.palette
-	widths := columnWidths(paramColumns, area.Dx()-2)
-	from, to := visibleColumns(widths, area.Dx()-2, t.grid.col)
-	x := area.Min.X + 1
+	t.grid.hits = t.grid.hits[:0]
+	room := area.Dx() - 1 - moveGutter
+	widths := columnWidths(paramColumns, room)
+	focus := t.grid.col
+	if _, onButton := t.grid.button(); onButton {
+		focus = 0
+	}
+	from, to := visibleColumns(widths, room, focus)
+	left := area.Min.X + moveGutter
+	x := left
 	for c := from; c < to; c++ {
 		drawText(screen, x, area.Min.Y, x+widths[c], paramColumns[c].title, pal.panelMuted)
 		x += widths[c] + 2
 	}
-	rows := max(area.Dy()-3, 1)
-	first := max(t.grid.row-rows+1, 0)
-	for i := first; i < len(t.grid.rows) && i-first < rows; i++ {
-		t.drawRow(screen, area.Min.Y+1+i-first, area.Min.X+1, i, widths, from, to)
+	y := area.Min.Y + 1
+	for _, row := range t.grid.window(area.Dy() - 2) {
+		line := image.Rect(left, y, area.Max.X-1, y+1)
+		if b, ok := t.grid.buttonAt(row); ok {
+			t.grid.drawButton(screen, line, row, b, pal)
+		} else {
+			if row == t.grid.row {
+				t.grid.drawMoveArrows(screen, image.Pt(area.Min.X, y), pal)
+			}
+			t.drawRow(screen, line, row, widths, from, to)
+		}
+		y++
 	}
-	if problems := t.problems(t.grid.row); len(problems) > 0 {
-		column := slices.Min(slices.Collect(maps.Keys(problems)))
-		drawTextCut(screen, area.Min.X+1, area.Max.Y-1, area.Max.X-1, "✗ "+paramColumns[column].title+": "+problems[column], pal.failure)
-	} else if t.removed(t.grid.row) {
-		drawTextCut(screen, area.Min.X+1, area.Max.Y-1, area.Max.X-1, "removes "+t.names[t.grid.row]+" as you leave the row", pal.panelMuted)
-	}
+	t.drawProblem(screen, area)
+	t.grid.drawOverlay(screen, area, pal)
 }
 
-func (t *paramsTable) drawRow(screen uv.Screen, y, x, i int, widths []int, from, to int) {
+func (t *paramsTable) drawRow(screen uv.Screen, line image.Rectangle, i int, widths []int, from, to int) {
 	pal := &t.app.palette
 	problems := t.problems(i)
+	x := line.Min.X
 	for c := from; c < to; c++ {
-		cell := &t.grid.rows[i][c]
 		style := pal.panelText
 		switch {
-		case cell.skip || t.removed(i):
+		case t.grid.at(i, c).skip:
 			style = pal.panelMuted
 		case problems[c] != "":
 			style = pal.failure
-		case i == t.grid.row && c == t.grid.col:
-			style = pal.typing()
 		}
-		focused := i == t.grid.row && c == t.grid.col
-		if focused && cell.kind == textCell {
-			secret := c == paramDefaultColumn && t.grid.rows[i][paramSecretColumn].on
-			cell.field.draw(screen, x, y, widths[c], secret, style, pal.selectedRow)
-		} else {
-			drawTextCut(screen, x, y, x+widths[c], t.cellText(i, c), style)
-		}
+		t.grid.drawCell(screen, image.Rect(x, line.Min.Y, x+widths[c], line.Max.Y), i, c, t.cellText(i, c), style, pal)
 		x += widths[c] + 2
+	}
+}
+
+// drawProblem tells, on the last line, what keeps the focused row from being saved.
+func (t *paramsTable) drawProblem(screen uv.Screen, area image.Rectangle) {
+	if t.grid.row >= len(t.grid.rows) {
+		return
+	}
+	if problems := t.problems(t.grid.row); len(problems) > 0 {
+		column := slices.Min(slices.Collect(maps.Keys(problems)))
+		drawTextCut(screen, area.Min.X+1, area.Max.Y-1, area.Max.X-1, "✗ "+paramColumns[column].title+": "+problems[column], t.app.palette.failure)
 	}
 }
 
 // cellText is how a cell shows when it is not being typed in.
 func (t *paramsTable) cellText(i, c int) string {
-	cell := &t.grid.rows[i][c]
+	cell := t.grid.at(i, c)
 	switch {
 	case cell.skip:
 		return "–"
 	case cell.kind == toggleCell:
 		return map[bool]string{true: "✓", false: "·"}[cell.on]
-	case c == paramDefaultColumn && t.grid.rows[i][paramSecretColumn].on:
+	case cell.kind == listCell:
+		return listText(cell)
+	case cell.secret:
 		return strings.Repeat("•", len(cell.field.text))
 	}
 	return cell.value()
 }
 
+// listText shows a list cell in a row: its marked item, or its first, and how many more.
+func listText(c *gridCell) string {
+	shown := c.marked
+	switch {
+	case len(c.items) == 0:
+		return "no " + c.noun + "s"
+	case c.marking && shown < 0 && len(c.field.text) > 0:
+		return strconv.Quote(c.field.String()) + " " + moreText(len(c.items))
+	case c.marking && shown < 0:
+		return plural(len(c.items), c.noun)
+	case !c.marking:
+		shown = 0
+	}
+	text := itemText(c.items[shown])
+	if len(c.items) > 1 {
+		text += " " + moreText(len(c.items)-1)
+	}
+	return text
+}
+
+// itemText is an item quoted as a string, or as its JSON.
+func itemText(item string) string {
+	if json.Valid([]byte(item)) {
+		return item
+	}
+	return strconv.Quote(item)
+}
+
 func (t *paramsTable) help() []styledLine {
 	pal := &t.app.palette
-	name, p := t.param(t.grid.row)
+	var name string
+	var p flow.Param
+	if t.grid.row < len(t.grid.rows) {
+		name, p = t.param(t.grid.row)
+	}
 	var lines []styledLine
 	add := func(style uv.Style, texts ...string) {
 		for _, text := range texts {
 			lines = append(lines, styledLine{text, style})
 		}
 	}
-	switch t.grid.col {
-	case paramTypeColumn:
-		add(pal.panelMuted, "a letter picks a type, space the next", "")
+	switch {
+	case t.grid.row >= len(t.grid.rows):
+		add(pal.panelText, "a param is a value the steps read, given when the flow runs")
+	case t.grid.col == paramTypeColumn:
 		for _, kind := range flow.ParamTypes {
 			add(pal.panelText, kind+"  "+paramTypeNotes[kind])
 		}
-	case paramNameColumn:
+	case t.grid.col == paramNameColumn:
 		add(pal.panelText, "steps read it as {{."+cmp.Or(name, "name")+"}}")
 		add(pal.panelMuted, "letters, digits and _")
-	case paramDefaultColumn:
+	case t.grid.col == paramDefaultColumn:
 		add(pal.panelText, "the value when the run gives none: "+paramTypeNotes[cmp.Or(p.Type, flow.TextParam)])
 		add(pal.panelMuted, defaultNote(p))
-	case paramOptionsColumn:
-		add(pal.panelText, "the values it takes, a space between: dev prod")
-	case paramEnvColumn:
+	case t.grid.col == paramEnvColumn:
 		add(pal.panelText, "reads this environment variable when it is set, and the run form does not ask")
 		add(pal.panelMuted, environmentMatches(t.grid.cell().value())...)
-	case paramLabelColumn:
+	case t.grid.col == paramLabelColumn:
 		add(pal.panelText, "what the run form shows instead of the name")
-	case paramRequiredColumn:
-		add(pal.panelText, "the run refuses it empty; space flips it")
-	case paramSecretColumn:
-		add(pal.panelText, "masked in the form and never remembered; space flips it")
+	case t.grid.col == paramRequiredColumn:
+		add(pal.panelText, "the run refuses it empty")
+	case t.grid.col == paramSecretColumn:
+		add(pal.panelText, "masked in the form and never remembered")
 	}
 	if name != "" {
 		add(pal.panelText, "")
@@ -402,9 +498,13 @@ func (t *paramsTable) help() []styledLine {
 // defaultNote tells how a default of the param's type is given.
 func defaultNote(p flow.Param) string {
 	switch p.Type {
-	case flow.BooleanParam, flow.OptionParam:
-		return "space picks the next, or none"
-	case flow.ListParam, flow.ObjectParam:
+	case flow.BooleanParam:
+		return "none leaves it empty"
+	case flow.OptionParam:
+		return "its options, ★ on the default"
+	case flow.ListParam:
+		return "its items, each text or JSON"
+	case flow.ObjectParam:
 		return "lists and objects hold each other: {\"db\": {\"tags\": [\"a\"]}}"
 	}
 	return "empty has no default"

@@ -675,7 +675,7 @@ func (s chartStyle) drawBranchEnd(c *flowChart, branch *chartNode, center, top, 
 
 // paramLines are what the params card lists: each param with its type and default.
 func paramLines(f flow.Flow) []string {
-	names := slices.Sorted(maps.Keys(f.Params))
+	names := f.ParamNames()
 	if len(names) == 0 {
 		return []string{"none"}
 	}

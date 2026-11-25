@@ -69,6 +69,11 @@ type inspectPanel struct {
 	// the params tables closed with rows not saved.
 	editor      inspectEditor
 	paramDrafts map[string]*paramsTable
+	// helpHidden gives an editor the room of the help beside it; origin is where the panel was
+	// last drawn and editorArea where the editor was, as the editor takes its clicks.
+	helpHidden bool
+	origin     image.Point
+	editorArea image.Rectangle
 }
 
 // chartDrag is the mouse held down on the chart: it pans the chart, or, pressed on a step's card
@@ -145,8 +150,10 @@ func (p *inspectPanel) shown() []flow.Flow {
 	})
 }
 
-// takesText tells that the keys type in the filter, as they are pressed.
-func (p *inspectPanel) takesText() bool { return p.filter.typing }
+// takesText tells that the keys type in the filter or the editor, as they are pressed.
+func (p *inspectPanel) takesText() bool {
+	return p.filter.typing || p.editor != nil && p.editor.typing()
+}
 
 // filterKey runs the filter's keys: typing in it while it is open, f or / to open it, esc to clear
 // it. It tells whether it used the key.
@@ -194,11 +201,27 @@ func (p *inspectPanel) selectFlow(step int) {
 	p.flowName, p.selected, p.centered, p.anchor, p.run = entryKey(entries[i]), "", true, "", nil
 }
 
+// editorKey gives the key to the editor open, but v, which hides its help, while nothing is typed.
+func (p *inspectPanel) editorKey(key uv.KeyPressEvent) {
+	switch {
+	case key.String() == "v" && !p.editor.typing():
+		p.helpHidden = !p.helpHidden
+	case p.editor.handleKey(key):
+		p.closeEditor()
+	}
+}
+
+// editorMouse gives the editor open the event, at its point on the screen.
+func (p *inspectPanel) editorMouse(event uv.MouseEvent) {
+	m := event.Mouse()
+	if p.editor.mouse(event, image.Pt(m.X, m.Y).Add(p.origin)) {
+		p.closeEditor()
+	}
+}
+
 func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
 	if p.editor != nil {
-		if p.editor.handleKey(key) {
-			p.closeEditor()
-		}
+		p.editorKey(key)
 		return
 	}
 	if p.filterKey(key) {
@@ -352,9 +375,7 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 		switch {
 		case selected && block.params:
 			p.openParams(f)
-			table := p.editor.(*paramsTable)
-			table.addRow("", flow.Param{})
-			table.grid.focus(len(table.grid.rows)-1, paramTypeColumn)
+			p.editor.(*paramsTable).addParam()
 		case selected:
 			p.addStep(f, block)
 		}
@@ -611,6 +632,7 @@ func (p *inspectPanel) centerPan() {
 
 func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	pal := &p.app.palette
+	p.origin = area.Min
 	hints := p.hints()
 	if p.editor != nil {
 		hints = hintsInOneRow(hints, area.Dx()-1)
@@ -652,6 +674,7 @@ func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	}
 	if p.editor != nil {
 		p.chart, p.chartArea, p.details = nil, image.Rectangle{}, image.Rectangle{}
+		p.editorArea = chartArea.Sub(area.Min)
 		p.drawEditor(screen, chartArea)
 		return
 	}
@@ -859,14 +882,15 @@ func (p *inspectPanel) RowAt(point image.Point) (image.Rectangle, bool, bool) {
 
 // WantsMouseAt takes the mouse over the list and the chart.
 func (p *inspectPanel) WantsMouseAt(point image.Point) bool {
-	return point.In(p.list) || point.In(p.chartArea) || point.In(p.details)
+	return point.In(p.list) || point.In(p.chartArea) || point.In(p.details) || p.editor != nil && point.In(p.editorArea)
 }
 
 // SendMouse selects the flow or the block clicked; a double click on a step tells what it does.
 // Dragging the chart moves it, and the wheel scrolls it (with shift, across).
 func (p *inspectPanel) SendMouse(event uv.MouseEvent) {
 	if p.editor != nil {
-		return // the editor takes keys only; the chart is back once it closes
+		p.editorMouse(event)
+		return
 	}
 	m := event.Mouse()
 	point := image.Pt(m.X, m.Y)

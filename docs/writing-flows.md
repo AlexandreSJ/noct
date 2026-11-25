@@ -131,7 +131,9 @@ steps:
   for true or false, `option` with its `choices: [a, b]`, `path`, which tab completes in the
   form, `list` or `object`), `prompt` (the label in the form), `required`, `from` and `secret`.
   `noct flow run` and the form refuse a value its type does not take and a `required` param left
-  empty. Flows written with `bool` and `choice` still load, as `boolean` and `option`.
+  empty. Flows written with `bool` and `choice` still load, as `boolean` and `option`. Params
+  keep the order they are written in, in the run form too; the inspect's params table moves them
+  (`J`/`K`). The demo flow `demo-params` has one of each type.
 - `list` and `object` hold JSON, lists and objects inside each other at any depth:
   `hosts: {type: list, default: '["a", "b"]'}`, `cfg: {type: object, default: '{"db": {"port": 5432}}'}`.
   Templates read inside them: `{{index .hosts 0}}`, `{{.cfg.db.port}}`, `{{range .hosts}}{{.}} {{end}}`;

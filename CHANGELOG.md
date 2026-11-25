@@ -20,6 +20,7 @@ the shortcut is `Alt` by default. How to write an entry is in
   `{{range .hosts}}…{{end}}`, and `{{.hosts}}` alone writes the JSON again.
 - A scope warning tells when two steps give the same capture before a step reads it by its short
   name: `{{.version}}` reads the last one, and `{{.steps.build.version}}` picks another.
+- The demo installs `demo-params`, a flow with one param of each type that its steps read.
 
 ### Changed
 
@@ -38,18 +39,26 @@ the shortcut is `Alt` by default. How to write an entry is in
   `enter`, which keeps it, and every list counts the same way: `3 of 12`, or `no match`.
 - Shorter notes and hints in the config, the binds' `?` list and the agent step's form.
 - `Enter` on a flow's params card in the inspect (`prefix` + `i`) opens its params as a table in
-  place of the chart, a param a row like declarations in code: type, name, default, options,
-  environment variable, label, required and secret in columns. `Tab` and the arrows go through
-  the cells as along one line, a letter picks a type, and each row is saved as you leave it; a
-  cell that keeps its row from being saved turns red and says why. Emptying a name removes the
-  param, and `esc` closes the table.
+  place of the chart, a param a row like declarations in code: type, name, default, environment
+  variable, label, required and secret in columns. `hjkl` or the arrows move from cell to cell
+  (with `Ctrl`, to the first or last), and `Enter` or a click edits one: it types in a text, or
+  opens the choices of a type or a boolean right under the cell. An option's default is the list
+  of its options, shown as `"dev" +2`: add one, mark the default with `Space`, filter with `f`.
+  A list's default is a list of its items too. `+ add param`, the last row, adds a param;
+  `J`/`K` move one, `Ctrl+Delete` removes it and `Ctrl+Z`/`Ctrl+Y` undo and redo. The table is
+  saved as it changes; a cell that keeps its row from being saved turns red and says why. `v`
+  hides the help beside it, and `esc` closes it.
+- Params keep the order they are written in, in the run form and the params card too.
 - Adding a step (`a`) or changing one (`e`) in the inspect fills one form in place of the chart
   instead of a chain of prompts. The variables the step can read are listed beside it, with
   their last values and examples written with them, and `{{.` (or `{{eq .`) completes them.
   Changing a step keeps what its form does not ask, such as its captures and the steps inside.
+  `Enter` or a click edits a row, and `Ctrl+S` or the last row adds or saves the step. A
+  switch's cases, an agent's answers and the names an unset clears are lists, an item a row.
   A block's exports (`x`), a step's retry (`R`) and a function's returns open the same way.
 - Neither editor locks noct: the prefix still reaches every panel and tab while you edit, and
-  the editor is there when you come back. Their hints take one row, and `?` lists every key.
+  the editor is there when you come back. Their hints take one row, and `?` lists their keys,
+  which you can change in the config.
 - Param types are named `boolean` and `option`, for what were `bool` and `choice`; flows that
   use the old names still work. Secret and environment variable are settings of any type.
 - The inspect names variables by their short names, as `{{.output}}` and `{{.version}}`;

@@ -52,13 +52,15 @@ func TestInspectBuildsAFlowStepByStep(t *testing.T) {
 	}
 	pressDrawn(a, letter('a'))
 	typeDrawn(a, "explore")
-	pressDrawn(a, enterPress, letter('a'), letter('l'), clearLine, tabPress) // no times: until
-	typeDrawn(a, `{{ne .steps.dice.number "6"}}`)
-	pressDrawn(a, enterPress, downPress, letter('a'), letter('s'))
+	pressDrawn(a, enterPress, letter('a'), letter('l'))
+	setCell(a, "") // no times: until
+	pressDrawn(a, letter('j'))
+	setCell(a, `{{ne .steps.dice.number "6"}}`)
+	pressDrawn(a, ctrlS, downPress, letter('a'), letter('s'))
 	typeDrawn(a, "where")
-	pressDrawn(a, enterPress, letter('a'), letter('i'), clearLine)
-	typeDrawn(a, `{{eq .steps.where.exit "0"}}`)
-	pressDrawn(a, enterPress, downPress, letter('a'), letter('s'))
+	pressDrawn(a, enterPress, letter('a'), letter('i'))
+	setCell(a, `{{eq .steps.where.exit "0"}}`)
+	pressDrawn(a, ctrlS, downPress, letter('a'), letter('s'))
 	typeDrawn(a, "dice")
 	pressDrawn(a, enterPress, letter('e'))
 	editPart(t, l, "id: dice\nscript: dice\ncapture: {number: 'number=(\\d)'}\n")
@@ -146,8 +148,8 @@ func TestInspectAddsAboveTheFirstStepAndBelowTheSelected(t *testing.T) {
 
 func addCommand(a *App, command string) {
 	pressDrawn(a, letter('a'), letter('c'))
-	typeDrawn(a, command)
-	pressDrawn(a, enterPress)
+	setCell(a, command)
+	pressDrawn(a, ctrlS)
 }
 
 func saveFlow(t *testing.T, name, content string) {

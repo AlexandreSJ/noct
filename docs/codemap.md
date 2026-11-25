@@ -100,8 +100,9 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/scope.go` | The inspect's scope pane: the variables of the selected block by their short names, with their last values |
 | `internal/app/flow_agents.go` | The agents an agent step's form offers (default, auto, the installed ones, a custom one), what each note says, and adding a custom agent to the config |
 | `internal/app/flow_functions.go` | Functions in the inspect: making one, picking a call step's function, returns on the params card, which flows a change reaches |
-| `internal/app/flow_params.go` | A flow's params table in the inspect, a param a row in columns (type, name, default, options, from env, label, required, secret): checking each row, saving it as the focus leaves it, the help of each column, how the card writes a param |
-| `internal/app/edit_grid.go` | `editGrid`: rows of cells typed in place (text, option, toggle), tab and the arrows through them as along one line, skipping cells that do not apply, and completing variables in template cells |
+| `internal/app/flow_params.go` | A flow's params table in the inspect, a param a row in columns (type, name, default, from env, label, required, secret): the default's cell for each type and changing it with the type, checking each row, saving the table as it changes and in its order, the help of each column, how the card writes a param |
+| `internal/app/edit_grid.go` | `editGrid`: rows of cells (text, option, toggle, list) moved through with hjkl, the arrows and tab, worked with enter or a click; typing in a text cell and completing variables in template cells; button rows; moving and removing rows; undo and redo; clicks and the wheel |
+| `internal/app/grid_lists.go` | What opens under a grid's cell: the menu of an option cell's options and the list of a list cell's items, a grid of its own with the default marked, both filtered with f or / |
 | `internal/app/inspect_editor.go` | `inspectEditor`, what the inspect shows in place of the chart while params or a step are edited: its frame, the help beside it, hints kept to one row |
 | `internal/app/flow_step_form.go` | A step's form in the inspect: its rows, checking them, adding or saving the step, the variables beside it; opening the params table, adding and editing steps from the inspect |
 | `internal/app/flow_setting_forms.go` | The forms for a block's exports, a step's retry and a function's returns, opened from the inspect like a step's form |
@@ -185,7 +186,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/flow/result.go` | A run's result with each step's output and status; saving and loading the last one |
 | `internal/flow/try.go` | Testing a range of sibling steps over the last result (its steps' fields and variables), and merging what they did into it |
 | `internal/flow/vars.go` | Params with a type (text, number, boolean, option, path, list, object; `bool` and `choice` read as before), required and a label, and checking values; running prompt, set and unset steps |
-| `internal/flow/json.go` | List and object params: decoding their JSON, lists and objects inside each other, for templates to read inside and print whole as JSON |
+| `internal/flow/json.go` | List and object params: decoding their JSON, lists and objects inside each other, for templates to read inside and print whole as JSON; a list's items as the inspect edits them (`ListItems`, `ItemsJSON`) |
+| `internal/flow/param_order.go` | The order of a flow's params: read and written as the YAML has them (`ParamOrder`), and `ParamNames` in that order |
 | `internal/flow/trigger.go` | Triggers (manual, cron, watch, after) in YAML, their validation, globs with `**`, loops of after triggers, which flows have them enabled |
 | `internal/flow/cron.go` | Five-field cron schedules: parsing and matching a minute |
 | `internal/flow/pane.go` | Steps in a pane of their own (`pane: new`, `background`): validation, asking noct's workspace, running inline outside it |

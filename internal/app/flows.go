@@ -116,7 +116,7 @@ func (a *App) openFlowForm(f flow.Flow, values map[string]string) {
 		return
 	}
 	var fields []script.Param
-	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
+	for _, name := range f.ParamNames() {
 		p := f.Params[name]
 		if a.fromEnvironment(p) {
 			continue

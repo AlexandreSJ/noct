@@ -12,7 +12,7 @@ func TestAStepFormCompletesTheShortNames(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
 	saveFlow(t, "done", "params: {env: dev}\nsteps:\n  - {id: build, run: 'echo v=1', capture: {v: 'v=(\\d)'}}\n  - {id: test, run: 'true'}\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress, letter('a'), letter('c'))
+	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress, letter('a'), letter('c'), enterPress)
 	typeDrawn(a, "echo {{.")
 	screen := screenText(a)
 	for _, want := range []string{".env", ".output", ".v", ".steps.build.output"} {
@@ -40,11 +40,11 @@ func TestXExportsAVariableFromABlock(t *testing.T) {
 	a := testApp(t)
 	saveFlow(t, "loop", "steps:\n  - repeat: {times: 2}\n    steps:\n      - {set: {count: '1'}}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
-	pressDrawn(a, letter('x'))
+	pressDrawn(a, letter('x'), enterPress)
 	typeDrawn(a, "count")
 	pressDrawn(a, tabPress)
-	typeDrawn(a, "passes")
-	pressDrawn(a, enterPress)
+	setCell(a, "passes")
+	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "loop")
 	if steps[0].Export["count"] != "passes" {
 		t.Fatalf("export %v, want count as passes", steps[0].Export)

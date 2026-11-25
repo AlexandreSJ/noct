@@ -17,11 +17,11 @@ func TestASwitchIsAddedAndDrawnWithABranchPerCase(t *testing.T) {
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	p := a.currentTab().focusedView().(*inspectPanel)
 	p.selected = stepKey("0")
-	pressDrawn(a, letter('a'), letter('o'), clearLine)
-	typeDrawn(a, "{{.output}}")
-	pressDrawn(a, enterPress)
-	typeDrawn(a, "flaky bug|regression")
-	pressDrawn(a, enterPress)
+	pressDrawn(a, letter('a'), letter('o'))
+	setCell(a, "{{.output}}")
+	pressDrawn(a, letter('j'))
+	addItems(a, "flaky", "bug|regression")
+	pressDrawn(a, ctrlS)
 	if a.statusMessage != "" {
 		t.Fatalf("status: %s", a.statusMessage)
 	}
@@ -39,9 +39,7 @@ func TestASwitchIsAddedAndDrawnWithABranchPerCase(t *testing.T) {
 		t.Fatalf("no head for the second case:\n%s", text)
 	}
 	p.selected = headKey(chartSlot{parent: "1", branch: flow.CaseBranch(1)})
-	pressDrawn(a, letter('a'), letter('c'))
-	typeDrawn(a, "echo fix")
-	pressDrawn(a, enterPress)
+	addCommand(a, "echo fix")
 	f, _ := flow.Find(a.flows, "sort")
 	if s, ok := f.Step("1/case1/0"); !ok || s.Run != "echo fix" {
 		t.Fatalf("the step added at the case's head = %+v, %v", s, ok)
@@ -55,11 +53,11 @@ func TestAForEachIsAddedAndTitledByItsLines(t *testing.T) {
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	p := a.currentTab().focusedView().(*inspectPanel)
 	p.selected = stepKey("0")
-	pressDrawn(a, letter('a'), letter('e'), clearLine)
-	typeDrawn(a, "{{.steps.list.output}}")
-	pressDrawn(a, tabPress, clearLine)
-	typeDrawn(a, "host")
-	pressDrawn(a, enterPress)
+	pressDrawn(a, letter('a'), letter('e'))
+	setCell(a, "{{.steps.list.output}}")
+	pressDrawn(a, letter('j'))
+	setCell(a, "host")
+	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "hosts")
 	if len(steps) != 2 || steps[1].Repeat == nil || steps[1].Repeat.Each != "{{.steps.list.output}}" || steps[1].Repeat.As != "host" {
 		t.Fatalf("steps = %+v", steps)
@@ -76,11 +74,11 @@ func TestRShowsAndSetsAStepsRetry(t *testing.T) {
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	p := a.currentTab().focusedView().(*inspectPanel)
 	p.selected = stepKey("0")
-	pressDrawn(a, letter('R'), clearLine)
-	typeDrawn(a, "2")
-	pressDrawn(a, tabPress)
-	typeDrawn(a, "5s")
-	pressDrawn(a, enterPress)
+	pressDrawn(a, letter('R'))
+	setCell(a, "2")
+	pressDrawn(a, letter('j'))
+	setCell(a, "5s")
+	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "flaky")
 	if r := steps[0].Retry; r == nil || r.Max != 2 || r.Every != "5s" {
 		t.Fatalf("retry = %+v", r)
@@ -88,7 +86,9 @@ func TestRShowsAndSetsAStepsRetry(t *testing.T) {
 	if text := chartText(p.chart); !strings.Contains(text, "retry 2× every 5s") {
 		t.Errorf("the card lacks the retry:\n%s", text)
 	}
-	pressDrawn(a, letter('R'), clearLine, enterPress)
+	pressDrawn(a, letter('R'))
+	setCell(a, "")
+	pressDrawn(a, ctrlS)
 	if steps := loadFlowSteps(t, "flaky"); steps[0].Retry != nil {
 		t.Errorf("an empty answer takes the retry away: %+v", steps[0].Retry)
 	}

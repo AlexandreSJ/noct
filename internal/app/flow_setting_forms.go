@@ -21,7 +21,7 @@ func exportForm(s flow.Step) stepFormSpec {
 			return checkVariable(outer)
 		},
 	}
-	spec := stepFormSpec{title: "export from " + s.Label(), named: true, rowField: row}
+	spec := stepFormSpec{title: "export from " + s.Label(), named: true, rowField: row, adds: "export"}
 	for _, inner := range slices.Sorted(maps.Keys(s.Export)) {
 		field := row
 		field.label, field.cell = inner, textCellOf(s.Export[inner])
@@ -67,7 +67,7 @@ func retryForm(s flow.Step) stepFormSpec {
 // returnsForm asks a function's returns, a name and its template a row, and saves them.
 func (a *App) returnsForm(f flow.Flow) stepFormSpec {
 	row := stepField{note: "a name the caller reads, then its value: a template read at the end", template: true}
-	spec := stepFormSpec{title: "returns of " + f.Name, named: true, rowField: row}
+	spec := stepFormSpec{title: "returns of " + f.Name, named: true, rowField: row, adds: "return"}
 	for _, name := range slices.Sorted(maps.Keys(f.Returns)) {
 		field := row
 		field.label, field.cell = name, textCellOf(f.Returns[name])

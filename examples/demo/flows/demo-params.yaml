@@ -1,0 +1,63 @@
+# demo-params: one param of each type, read by the steps after. Open it in
+# the inspect (prefix+i), select "$ params" and press enter to edit them as a
+# table: enter or a click edits a cell, hjkl or the arrows move, J and K move a
+# row, ctrl+delete removes one and ctrl+z undoes. An option's options and a
+# list's items open in a list under their cell: + add adds one, space marks the
+# default and f filters them. ? lists every key and v hides the help.
+# Everything only prints. Run it with its defaults:
+#   noct flow run demo-params
+description: "Every param type, a param from the environment and a secret, read by the steps."
+
+params:
+  region:
+    type: option
+    choices: [us-east, us-west, eu-central, eu-west, ap-south, ap-east, sa-east]
+    default: eu-central
+    prompt: Region to deploy to
+  replicas: {type: number, default: "3", required: true}
+  dry_run: {type: boolean, default: "true", prompt: Only print what would change}
+  hosts:
+    type: list
+    default: '["web-1", "web-2", "db-1"]'
+  limits:
+    type: object
+    default: '{"cpu": "500m", "memory": {"min": "256Mi", "max": "1Gi"}}'
+  manifest: {type: path, default: ./deploy.yaml}
+  note: {default: first rollout, prompt: A word for the log}
+  user: {from: "env:USER", prompt: Who deploys}
+  token: {from: "env:API_TOKEN", secret: true, prompt: API token}
+
+steps:
+  # text and number read as they are; quote keeps a value one shell word.
+  - id: plan
+    run: echo "{{.replicas}} replicas in {{.region}} by {{quote .user}}, {{quote .note}}"
+
+  # boolean: an if reads true or false as they are.
+  - if: "{{.dry_run}}"
+    then:
+      - run: echo "dry run, nothing changes"
+    else:
+      - run: echo "applying {{.manifest}}"
+
+  # option: a switch runs the case of the option picked.
+  - switch: "{{.region}}"
+    cases:
+      - is: [us-east, us-west]
+        steps: [{run: echo "an American region"}]
+      - is: [eu-central, eu-west]
+        steps: [{run: echo "a European region"}]
+    else:
+      - run: echo "{{.region}} is in no case"
+
+  # list: range walks the items and index reads one; the whole list is its
+  # JSON, which quote keeps one shell word.
+  - run: echo "{{range .hosts}}host {{.}}; {{end}}first is {{index .hosts 0}}"
+  - run: echo all hosts {{quote .hosts}}
+
+  # object: a field reads at any depth; the whole object is its JSON too.
+  - run: echo "cpu {{.limits.cpu}}, memory up to {{.limits.memory.max}}"
+  - run: echo all limits {{quote .limits}}
+
+  # from env and secret: $API_TOKEN when set, else asked masked in the form,
+  # given to the run as API_TOKEN and never remembered.
+  - run: 'test -n "$API_TOKEN" && echo "a token was given" || echo "no token"'
