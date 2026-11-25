@@ -3,7 +3,8 @@
 # table: enter or a click edits a cell, hjkl or the arrows move, J and K move a
 # row, ctrl+delete removes one and ctrl+z undoes. An option's options and a
 # list's items open in a list under their cell: + add adds one, space marks the
-# default and f filters them. ? lists every key and v hides the help.
+# default and f filters them. Dragging over a cell's text copies it. ? lists
+# every key and v hides the help. target's default reads the params above it.
 # Everything only prints. Run it with its defaults:
 #   noct flow run demo-params
 description: "Every param type, a param from the environment and a secret, read by the steps."
@@ -26,6 +27,10 @@ params:
   note: {default: first rollout, prompt: A word for the log}
   user: {from: "env:USER", prompt: Who deploys}
   token: {from: "env:API_TOKEN", secret: true, prompt: API token}
+  # a default reads the params written before it; json puts a value in JSON.
+  target:
+    type: object
+    default: '{"by": {{json .user}}, "region": {{json .region}}, "hosts": {{json .hosts}}}'
 
 steps:
   # text and number read as they are; quote keeps a value one shell word.
@@ -57,6 +62,10 @@ steps:
   # object: a field reads at any depth; the whole object is its JSON too.
   - run: echo "cpu {{.limits.cpu}}, memory up to {{.limits.memory.max}}"
   - run: echo all limits {{quote .limits}}
+
+  # an object made of other params, read like any object.
+  - run: echo {{quote .target.by}} deploys {{len .target.hosts}} hosts to {{.target.region}}
+  - run: echo target {{quote .target}}
 
   # from env and secret: $API_TOKEN when set, else asked masked in the form,
   # given to the run as API_TOKEN and never remembered.

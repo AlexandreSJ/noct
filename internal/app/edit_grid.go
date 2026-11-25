@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"image"
 	"slices"
 	"strings"
@@ -151,6 +152,10 @@ type editGrid struct {
 	menu            *gridMenu
 	list            *gridList
 	hits            []gridHit
+	// dragging marks the text of the cell typed in as the mouse moves; copied is the text a
+	// release or ctrl+c copied, for the owner to put on the clipboard.
+	dragging bool
+	copied   string
 }
 
 func (g *editGrid) at(row, col int) *gridCell { return &g.rows[row].cells[col] }
@@ -263,7 +268,7 @@ func (g *editGrid) startEdit() {
 	c := g.cell()
 	g.begin()
 	g.editing, g.from, g.suggested = true, c.field.String(), 0
-	c.field.cursor = len(c.field.text)
+	c.field.cursor, c.field.shown, c.field.selecting = len(c.field.text), 0, false // it showed from its start
 }
 
 // settle keeps what is being typed, or listed, and closes what is open.
@@ -300,6 +305,9 @@ func (g *editGrid) editKey(key uv.KeyPressEvent) gridOutcome {
 	case "ctrl+z":
 		g.stopEdit()
 		return g.undo()
+	case "ctrl+c", "ctrl+shift+c":
+		g.copy()
+		return gridNothing
 	}
 	g.suggested = 0
 	g.cell().field.handleKey(key)
@@ -571,14 +579,38 @@ func (g *editGrid) focusRect() (image.Rectangle, bool) {
 	return image.Rectangle{}, false
 }
 
-// mouse clicks or scrolls the grid, at a point on the screen.
+// copy keeps the text marked in the cell typed in, or all of it, to be copied; never a secret's.
+func (g *editGrid) copy() {
+	if c := g.cell(); c != nil && !c.secret {
+		g.copied = cmp.Or(c.field.selected(), c.field.String())
+	}
+}
+
+// takeCopied is the text copied since it was last asked, here or in an open list.
+func (g *editGrid) takeCopied() string {
+	text := g.copied
+	g.copied = ""
+	if g.list != nil {
+		text = cmp.Or(text, g.list.grid.takeCopied())
+	}
+	return text
+}
+
+// mouse clicks or scrolls the grid, at a point on the screen; pressed on a text cell and
+// dragged, it marks its text, which the release copies.
 func (g *editGrid) mouse(event uv.MouseEvent, at image.Point) gridOutcome {
 	m := event.Mouse()
 	switch event.(type) {
 	case uv.MouseClickEvent:
 		if m.Button == uv.MouseLeft {
-			return g.click(at)
+			out := g.click(at)
+			g.startDrag()
+			return out
 		}
+	case uv.MouseMotionEvent:
+		g.drag(event, at)
+	case uv.MouseReleaseEvent:
+		g.drop(event, at)
 	case uv.MouseWheelEvent:
 		return g.wheel(map[uv.MouseButton]int{uv.MouseWheelUp: -1, uv.MouseWheelDown: 1}[m.Button])
 	}
@@ -616,7 +648,7 @@ func (g *editGrid) click(at image.Point) gridOutcome {
 func (g *editGrid) clickHit(h gridHit, at image.Point) gridOutcome {
 	if g.editing && h.row == g.row && h.col == g.col {
 		c := g.cell()
-		c.field.cursor = min(at.X-h.rect.Min.X, len(c.field.text))
+		c.field.cursor, c.field.selecting = c.field.posAt(at.X-h.rect.Min.X), false
 		return gridNothing
 	}
 	out := gridNothing
@@ -632,9 +664,49 @@ func (g *editGrid) clickHit(h gridHit, at image.Point) gridOutcome {
 	g.focus(h.row, h.col)
 	out |= g.activate()
 	if c := g.cell(); g.editing && c != nil {
-		c.field.cursor = min(at.X-h.rect.Min.X, len(c.field.text))
+		c.field.cursor, c.field.selecting = c.field.posAt(at.X-h.rect.Min.X), false
 	}
 	return out
+}
+
+// startDrag starts marking the text of the cell a click left typed in, from where it was clicked.
+func (g *editGrid) startDrag() {
+	if g.list != nil {
+		g.list.grid.startDrag()
+		return
+	}
+	if c := g.cell(); g.editing && c != nil && !c.secret {
+		c.field.mark()
+		g.dragging = true
+	}
+}
+
+// drag puts the cursor, and the end of the text marked, under the mouse.
+func (g *editGrid) drag(event uv.MouseEvent, at image.Point) {
+	if g.list != nil {
+		g.list.grid.drag(event, at)
+		return
+	}
+	rect, ok := g.focusRect()
+	if c := g.cell(); g.dragging && ok && c != nil {
+		c.field.cursor = c.field.posAt(at.X - rect.Min.X)
+	}
+}
+
+// drop ends a drag, and copies the text it marked.
+func (g *editGrid) drop(event uv.MouseEvent, at image.Point) {
+	if g.list != nil {
+		g.list.grid.drop(event, at)
+		return
+	}
+	if !g.dragging {
+		return
+	}
+	g.drag(event, at)
+	g.dragging = false
+	if text := g.cell().field.selected(); text != "" {
+		g.copied = text
+	}
 }
 
 // wheel moves the focus a row, or through an open menu or list.

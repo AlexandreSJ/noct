@@ -154,8 +154,9 @@ func (a *App) openFlowForm(f flow.Flow, values map[string]string) {
 // startFlow runs the flow with noct flow run and the values, which it remembers for the next run.
 func (a *App) startFlow(f flow.Flow, values map[string]string) {
 	kept := maps.Clone(values)
-	maps.DeleteFunc(kept, func(name string, _ string) bool { return !remembered(f.Params[name]) })
-	if len(kept) > 0 {
+	// A value at its default is not kept, so a default changed in the flow is the one it runs with.
+	maps.DeleteFunc(kept, func(name, value string) bool { return !remembered(f.Params[name]) || value == f.Params[name].Default })
+	if len(kept) > 0 || len(a.memory.FlowValues(f.Name)) > 0 { // what it kept before goes too
 		if err := a.memory.RememberFlow(f.Name, kept); err != nil {
 			a.statusMessage = err.Error() // the run goes on; only the memory is lost
 		}
@@ -166,10 +167,14 @@ func (a *App) startFlow(f flow.Flow, values map[string]string) {
 }
 
 // flowArgs are the values as noct flow run takes them: name=value arguments, but an env
-// parameter's value as its variable, which the run reads, and none when the environment has it.
+// parameter's value as its variable, which the run reads, and none when the environment has it
+// or the value is the default.
 func (a *App) flowArgs(f flow.Flow, values map[string]string) (args, env []string) {
 	given := maps.Clone(values)
 	for name, p := range f.Params {
+		if given[name] == p.Default {
+			delete(given, name) // the run takes it, and renders it when it is a template
+		}
 		if variable, ok := p.EnvName(); ok {
 			if value := given[name]; value != "" && value != a.getenv(variable) {
 				env = append(env, variable+"="+value)

@@ -137,6 +137,7 @@ func (x *running) runCall(s Step, path string) bool {
 	if err := fn.CheckParams(values); err != nil {
 		return x.stop(path, "function "+fn.Name+": "+err.Error(), 1)
 	}
+	values, _ = fn.withDefaults(values) // CheckParams rendered them already
 	x.header("ƒ", s.Label(), "call "+fn.Name)
 	start := time.Now()
 	caller := *x

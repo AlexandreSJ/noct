@@ -208,6 +208,16 @@ func (p *inspectPanel) editorKey(key uv.KeyPressEvent) {
 		p.helpHidden = !p.helpHidden
 	case p.editor.handleKey(key):
 		p.closeEditor()
+	default:
+		p.copyFromEditor()
+	}
+}
+
+// copyFromEditor puts on the clipboard what the editor copied, if anything.
+func (p *inspectPanel) copyFromEditor() {
+	if text := p.editor.takeCopied(); text != "" {
+		p.app.copyToClipboard(text)
+		p.app.notice = "copied to the clipboard"
 	}
 }
 
@@ -216,7 +226,9 @@ func (p *inspectPanel) editorMouse(event uv.MouseEvent) {
 	m := event.Mouse()
 	if p.editor.mouse(event, image.Pt(m.X, m.Y).Add(p.origin)) {
 		p.closeEditor()
+		return
 	}
+	p.copyFromEditor()
 }
 
 func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {

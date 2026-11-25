@@ -26,7 +26,10 @@ func (r *Runner) RunSteps(f Flow, params map[string]string, first, last string, 
 	}
 	tried := *r
 	tried.KeepOutput = TriedOutput
-	x := tried.start(f, params)
+	x, err := tried.start(f, params)
+	if err != nil {
+		return Result{}, err
+	}
 	x.remember(f, previous)
 	x.rememberVariables(f, parent, branch, from, previous)
 	for i := from; i <= to; i++ {

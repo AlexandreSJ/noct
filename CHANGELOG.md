@@ -21,9 +21,16 @@ the shortcut is `Alt` by default. How to write an entry is in
 - A scope warning tells when two steps give the same capture before a step reads it by its short
   name: `{{.version}}` reads the last one, and `{{.steps.build.version}}` picks another.
 - The demo installs `demo-params`, a flow with one param of each type that its steps read.
+- A flow param's `default` can read the params written before it, from the environment too:
+  `default: '{"user": {{json .user}}}'` makes an object of them. `json` puts a value in JSON,
+  quoted and escaped. Only the default renders: a value typed in the form is taken as it is.
+- Dragging the mouse over a cell's text in the inspect's params table and step forms selects it
+  and copies it; `Ctrl+C` while typing copies the selection or the whole cell.
 
 ### Changed
 
+- A flow's run form no longer remembers a value that is the param's default, so a default changed
+  in the flow is the one its next run takes.
 - The updates popup (`prefix` + `c`) draws each release's changelog as formatted markdown in
   the theme's colors: headings, `•` lists wrapped under their text, `code`, **bold**, *italic*,
   quotes and links.

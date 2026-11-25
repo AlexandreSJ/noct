@@ -108,6 +108,7 @@ func defaultCell(p flow.Param) gridCell {
 		cell = listCellOf(items, -1, false, "item")
 	default:
 		cell = textCellOf(p.Default)
+		cell.template = true // a default reads the params before it: {{json .user}}
 	}
 	cell.secret = p.Secret
 	return cell
@@ -195,7 +196,7 @@ func (t *paramsTable) problems(i int) map[int]string {
 	}
 	if problem := optionsProblem(p); problem != "" {
 		problems[paramDefaultColumn] = problem
-	} else if problem := p.Fits(p.Default); problem != "" {
+	} else if problem := p.DefaultProblem(); problem != "" {
 		problems[paramDefaultColumn] = "the value " + problem
 	}
 	if env, ok := p.EnvName(); ok && !naming.IsIdentifier(env) {
@@ -318,8 +319,20 @@ func (t *paramsTable) handleKey(key uv.KeyPressEvent) bool {
 			return false
 		}
 	}
+	t.grid.variables = t.paramsBefore(t.grid.row)
 	t.after(t.grid.handleKey(key))
 	return false
+}
+
+// paramsBefore are the params of the rows above row, which a default typed in it can read.
+func (t *paramsTable) paramsBefore(row int) []flow.Variable {
+	var vars []flow.Variable
+	for i := range min(row, len(t.grid.rows)) {
+		if name, _ := t.param(i); name != "" {
+			vars = append(vars, flow.Variable{Field: name, Certainty: flow.Set})
+		}
+	}
+	return vars
 }
 
 func (t *paramsTable) mouse(event uv.MouseEvent, at image.Point) bool {
@@ -348,6 +361,8 @@ func (t *paramsTable) addParam() {
 }
 
 func (t *paramsTable) paste(text string) { t.grid.paste(text) }
+
+func (t *paramsTable) takeCopied() string { return t.grid.takeCopied() }
 
 func (t *paramsTable) draw(screen uv.Screen, area image.Rectangle, _ bool) {
 	pal := &t.app.palette

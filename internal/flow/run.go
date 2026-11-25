@@ -88,8 +88,13 @@ type running struct {
 // Run runs the flow with the parameters given over its defaults. Result.Exit is the exit code of
 // the step that stopped it, or 1 for a stop that was not a program's.
 func (r *Runner) Run(f Flow, params map[string]string) Result {
-	x := r.start(f, params)
-	x.runSteps(f.Steps, "", "")
+	x, err := r.start(f, params)
+	if err != nil {
+		x.result.OK, x.result.Exit = false, 1 // no step ran, so none failed
+		fmt.Fprintf(r.Out, "\x1b[1m✗ flow %s stopped: %s\x1b[0m\n", f.Name, err)
+	} else {
+		x.runSteps(f.Steps, "", "")
+	}
 	x.result.End = time.Now()
 	if x.result.OK {
 		fmt.Fprintf(r.Out, "\n\x1b[1m✓ flow %s done\x1b[0m in %s\n", f.Name, x.result.End.Sub(x.result.Start).Round(time.Millisecond))
@@ -105,17 +110,19 @@ func (r *Runner) getenv(name string) string {
 }
 
 // start begins a run of the flow with the parameters given over its defaults.
-func (r *Runner) start(f Flow, params map[string]string) *running {
+func (r *Runner) start(f Flow, params map[string]string) (*running, error) {
+	vars := f.Values(r.getenv)
+	maps.Copy(vars, params)
+	vars, err := f.withDefaults(vars)
 	x := &running{
 		Runner:   r,
-		vars:     f.Values(r.getenv),
+		vars:     vars,
 		jsonVars: f.jsonParams(),
 		steps:    map[string]map[string]string{},
 		result:   Result{Flow: f.Name, Start: time.Now(), Steps: map[string]StepResult{}, OK: true},
 	}
-	maps.Copy(x.vars, params)
 	x.startDeadline(f)
-	return x
+	return x, err
 }
 
 // runSteps runs a list of steps, reporting false when the flow must stop.
@@ -560,13 +567,19 @@ func (x *running) condition(text string) (bool, error) {
 }
 
 func (x *running) render(text string) (string, error) {
+	return renderVars(text, x.vars, x.jsonVars, x.steps)
+}
+
+// renderVars renders a template over variables, the list and object ones among them read as
+// JSON, and the steps' results.
+func renderVars(text string, vars, jsonVars map[string]string, steps map[string]map[string]string) (string, error) {
 	t, err := parseTemplate(text)
 	if err != nil {
 		return "", err
 	}
-	data := map[string]any{"steps": x.steps}
-	for name, value := range x.vars {
-		data[name] = readAs(x.jsonVars[name], value)
+	data := map[string]any{"steps": steps}
+	for name, value := range vars {
+		data[name] = readAs(jsonVars[name], value)
 	}
 	// A variable not set, or unset, reads as empty rather than as <no value>.
 	script.WalkFields(t.Root, func(ident []string) {

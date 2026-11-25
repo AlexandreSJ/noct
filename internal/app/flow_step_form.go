@@ -223,6 +223,8 @@ func (s *stepForm) after(out gridOutcome) bool {
 
 func (s *stepForm) paste(text string) { s.grid.paste(text) }
 
+func (s *stepForm) takeCopied() string { return s.grid.takeCopied() }
+
 // submit makes the step and saves it, telling whether the form is done; a value that does not
 // fit, or a step the flow refuses, keeps it open with the reason.
 func (s *stepForm) submit() bool {

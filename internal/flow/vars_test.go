@@ -99,10 +99,10 @@ func TestAFlowParamFromSomethingElseIsAProblem(t *testing.T) {
 func TestARunReadsAnEnvParamFromItsEnvironment(t *testing.T) {
 	f := parse(t, "params:\n  token: {from: 'env:DEPLOY_TOKEN'}\nsteps: [{run: 'true'}]\n")
 	r := &Runner{Getenv: func(name string) string { return map[string]string{"DEPLOY_TOKEN": "s3cret"}[name] }}
-	if x := r.start(f, nil); x.vars["token"] != "s3cret" {
+	if x, _ := r.start(f, nil); x.vars["token"] != "s3cret" {
 		t.Errorf("token = %q, want the environment's", x.vars["token"])
 	}
-	if x := r.start(f, map[string]string{"token": "given"}); x.vars["token"] != "given" {
+	if x, _ := r.start(f, map[string]string{"token": "given"}); x.vars["token"] != "given" {
 		t.Errorf("token = %q, want the given value over the environment", x.vars["token"])
 	}
 }

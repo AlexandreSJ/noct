@@ -80,7 +80,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/prompt.go` | Text prompt (tab and panel rename, new folder) and yes/no confirmation (quit, delete) |
 | `internal/app/choice.go` | A choice of a few options (new directory or script) |
 | `internal/app/info_popup.go` | An info popup (what a flow's step does, a screen's keys), back to the screen it was opened from |
-| `internal/app/textfield.go` | The one-line text field every prompt, form, search and config row types into: cursor, shell editing keys, paste (bracketed or OSC 52), cursor view |
+| `internal/app/textfield.go` | The one-line text field every prompt, form, search and config row types into: cursor, shell editing keys, paste (bracketed or OSC 52), the text a drag marks, cursor view |
 | `internal/app/logs_panel.go` | Logs panel (prefix+v): month calendar marked by runs, the logs of a day (started or last written on it), sorting, clearing, where the log goes and whether it or the lists show, the hints of the part with the focus and the popup of every key; log pruning |
 | `internal/app/logs_columns.go` | The logs list's columns from the config: their widths over the whole list, dropping them on a narrow list, each cell (times, session, size, compact line counts), the titles |
 | `internal/app/logs_preview.go` | The selected log beside the logs panel's lists: a terminal that prints a part of 5000 lines of it, the last following its end, restarted as the selection or the part changes, and scrolling its history on into the parts before and after |
@@ -187,6 +187,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/flow/try.go` | Testing a range of sibling steps over the last result (its steps' fields and variables), and merging what they did into it |
 | `internal/flow/vars.go` | Params with a type (text, number, boolean, option, path, list, object; `bool` and `choice` read as before), required and a label, and checking values; running prompt, set and unset steps |
 | `internal/flow/json.go` | List and object params: decoding their JSON, lists and objects inside each other, for templates to read inside and print whole as JSON; a list's items as the inspect edits them (`ListItems`, `ItemsJSON`) |
+| `internal/flow/param_defaults.go` | Params' defaults as templates over the params before them (`withDefaults`, `DefaultProblem`), and the `json` template function |
 | `internal/flow/param_order.go` | The order of a flow's params: read and written as the YAML has them (`ParamOrder`), and `ParamNames` in that order |
 | `internal/flow/trigger.go` | Triggers (manual, cron, watch, after) in YAML, their validation, globs with `**`, loops of after triggers, which flows have them enabled |
 | `internal/flow/cron.go` | Five-field cron schedules: parsing and matching a minute |

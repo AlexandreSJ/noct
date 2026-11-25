@@ -115,20 +115,20 @@ func (f Flow) Values(getenv func(string) string) map[string]string {
 }
 
 // CheckParams reports values the flow cannot start with: names it has no parameter for,
-// numbers that are not, and required parameters left empty. Parameters missing from values
-// take their defaults.
+// numbers that are not, required parameters left empty and defaults that do not render.
+// Parameters missing from values take their defaults.
 func (f Flow) CheckParams(values map[string]string) error {
 	for _, name := range slices.Sorted(maps.Keys(values)) {
 		if _, ok := f.Params[name]; !ok {
 			return fmt.Errorf("flow %s has no parameter %s", f.Name, name)
 		}
 	}
+	resolved, err := f.withDefaults(values)
+	if err != nil {
+		return err
+	}
 	for _, name := range f.ParamNames() {
-		p := f.Params[name]
-		value, given := values[name]
-		if !given {
-			value = p.Default
-		}
+		p, value := f.Params[name], resolved[name]
 		if p.Required && strings.TrimSpace(value) == "" {
 			return fmt.Errorf("%s is required", name)
 		}
@@ -190,7 +190,7 @@ func checkParam(p Param) error {
 	if p.Type == OptionParam && len(p.Choices) == 0 {
 		return errors.New("an option needs its choices")
 	}
-	if problem := p.Fits(p.Default); problem != "" {
+	if problem := p.DefaultProblem(); problem != "" {
 		return errors.New("the default " + problem)
 	}
 	return nil

@@ -464,4 +464,7 @@ var templateFuncs = template.FuncMap{
 	},
 	// quote makes a value one shell word; a list or object param quotes as its JSON.
 	"quote": func(value any) string { return script.Quote(fmt.Sprint(value)) },
+	// json puts a value in JSON: {"user": {{json .user}}} quotes and escapes text, and a list or
+	// object param goes in as it is.
+	"json": toJSON,
 }

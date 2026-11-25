@@ -47,7 +47,7 @@ func TestFlowParamsFormRunsAndRemembers(t *testing.T) {
 	pressDrawn(a, tabPress, tabPress, clearLine)
 	typeDrawn(a, "hello")
 	pressDrawn(a, enterPress)
-	want := []string{"flow", "run", "calc", "a=5", "b=2", "text=hello"}
+	want := []string{"flow", "run", "calc", "a=5", "text=hello"} // b stays at its default, 2
 	if got := l.last(t).argv[1:]; a.mode == formMode || !slices.Equal(got, want) {
 		t.Fatalf("the form ran %v, want %v", got, want)
 	}
@@ -436,5 +436,32 @@ func TestTheParamsTableLightsWhatTheMouseIsOver(t *testing.T) {
 	a.handleEvent(uv.MouseMotionEvent{X: focused.rect.Min.X, Y: focused.rect.Min.Y})
 	if a.hoverTarget != "" {
 		t.Errorf("over the focused cell the hover is %q", a.hoverTarget)
+	}
+}
+
+// Dragging over a cell's text marks it and copies it, as in a pane; typing replaces what is marked.
+func TestDraggingOverAParamCellCopiesItsText(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "drag", "params: {region: eu-central}\nsteps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress)
+	table := openParamsTable(t, a)
+	var value gridHit
+	for _, h := range table.grid.hits {
+		if h.row == 0 && h.col == paramDefaultColumn {
+			value = h
+		}
+	}
+	at := value.rect.Min
+	a.handleEvent(uv.MouseClickEvent{X: at.X + 3, Y: at.Y, Button: uv.MouseLeft})
+	a.handleEvent(uv.MouseMotionEvent{X: at.X + 10, Y: at.Y, Button: uv.MouseLeft})
+	a.handleEvent(uv.MouseReleaseEvent{X: at.X + 10, Y: at.Y, Button: uv.MouseLeft})
+	field := &table.grid.at(0, paramDefaultColumn).field
+	if got := field.selected(); got != "central" || a.notice != "copied to the clipboard" {
+		t.Fatalf("the drag marked %q, notice %q; want central copied", got, a.notice)
+	}
+	typeDrawn(a, "west")
+	if got := field.String(); got != "eu-west" {
+		t.Errorf("typing over the marked text gave %q", got)
 	}
 }

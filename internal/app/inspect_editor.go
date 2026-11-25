@@ -19,6 +19,8 @@ type inspectEditor interface {
 	mouse(event uv.MouseEvent, at image.Point) (done bool)
 	// typing tells the keys type text as they are pressed, so none of them is a shortcut.
 	typing() bool
+	// takeCopied is the text a drag over a field or ctrl+c copied since it was last asked.
+	takeCopied() string
 	// hitAt is what a click at a point on the screen works, which lights under the mouse, and
 	// whether it is the one focused.
 	hitAt(at image.Point) (rect image.Rectangle, focused, ok bool)

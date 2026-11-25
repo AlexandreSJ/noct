@@ -139,6 +139,23 @@ steps:
   Templates read inside them: `{{index .hosts 0}}`, `{{.cfg.db.port}}`, `{{range .hosts}}{{.}} {{end}}`;
   `{{.hosts}}` alone writes the compact JSON, and `{{quote .hosts}}` makes it one shell word. A
   repeat goes through a list with `each: '{{range .hosts}}{{println .}}{{end}}'`.
+- A `default` is a template that reads the params written before it, so a param can be made of
+  others, from the environment too:
+
+  ```yaml
+  params:
+    user: {from: 'env:USER'}
+    password: {secret: true}
+    login:
+      type: object
+      default: '{"user": {{json .user}}, "pass": {{json .password}}}'
+  steps:
+    - run: echo {{quote .login.user}}
+  ```
+
+  `json` puts a value in JSON: text in quotes, with quotes and `\` in it escaped, and a list or
+  object as it is. Write `{{json .user}}`, not `"{{.user}}"`, which breaks on a value with a quote.
+  Only the default renders: a value typed in the form or given as `name=value` is taken as it is.
 - `from: env:NAME` takes the value from the variable `NAME` when it is set, and the form does not
   ask for it; unset, the param is asked like any other. A value given as `name=value` wins.
   Typed in the form, it goes to the run as `NAME`, never on its command line. `secret: true`
@@ -289,7 +306,7 @@ returns:
 ### Templates
 
 Go `text/template`, rendered in `run`, `with` values, `if`, `switch`, `until`, `each`, `prompt`,
-`default` and `set` values.
+`default` and `set` values, and in params' `default`.
 
 | Reads | Value |
 |---|---|
@@ -306,7 +323,8 @@ Go `text/template`, rendered in `run`, `with` values, `if`, `switch`, `until`, `
 - `if` and `until` must render to `true`, `false` or empty (false); anything else fails the step.
 - Functions: Go's built-ins (`eq`, `ne`, `and`, `or`, `not`, `gt`, `lt`, `printf`, ...),
   `match`: `{{match .steps.mail.output "sent"}}`, and `quote`, which makes a value one shell word:
-  `run: grep -r {{quote .pattern}} .`. Scripts have `quote` too.
+  `run: grep -r {{quote .pattern}} .`. Scripts have `quote` too. `json` puts a value in JSON:
+  `{"user": {{json .user}}}`.
 - A missing key renders empty, so a typo does not fail; `noct check` warns about it.
 
 ### Scope
