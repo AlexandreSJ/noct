@@ -874,8 +874,13 @@ func (p *inspectPanel) runText(r *flow.Result) string {
 	return fmt.Sprintf("%s %s ✗ exit %d", which, r.Start.Format("Jan 2 15:04"), r.Exit)
 }
 
-// RowAt is the row of the flows' list under point, which a click selects.
+// RowAt is what a click under point works: in an editor, its cell, button, option or item, or
+// else the row of the flows' list, which lights under the mouse.
 func (p *inspectPanel) RowAt(point image.Point) (image.Rectangle, bool, bool) {
+	if p.editor != nil {
+		rect, focused, ok := p.editor.hitAt(point.Add(p.origin))
+		return rect.Sub(p.origin), focused, ok
+	}
 	_, selected, _ := p.current()
 	return listRowAt(p.list, point, p.first, len(p.shown()), selected)
 }

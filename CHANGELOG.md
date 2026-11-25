@@ -47,7 +47,8 @@ the shortcut is `Alt` by default. How to write an entry is in
   add one, mark the one it holds with `Space`, filter with `f`. A list's value is a list of its
   items too. `+ add param`, the last row, adds a param;
   `J`/`K` move one, `Ctrl+Delete` removes it and `Ctrl+Z`/`Ctrl+Y` undo and redo. The table is
-  saved as it changes; a cell that keeps its row from being saved turns red and says why. `v`
+  saved as it changes; a cell that keeps its row from being saved turns red and says why. What a
+  click would work lights under the mouse, as a list's rows do. `v`
   hides the help beside it, and `esc` closes it.
 - Params keep the order they are written in, in the run form and the params card too.
 - Adding a step (`a`) or changing one (`e`) in the inspect fills one form in place of the chart

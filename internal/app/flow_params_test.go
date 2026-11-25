@@ -412,3 +412,29 @@ func TestAnOptionDefaultOutsideItsOptionsIsKept(t *testing.T) {
 		t.Errorf("saved %+v, want the row kept as the file has it", got)
 	}
 }
+
+// The cell under the mouse lights as a list's row does; the focused one is lit already.
+func TestTheParamsTableLightsWhatTheMouseIsOver(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "hover", "params: {a: '1', b: '2'}\nsteps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress)
+	table := openParamsTable(t, a)
+	var name, focused gridHit
+	for _, h := range table.grid.hits {
+		switch {
+		case h.row == 1 && h.col == paramNameColumn:
+			name = h
+		case h.row == 0 && h.col == 0:
+			focused = h
+		}
+	}
+	a.handleEvent(uv.MouseMotionEvent{X: name.rect.Min.X, Y: name.rect.Min.Y})
+	if a.hoverTarget == "" || !strings.HasPrefix(a.hoverTarget, "row") {
+		t.Fatalf("over b's name the hover is %q", a.hoverTarget)
+	}
+	a.handleEvent(uv.MouseMotionEvent{X: focused.rect.Min.X, Y: focused.rect.Min.Y})
+	if a.hoverTarget != "" {
+		t.Errorf("over the focused cell the hover is %q", a.hoverTarget)
+	}
+}

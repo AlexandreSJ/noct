@@ -181,6 +181,8 @@ func (s *stepForm) hints() string {
 
 func (s *stepForm) typing() bool { return s.grid.typing() }
 
+func (s *stepForm) hitAt(at image.Point) (image.Rectangle, bool, bool) { return s.grid.hitAt(at) }
+
 func (s *stepForm) handleKey(key uv.KeyPressEvent) bool {
 	switch name := key.String(); {
 	case name == "ctrl+s":
@@ -274,7 +276,7 @@ func (s *stepForm) draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 			continue
 		}
 		if row == s.grid.row {
-			s.grid.drawMoveArrows(screen, image.Pt(area.Min.X, y), pal)
+			s.grid.drawMoveArrows(screen, image.Pt(area.Min.X+1, y), pal)
 		}
 		s.drawCell(screen, image.Rect(left, y, left+labelWidth, y+1), row, stepFormLabelColumn)
 		s.drawCell(screen, image.Rect(valueX, y, area.Max.X-1, y+1), row, stepFormValueColumn)

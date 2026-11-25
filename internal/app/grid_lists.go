@@ -359,8 +359,8 @@ func (l *gridList) drawRow(screen uv.Screen, line image.Rectangle, row int, pal 
 	}
 	end := line.Max.X
 	if row == inner.row && !inner.editing {
-		end -= 2
-		inner.drawMoveArrows(screen, image.Pt(end, line.Min.Y), pal)
+		end -= moveArrowsWidth + 1
+		inner.drawMoveArrows(screen, image.Pt(end+1, line.Min.Y), pal)
 	}
 	inner.drawCell(screen, image.Rect(x, line.Min.Y, end, line.Max.Y), row, l.textColumn(), inner.at(row, l.textColumn()).value(), pal.panelText, pal)
 }
@@ -380,15 +380,44 @@ func (g *editGrid) drawButton(screen uv.Screen, line image.Rectangle, row, butto
 	drawTextCut(screen, line.Min.X, line.Min.Y, line.Max.X, text, style)
 }
 
-// drawMoveArrows draws the arrows that move the focused row, two cells wide at, for clicks.
+// moveArrowsWidth is the room the arrows that move a row take: ↑, a space, ↓.
+const moveArrowsWidth = 3
+
+// drawMoveArrows draws the arrows that move the focused row at, a space apart, each clicked on
+// itself or the half of the space beside it.
 func (g *editGrid) drawMoveArrows(screen uv.Screen, at image.Point, pal *palette) {
 	if !g.arranged {
 		return
 	}
 	drawText(screen, at.X, at.Y, at.X+1, "↑", pal.panelMuted)
-	drawText(screen, at.X+1, at.Y, at.X+2, "↓", pal.panelMuted)
-	g.hit(image.Rect(at.X, at.Y, at.X+1, at.Y+1), g.row, hitMoveUp)
-	g.hit(image.Rect(at.X+1, at.Y, at.X+2, at.Y+1), g.row, hitMoveDown)
+	drawText(screen, at.X+2, at.Y, at.X+3, "↓", pal.panelMuted)
+	g.hit(image.Rect(at.X, at.Y, at.X+2, at.Y+1), g.row, hitMoveUp)
+	g.hit(image.Rect(at.X+2, at.Y, at.X+3, at.Y+1), g.row, hitMoveDown)
+}
+
+// hitAt is what is drawn at the point on the screen that a click works, and whether it is the
+// one focused: in the menu or list open, or else the grid's cells, buttons and arrows.
+func (g *editGrid) hitAt(at image.Point) (image.Rectangle, bool, bool) {
+	switch {
+	case g.menu != nil:
+		for _, h := range g.menu.hits {
+			if at.In(h.rect) {
+				return h.rect, h.row == g.menu.lit, true
+			}
+		}
+		return image.Rectangle{}, false, false
+	case g.list != nil:
+		if at.In(g.list.box) {
+			return g.list.grid.hitAt(at)
+		}
+		return image.Rectangle{}, false, false
+	}
+	for _, h := range g.hits {
+		if at.In(h.rect) {
+			return h.rect, h.col >= 0 && h.row == g.row && h.col == g.col, true
+		}
+	}
+	return image.Rectangle{}, false, false
 }
 
 // drawOverlay draws the menu or list open under the focused cell, within bounds.

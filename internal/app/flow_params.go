@@ -39,8 +39,8 @@ type gridColumn struct {
 
 var paramColumns = []gridColumn{
 	{title: "type", width: 7},
-	{title: "name", width: 10, grows: true},
-	{title: "value", width: 18, grows: true},
+	{title: "name", width: 8, grows: true},
+	{title: "value", width: 20, grows: true},
 	{title: "from env", width: 8, grows: true},
 	{title: "label", width: 8, grows: true},
 	{title: "required", width: 8},
@@ -48,7 +48,7 @@ var paramColumns = []gridColumn{
 }
 
 // moveGutter is the room before a row, where the focused one has the arrows that move it.
-const moveGutter = 3
+const moveGutter = moveArrowsWidth + 2
 
 // paramTypeNotes say what each type holds, for the help beside the table.
 var paramTypeNotes = map[string]string{
@@ -303,6 +303,8 @@ func (t *paramsTable) hints() string { return t.grid.hints("{enter} edit  esc cl
 
 func (t *paramsTable) typing() bool { return t.grid.typing() }
 
+func (t *paramsTable) hitAt(at image.Point) (image.Rectangle, bool, bool) { return t.grid.hitAt(at) }
+
 func (t *paramsTable) handleKey(key uv.KeyPressEvent) bool {
 	if !t.grid.busy() {
 		switch key.String() {
@@ -370,7 +372,7 @@ func (t *paramsTable) draw(screen uv.Screen, area image.Rectangle, _ bool) {
 			t.grid.drawButton(screen, line, row, b, pal)
 		} else {
 			if row == t.grid.row {
-				t.grid.drawMoveArrows(screen, image.Pt(area.Min.X, y), pal)
+				t.grid.drawMoveArrows(screen, image.Pt(area.Min.X+1, y), pal)
 			}
 			t.drawRow(screen, line, row, widths, from, to)
 		}

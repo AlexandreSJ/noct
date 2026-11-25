@@ -19,6 +19,9 @@ type inspectEditor interface {
 	mouse(event uv.MouseEvent, at image.Point) (done bool)
 	// typing tells the keys type text as they are pressed, so none of them is a shortcut.
 	typing() bool
+	// hitAt is what a click at a point on the screen works, which lights under the mouse, and
+	// whether it is the one focused.
+	hitAt(at image.Point) (rect image.Rectangle, focused, ok bool)
 	// draw draws the editor in area; without the help beside it, it shows what it must itself.
 	draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 	// help is what the focused cell takes and what it can read, for the pane beside.
