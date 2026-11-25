@@ -70,6 +70,8 @@ type running struct {
 	vars map[string]string
 	// jsonVars are the list and object params among vars, by name, which templates read as JSON.
 	jsonVars map[string]string
+	// known are the names the flow's templates read with $, besides those set.
+	known knownNames
 	// steps holds, by step id, output, exit, ok and the captures, for the templates.
 	steps  map[string]map[string]string
 	result Result
@@ -118,6 +120,7 @@ func (r *Runner) start(f Flow, params map[string]string) (*running, error) {
 		Runner:   r,
 		vars:     vars,
 		jsonVars: f.jsonParams(),
+		known:    f.knownNames(r.Lookup),
 		steps:    map[string]map[string]string{},
 		result:   Result{Flow: f.Name, Start: time.Now(), Steps: map[string]StepResult{}, OK: true},
 	}
@@ -484,7 +487,7 @@ func (x *running) capturePatterns(s Step) map[string]string {
 // commandLine is the shell line a script or run step runs, and where.
 func (x *running) commandLine(s Step) (string, string, error) {
 	if s.Script == "" {
-		command, err := x.render(s.Run)
+		command, err := x.renderShell(s.Run)
 		return command, x.Dir, err
 	}
 	sc, ok := x.Lookup(s.Script)
@@ -567,13 +570,22 @@ func (x *running) condition(text string) (bool, error) {
 }
 
 func (x *running) render(text string) (string, error) {
-	return renderVars(text, x.vars, x.jsonVars, x.steps)
+	return renderVars(text, plainText, x.known, x.vars, x.jsonVars, x.steps)
 }
 
-// renderVars renders a template over variables, the list and object ones among them read as
-// JSON, and the steps' results.
-func renderVars(text string, vars, jsonVars map[string]string, steps map[string]map[string]string) (string, error) {
-	t, err := parseTemplate(text)
+// renderShell renders a run line: each $name one shell word, or escaped inside its quotes.
+func (x *running) renderShell(text string) (string, error) {
+	return renderVars(text, shellText, x.known, x.vars, x.jsonVars, x.steps)
+}
+
+// renderVars renders a template of a kind over variables, the list and object ones among them
+// read as JSON, and the steps' results. Its $ names are those known and those set.
+func renderVars(text string, kind textKind, known knownNames, vars, jsonVars map[string]string, steps map[string]map[string]string) (string, error) {
+	expanded, err := expandDollars(text, kind, known.with(vars, steps))
+	if err != nil {
+		return "", err
+	}
+	t, err := parseTemplate(expanded)
 	if err != nil {
 		return "", err
 	}

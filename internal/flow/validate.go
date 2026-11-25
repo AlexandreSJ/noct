@@ -37,20 +37,20 @@ func (f Flow) Validate(lookup func(id string) (script.Script, bool)) error {
 		return err
 	}
 	ids := map[string]bool{}
-	return validateSteps(f.Steps, "", ids, lookup)
+	return validateSteps(f.Steps, "", ids, lookup, f.knownNames(lookup))
 }
 
-func validateSteps(steps []Step, where string, ids map[string]bool, lookup func(id string) (script.Script, bool)) error {
+func validateSteps(steps []Step, where string, ids map[string]bool, lookup func(id string) (script.Script, bool), known knownNames) error {
 	for i, s := range steps {
 		at := fmt.Sprintf("%sstep %d", where, i+1)
 		if s.ID != "" {
 			at += " (" + s.ID + ")"
 		}
-		if err := s.validate(ids, lookup); err != nil {
+		if err := s.validate(ids, lookup, known); err != nil {
 			return fmt.Errorf("%s: %w", at, err)
 		}
 		for _, inner := range s.Branches() {
-			if err := validateSteps(inner.Steps, at+" > ", ids, lookup); err != nil {
+			if err := validateSteps(inner.Steps, at+" > ", ids, lookup, known); err != nil {
 				return err
 			}
 		}
@@ -58,7 +58,7 @@ func validateSteps(steps []Step, where string, ids map[string]bool, lookup func(
 	return nil
 }
 
-func (s Step) validate(ids map[string]bool, lookup func(id string) (script.Script, bool)) error {
+func (s Step) validate(ids map[string]bool, lookup func(id string) (script.Script, bool), known knownNames) error {
 	if err := s.validateID(ids); err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (s Step) validate(ids map[string]bool, lookup func(id string) (script.Scrip
 	if err := s.validateTimeout(kind); err != nil {
 		return err
 	}
-	if err := s.validateTemplates(); err != nil {
+	if err := s.validateTemplates(known); err != nil {
 		return err
 	}
 	return s.validateKind(kind, lookup)
@@ -285,11 +285,23 @@ func (s Step) templates() []string {
 	return texts
 }
 
-func (s Step) validateTemplates() error {
+func (s Step) validateTemplates(known knownNames) error {
 	for _, text := range s.templates() {
-		if _, err := parseTemplate(text); err != nil {
+		expanded, err := expandDollars(text, s.textKind(text), known)
+		if err != nil {
+			return err
+		}
+		if _, err := parseTemplate(expanded); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// textKind is what one of the step's templates is: its run line is the shell's.
+func (s Step) textKind(text string) textKind {
+	if text != "" && text == s.Run {
+		return shellText
+	}
+	return plainText
 }

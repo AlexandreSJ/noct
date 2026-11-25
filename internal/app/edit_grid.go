@@ -41,7 +41,7 @@ type gridCell struct {
 	noun    string
 	// skip marks a cell that does not apply to its row: drawn dim, never focused.
 	skip bool
-	// template completes the variables in scope as {{. is typed; secret shows a dot a character.
+	// template completes the variables in scope as $ or {{. is typed; secret shows a dot a character.
 	template bool
 	secret   bool
 }

@@ -23,7 +23,7 @@
 - Editor hints fit one row (`hintsInOneRow`); what does not fit goes to `?`.
 - Inspect editors are `editGrid`s: navigate first, `enter` or a click edits; new editor keys go in the `flow-editor` context, never `alt` (noct's direct shortcut).
 - List a flow's params with `f.ParamNames()`, never by sorting `f.Params`: their order is the user's.
-- UI, docs and examples name variables short (`{{.output}}`); `{{.steps.<id>.…}}` only where `flow.Readable` keeps it.
+- UI, docs and examples read flow values as `$name` (`$output`, `$build.output`), `{{ }}` only for logic; `$<id>.…` only where `flow.Readable` keeps it (ADR-073).
 
 ## Commands
 

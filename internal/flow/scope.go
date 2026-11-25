@@ -35,7 +35,15 @@ type Variable struct {
 	Certainty Certainty
 }
 
-// Template is how a template reads the variable.
+// Dollar is how a template reads the variable most simply: $name, or $step.field.
+func (v Variable) Dollar() string {
+	if v.Step == "" {
+		return "$" + v.Field
+	}
+	return "$" + v.Step + "." + v.Field
+}
+
+// Template is how a template reads the variable inside {{ }}.
 func (v Variable) Template() string {
 	if v.Step == "" {
 		return "{{." + v.Field + "}}"

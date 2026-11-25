@@ -190,6 +190,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/flow/try.go` | Testing a range of sibling steps over the last result (its steps' fields and variables), and merging what they did into it |
 | `internal/flow/vars.go` | Params with a type (text, number, boolean, option, path, list, object; `bool` and `choice` read as before), required and a label, and checking values; running prompt, set and unset steps |
 | `internal/flow/json.go` | List and object params: decoding their JSON, lists and objects inside each other, for templates to read inside and print whole as JSON; a list's items as the inspect edits them (`ListItems`, `ItemsJSON`) |
+| `internal/flow/dollar.go` | `$name` in flow templates: the names a flow knows (`knownNames`) and `expandDollars`, which rewrites them as `{{ }}` escaped for a run line's quotes or a JSON default |
 | `internal/flow/param_defaults.go` | Params' defaults as templates over the params before them (`withDefaults`, `DefaultProblem`), and the `json` template function |
 | `internal/flow/param_order.go` | The order of a flow's params: read and written as the YAML has them (`ParamOrder`), and `ParamNames` in that order |
 | `internal/flow/trigger.go` | Triggers (manual, cron, watch, after) in YAML, their validation, globs with `**`, loops of after triggers, which flows have them enabled |

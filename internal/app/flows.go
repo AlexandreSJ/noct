@@ -24,8 +24,8 @@ const stepHints = `# One step: script (with, capture, expect, on_fail, retry, ti
 # (times, each with as, or until with max; every; steps) or wait (5s, 1m).
 # timeout stops a script or run step that runs longer: 30s, 10m, 1h30m. retry: 3 runs a failed
 # step again up to 3 times; retry: {max: 3, every: 10s} waits between tries.
-# Templates read {{.output}}, {{.exit}}, {{.ok}} and captures by name; {{.steps.build.output}}
-# reads an earlier step's. See docs/fluxos.md.
+# Templates read $output, $exit, $ok and captures by name, $build.output an earlier step's;
+# in run, each $name is one shell word, and ${name} or $$name is the shell's. See docs/fluxos.md.
 `
 
 // reloadFlows reads the flows again, checking their scripts against the library.
@@ -555,7 +555,7 @@ func (a *App) agentStepLines(step flow.Step) []styledLine {
 	if len(step.Agent.Choices) > 0 {
 		lines = append(lines, styledLine{"the answer must be one of " + strings.Join(step.Agent.Choices, ", ") + "; one that says none fails the step", pal.panelMuted})
 	}
-	return append(lines, styledLine{"later steps read it as {{.answer}}, until another agent answers", pal.panelMuted})
+	return append(lines, styledLine{"later steps read it as $answer, until another agent answers", pal.panelMuted})
 }
 
 // callStepLines tell which function a call step runs and what comes back from it.
@@ -578,7 +578,7 @@ func (a *App) promptStepLines(step flow.Step) []styledLine {
 	lines := []styledLine{
 		{"Asks the user, and waits for the answer:", pal.panelHeading},
 		{step.Prompt, pal.panelText},
-		{"the answer goes to {{." + step.Var + "}}", pal.panelText},
+		{"the answer goes to $" + step.Var, pal.panelText},
 	}
 	if step.Default != "" {
 		lines = append(lines, styledLine{"an empty answer keeps " + step.Default, pal.panelMuted})
@@ -601,7 +601,7 @@ func (a *App) stepResultLines(step flow.Step) []styledLine {
 		add(fmt.Sprintf("captures %s from %s", name, step.Capture[name]), pal.panelText)
 	}
 	if step.ID != "" && (step.Kind() == flow.ScriptStep || step.Kind() == flow.CommandStep) {
-		add("later steps read {{.output}}, {{.exit}}, {{.ok}} and the captures, until another step gives its own; {{.steps."+step.ID+".output}} reads this one's after that", pal.panelMuted)
+		add("later steps read $output, $exit, $ok and the captures, until another step gives its own; $"+step.ID+".output reads this one's after that", pal.panelMuted)
 	}
 	if step.Timeout != "" {
 		add("stopped, and failed, after "+step.Timeout+" (timeout)", pal.panelMuted)
@@ -651,7 +651,7 @@ func repeatText(r *flow.Repeat) string {
 	text := fmt.Sprintf("%d times", r.Times)
 	switch {
 	case r.Each != "":
-		text = r.Each + ", each line in {{." + r.EachVar() + "}}"
+		text = r.Each + ", each line in $" + r.EachVar()
 		if r.Until != "" {
 			text += ", until " + r.Until
 		}

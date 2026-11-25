@@ -13,8 +13,8 @@ import (
 // place is taken as it is, so text typed in the form or passed to a call never runs as a template.
 // A value given that is the default's own text, as the form sends it untouched, is the default.
 
-// isTemplate tells text a template would change.
-func isTemplate(text string) bool { return strings.Contains(text, "{{") }
+// isTemplate tells text a template may change: one with {{ }} or a $ name.
+func isTemplate(text string) bool { return strings.Contains(text, "{{") || strings.Contains(text, "$") }
 
 // withDefaults are the values with each param missing from them at its default, and each param
 // at a default that is a template at that default rendered over the params before it. On an error
@@ -31,7 +31,11 @@ func (f Flow) withDefaults(values map[string]string) (map[string]string, error) 
 			value = p.Default
 		}
 		if value == p.Default && isTemplate(p.Default) {
-			rendered, err := renderVars(p.Default, before, kinds, nil)
+			kind := plainText
+			if kinds[name] != "" {
+				kind = jsonText
+			}
+			rendered, err := renderVars(p.Default, kind, knownNames{}, before, kinds, nil)
 			if err != nil {
 				return resolved, fmt.Errorf("the default of %s: %w", name, err)
 			}

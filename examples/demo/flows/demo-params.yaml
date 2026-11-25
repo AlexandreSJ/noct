@@ -35,37 +35,37 @@ params:
 steps:
   # text and number read as they are; quote keeps a value one shell word.
   - id: plan
-    run: echo "{{.replicas}} replicas in {{.region}} by {{quote .user}}, {{quote .note}}"
+    run: echo "$replicas replicas in $region by $user, $note"
 
   # boolean: an if reads true or false as they are.
-  - if: "{{.dry_run}}"
+  - if: "$dry_run"
     then:
       - run: echo "dry run, nothing changes"
     else:
-      - run: echo "applying {{.manifest}}"
+      - run: echo "applying $manifest"
 
   # option: a switch runs the case of the option picked.
-  - switch: "{{.region}}"
+  - switch: "$region"
     cases:
       - is: [us-east, us-west]
         steps: [{run: echo "an American region"}]
       - is: [eu-central, eu-west]
         steps: [{run: echo "a European region"}]
     else:
-      - run: echo "{{.region}} is in no case"
+      - run: echo "$region is in no case"
 
   # list: range walks the items and index reads one; the whole list is its
   # JSON, which quote keeps one shell word.
   - run: echo "{{range .hosts}}host {{.}}; {{end}}first is {{index .hosts 0}}"
-  - run: echo all hosts {{quote .hosts}}
+  - run: echo all hosts $hosts
 
   # object: a field reads at any depth; the whole object is its JSON too.
-  - run: echo "cpu {{.limits.cpu}}, memory up to {{.limits.memory.max}}"
-  - run: echo all limits {{quote .limits}}
+  - run: echo "cpu $limits.cpu, memory up to $limits.memory.max"
+  - run: echo all limits $limits
 
   # an object made of other params, read like any object.
-  - run: echo {{quote .target.by}} deploys {{len .target.hosts}} hosts to {{.target.region}}
-  - run: echo target {{quote .target}}
+  - run: echo $target.by deploys {{len .target.hosts}} hosts to $target.region
+  - run: echo target $target
 
   # from env and secret: $API_TOKEN when set, else asked masked in the form,
   # given to the run as API_TOKEN and never remembered.

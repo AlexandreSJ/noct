@@ -33,8 +33,8 @@ steps:
       max: 5
       every: 200ms
     steps:
-      - set: {dots: '{{.dots}}.'}
-      - run: echo "dots is now {{.dots}}"
+      - set: {dots: '$dots.'}
+      - run: echo "dots is now $dots"
 
   # set: give one or more variables a value. All values render first, then they
   # are set together, so they read the variables as they were before this step.
@@ -42,14 +42,14 @@ steps:
     set:
       greeting: hello
       who: world
-  - run: echo "{{.greeting}} {{.who}}"
+  - run: echo "$greeting $who"
 
   # capture: pull a value out of a step's output with a regex into a field.
   - id: dice
     run: echo "value=7"
     capture:
       rolled: 'value=([0-9]+)'
-  - run: echo "captured {{.steps.dice.rolled}}"
+  - run: echo "captured $dice.rolled"
 
   # unset: clear a variable and a step's result. After this they read as empty;
   # noct check would warn if a later template read them, so nothing does.
@@ -58,16 +58,16 @@ steps:
   - run: echo "cleared the greeting variable and the dice result"
 
   # repeat each: run the inner steps once for each line of a text, the line in
-  # {{.item}}, or in the variable as names. Empty lines are skipped; until and
+  # $item, or in the variable as names. Empty lines are skipped; until and
   # max can end it sooner.
   - id: fruits
     run: printf 'apple\nbanana\ncherry\n'
   - id: each
     repeat:
-      each: '{{.steps.fruits.output}}'
+      each: '$fruits.output'
       as: fruit
     steps:
-      - run: echo "one {{.fruit}}"
+      - run: echo "one $fruit"
 
   # retry: run a step that failed again, here up to 2 more times, 300ms apart,
   # before on_fail. This one fails twice and passes on its third try; a file
@@ -84,25 +84,25 @@ steps:
   # does. One case can take several values.
   - set: {color: green}
   - id: switch
-    switch: '{{.color}}'
+    switch: '$color'
     cases:
       - is: [red, orange]
         steps: [{run: echo "a warm color"}]
       - is: green
         steps: [{run: echo "a fresh color"}]
     else:
-      - run: echo "{{.color}} is in no case"
+      - run: echo "$color is in no case"
 
   # wait: pause the flow. Durations look like 5s or 1m30s.
   - id: pause
     wait: 1s
 
   # prompt (type number): ask whoever runs the flow for a number, keeping the
-  # answer in {{.picked}}. It asks again until the answer is a number. A prompt
+  # answer in $picked. It asks again until the answer is a number. A prompt
   # needs a terminal, so this is the last step and a headless run stops here.
   - id: ask
     prompt: Pick a number
     var: picked
     default: "7"
     type: number
-  - run: echo "you picked {{.picked}}"
+  - run: echo "you picked $picked"

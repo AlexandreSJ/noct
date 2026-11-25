@@ -50,9 +50,13 @@ func variableValue(f flow.Flow, v flow.Variable, r *flow.Result) string {
 	return step.Captures[v.Field]
 }
 
-// variableName is a variable as the scope pane and the picker show it: the template without
-// its braces.
+// variableName is a variable as the scope pane and the picker show it: $name, or $step.field.
 func variableName(v flow.Variable) string {
+	return v.Dollar()
+}
+
+// fieldName is a variable as an action inside {{ }} reads it: .name, or .steps.step.field.
+func fieldName(v flow.Variable) string {
 	return strings.TrimSuffix(strings.TrimPrefix(v.Template(), "{{"), "}}")
 }
 

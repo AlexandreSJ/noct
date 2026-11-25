@@ -501,4 +501,9 @@ var templateFuncs = template.FuncMap{
 	// json puts a value in JSON: {"user": {{json .user}}} quotes and escapes text, and a list or
 	// object param goes in as it is.
 	"json": toJSON,
+	// _sq, _dq and _js are what $name becomes inside a shell's single or double quotes, or a JSON
+	// string: the value escaped to stay inside them.
+	"_sq": inSingleQuotes,
+	"_dq": inDoubleQuotes,
+	"_js": inJSONString,
 }

@@ -22,7 +22,7 @@ type stepField struct {
 	// note tells what the row takes; examples show it with the variables in scope.
 	note     string
 	examples []string
-	// template rows complete the variables in scope as {{. is typed.
+	// template rows complete the variables in scope as $ or {{. is typed.
 	template bool
 	// check tells why a value does not fit, or "".
 	check func(value string) string
@@ -366,7 +366,7 @@ func (s *stepForm) help() []styledLine {
 	for _, v := range s.grid.variables {
 		lines = append(lines, styledLine{certaintyMarks[v.Certainty] + s.variableLine(variableName(v)), pal.panelText})
 	}
-	return append(lines, styledLine{"", pal.panelText}, styledLine{"{{. completes them; ↻ this pass  ? if a branch ran", pal.panelMuted})
+	return append(lines, styledLine{"", pal.panelText}, styledLine{"$ or {{. completes them; ↻ this pass  ? if a branch ran", pal.panelMuted})
 }
 
 func (s *stepForm) variableLine(name string) string {

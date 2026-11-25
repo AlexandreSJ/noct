@@ -2,7 +2,6 @@ package app
 
 import (
 	"image"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -71,15 +70,15 @@ func TestScopePaneAndWarnings(t *testing.T) {
 	saveFlow(t, "trio", "steps:\n  - {id: one, run: printf 1, capture: {n: '(\\d)'}}\n  - {id: two, run: 'echo {{.steps.three.output}}'}\n  - {id: three, run: printf 3}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress, letter('s'))
 	screen := screenText(a)
-	for _, want := range []string{"scope", "  .n", "⚠ step three has not run yet here"} {
+	for _, want := range []string{"scope", "  $n", "⚠ step three has not run yet here"} {
 		if !strings.Contains(screen, want) {
 			t.Errorf("screen lacks %q:\n%s", want, screen)
 		}
 	}
-	if strings.Contains(screen, ".steps.one.n") {
+	if strings.Contains(screen, "$one.n") {
 		t.Error("the scope names .n by its step, which only one step sets")
 	}
-	if regexp.MustCompile(`[^{]\.steps\.three\.output`).MatchString(screen) { // not the command's {{.steps.three.output}}
+	if strings.Contains(screen, "$three.output") {
 		t.Error("the scope of step two lists step three")
 	}
 }

@@ -102,7 +102,7 @@ func TestExploreWarnsOnlyAboutTheBranch(t *testing.T) {
 }
 
 func TestReferencesInsideActionsAndBranches(t *testing.T) {
-	got := references(`{{if eq .steps.a.b "x"}}{{.steps.c.output}}{{else}}{{.env}}{{end}}`)
+	got := Flow{}.references(`{{if eq .steps.a.b "x"}}{{.steps.c.output}}{{else}}{{.env}}{{end}}`, nil)
 	want := []reference{{step: "a", field: "b"}, {step: "c", field: "output"}, {field: "env"}}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)

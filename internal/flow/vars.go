@@ -256,7 +256,7 @@ func (x *running) runPrompt(s Step, path string) bool {
 	if err != nil {
 		return x.stop(path, "default: "+err.Error(), 1)
 	}
-	x.header("?", s.Label(), "→ ."+s.Var)
+	x.header("?", s.Label(), "→ $"+s.Var)
 	if x.Ask == nil {
 		return x.stop(path, "prompt: nobody is at the terminal to answer", 1)
 	}

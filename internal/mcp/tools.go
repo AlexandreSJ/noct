@@ -202,9 +202,9 @@ it. draft_function does the same for a function; a draft function does not run, 
 that call it wait for its promotion. check and flow_scope tell problems and what a step can read.
 
 Flow params have a type: text, number, boolean, option (with choices), path, list or object; a
-list or object holds JSON, which templates read inside ({{index .hosts 0}}, {{.cfg.db.port}},
+list or object holds JSON, which templates read inside ($cfg.db.port, {{index .hosts 0}},
 {{range .hosts}}) and print whole as JSON. A param with from: env:NAME reads the variable. Each script, run, call and agent step also sets short variables
-({{.output}}, {{.exit}}, {{.ok}}, captures, a call's returns, an agent's {{.answer}}); an if,
+($output, $exit, $ok, captures, a call's returns, an agent's $answer); an if,
 switch or repeat changes variables made before it, and the ones it makes go when it ends unless its
 export keeps them: export: {count: passes}. switch: template, cases: [{is: value or [values],
 steps}], else: steps. repeat: {each: template, as: name} runs once per line. retry: 3 or {max: 3,
@@ -220,7 +220,10 @@ show the terminals; run_command and send_input act in them and, like run with pa
 the user's approval, which they give in noct (prefix+y); a denied call says so, do not retry it
 unasked.
 
-Templates are Go text/template and every value but a list or object is a string: compare with
-{{eq .exit "0"}}. Prefer the short names; {{.steps.<id>.<field>}} only reads an earlier step's field
-a later one set again. In a run line, write {{quote .name}} or {{quote .output}} so a value is one
-shell word.`
+A template reads a param or variable as $name and a step's field as $<id>.<field> ($build.output),
+only for an earlier step's field a later one set again; prefer the short names. In a run line each
+$name is one shell word, or escaped inside the quotes around it: write echo $name or echo "at
+$name", never {{quote}}; ${NAME} and $$NAME are the shell's, and so is a name the line sets itself
+(for f in, n=). Logic is Go text/template inside {{ }}, where every value but a list or object
+is a string: {{if eq .exit "0"}}, {{range .hosts}}. In a list or object param's default, $name goes
+in as JSON: '{"user": $user}'.`

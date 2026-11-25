@@ -62,7 +62,7 @@ func (s Step) orderedTemplates() []string {
 // check warns about each variable or step a template reads that is not surely in scope.
 func (f Flow) check(path, text string, sc *scope) []Warning {
 	var warnings []Warning
-	for _, ref := range references(text) {
+	for _, ref := range f.references(text, sc.lookup) {
 		i := slices.IndexFunc(sc.vars, func(v Variable) bool { return v.Step == ref.step && v.Field == ref.field })
 		var problem string
 		switch {
@@ -175,11 +175,15 @@ type reference struct {
 
 // references lists the variables and steps' fields a template reads, in order; a template that does not parse
 // reads none (Validate reports it).
-func references(text string) []reference {
-	if !strings.Contains(text, "{{") {
+func (f Flow) references(text string, lookup func(id string) (script.Script, bool)) []reference {
+	if !isTemplate(text) {
 		return nil
 	}
-	t, err := parseTemplate(text)
+	expanded, err := expandDollars(text, plainText, f.knownNames(lookup))
+	if err != nil {
+		return nil
+	}
+	t, err := parseTemplate(expanded)
 	if err != nil {
 		return nil
 	}

@@ -487,7 +487,7 @@ func (t *paramsTable) help() []styledLine {
 			add(pal.panelText, kind+"  "+paramTypeNotes[kind])
 		}
 	case t.grid.col == paramNameColumn:
-		add(pal.panelText, "steps read it as {{."+cmp.Or(name, "name")+"}}")
+		add(pal.panelText, "steps read it as $"+cmp.Or(name, "name"))
 		add(pal.panelMuted, "letters, digits and _")
 	case t.grid.col == paramDefaultColumn:
 		add(pal.panelText, "the value when the run gives none: "+paramTypeNotes[cmp.Or(p.Type, flow.TextParam)])
@@ -528,11 +528,11 @@ func defaultNote(p flow.Param) string {
 func readingExamples(name, kind string) []string {
 	switch kind {
 	case flow.ListParam:
-		return []string{"{{index ." + name + " 0}} the first", "{{range ." + name + "}}{{.}} {{end}} each", "{{." + name + "}} the whole list as JSON"}
+		return []string{"{{index ." + name + " 0}} the first", "{{range ." + name + "}}{{.}} {{end}} each", "$" + name + " the whole list as JSON"}
 	case flow.ObjectParam:
-		return []string{"{{." + name + ".key}} a field, at any depth", "{{." + name + "}} the whole object as JSON"}
+		return []string{"$" + name + ".key a field, at any depth", "$" + name + " the whole object as JSON"}
 	case flow.BooleanParam:
-		return []string{"if: {{." + name + "}}"}
+		return []string{"if: $" + name}
 	}
 	return []string{"{{quote ." + name + "}} in a command line"}
 }

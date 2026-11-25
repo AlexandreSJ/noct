@@ -128,7 +128,7 @@ func conditionExamples(vars []flow.Variable) []string {
 	}
 	var examples []string
 	if has("ok") {
-		examples = append(examples, "{{.ok}}: the step before passed")
+		examples = append(examples, "$ok: the step before passed")
 	}
 	for _, v := range vars {
 		if v.Step == "" && !slices.Contains([]string{"output", "exit", "ok", "answer"}, v.Field) {
@@ -146,7 +146,7 @@ func switchForm(s flow.Step) stepFormSpec {
 	return stepFormSpec{
 		title: "switch",
 		fields: []stepField{
-			{label: "on", cell: textCellOf(s.Switch), template: true, check: needed("the value"), note: "the value the cases compare", examples: []string{"{{.answer}}", "{{.env}}"}},
+			{label: "on", cell: textCellOf(s.Switch), template: true, check: needed("the value"), note: "the value the cases compare", examples: []string{"$answer", "$env"}},
 			{label: "cases", cell: listCellOf(caseItems(s.Cases), -1, false, "case"), check: needed("a case"), note: "the values each case runs on; | puts two in one: bug|regression"},
 		},
 		build: func(v []formValue) (flow.Step, error) {
@@ -201,7 +201,7 @@ func repeatForm(s flow.Step) stepFormSpec {
 		title: "repeat",
 		fields: []stepField{
 			{label: "times", cell: textCellOf(countText(r.Times)), check: checkCount, note: "how many passes; empty repeats until"},
-			{label: "until", cell: textCellOf(r.Until), template: true, note: "stops after the pass where it gives true", examples: []string{"{{.ok}}", `{{eq .status "ready"}}`}},
+			{label: "until", cell: textCellOf(r.Until), template: true, note: "stops after the pass where it gives true", examples: []string{"$ok", `{{eq .status "ready"}}`}},
 			{label: "max", cell: textCellOf(countText(r.Max)), check: checkCount, note: "the most passes an until runs; empty is 10"},
 			{label: "every", cell: textCellOf(r.Every), check: checkDuration, note: "a wait between passes, as 30s; empty is none"},
 		},
@@ -221,14 +221,14 @@ func repeatForm(s flow.Step) stepFormSpec {
 }
 
 func eachForm(s flow.Step) stepFormSpec {
-	r := flow.Repeat{Each: "{{.output}}"}
+	r := flow.Repeat{Each: "$output"}
 	if s.Repeat != nil {
 		r = *s.Repeat
 	}
 	return stepFormSpec{
 		title: "for each line",
 		fields: []stepField{
-			{label: "lines of", cell: textCellOf(r.Each), template: true, check: needed("a text"), note: "its steps run once for each line", examples: []string{"{{.output}}", "{{range .list}}{{println .}}{{end}}: a list param"}},
+			{label: "lines of", cell: textCellOf(r.Each), template: true, check: needed("a text"), note: "its steps run once for each line", examples: []string{"$output", "{{range .list}}{{println .}}{{end}}: a list param"}},
 			{label: "as", cell: textCellOf(r.EachVar()), check: checkVariable, note: "the variable each line is in"},
 		},
 		build: func(v []formValue) (flow.Step, error) {
@@ -273,7 +273,7 @@ func promptForm(s flow.Step) stepFormSpec {
 }
 
 func setForm(s flow.Step) stepFormSpec {
-	row := stepField{note: "a name, then its value: a template; {{.name}} reads it after", template: true}
+	row := stepField{note: "a name, then its value: a template; $name reads it after", template: true}
 	spec := stepFormSpec{title: "set", named: true, rowField: row, adds: "variable"}
 	for _, name := range slices.Sorted(maps.Keys(s.Set)) {
 		field := row
@@ -425,7 +425,7 @@ func (a *App) agentForm(s flow.Step) stepFormSpec {
 	return stepFormSpec{
 		title: "AI agent",
 		fields: []stepField{
-			{label: "ask", cell: textCellOf(agent.Ask), template: true, check: needed("a question"), note: "what the agent is asked; {{.answer}} is its answer after"},
+			{label: "ask", cell: textCellOf(agent.Ask), template: true, check: needed("a question"), note: "what the agent is asked; $answer is its answer after"},
 			{label: "answers", cell: listCellOf(agent.Choices, -1, false, "answer"), note: "the answers it may give; none takes any"},
 			{label: "agent", cell: optionCellOf(agent.Use, append(names, customAgent)), describe: func(name string) string { return orDefault(notes[name], "the agent that answers") }},
 			{label: "timeout", cell: textCellOf(s.Timeout), check: checkDuration, note: "as 30s or 5m; empty waits as long as it takes"},

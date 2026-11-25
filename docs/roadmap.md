@@ -72,6 +72,8 @@ Encadear scripts num editor visual (ver [fluxos.md](fluxos.md)).
 
 **Pastas e onde parou (pedido do mantenedor, 2026-11-25; ADR-072, na mesma branch).** Scripts, fluxos e funções em pastas dentro de pastas, lidas pelo mesmo código (`internal/tree`) e listadas pela mesma árvore no scripts panel e no inspect, com as funções na pasta `ƒ functions`; o nome de um fluxo numa pasta é o caminho (`ops/deploy`). O inspect abre no último fluxo, e a sessão lembra o fluxo e o script de cada painel.
 
+**`$nome` nos templates (pedido do mantenedor, 2026-11-25; ADR-073, na mesma branch).** `$nome`, `$passo.campo` e `$obj.campo` leem valores; só os nomes do fluxo, o resto é do shell; numa linha `run`, escapados conforme as aspas, sem `{{quote}}`. `{{ }}` fica para a lógica.
+
 **Pronto quando:** um teste de ponta a ponta com várias etapas é montado sem editar YAML à mão, roda sozinho por cron, para no passo certo em caso de falha, e a execução de ontem é encontrada pelo calendário.
 
 ## Fase 3 — IA (MCP)

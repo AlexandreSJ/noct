@@ -24,6 +24,12 @@ the shortcut is `Alt` by default. How to write an entry is in
 - A flow param's `default` can read the params written before it, from the environment too:
   `default: '{"user": {{json .user}}}'` makes an object of them. `json` puts a value in JSON,
   quoted and escaped. Only the default renders: a value typed in the form is taken as it is.
+- Flow templates read a value as `$name`: `$version`, `$build.output` for a step's field and
+  `$cfg.db.port` for an object's, besides `{{ }}`, which stays for logic. Only names the flow
+  knows are its own, so `$HOME` and `$1` stay the shell's, and so do `${name}`, `$$name` and a
+  name the run line sets itself. In a run line each `$name` is escaped for where it lands: one
+  shell word outside quotes, kept inside `"..."` or `'...'`, so a value never runs as a command
+  and `{{quote}}` is no longer needed. Typing `$` in a step form completes the names.
 - Scripts, flows and functions can be kept in folders inside folders, at any depth. A flow in
   `flows/ops/deploy.yaml` is `ops/deploy` (`noct flow run ops/deploy`, or `deploy` while no
   other flow has that name), and `call: utils/greet` runs a function in a folder. The inspect's
