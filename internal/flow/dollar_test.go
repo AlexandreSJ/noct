@@ -44,6 +44,18 @@ func TestDollarNamesAreTheFlowsAndEscapedWhereTheyLand(t *testing.T) {
 	if _, err := splitText("$join(hosts", plainText, known); err == nil {
 		t.Error("a call left open is told")
 	}
+	// What would run a command is refused: a word in $(( )), which the shell evaluates, and a
+	// line that would end a heredoc, after which the shell runs what follows.
+	for text, value := range map[string]string{
+		`echo $(( $user + 1 ))`:          "HOME",
+		"cat <<EOF\n$user\nEOF\n":        "a\nEOF\nrm -rf x",
+		"cat <<-'EOF'\n\t$user\n\tEOF\n": "a\n\tEOF\nrm -rf x",
+	} {
+		vars := map[string]string{"user": value}
+		if got, err := renderText(text, shellText, known, vars, nil, nil); err == nil {
+			t.Errorf("%q with user %q rendered %q", text, value, got)
+		}
+	}
 }
 
 func TestOldTemplatesAreTold(t *testing.T) {

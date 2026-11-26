@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/AlexandreSJ/noct/internal/expr"
@@ -164,11 +165,14 @@ const (
 	heredocShell
 )
 
-// piece is a part of a text: text as it is, or a $ reference and the quotes it is in.
+// piece is a part of a text: text as it is, or a $ reference and the quotes it is in; in a
+// heredoc's body, end is the word that ends it, and dash tells <<-.
 type piece struct {
 	text  string
 	ref   *expr.Expr
 	quote quoting
+	end   string
+	dash  bool
 }
 
 // splitText reads a text into its parts: what stays as written, and each $ reference to a name
@@ -336,10 +340,19 @@ func (s *splitter) dollar() error {
 	if err := s.known.check(ref); err != nil {
 		return fmt.Errorf("$%s: %w", ref, err)
 	}
-	s.flush()
-	s.pieces = append(s.pieces, piece{ref: ref, quote: s.quote})
+	s.add(ref)
 	s.at += 1 + n
 	return nil
+}
+
+// add puts a reference among the pieces, with where it lands.
+func (s *splitter) add(ref *expr.Expr) {
+	s.flush()
+	p := piece{ref: ref, quote: s.quote}
+	if s.quote == heredocText || s.quote == heredocShell {
+		p.end, p.dash = s.heredoc, s.dash
+	}
+	s.pieces = append(s.pieces, p)
 }
 
 // braces reads ${expression}, rest being what follows the $: the flow's when the expression
@@ -350,8 +363,7 @@ func (s *splitter) braces(rest string) {
 	if end > 0 {
 		e, err := expr.Parse(rest[1:end])
 		if err == nil && len(e.Names()) > 0 && s.known.knowsAll(e) && s.known.check(e) == nil {
-			s.flush()
-			s.pieces = append(s.pieces, piece{ref: e, quote: s.quote})
+			s.add(e)
 			s.at += 1 + end + 1
 			return
 		}
@@ -408,7 +420,7 @@ func render(pieces []piece, kind textKind, scope expr.Scope) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("$%s: %w", p.ref, err)
 		}
-		text, err := escape(value, kind, p.quote)
+		text, err := p.escape(value, kind)
 		if err != nil {
 			return "", fmt.Errorf("$%s: %w", p.ref, err)
 		}
@@ -417,18 +429,20 @@ func render(pieces []piece, kind textKind, scope expr.Scope) (string, error) {
 	return out.String(), nil
 }
 
-// escape is a value as it goes into a kind of text, inside its quoting: one shell word outside
-// quotes, the text of a shell's quoted string inside them, JSON in a JSON text.
-func escape(value any, kind textKind, quote quoting) (string, error) {
+// escape is a value as it goes into a kind of text, where the piece is: one shell word outside
+// quotes, the text of a shell's quoted string inside them, a number in $(( )), a heredoc's text
+// in its body, JSON in a JSON text.
+func (p piece) escape(value any, kind textKind) (string, error) {
+	quote := p.quote
 	switch {
 	case kind == shellText && quote == unquoted:
 		return script.Quote(expr.String(value)), nil
-	case kind == shellText && (quote == doubleQuoted || quote == arithmetic):
+	case kind == shellText && quote == doubleQuoted:
 		return inDoubleQuotes(expr.String(value)), nil
-	case kind == shellText && quote == heredocText:
-		return expr.String(value), nil
-	case kind == shellText && quote == heredocShell:
-		return strings.NewReplacer(`\`, `\\`, "$", `\$`, "`", "\\`").Replace(expr.String(value)), nil
+	case kind == shellText && quote == arithmetic:
+		return inArithmetic(value)
+	case kind == shellText && (quote == heredocText || quote == heredocShell):
+		return p.inHeredoc(expr.String(value))
 	case kind == shellText:
 		return inSingleQuotes(expr.String(value)), nil
 	case kind == jsonText && quote == doubleQuoted:
@@ -437,6 +451,30 @@ func escape(value any, kind textKind, quote quoting) (string, error) {
 		return expr.JSON(value)
 	}
 	return expr.String(value), nil
+}
+
+// inArithmetic is a value in the shell's $(( )), which must be a number: the shell reads any
+// other word there as a variable whose text it evaluates in turn, which could run a command.
+func inArithmetic(value any) (string, error) {
+	n, ok := expr.Number(value)
+	if !ok {
+		return "", fmt.Errorf("%q is no number, and $(( )) takes only numbers", expr.String(value))
+	}
+	return strconv.FormatFloat(n, 'f', -1, 64), nil
+}
+
+// inHeredoc is a value in a heredoc's body: as it is after <<'EOF', with \, $ and ` escaped after
+// <<EOF. A line of it that would end the heredoc is refused, as the shell would run what follows.
+func (p piece) inHeredoc(value string) (string, error) {
+	for _, line := range strings.Split(value, "\n") {
+		if line == p.end || p.dash && strings.TrimLeft(line, "\t") == p.end {
+			return "", fmt.Errorf("a line of the value is %s, which would end the heredoc", p.end)
+		}
+	}
+	if p.quote == heredocText {
+		return value, nil
+	}
+	return strings.NewReplacer(`\`, `\\`, "$", `\$`, "`", "\\`").Replace(value), nil
 }
 
 // Escapes for a value inside quotes: a shell's double or single quotes, a JSON string.
