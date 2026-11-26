@@ -40,8 +40,9 @@ the shortcut is `Alt` by default. How to write an entry is in
 - `g` and `G` go to the first and last setting in the config, as `Home` and `End` do.
 - `Space` opens an option's choices in the inspect's forms and tables, as `Enter` does.
 - A variable's default in the inspect's table takes several lines too, its row as tall, and a
-  card shows a text's first line and `…` for the rest. A field too long for its cell shows
-  the part around the cursor, `…` before what is left of it, and a condition's `and`, `or` and
+  card shows a text's first line and `…` for the rest. A field too long for its cell scrolls
+  only as far as keeps the cursor and a few characters around it in sight, `…` before what is
+  left of it, and a condition's `and`, `or` and
   parentheses take the primary color as they are typed.
 - A step form's text can take several lines: while typing, `Enter` starts a new line, and `esc`,
   `Ctrl+Enter` or `Alt+Enter` leave the cell. A condition shows laid out by its logic in the

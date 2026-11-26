@@ -198,7 +198,7 @@ func (f *textField) draw(screen uv.Screen, x, y, width int, secret bool, style, 
 	if width <= 0 {
 		return x
 	}
-	start := scrolledTo(text, f.cursor, width)
+	start := scrolledTo(text, f.shown, f.cursor, width)
 	f.shown = start
 	end := drawText(screen, x, y, x+width, shownFrom(text, start, width), style)
 	if !secret {
@@ -311,12 +311,23 @@ func (a *App) requestClipboard() {
 	}
 }
 
-// scrolledTo is the first character shown of text in width cells with the cursor at cursor in
-// sight, and a cell after it.
-func scrolledTo(text []rune, cursor, width int) int {
-	start := 0
-	for start < cursor && ansi.StringWidth(string(text[start:cursor])) > width-1 {
+// scrolledTo is the first character shown of text in width cells, from the one shown before,
+// moved only as far as keeps the cursor in sight with a few characters around it, and never so
+// far that room is left after the end.
+func scrolledTo(text []rune, shown, cursor, width int) int {
+	margin := max(1, min(4, width/4))
+	start := min(max(shown, 0), len(text))
+	if cursor-margin < start {
+		start = max(cursor-margin, 0)
+	}
+	if start == 1 {
+		start = 0 // the … would stand for the one character left of it
+	}
+	for start < cursor && ansi.StringWidth(string(text[start:min(cursor+margin, len(text))])) > width-1 {
 		start++
+	}
+	for start > 0 && ansi.StringWidth(string(text[start-1:])) <= width-1 {
+		start--
 	}
 	return start
 }

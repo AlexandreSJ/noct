@@ -78,3 +78,22 @@ func TestAConditionsLogicIsColoredAsItIsTyped(t *testing.T) {
 		}
 	}
 }
+
+// Moving the cursor back near the end of a long text keeps the text where it was, with what
+// follows the cursor still in sight.
+func TestAFieldKeepsItsScrollAsTheCursorMovesBack(t *testing.T) {
+	buffer := uv.NewScreenBuffer(10, 1)
+	f := newTextField("0123456789abcdef")
+	f.draw(buffer, 0, 0, 10, false, uv.Style{}, uv.Style{})
+	shown := f.shown
+	f.cursor -= 3
+	f.draw(buffer, 0, 0, 10, false, uv.Style{}, uv.Style{})
+	if f.shown != shown || !strings.Contains(buffer.Render(), "def") {
+		t.Errorf("shown %d, was %d: %q", f.shown, shown, buffer.Render())
+	}
+	f.cursor = 2
+	f.draw(buffer, 0, 0, 10, false, uv.Style{}, uv.Style{})
+	if f.shown != 0 {
+		t.Errorf("near the start it shows from %d", f.shown)
+	}
+}

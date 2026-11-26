@@ -98,7 +98,7 @@ func (f *textField) drawLines(screen uv.Screen, rect image.Rectangle, style, cur
 		f.top = at - rect.Dy() + 1
 	}
 	col := f.cursor - f.lineStart()
-	f.shown = scrolledTo([]rune(lines[at]), col, rect.Dx())
+	f.shown = scrolledTo([]rune(lines[at]), f.shown, col, rect.Dx())
 	for i := f.top; i < len(lines) && i-f.top < rect.Dy(); i++ {
 		start := map[bool]int{true: f.shown}[i == at]
 		origin := image.Pt(rect.Min.X, rect.Min.Y+i-f.top)
