@@ -21,6 +21,12 @@ the shortcut is `Alt` by default. How to write an entry is in
   so noct's prefix and the other panes stay a key away: typing narrows the list, the arrows and
   the wheel move through it, `Enter` or a click adds, and `Tab` adds again the step added last,
   down to its script or function. A script or a function is picked in the same list.
+- A flow's `set` gives its variables types with `types: {count: number}`: `var`, the default,
+  is what its value is, a list or an object when it is one in JSON; `text`, `number`, `boolean`,
+  `list` and `object` refuse a value of another type. Its form has a type column, starts typing
+  the first variable's name, and `Tab` completes the name of a variable in scope, which brings
+  its type.
+- What `Tab` would put in shows dim after the cursor in the inspect's forms and tables.
 - `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
   chart, and shows them again.
 - Flow conditions take `nand`, `nor` and `xor`. The inspect's details show a condition with

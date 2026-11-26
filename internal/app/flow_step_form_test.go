@@ -126,7 +126,6 @@ func TestASetStepTakesARowPerVariable(t *testing.T) {
 	saveFlow(t, "vars", "steps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	addStep(a, "set")
-	pressDrawn(a, enterPress)
 	typeDrawn(a, "a")
 	pressDrawn(a, tabPress)
 	setCell(a, "1")
@@ -158,7 +157,7 @@ func TestFormsKeepStepsAndAskForNames(t *testing.T) {
 	saveFlow(t, "vars", "steps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	addStep(a, "set")
-	pressDrawn(a, enterPress, tabPress)
+	pressDrawn(a, tabPress)
 	setCell(a, "1")
 	pressDrawn(a, ctrlS)
 	if !strings.Contains(screenText(a), "a name is needed for this value") || len(loadFlowSteps(t, "vars")) != 0 {
@@ -191,5 +190,27 @@ func TestAScriptStepAsksItsParamsInOneForm(t *testing.T) {
 	pressDrawn(a, ctrlS)
 	if steps := loadFlowSteps(t, "ship"); steps[0].With["tag"] != "v2" || steps[0].ID != "deploy" {
 		t.Errorf("e made %+v", steps[0])
+	}
+}
+
+// A new set is typed in at once; tab completes a variable's name, shown dim before it is put
+// in, and the type the flow gives that variable comes with it.
+func TestASetCompletesNamesAndTakesTheirTypes(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "typed", "variables:\n  counter: {type: number, default: '1'}\nsteps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	addStep(a, "set")
+	typeDrawn(a, "cou")
+	form := openStepForm(t, a)
+	if ghost := form.grid.ghost(); ghost != "nter" || !strings.Contains(screenText(a), "counter") {
+		t.Errorf("after cou the ghost is %q:\n%s", ghost, screenText(a))
+	}
+	pressDrawn(a, tabPress, tabPress) // the name, then the value
+	setCell(a, "${counter + 1}")
+	pressDrawn(a, ctrlS)
+	steps := loadFlowSteps(t, "typed")
+	if len(steps) != 1 || steps[0].Set["counter"] != "${counter + 1}" || steps[0].Types["counter"] != "number" {
+		t.Fatalf("set %+v", steps)
 	}
 }

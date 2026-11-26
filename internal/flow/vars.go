@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"maps"
@@ -28,6 +29,14 @@ const (
 
 // ParamTypes are the types a parameter can have, in the order the inspect offers them.
 var ParamTypes = []string{TextParam, NumberParam, BooleanParam, OptionParam, PathParam, ListParam, ObjectParam}
+
+// VarType is a set's variable of no type of its own: its value says what it is, a list or an
+// object when it is one in JSON, and else a text, which expressions read as a number or a
+// boolean when it reads as one.
+const VarType = "var"
+
+// SetTypes are the types a set gives its variables, in the order the inspect offers them.
+var SetTypes = []string{VarType, TextParam, NumberParam, BooleanParam, ListParam, ObjectParam}
 
 // legacyParamTypes are the names flows written before ADR-071 use, read as the names now.
 var legacyParamTypes = map[string]string{"bool": BooleanParam, "choice": OptionParam}
@@ -228,10 +237,69 @@ func (s Step) validateVariables(kind Kind) error {
 				return fmt.Errorf("set name %q must be letters, digits and _ only, and not steps", name)
 			}
 		}
+		return s.validateSetTypes()
 	case UnsetStep:
 		return validateUnsetNames(s.Unset)
 	}
 	return nil
+}
+
+// validateSetTypes refuses a type for a name the set does not set, and a type it has not.
+func (s Step) validateSetTypes() error {
+	for _, name := range slices.Sorted(maps.Keys(s.Types)) {
+		if _, set := s.Set[name]; !set {
+			return fmt.Errorf("types: %s is not among the set's names", name)
+		}
+		if !slices.Contains(SetTypes, s.Types[name]) {
+			return fmt.Errorf("types: %s's type %q is one of %s", name, s.Types[name], strings.Join(SetTypes, ", "))
+		}
+	}
+	return nil
+}
+
+// VariableType is the type the flow gives a variable: its own as a flow variable, or else as
+// the last set or prompt in the flow that gives it a value; "" for a name nothing gives one.
+func (f Flow) VariableType(name string) string {
+	if p, ok := f.Params[name]; ok {
+		return cmp.Or(p.Type, TextParam)
+	}
+	kind := ""
+	walkSteps(f.Steps, "", "", func(s Step, _ string) {
+		switch _, set := s.Set[name]; {
+		case set:
+			kind = cmp.Or(s.Types[name], VarType)
+		case s.Kind() == PromptStep && s.Var == name:
+			kind = cmp.Or(s.Type, TextParam)
+		}
+	})
+	return kind
+}
+
+// setKind is the JSON kind a set's value takes as the type given, ListParam or ObjectParam, ""
+// for a text, or why the value is not of that type.
+func setKind(kind, value string) (string, error) {
+	switch kind {
+	case NumberParam:
+		if !fitsType(NumberParam, value) {
+			return "", fmt.Errorf("%q is no number", value)
+		}
+	case BooleanParam:
+		if !slices.Contains(BooleanValues, strings.TrimSpace(value)) {
+			return "", fmt.Errorf("%q is not %s", value, strings.Join(BooleanValues, " or "))
+		}
+	case ListParam, ObjectParam:
+		if _, err := DecodeJSON(kind, value); err != nil {
+			return "", fmt.Errorf("%q: %w", value, err)
+		}
+		return kind, nil
+	case "", VarType:
+		for _, json := range []string{ListParam, ObjectParam} {
+			if _, err := DecodeJSON(json, value); err == nil {
+				return json, nil
+			}
+		}
+	}
+	return "", nil
 }
 
 func validateUnsetNames(names []string) error {
@@ -328,8 +396,12 @@ func shownAnswer(s Step, answer string) string {
 func (x *running) runSet(s Step, path string) bool {
 	names := slices.Sorted(maps.Keys(s.Set))
 	values := make(map[string]string, len(names))
+	kinds := make(map[string]string, len(names))
 	for _, name := range names {
 		value, err := x.render(s.Set[name])
+		if err == nil {
+			kinds[name], err = setKind(s.Types[name], value)
+		}
 		if err != nil {
 			return x.stop(path, "set "+name+": "+err.Error(), 1)
 		}
@@ -339,6 +411,11 @@ func (x *running) runSet(s Step, path string) bool {
 	var shown []string
 	for _, name := range names {
 		x.assign(name, values[name])
+		if kinds[name] != "" {
+			x.jsonVars[name] = kinds[name]
+		} else {
+			delete(x.jsonVars, name)
+		}
 		shown = append(shown, name+" = "+x.masked(values[name]))
 		fmt.Fprintf(x.Out, "\x1b[2m  %s = %s\x1b[0m\n", name, x.masked(values[name]))
 	}

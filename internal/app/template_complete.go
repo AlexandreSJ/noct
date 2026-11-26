@@ -104,3 +104,18 @@ func completeTemplate(field *textField, chosen string, from int) {
 	field.text = []rune(head + string(field.text[field.cursor:]))
 	field.cursor = len([]rune(head))
 }
+
+// variableNameSuggestions are the variables in scope whose names start with typed, as a set's
+// row names one to give a new value.
+func variableNameSuggestions(typed string, vars []flow.Variable) []string {
+	var names []string
+	for _, v := range vars {
+		if v.Step == "" {
+			names = append(names, v.Field)
+		}
+	}
+	if typed == "" {
+		return nil
+	}
+	return suggestionsFor(typed, names)
+}

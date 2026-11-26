@@ -96,26 +96,10 @@ func (s Step) validate(ids map[string]bool, lookup func(id string) (script.Scrip
 
 // validateFieldsBelong refuses fields that only another kind of step uses.
 func (s Step) validateFieldsBelong(kind Kind) error {
-	if (s.Var != "" || s.Default != "" || s.Type != "" || s.Secret) && kind != PromptStep {
-		return errors.New("var, default, type and secret belong to a prompt")
-	}
-	if len(s.Then) > 0 && kind != IfStep {
-		return errors.New("then belongs to an if")
-	}
-	if len(s.Else) > 0 && kind != IfStep && kind != SwitchStep {
-		return errors.New("else belongs to an if or a switch")
-	}
-	if len(s.Cases) > 0 && kind != SwitchStep {
-		return errors.New("cases belong to a switch")
-	}
-	if len(s.Steps) > 0 && kind != RepeatStep {
-		return errors.New("steps belong to a repeat")
-	}
-	if (len(s.Capture) > 0 || s.Expect != nil || s.OnFail != "" || s.Retry != nil) && kind != ScriptStep && kind != CommandStep && kind != AgentStep {
-		return errors.New("capture, expect, on_fail and retry belong to a script, run or agent step")
-	}
-	if len(s.With) > 0 && kind != ScriptStep && kind != CallStep {
-		return errors.New("with belongs to a script or call step")
+	for _, f := range s.kindFields() {
+		if f.used && !slices.Contains(f.kinds, kind) {
+			return errors.New(f.message)
+		}
 	}
 	if len(s.Export) > 0 && !s.IsBlock() {
 		return errors.New("export belongs to an if, a switch or a repeat")
@@ -129,6 +113,27 @@ func (s Step) validateFieldsBelong(kind Kind) error {
 		return fmt.Errorf("on_fail is %s, %s or %s", OnFailStop, OnFailContinue, OnFailAsk)
 	}
 	return s.Retry.validate()
+}
+
+// kindField is a field only some kinds of step use: whether a step uses it, those kinds, and
+// what tells so.
+type kindField struct {
+	used    bool
+	kinds   []Kind
+	message string
+}
+
+func (s Step) kindFields() []kindField {
+	return []kindField{
+		{s.Var != "" || s.Default != "" || s.Type != "" || s.Secret, []Kind{PromptStep}, "var, default, type and secret belong to a prompt"},
+		{len(s.Types) > 0, []Kind{SetStep}, "types belong to a set"},
+		{len(s.Then) > 0, []Kind{IfStep}, "then belongs to an if"},
+		{len(s.Else) > 0, []Kind{IfStep, SwitchStep}, "else belongs to an if or a switch"},
+		{len(s.Cases) > 0, []Kind{SwitchStep}, "cases belong to a switch"},
+		{len(s.Steps) > 0, []Kind{RepeatStep}, "steps belong to a repeat"},
+		{len(s.Capture) > 0 || s.Expect != nil || s.OnFail != "" || s.Retry != nil, []Kind{ScriptStep, CommandStep, AgentStep}, "capture, expect, on_fail and retry belong to a script, run or agent step"},
+		{len(s.With) > 0, []Kind{ScriptStep, CallStep}, "with belongs to a script or call step"},
+	}
 }
 
 func (r *Retry) validate() error {

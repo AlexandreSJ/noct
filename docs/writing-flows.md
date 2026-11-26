@@ -111,7 +111,7 @@ A step sets exactly one of these:
 | `repeat: {...}` | Runs `steps` in passes: `times`, `until`, or once per item of `each` | `steps`, `export` |
 | `wait: <duration>` | Sleeps (`5s`, `1m30s`) | — |
 | `prompt: <text>` | Asks the user on the run's terminal, the text shown as written; the answer goes to a variable | `var` (required), `default`, `type`, `secret` |
-| `set: {name: <text>}` | Gives variables, new or not, a value | — |
+| `set: {name: <text>}` | Gives variables, new or not, a value | `types: {name: number}`: `var` (the default: a list or an object when its value is one in JSON, else text), `text`, `number`, `boolean`, `list`, `object` |
 | `unset: [name, steps.build]` | Clears variables and a step's results | — |
 
 `id` is optional on any step; give one to every step something later reads.

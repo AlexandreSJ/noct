@@ -1,8 +1,10 @@
 package app
 
 import (
+	"cmp"
 	"errors"
 	"image"
+	"slices"
 	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -32,6 +34,8 @@ type stepField struct {
 	// when, when set, shows the row only while the form's values give true, as the name of a
 	// custom agent only once custom agent is picked.
 	when func(values []formValue) bool
+	// kind is the type a typed form's row starts with.
+	kind string
 }
 
 // stepFormSpec is what a kind of step asks and how the answers make the step.
@@ -43,7 +47,11 @@ type stepFormSpec struct {
 	named    bool
 	rowField stepField
 	adds     string
-	build    func(values []formValue) (flow.Step, error)
+	// types, when set, are the types a named form's rows take, the first unless a row says;
+	// typeOf is the type the flow gives a name already, which a row named so takes.
+	types  []string
+	typeOf func(name string) string
+	build  func(values []formValue) (flow.Step, error)
 	// finish, when set, saves the step built in its own way, as adding a custom agent first.
 	finish func(step flow.Step, save func(flow.Step) error) error
 	// saveValues, when set, saves the answers itself, for a form that makes no step, as a
@@ -54,8 +62,8 @@ type stepFormSpec struct {
 // formValue is what a row of a step form holds: its name, in a named form, and its value, with
 // a list's items.
 type formValue struct {
-	name, value string
-	items       []string
+	name, value, kind string
+	items             []string
 }
 
 type stepForm struct {
@@ -72,7 +80,11 @@ type stepForm struct {
 const (
 	stepFormLabelColumn = iota
 	stepFormValueColumn
+	stepFormTypeColumn
 )
+
+// stepFormTypeWidth is the type column of a typed form, wide enough for boolean.
+const stepFormTypeWidth = 9
 
 func (a *App) newStepForm(spec stepFormSpec, vars []flow.Variable, values map[string]string, adding bool, save func(flow.Step) error) *stepForm {
 	form := &stepForm{app: a, spec: spec, save: save, values: values}
@@ -87,6 +99,9 @@ func (a *App) newStepForm(spec stepFormSpec, vars []flow.Variable, values map[st
 	form.grid.buttons = append(form.grid.buttons, map[bool]string{true: "add step", false: "save"}[adding && spec.saveValues == nil])
 	form.showRows()
 	form.grid.focusNear(0, form.firstColumn())
+	if spec.named && len(spec.fields) == 1 && spec.fields[0].label == "" {
+		form.grid.startEdit() // a new set is typed in at once: its first variable's name
+	}
 	return form
 }
 
@@ -110,9 +125,33 @@ func (s *stepForm) firstColumn() int {
 
 func (s *stepForm) row(field stepField) gridRow {
 	label := textCellOf(field.label)
-	label.skip = !s.spec.named
+	label.skip, label.names = !s.spec.named, s.spec.named
 	field.cell.template, field.cell.expression = field.template || field.expression, field.expression
-	return gridRow{cells: []gridCell{label, field.cell}}
+	row := gridRow{cells: []gridCell{label, field.cell}}
+	if s.spec.types != nil {
+		kind := optionCellOf(cmp.Or(field.kind, s.spec.types[0]), s.spec.types)
+		kind.autoFor = field.label
+		row.cells = append(row.cells, kind)
+	}
+	return row
+}
+
+// fillTypes gives a typed form's row whose name changed the type the flow gives that name, if
+// it gives one.
+func (s *stepForm) fillTypes() {
+	if s.spec.typeOf == nil {
+		return
+	}
+	for i := range s.grid.rows {
+		name, kind := strings.TrimSpace(s.grid.at(i, stepFormLabelColumn).value()), s.grid.at(i, stepFormTypeColumn)
+		if name == kind.autoFor {
+			continue
+		}
+		kind.autoFor = name
+		if known := s.spec.typeOf(name); slices.Contains(s.spec.types, known) {
+			kind.field = newTextField(known)
+		}
+	}
 }
 
 // field is the spec of a row: a named form's rows all ask what its rowField does.
@@ -139,7 +178,10 @@ func (s *stepForm) formValues() []formValue {
 	values := make([]formValue, len(s.grid.rows))
 	for i, row := range s.grid.rows {
 		cell := row.cells[stepFormValueColumn]
-		values[i] = formValue{strings.TrimSpace(row.cells[stepFormLabelColumn].value()), strings.TrimSpace(cell.value()), cell.items}
+		values[i] = formValue{name: strings.TrimSpace(row.cells[stepFormLabelColumn].value()), value: strings.TrimSpace(cell.value()), items: cell.items}
+		if len(row.cells) > stepFormTypeColumn {
+			values[i].kind = row.cells[stepFormTypeColumn].value()
+		}
 	}
 	return values
 }
@@ -209,6 +251,7 @@ func (s *stepForm) after(out gridOutcome) bool {
 	s.message = ""
 	if out&gridChanged != 0 {
 		s.showRows()
+		s.fillTypes()
 	}
 	if out&gridPressed == 0 {
 		return false
@@ -270,7 +313,10 @@ func (s *stepForm) draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 	if s.spec.named {
 		left = area.Min.X + moveGutter
 	}
-	valueX := left + labelWidth + 2
+	valueX, valueEnd := left+labelWidth+2, area.Max.X-1
+	if s.spec.types != nil {
+		valueEnd -= stepFormTypeWidth + 2
+	}
 	y := area.Min.Y
 	for _, row := range s.grid.window(area.Dy() - 1) {
 		if b, ok := s.grid.buttonAt(row); ok {
@@ -282,7 +328,10 @@ func (s *stepForm) draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 			s.grid.drawMoveArrows(screen, image.Pt(area.Min.X+1, y), pal)
 		}
 		s.drawCell(screen, image.Rect(left, y, left+labelWidth, y+1), row, stepFormLabelColumn)
-		s.drawCell(screen, image.Rect(valueX, y, area.Max.X-1, y+1), row, stepFormValueColumn)
+		s.drawCell(screen, image.Rect(valueX, y, valueEnd, y+1), row, stepFormValueColumn)
+		if s.spec.types != nil {
+			s.drawCell(screen, image.Rect(valueEnd+2, y, area.Max.X-1, y+1), row, stepFormTypeColumn)
+		}
 		y++
 	}
 	if !helpBeside {
@@ -367,7 +416,7 @@ func (s *stepForm) help() []styledLine {
 	for _, v := range s.grid.variables {
 		lines = append(lines, styledLine{certaintyMarks[v.Certainty] + s.variableLine(variableName(v)), pal.panelText})
 	}
-	return append(lines, styledLine{"", pal.panelText}, styledLine{"$ or {{. completes them; ↻ this pass  ? if a branch ran", pal.panelMuted})
+	return append(lines, styledLine{"", pal.panelText}, styledLine{"typing a name completes them, tab puts in the one shown dim; ↻ this pass  ? if a branch ran", pal.panelMuted})
 }
 
 func (s *stepForm) variableLine(name string) string {
@@ -455,7 +504,7 @@ func (p *inspectPanel) addStep(f flow.Flow, at chartBlock) {
 		{label: "for each line", kind: "steps per item", open: form(eachForm(zero))},
 		{label: "wait", kind: "a pause", open: form(waitForm(zero))},
 		{label: "prompt", kind: "asks you", open: form(promptForm(zero))},
-		{label: "set", kind: "gives variables values", open: form(setForm(zero))},
+		{label: "set", kind: "gives variables values", open: form(setForm(zero, f.VariableType))},
 		{label: "unset", kind: "clears variables", open: form(unsetForm(zero))},
 	}
 	picker = newStepPicker(&p.app.palette, kinds, p.app.lastStepAdded, func(path []string) { p.app.lastStepAdded = path })
@@ -471,7 +520,7 @@ func (p *inspectPanel) editStep(f flow.Flow, path string) {
 	}
 	parent, branch, index := flow.SplitPath(path)
 	vars := f.Scope(parent, branch, index, p.app.scripts.Find)
-	spec, ok := p.app.stepFormFor(step, vars)
+	spec, ok := p.app.stepFormFor(f, step, vars)
 	if !ok {
 		p.app.editFlowStep(f, path)
 		return

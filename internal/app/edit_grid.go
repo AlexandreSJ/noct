@@ -45,6 +45,10 @@ type gridCell struct {
 	// or alone in an expression; secret shows a dot a character.
 	template, expression bool
 	secret               bool
+	// names completes the name of a variable in scope, as a set's row is named.
+	names bool
+	// autoFor is the name a type cell last took its type for, so a name changed gives it again.
+	autoFor string
 }
 
 func textCellOf(text string) gridCell { return gridCell{kind: textCell, field: newTextField(text)} }
@@ -733,10 +737,31 @@ func (g *editGrid) wheel(by int) gridOutcome {
 // cursor, and where the part they replace starts.
 func (g *editGrid) suggestions() ([]string, int) {
 	c := g.cell()
-	if !g.editing || c == nil || !c.template {
+	switch {
+	case !g.editing || c == nil:
 		return nil, 0
+	case c.names:
+		return variableNameSuggestions(c.field.String(), g.variables), 0
+	case c.template:
+		return templateSuggestions(&c.field, g.variables, c.expression)
 	}
-	return templateSuggestions(&c.field, g.variables, c.expression)
+	return nil, 0
+}
+
+// ghost is what tab puts in after the cursor, shown dim there: the rest of the suggestion lit,
+// while the cursor is at the end of what is typed.
+func (g *editGrid) ghost() string {
+	matches, from := g.suggestions()
+	field := &g.cell().field
+	if len(matches) == 0 || field.cursor != len(field.text) {
+		return ""
+	}
+	typed := string(field.text[from:field.cursor])
+	rest, ok := strings.CutPrefix(matches[min(g.suggested, len(matches)-1)], typed)
+	if !ok {
+		return ""
+	}
+	return rest
 }
 
 func (g *editGrid) complete() {
@@ -758,7 +783,9 @@ func (g *editGrid) drawCell(screen uv.Screen, rect image.Rectangle, row, col int
 	g.hit(rect, row, col)
 	switch {
 	case g.lit(row, col) && g.editing:
-		g.at(row, col).field.draw(screen, rect.Min.X, rect.Min.Y, rect.Dx(), g.at(row, col).secret, pal.typing(), pal.selectedRow)
+		field := &g.at(row, col).field
+		end := field.draw(screen, rect.Min.X, rect.Min.Y, rect.Dx(), g.at(row, col).secret, pal.typing(), pal.selectedRow)
+		drawGhost(screen, end-1, rect, g.ghost(), pal)
 	case g.lit(row, col):
 		fillRect(screen, rect, pal.selectedRow)
 		drawTextCut(screen, rect.Min.X, rect.Min.Y, rect.Max.X, text, pal.selectedRow)
@@ -782,4 +809,18 @@ func (g *editGrid) hints(idle string) string {
 		return "{enter} edit  {f} filter  esc back"
 	}
 	return idle
+}
+
+// drawGhost writes what tab would put in, dim, from the cursor at the end of the text, at, as far
+// as the cell's rect goes; the cursor stays on its first character.
+func drawGhost(screen uv.Screen, at int, rect image.Rectangle, ghost string, pal *palette) {
+	if ghost == "" || at >= rect.Max.X {
+		return
+	}
+	drawTextCut(screen, at, rect.Min.Y, rect.Max.X, ghost, pal.panelMuted)
+	if cell := screen.CellAt(at, rect.Min.Y); cell != nil {
+		cursor := *cell
+		cursor.Style = pal.selectedRow
+		screen.SetCell(at, rect.Min.Y, &cursor)
+	}
 }

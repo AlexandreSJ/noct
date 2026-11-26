@@ -130,6 +130,9 @@ func TestSetAndUnsetValidation(t *testing.T) {
 		"steps: [{prompt: '$len(x', var: n}]":                "$len",
 		"steps: [{set: {a: '1'}, run: 'true'}]":              "exactly one",
 		"steps: [{prompt: 'N?', var: n, capture: {x: '.'}}]": "capture",
+		"steps: [{set: {a: '1'}, types: {b: number}}]":       "not among",
+		"steps: [{set: {a: '1'}, types: {a: integer}}]":      "one of",
+		"steps: [{run: 'true', types: {a: number}}]":         "belong to a set",
 	}
 	for text, problem := range cases {
 		err := parse(t, text).Validate(nil)
@@ -399,6 +402,44 @@ steps: [{run: 'true'}]
 	} {
 		if err := parse(t, content).Validate(nil); err == nil || !strings.Contains(err.Error(), problem) {
 			t.Errorf("%q: %v, want %q", content, err, problem)
+		}
+	}
+}
+
+// A set's types check its values: a number must be one, a list and an object are JSON that
+// expressions read inside, and a var is a list or an object when its value is one.
+func TestASetsTypesCheckAndShapeItsValues(t *testing.T) {
+	r, out := testRunner(t, nil)
+	f := parse(t, `
+steps:
+  - set: {n: "3", hosts: '["a", "b"]', auto: '{"port": 80}', word: hi}
+    types: {n: number, hosts: list}
+  - if: hosts[1] == "b" and auto.port == 80 and n + 1 == 4
+    then: [{run: 'echo typed'}]
+`)
+	if result := r.Run(f, nil); !result.OK || !strings.Contains(out.String(), "typed") {
+		t.Fatalf("ok %v:\n%s", result.OK, out)
+	}
+	bad := parse(t, "steps:\n  - set: {n: x}\n    types: {n: number}\n")
+	if result := r.Run(bad, nil); result.OK || !strings.Contains(result.Steps["0"].Message, "no number") {
+		t.Errorf("a text set as a number: %+v", result.Steps["0"])
+	}
+}
+
+func TestAVariablesTypeIsTheFlowsOrTheLastSetsOrPrompts(t *testing.T) {
+	f := parse(t, `
+variables:
+  hosts: {type: list, default: '[]'}
+  env: dev
+steps:
+  - set: {count: "1"}
+    types: {count: number}
+  - set: {free: x}
+  - {prompt: Name, var: name}
+`)
+	for name, want := range map[string]string{"hosts": "list", "env": "text", "count": "number", "free": "var", "name": "text", "none": ""} {
+		if got := f.VariableType(name); got != want {
+			t.Errorf("VariableType(%s) = %q, want %q", name, got, want)
 		}
 	}
 }

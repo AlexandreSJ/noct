@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"errors"
 	"maps"
 	"slices"
@@ -18,7 +19,7 @@ import (
 // id, a capture, the steps inside a block) stays as it was.
 
 // stepFormFor is the form that changes s; false for the kinds changed as YAML, as a script step.
-func (a *App) stepFormFor(s flow.Step, vars []flow.Variable) (stepFormSpec, bool) {
+func (a *App) stepFormFor(f flow.Flow, s flow.Step, vars []flow.Variable) (stepFormSpec, bool) {
 	switch s.Kind() {
 	case flow.ScriptStep:
 		if sc, ok := a.scripts.Find(s.Script); ok && len(sc.Params) > 0 {
@@ -40,7 +41,7 @@ func (a *App) stepFormFor(s flow.Step, vars []flow.Variable) (stepFormSpec, bool
 	case flow.PromptStep:
 		return promptForm(s), true
 	case flow.SetStep:
-		return setForm(s), true
+		return setForm(s, f.VariableType), true
 	case flow.UnsetStep:
 		return unsetForm(s), true
 	case flow.AgentStep:
@@ -276,27 +277,43 @@ func promptForm(s flow.Step) stepFormSpec {
 	}
 }
 
-func setForm(s flow.Step) stepFormSpec {
-	row := stepField{note: "a name, then its value: text, $name reads others; $name reads it after", template: true}
-	spec := stepFormSpec{title: "set", named: true, rowField: row, adds: "variable"}
+// setForm asks a set's variables, a row each: the name, which tab completes from the variables
+// in scope, the value, and the type, which a variable the flow has already gives the row. A new
+// set starts with a row, typed in at once.
+func setForm(s flow.Step, typeOf func(name string) string) stepFormSpec {
+	row := stepField{note: "a name, then its value: text, $name reads others; $name reads it after; a var is what its value is", template: true}
+	spec := stepFormSpec{title: "set", named: true, rowField: row, adds: "variable", types: flow.SetTypes, typeOf: typeOf}
 	for _, name := range slices.Sorted(maps.Keys(s.Set)) {
 		field := row
-		field.label, field.cell = name, textCellOf(s.Set[name])
+		field.label, field.cell, field.kind = name, textCellOf(s.Set[name]), cmp.Or(s.Types[name], flow.VarType)
 		spec.fields = append(spec.fields, field)
 	}
-	spec.build = func(v []formValue) (flow.Step, error) {
-		s.Set = map[string]string{}
-		for _, pair := range v {
-			if pair.name != "" {
-				s.Set[pair.name] = pair.value
-			}
-		}
-		if len(s.Set) == 0 {
-			return s, errors.New("a variable to set: its name, then its value")
-		}
-		return s, nil
+	if len(spec.fields) == 0 {
+		spec.fields = []stepField{row}
 	}
+	spec.build = func(v []formValue) (flow.Step, error) { return setStep(s, v) }
 	return spec
+}
+
+// setStep is s setting the rows' variables to their values, with the types other than var.
+func setStep(s flow.Step, rows []formValue) (flow.Step, error) {
+	s.Set, s.Types = map[string]string{}, map[string]string{}
+	for _, row := range rows {
+		if row.name == "" {
+			continue
+		}
+		s.Set[row.name] = row.value
+		if row.kind != flow.VarType {
+			s.Types[row.name] = row.kind
+		}
+	}
+	if len(s.Types) == 0 {
+		s.Types = nil
+	}
+	if len(s.Set) == 0 {
+		return s, errors.New("a variable to set: its name, then its value")
+	}
+	return s, nil
 }
 
 func unsetForm(s flow.Step) stepFormSpec {

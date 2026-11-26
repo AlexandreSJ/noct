@@ -86,7 +86,6 @@ func TestInspectAddsVariableSteps(t *testing.T) {
 	setCell(a, "b")
 	pressDrawn(a, ctrlS)
 	addStep(a, "set")
-	pressDrawn(a, enterPress)
 	typeDrawn(a, "sum")
 	pressDrawn(a, tabPress)
 	setCell(a, "$b")
