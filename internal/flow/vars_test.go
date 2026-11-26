@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/AlexandreSJ/noct/internal/sections"
 )
 
 func TestParamsTakeAPlainDefaultOrASpec(t *testing.T) {
@@ -449,5 +451,24 @@ func TestAPromptReadsItsEscapes(t *testing.T) {
 		if got := Unescape(text); got != want {
 			t.Errorf("Unescape(%q) = %q, want %q", text, got, want)
 		}
+	}
+}
+
+// With sections, a run's headers are the full view's and its exit line the clean one's.
+func TestARunMarksItsFullAndCleanViews(t *testing.T) {
+	r, out := testRunner(t, nil)
+	r.Sections = true
+	r.Ask = func(string) string { return "ana" }
+	f := parse(t, "steps:\n  - {prompt: 'login:', var: login}\n  - run: 'echo hi $login'\n")
+	if result := r.Run(f, nil); !result.OK {
+		t.Fatalf("%s", out)
+	}
+	clean := sections.Filter{View: sections.CleanView}
+	if got := string(clean.Write(out.Bytes())); got != "\ahi ana\n\nexit 0\n" {
+		t.Errorf("clean view %q", got)
+	}
+	full := sections.Filter{View: sections.FullView}
+	if got := string(full.Write(out.Bytes())); !strings.Contains(got, "▶ run") || strings.Contains(got, "exit 0") {
+		t.Errorf("full view %q", got)
 	}
 }

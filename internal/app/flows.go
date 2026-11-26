@@ -166,7 +166,7 @@ func (a *App) startFlow(f flow.Flow, values map[string]string) {
 	}
 	args, env := a.flowArgs(f, values)
 	argv := append([]string{orDefault(a.binary.path, "noct"), "flow", "run", f.Name}, args...)
-	a.openTrackedRun("flow "+f.Name, script.Run{Flow: f.Name}, program{argv: argv, dir: a.workDir, env: env})
+	a.openTrackedRun("flow "+f.Name, script.Run{Flow: f.Name}, program{argv: argv, dir: a.workDir, env: env, views: true})
 }
 
 // flowArgs are the values as noct flow run takes them: name=value arguments, but an env
@@ -212,7 +212,7 @@ func (a *App) testFlowSteps(f flow.Flow, first, last string) {
 		steps += ".." + last
 	}
 	binary := orDefault(a.binary.path, "noct")
-	run := program{argv: []string{binary, "flow", "run", f.Name, "--steps", steps}, dir: a.workDir}
+	run := program{argv: []string{binary, "flow", "run", f.Name, "--steps", steps}, dir: a.workDir, views: true}
 	a.openTrackedRun("test "+f.Name+" "+steps, script.Run{Flow: f.Name}, run)
 }
 

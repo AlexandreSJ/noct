@@ -19,6 +19,7 @@ import (
 
 	"github.com/AlexandreSJ/noct/internal/expr"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/sections"
 )
 
 // maxCaptured bounds how much of a step's output is kept for captures and templates.
@@ -46,6 +47,9 @@ type Runner struct {
 	Sleep  func(time.Duration)
 	// KeepOutput is how many bytes of each step's output the result keeps; 0 keeps all of it.
 	KeepOutput int
+	// Sections marks what the run says of its steps as the full view's, and an exit line as the
+	// clean one's, for noct's run views to show either (package sections).
+	Sections bool
 	// Ask puts a question to whoever watches the run and returns the answer, for on_fail: ask;
 	// nil when nobody can answer, and then a failure stops the flow.
 	Ask func(question string) string
@@ -91,6 +95,8 @@ type running struct {
 	timeout  string
 	// secrets are the values of secret variables and prompts, which the run never shows.
 	secrets []string
+	// reason is why the run stopped, for its exit line.
+	reason string
 }
 
 // Run runs the flow with the parameters given over its defaults. Result.Exit is the exit code of
@@ -98,16 +104,37 @@ type running struct {
 func (r *Runner) Run(f Flow, params map[string]string) Result {
 	x, err := r.start(f, params)
 	if err != nil {
-		x.result.OK, x.result.Exit = false, 1 // no step ran, so none failed
-		fmt.Fprintf(r.Out, "\x1b[1m✗ flow %s stopped: %s\x1b[0m\n", f.Name, err)
+		x.result.OK, x.result.Exit, x.reason = false, 1, err.Error() // no step ran, so none failed
+		r.part(sections.Full, func() { fmt.Fprintf(r.Out, "\x1b[1m✗ flow %s stopped: %s\x1b[0m\n", f.Name, err) })
 	} else {
 		x.runSteps(f.Steps, "", "")
 	}
 	x.result.End = time.Now()
 	if x.result.OK {
-		fmt.Fprintf(r.Out, "\n\x1b[1m✓ flow %s done\x1b[0m in %s\n", f.Name, x.result.End.Sub(x.result.Start).Round(time.Millisecond))
+		r.part(sections.Full, func() {
+			fmt.Fprintf(r.Out, "\n\x1b[1m✓ flow %s done\x1b[0m in %s\n", f.Name, x.result.End.Sub(x.result.Start).Round(time.Millisecond))
+		})
+	}
+	if r.Sections {
+		r.part(sections.Clean, func() { fmt.Fprintln(r.Out, "\n"+exitLine(x.result.Exit, x.reason)) })
 	}
 	return x.result
+}
+
+func exitLine(code int, reason string) string {
+	if reason == "" {
+		return fmt.Sprintf("exit %d", code)
+	}
+	return fmt.Sprintf("exit %d · %s", code, reason)
+}
+
+// part writes what write does as a section only one view shows, when the run marks sections.
+func (r *Runner) part(section string, write func()) {
+	if r.Sections {
+		fmt.Fprint(r.Out, section)
+		defer fmt.Fprint(r.Out, sections.Both)
+	}
+	write()
 }
 
 func (r *Runner) getenv(name string) string {
@@ -467,7 +494,9 @@ func (x *running) afterFailure(s Step, path, reason string, exit int) bool {
 		}
 		x.retried[path] = tried + 1
 		defer delete(x.retried, path) // once the last try is done, the next time the step runs it starts over
-		fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; retry %d of %d\x1b[0m\n", s.Label(), reason, tried+1, s.Retry.Max)
+		x.part(sections.Full, func() {
+			fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; retry %d of %d\x1b[0m\n", s.Label(), reason, tried+1, s.Retry.Max)
+		})
 		if every, _ := time.ParseDuration(s.Retry.Every); every > 0 { // checked by Validate
 			x.sleep(every)
 		}
@@ -475,7 +504,7 @@ func (x *running) afterFailure(s Step, path, reason string, exit int) bool {
 	}
 	switch x.onFail(s, reason) {
 	case OnFailContinue:
-		fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; going on\x1b[0m\n", s.Label(), reason)
+		x.part(sections.Full, func() { fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; going on\x1b[0m\n", s.Label(), reason) })
 		return true
 	case onFailRetry:
 		return x.runStep(s, path)
@@ -569,11 +598,13 @@ func (x *running) execute(command, dir string, deadline time.Time) (string, int)
 
 // header announces a step in the output: a symbol, the step in bold, a detail dimmed.
 func (x *running) header(symbol, title, detail string) {
-	fmt.Fprintf(x.Out, "\n\x1b[1m%s %s\x1b[0m", symbol, x.masked(title))
-	if detail != "" {
-		fmt.Fprintf(x.Out, " \x1b[2m%s\x1b[0m", x.masked(detail))
-	}
-	fmt.Fprintln(x.Out)
+	x.part(sections.Full, func() {
+		fmt.Fprintf(x.Out, "\n\x1b[1m%s %s\x1b[0m", symbol, x.masked(title))
+		if detail != "" {
+			fmt.Fprintf(x.Out, " \x1b[2m%s\x1b[0m", x.masked(detail))
+		}
+		fmt.Fprintln(x.Out)
+	})
 }
 
 // stop ends the run at the step at path, which failed for reason.
@@ -581,8 +612,8 @@ func (x *running) stop(path, reason string, exit int) bool {
 	step := x.result.Steps[path]
 	step.Status, step.Message = StatusFailed, reason
 	x.result.Steps[path] = step
-	x.result.OK, x.result.Exit = false, exit
-	fmt.Fprintf(x.Out, "\n\x1b[1m✗ flow %s stopped: %s\x1b[0m\n", x.result.Flow, reason)
+	x.result.OK, x.result.Exit, x.reason = false, exit, reason
+	x.part(sections.Full, func() { fmt.Fprintf(x.Out, "\n\x1b[1m✗ flow %s stopped: %s\x1b[0m\n", x.result.Flow, reason) })
 	return false
 }
 

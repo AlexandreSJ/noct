@@ -13,6 +13,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/AlexandreSJ/noct/internal/naming"
+	"github.com/AlexandreSJ/noct/internal/sections"
 )
 
 // Types a parameter or a prompt's answer can have; a parameter can also be a boolean, one of its
@@ -409,7 +410,7 @@ func (x *running) runSet(s Step, path string) bool {
 			delete(x.jsonVars, name)
 		}
 		shown = append(shown, name+" = "+x.masked(values[name]))
-		fmt.Fprintf(x.Out, "\x1b[2m  %s = %s\x1b[0m\n", name, x.masked(values[name]))
+		x.part(sections.Full, func() { fmt.Fprintf(x.Out, "\x1b[2m  %s = %s\x1b[0m\n", name, x.masked(values[name])) })
 	}
 	x.result.Steps[path] = StepResult{Status: StatusOK, Captures: values, Message: strings.Join(shown, ", ")}
 	return true

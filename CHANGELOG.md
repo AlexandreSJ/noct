@@ -53,6 +53,9 @@ the shortcut is `Alt` by default. How to write an entry is in
   removes them; `z` and `y` undo and redo.
 - The help beside an inspect editor hides with `i` (it was `v`, which now pastes rows), and
   `Shift+↑↓` mark rows instead of moving them; `J` and `K` still move a row.
+- A flow run's pane shows the clean view first: the questions and answers, secrets as `•`, what
+  the steps print, and `exit 0` at the end. `Tab` switches to the full view, with each step's
+  header and the `✓ flow … done` line, and back; a run's log in the logs view switches too.
 - `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
   chart, and shows them again.
 - Flow conditions take `nand`, `nor` and `xor`. The inspect's details show a condition with

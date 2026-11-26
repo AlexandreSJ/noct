@@ -209,6 +209,7 @@ func newFlowRunner(lib script.Library) *flow.Runner {
 		Sleep:  time.Sleep,
 		// The config keeps kilobytes; 0, all of the output, stays 0.
 		KeepOutput:   cfg.Flows.OutputKB << 10,
+		Sections:     os.Getenv("NOCT_PANE") != "",
 		Ask:          terminalAsk(os.Stdin, os.Stdout),
 		AskSecret:    terminalAskSecret(os.Stdin, os.Stdout),
 		OpenPane:     workspacePanes(),

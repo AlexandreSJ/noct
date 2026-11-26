@@ -16,6 +16,7 @@ import (
 
 	"github.com/AlexandreSJ/noct/internal/kittygfx"
 	"github.com/AlexandreSJ/noct/internal/pty"
+	"github.com/AlexandreSJ/noct/internal/sections"
 )
 
 // inputQueueSize bounds how many input chunks wait for the program to read them: past it input
@@ -47,6 +48,9 @@ type Options struct {
 	// KeepScrollback ignores the program erasing the scrollback (ESC[3J, which clear sends), so a
 	// log replayed here keeps what was printed before a clear.
 	KeepScrollback bool
+	// Views shows the output marked by package sections in two views, the clean one first, which
+	// ToggleView switches.
+	Views bool
 	// HistoryUnderFullScreen keeps the history scrollable while a full-screen program shows,
 	// with the main screen above that program, so a log replayed here that ends inside one
 	// still scrolls.
@@ -78,6 +82,12 @@ type Pane struct {
 	onTerminalGraphics func(commands []byte)
 	log                io.WriteCloser
 
+	// clean is the clean view's screen, fed what fullFilter and cleanFilter leave of the output
+	// to each, when the pane has views; showFull shows the other.
+	clean                   *vt.Emulator
+	fullFilter, cleanFilter sections.Filter
+	showFull                atomic.Bool
+
 	// outputLock keeps output in order between the reader and the synchronized frame timeout.
 	outputLock  sync.Mutex
 	syncGate    syncGate
@@ -101,8 +111,13 @@ func Start(opts Options) (*Pane, error) {
 	}
 	p.title.Store("")
 	p.cursorVisible.Store(true)
+	if opts.Views {
+		p.clean = vt.NewEmulator(opts.Size.Cols, opts.Size.Rows)
+		p.fullFilter.View, p.cleanFilter.View = sections.FullView, sections.CleanView
+		go p.drainClean()
+	}
 	if len(opts.History) > 0 {
-		_, _ = p.screen.Write(renderHistory(opts.History, opts.Size.Cols)) // text and colors ask nothing back
+		p.writeScreens(opts.History, func(data []byte) []byte { return renderHistory(data, opts.Size.Cols) }) // text and colors ask nothing back
 	}
 	// Callbacks run while screenLock is held, so they only touch atomics.
 	p.screen.SetCallbacks(vt.Callbacks{
@@ -207,7 +222,7 @@ func (p *Pane) screenOutput(data []byte, onScreenChange func()) {
 // so a program asking for the cursor position right after an image sees the cursor moved past it.
 func (p *Pane) handleOutput(data []byte) {
 	if p.images == nil {
-		p.withOpenScreen(func(screen *vt.Emulator) { _, _ = screen.Write(data) })
+		p.withOpenScreen(func(*vt.Emulator) { p.writeScreens(data, nil) })
 		return
 	}
 	for _, segment := range p.graphicsSplitter.Split(data) {
@@ -215,7 +230,7 @@ func (p *Pane) handleOutput(data []byte) {
 			p.handleGraphics(*segment.Command)
 			continue
 		}
-		p.withOpenScreen(func(screen *vt.Emulator) { _, _ = screen.Write(segment.Text) })
+		p.withOpenScreen(func(*vt.Emulator) { p.writeScreens(segment.Text, nil) })
 	}
 }
 
@@ -303,6 +318,9 @@ func (p *Pane) Resize(size pty.Size) {
 		}
 		p.size = size
 		screen.Resize(size.Cols, size.Rows)
+		if p.clean != nil {
+			p.clean.Resize(size.Cols, size.Rows)
+		}
 		_ = p.process.Resize(size) // fails only if the program already exited
 	})
 }
@@ -321,11 +339,11 @@ func (p *Pane) ScrollbackLen() int {
 }
 
 func (p *Pane) historyLen() int {
-	if !p.screen.IsAltScreen() {
-		return p.screen.ScrollbackLen()
+	if !p.shown().IsAltScreen() {
+		return p.shown().ScrollbackLen()
 	}
 	if p.historyUnderFullScreen {
-		return p.screen.ScrollbackLen() + p.screen.Height()
+		return p.shown().ScrollbackLen() + p.shown().Height()
 	}
 	return 0
 }
@@ -334,7 +352,7 @@ func (p *Pane) historyLen() int {
 func (p *Pane) FullScreen() bool {
 	p.screenLock.RLock()
 	defer p.screenLock.RUnlock()
-	return p.screen.IsAltScreen()
+	return p.shown().IsAltScreen()
 }
 
 // DrawScrolled draws the pane as it looked offset lines up its history; 0 is the live screen.
@@ -344,8 +362,8 @@ func (p *Pane) DrawScrolled(target uv.Screen, area uv.Rectangle, offset int) {
 	defer p.screenLock.RUnlock()
 	history := p.historyLen()
 	first := history - min(max(offset, 0), history)
-	width := min(area.Dx(), p.screen.Width())
-	height := min(area.Dy(), p.screen.Height())
+	width := min(area.Dx(), p.shown().Width())
+	height := min(area.Dy(), p.shown().Height())
 	for y := range height {
 		p.drawLine(target, area.Min.Add(image.Pt(0, y)), first+y, history, width)
 	}
@@ -355,7 +373,7 @@ func (p *Pane) DrawScrolled(target uv.Screen, area uv.Rectangle, offset int) {
 func (p *Pane) LineCount() int {
 	p.screenLock.RLock()
 	defer p.screenLock.RUnlock()
-	return p.historyLen() + p.screen.Height()
+	return p.historyLen() + p.shown().Height()
 }
 
 // LineText is the text of a line of history and screen, oldest first, without the spaces after it.
@@ -372,7 +390,7 @@ func (p *Pane) LastLinesMatching(match func(text string) bool, n int) []int {
 	defer p.screenLock.RUnlock()
 	history := p.historyLen()
 	var lines []int
-	for line := history + p.screen.Height() - 1; line >= 0 && len(lines) < n; line-- {
+	for line := history + p.shown().Height() - 1; line >= 0 && len(lines) < n; line-- {
 		if match(p.lineText(line, history)) {
 			lines = append(lines, line)
 		}
@@ -386,7 +404,7 @@ func (p *Pane) DrawLines(target uv.Screen, area uv.Rectangle, lines []int) {
 	p.screenLock.RLock()
 	defer p.screenLock.RUnlock()
 	history := p.historyLen()
-	width := min(area.Dx(), p.screen.Width())
+	width := min(area.Dx(), p.shown().Width())
 	for y, line := range lines[:min(len(lines), area.Dy())] {
 		p.drawLine(target, area.Min.Add(image.Pt(0, y)), line, history, width)
 	}
@@ -394,7 +412,7 @@ func (p *Pane) DrawLines(target uv.Screen, area uv.Rectangle, lines []int) {
 
 func (p *Pane) lineText(line, history int) string {
 	var text strings.Builder
-	for x := 0; x < p.screen.Width(); {
+	for x := 0; x < p.shown().Width(); {
 		cell := p.lineCell(x, line, history)
 		if cell == nil || cell.Content == "" {
 			text.WriteByte(' ')
@@ -427,19 +445,19 @@ func (p *Pane) drawLine(target uv.Screen, origin image.Point, line, history, wid
 // history ends with the main screen, when HistoryUnderFullScreen keeps it.
 func (p *Pane) lineCell(x, line, history int) *uv.Cell {
 	if line >= history {
-		return p.screen.CellAt(x, line-history)
+		return p.shown().CellAt(x, line-history)
 	}
-	if scrollback := p.screen.ScrollbackLen(); line >= scrollback {
-		return p.screen.MainScreenCellAt(x, line-scrollback)
+	if scrollback := p.shown().ScrollbackLen(); line >= scrollback {
+		return p.shown().MainScreenCellAt(x, line-scrollback)
 	}
-	return p.screen.ScrollbackCellAt(x, line)
+	return p.shown().ScrollbackCellAt(x, line)
 }
 
 // Cursor returns the cursor position relative to the pane and whether the program shows it.
 func (p *Pane) Cursor() (uv.Position, bool) {
 	p.screenLock.RLock()
 	defer p.screenLock.RUnlock()
-	return p.screen.CursorPosition(), p.cursorVisible.Load()
+	return p.shown().CursorPosition(), p.cursorVisible.Load()
 }
 
 // ForegroundProgram is the program the user is running in the pane's shell, if any.
@@ -477,4 +495,53 @@ func (p *Pane) Close() {
 	_ = p.process.Close() // hanging up an exited program is not an error worth reporting
 	// vt.Emulator.Close races with a pending Read, so wake the reader with an empty write instead.
 	p.screen.SendText("")
+	if p.clean != nil {
+		p.clean.SendText("")
+	}
+}
+
+func (p *Pane) shown() *vt.Emulator {
+	if p.clean != nil && !p.showFull.Load() {
+		return p.clean
+	}
+	return p.screen
+}
+
+// writeScreens gives each view's screen what its view shows of data, through shape when set.
+func (p *Pane) writeScreens(data []byte, shape func([]byte) []byte) {
+	if shape == nil {
+		shape = func(data []byte) []byte { return data }
+	}
+	if p.clean == nil {
+		_, _ = p.screen.Write(shape(data))
+		return
+	}
+	_, _ = p.screen.Write(shape(p.fullFilter.Write(data)))
+	_, _ = p.clean.Write(shape(p.cleanFilter.Write(data)))
+}
+
+// drainClean drops what the clean screen answers: only the full one talks to the program.
+func (p *Pane) drainClean() {
+	buf := make([]byte, 4096)
+	for {
+		n, err := p.clean.Read(buf)
+		if err != nil || n == 0 && p.closed.Load() {
+			return
+		}
+	}
+}
+
+// ToggleView switches a pane with views between the clean and the full one, and tells whether
+// it has them.
+func (p *Pane) ToggleView() bool {
+	if p.clean == nil {
+		return false
+	}
+	p.showFull.Store(!p.showFull.Load())
+	return true
+}
+
+// Views tells whether the pane has views, and whether the full one shows.
+func (p *Pane) Views() (has, full bool) {
+	return p.clean != nil, p.showFull.Load()
 }

@@ -51,6 +51,8 @@ type program struct {
 	historyUnderFullScreen bool
 	// pane is the pane the program runs in, which output out of focus marks as active; 0 for none.
 	pane layout.PaneID
+	// views shows a flow run's clean and full views, the clean one first (package sections).
+	views bool
 }
 
 func (a *App) startProgram(p program, size pty.Size) (view, error) {
@@ -65,6 +67,7 @@ func (a *App) startProgram(p program, size pty.Size) (view, error) {
 			a.onLoop(func() { p.onExit(code) })
 		},
 		KeepScrollback: p.keepScrollback,
+		Views:          p.views,
 
 		HistoryUnderFullScreen: p.historyUnderFullScreen,
 	}

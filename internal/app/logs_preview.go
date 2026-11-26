@@ -147,6 +147,11 @@ func (p *logsPanel) previewKey(name string) {
 		v.close()
 		v.times = !v.times
 		return
+	case "tab":
+		if t, ok := v.terminal.(viewed); ok {
+			t.ToggleView()
+		}
+		return
 	}
 	if v.changePart(name) {
 		return
@@ -214,7 +219,8 @@ func (p *logsPanel) follow(row logRow, ok bool, size pty.Size) {
 	// a clear near the end of the log would otherwise leave nothing above it to scroll to, and a
 	// log ending inside a full-screen program no history at all
 	v.noct = orDefault(p.app.binary.path, "noct")
-	terminal, err := p.app.launch(program{argv: v.partCommand(row.entry), dir: p.app.workDir, onExit: func(int) {}, keepScrollback: true, historyUnderFullScreen: true}, size)
+	views := strings.HasPrefix(row.entry.Name, "flow-") // a flow run's log has its views marked
+	terminal, err := p.app.launch(program{argv: v.partCommand(row.entry), dir: p.app.workDir, onExit: func(int) {}, keepScrollback: true, historyUnderFullScreen: true, views: views}, size)
 	if err != nil {
 		p.app.statusMessage = err.Error()
 		return
