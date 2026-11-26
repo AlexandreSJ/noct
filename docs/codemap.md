@@ -17,6 +17,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `cmd/noct/mcp_test.go` | End-to-end test of `noct mcp`: an AI runs a flow in a real workspace and reads its result and pane |
 | `cmd/noct/scripts.go` | `noct ls`, `noct check`, `noct -s`: scripts in the current terminal, without the daemon |
 | `cmd/noct/flows.go` | `noct flow run` (whole, or `--steps` to test a range; asks on the terminal for `on_fail: ask`, asks the workspace for step panes), `noct flow ls`, `noct enable`/`disable`, flows and their warnings in `noct check`: runs a flow in the current terminal and keeps its result |
+| `cmd/noct/secret.go` | Reading a secret prompt's answer on the terminal in raw mode, a `•` for each character typed |
 | `cmd/noct/main_test.go` | End-to-end tests: the real binary in a pane, each test with its own daemon |
 | `cmd/noct/flows_test.go` | End-to-end tests of the flow commands: warnings, kept output, testing a range, enabling triggers, an after trigger and a step's pane in a real workspace |
 | `internal/ipc/ipc.go` | Client↔daemon protocol: framed messages, socket path, listen and dial; attach, quit and pane requests |

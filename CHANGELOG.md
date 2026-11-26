@@ -15,6 +15,9 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - `Space` on **Flows → tell when runs end** in the config sends a test notification, the way a
   run's end is told.
+- A flow's `prompt` can be `secret: true`: each character typed shows as `•`, the answer stays
+  out of the run's result, and the run shows it as `••••`, as in a run line that reads it. The
+  prompt's form has a `secret` toggle.
 - A flow's `if`, `until`, `switch` and `each` are expressions, with names alone:
   `if: login == expectedLogin and not ok`. They have `== != < <= > >=`, `and`/`&&`,
   `or`/`||`, `not`/`!`, `+ - * / %`, `in`, `??`, lambdas such as `h => startsWith(h, "web")`
@@ -61,6 +64,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Changed
 
+- A flow's `prompt` is shown as written, without a `:` after it (`login:` no longer shows
+  `login::`); what an empty answer keeps shows beside the step's name.
 - A flow's `params:` are now `variables:`, and the inspect calls them variables. A flow or
   function with `params:` does not load until the key is renamed.
 - `{{ }}` is no longer a template in a flow: conditions are expressions and texts read `$name`.
@@ -121,6 +126,10 @@ the shortcut is `Alt` by default. How to write an entry is in
 ### Fixed
 
 - The mouse wheel scrolls the updates popup (`prefix` + `c`).
+- A flow's chart in the inspect no longer moves up and down as the selection moves: the details
+  under it keep one height for every block.
+- Going to the next tab and back with the arrows keeps the pane you left, the top one of two
+  stacked panes too, instead of taking the bottom one.
 
 ## v0.3.1 - 2026-11-15
 

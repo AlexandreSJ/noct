@@ -210,6 +210,7 @@ func newFlowRunner(lib script.Library) *flow.Runner {
 		// The config keeps kilobytes; 0, all of the output, stays 0.
 		KeepOutput:   cfg.Flows.OutputKB << 10,
 		Ask:          terminalAsk(os.Stdin, os.Stdout),
+		AskSecret:    terminalAskSecret(os.Stdin, os.Stdout),
 		OpenPane:     workspacePanes(),
 		Attention:    workspaceAttention(),
 		Function:     loadFunctions(lib),

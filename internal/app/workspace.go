@@ -298,7 +298,7 @@ func (a *App) moveFocusAcrossTabs(heading layout.Heading) {
 	}
 	a.session.activeTab = next
 	if entered := a.session.tabs[next]; !entered.isEmpty() {
-		entered.focus(entered.edgePane(heading))
+		entered.focus(entered.edgePane(heading, a.workspaceArea()))
 	}
 }
 
@@ -329,7 +329,7 @@ func (a *App) movePaneToAdjacentTab(heading layout.Heading) {
 	var target *tab
 	if next := a.session.activeTab + tabStep(heading); next >= 0 && next < len(a.session.tabs) {
 		target = a.session.tabs[next]
-		if !target.isEmpty() && !canSplit(target.rects(a.workspaceArea())[target.edgePane(heading)], layout.SideBySide) {
+		if !target.isEmpty() && !canSplit(target.rects(a.workspaceArea())[target.edgePane(heading, a.workspaceArea())], layout.SideBySide) {
 			a.statusMessage = "no room in that tab"
 			return
 		}
@@ -365,7 +365,7 @@ func (a *App) placeArriving(target *tab, id layout.PaneID, v view, heading layou
 		target.placeFirst(id, v)
 		return
 	}
-	edge := target.edgePane(heading)
+	edge := target.edgePane(heading, a.workspaceArea())
 	target.tree.Split(edge, id, layout.SideBySide)
 	if heading == layout.Right {
 		target.tree.Swap(edge, id) // entering from the left, the pane goes first

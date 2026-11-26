@@ -587,6 +587,9 @@ func (a *App) promptStepLines(step flow.Step) []styledLine {
 	if step.Type == flow.NumberParam {
 		lines = append(lines, styledLine{"asks again until the answer is a number", pal.panelMuted})
 	}
+	if step.Secret {
+		lines = append(lines, styledLine{"secret: typed as •, never shown by the run", pal.panelMuted})
+	}
 	return append(lines, styledLine{"a run nobody watches (a trigger) fails here", pal.panelMuted})
 }
 

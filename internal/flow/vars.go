@@ -256,32 +256,71 @@ func (x *running) runPrompt(s Step, path string) bool {
 	if err != nil {
 		return x.stop(path, "default: "+err.Error(), 1)
 	}
-	x.header("?", s.Label(), "→ $"+s.Var)
-	if x.Ask == nil {
+	x.header("?", s.Label(), promptDetail(s, fallback))
+	ask := x.Ask
+	if s.Secret {
+		ask = x.AskSecret
+	}
+	if ask == nil {
 		return x.stop(path, "prompt: nobody is at the terminal to answer", 1)
 	}
 	if x.Attention != nil {
 		x.Attention()
 	}
 	fmt.Fprint(x.Out, "\a")
-	if fallback != "" {
-		question += " [" + fallback + "]"
-	}
 	start := time.Now()
 	for range maxPromptTries {
-		answer := strings.TrimSpace(x.Ask("\x1b[1m" + question + ":\x1b[0m "))
+		answer := strings.TrimSpace(ask("\x1b[1m" + promptText(question) + "\x1b[0m"))
 		if answer == "" {
 			answer = fallback
 		}
 		if s.Type == NumberParam && (answer == "" || !fitsType(NumberParam, answer)) {
-			fmt.Fprintf(x.Out, "\x1b[2m%q is not a number\x1b[0m\n", answer)
+			fmt.Fprintf(x.Out, "\x1b[2m%q is not a number\x1b[0m\n", shownAnswer(s, answer))
 			continue
 		}
-		x.assign(s.Var, answer)
-		x.result.Steps[path] = StepResult{Status: StatusOK, Duration: time.Since(start), Captures: map[string]string{s.Var: answer}, Message: s.Var + " = " + answer}
+		x.keepAnswer(s, path, answer, time.Since(start))
 		return true
 	}
 	return x.stop(path, fmt.Sprintf("prompt: no number after %d answers", maxPromptTries), 1)
+}
+
+// keepAnswer puts a prompt's answer in its variable and its result; a secret one stays out of
+// the result, and the run masks it from then on.
+func (x *running) keepAnswer(s Step, path, answer string, took time.Duration) {
+	x.assign(s.Var, answer)
+	result := StepResult{Status: StatusOK, Duration: took, Message: s.Var + " = " + shownAnswer(s, answer)}
+	if s.Secret {
+		x.keepSecret(answer)
+	} else {
+		result.Captures = map[string]string{s.Var: answer}
+	}
+	x.result.Steps[path] = result
+}
+
+// promptText is a prompt as it is written, with a space before the answer unless it ends in one.
+func promptText(question string) string {
+	if question == "" || strings.HasSuffix(question, " ") {
+		return question
+	}
+	return question + " "
+}
+
+// promptDetail tells, beside a prompt's header, the variable its answer goes to and what an empty
+// answer keeps.
+func promptDetail(s Step, fallback string) string {
+	detail := "→ $" + s.Var
+	if fallback != "" {
+		detail += ", empty keeps " + shownAnswer(s, fallback)
+	}
+	return detail
+}
+
+// shownAnswer is an answer as the run shows it: masked for a secret prompt.
+func shownAnswer(s Step, answer string) string {
+	if s.Secret {
+		return secretMask
+	}
+	return answer
 }
 
 // runSet renders every value first and then sets them all, so each reads the variables as they
@@ -300,8 +339,8 @@ func (x *running) runSet(s Step, path string) bool {
 	var shown []string
 	for _, name := range names {
 		x.assign(name, values[name])
-		shown = append(shown, name+" = "+values[name])
-		fmt.Fprintf(x.Out, "\x1b[2m  %s = %s\x1b[0m\n", name, values[name])
+		shown = append(shown, name+" = "+x.masked(values[name]))
+		fmt.Fprintf(x.Out, "\x1b[2m  %s = %s\x1b[0m\n", name, x.masked(values[name]))
 	}
 	x.result.Steps[path] = StepResult{Status: StatusOK, Captures: values, Message: strings.Join(shown, ", ")}
 	return true

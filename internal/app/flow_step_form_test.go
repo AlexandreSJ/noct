@@ -47,6 +47,19 @@ func TestEditingAStepKeepsWhatItsFormDoesNotAsk(t *testing.T) {
 	}
 }
 
+// A prompt's secret is a toggle in its form: enter on it makes the prompt secret.
+func TestAPromptFormMakesItSecret(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "login", "steps:\n  - {prompt: 'password:', var: pw}\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, letter('e'))
+	openStepForm(t, a)
+	pressDrawn(a, letter('j'), letter('j'), letter('j'), letter('j'), enterPress, ctrlS)
+	if steps := loadFlowSteps(t, "login"); !steps[0].Secret || steps[0].Prompt != "password:" || steps[0].Var != "pw" {
+		t.Errorf("the prompt became %+v", steps[0])
+	}
+}
+
 // A switch's cases are a list in its form; the cases kept keep their steps, and ctrl+s takes
 // the list as it is, even open.
 func TestEditingASwitchKeepsTheStepsOfItsCases(t *testing.T) {

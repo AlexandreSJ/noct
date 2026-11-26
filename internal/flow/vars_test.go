@@ -125,6 +125,7 @@ func TestSetAndUnsetValidation(t *testing.T) {
 		"steps: [{unset: ['steps.']}]":                       "steps.",
 		"steps: [{unset: []}]":                               "exactly one",
 		"steps: [{run: 'true', var: x}]":                     "belong to a prompt",
+		"steps: [{run: 'true', secret: true}]":               "belong to a prompt",
 		"steps: [{prompt: 'N?', var: n, type: date}]":        "type",
 		"steps: [{prompt: '$len(x', var: n}]":                "$len",
 		"steps: [{set: {a: '1'}, run: 'true'}]":              "exactly one",
@@ -197,14 +198,47 @@ steps:
 	if !result.OK || !strings.Contains(out.String(), "b=7") {
 		t.Fatalf("ok %v:\n%s", result.OK, out)
 	}
-	if len(asked) != 1 || !strings.Contains(asked[0], "New b (was 3)") || !strings.Contains(asked[0], "[3]") {
-		t.Errorf("asked %q", asked)
+	if len(asked) != 1 || asked[0] != "\x1b[1mNew b (was 3) \x1b[0m" || !strings.Contains(out.String(), "empty keeps 3") {
+		t.Errorf("asked %q, shown:\n%s", asked, out)
 	}
 	if attention != 1 {
 		t.Errorf("attention asked %d times", attention)
 	}
 	if result.Steps["0"].Captures["b"] != "7" {
 		t.Errorf("prompt's result keeps %v", result.Steps["0"].Captures)
+	}
+}
+
+func TestAPromptIsShownAsItIsWritten(t *testing.T) {
+	r, _ := testRunner(t, nil)
+	var asked []string
+	r.Ask = func(q string) string { asked = append(asked, q); return "x" }
+	f := parse(t, "steps:\n  - {prompt: 'login:', var: a}\n  - {prompt: 'pass: ', var: b}\n")
+	if result := r.Run(f, nil); !result.OK {
+		t.Fatalf("%+v", result)
+	}
+	if want := []string{"\x1b[1mlogin: \x1b[0m", "\x1b[1mpass: \x1b[0m"}; !slices.Equal(asked, want) {
+		t.Errorf("asked %q, want %q", asked, want)
+	}
+}
+
+func TestASecretPromptMasksItsAnswer(t *testing.T) {
+	r, out := testRunner(t, nil)
+	r.Ask = func(string) string { t.Error("a secret prompt asked as a plain one"); return "" }
+	r.AskSecret = func(string) string { return "hunter2" }
+	f := parse(t, "steps:\n  - {prompt: 'password:', var: pw, secret: true}\n  - run: 'test $pw = hunter2'\n")
+	result := r.Run(f, nil)
+	if !result.OK {
+		t.Fatalf("%+v\n%s", result, out)
+	}
+	step := result.Steps["0"]
+	if len(step.Captures) > 0 || strings.Contains(step.Message, "hunter2") || strings.Contains(out.String(), "hunter2") {
+		t.Errorf("the secret shows: %+v\n%s", step, out)
+	}
+
+	r.AskSecret = nil
+	if result := r.Run(f, nil); result.OK {
+		t.Error("a secret prompt ran with nobody to ask it")
 	}
 }
 

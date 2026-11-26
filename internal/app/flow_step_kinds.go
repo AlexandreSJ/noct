@@ -259,13 +259,15 @@ func promptForm(s flow.Step) stepFormSpec {
 	return stepFormSpec{
 		title: "prompt",
 		fields: []stepField{
-			{label: "ask", cell: textCellOf(s.Prompt), template: true, check: needed("a question"), note: "the question whoever watches the run answers"},
+			{label: "ask", cell: textCellOf(s.Prompt), template: true, check: needed("a question"), note: "shown as written to whoever watches the run, as login:"},
 			{label: "into", cell: textCellOf(s.Var), check: checkVariable, note: "the variable the answer goes to, new or not"},
 			{label: "type", cell: optionCellOf(orDefault(s.Type, flow.TextParam), []string{flow.TextParam, flow.NumberParam}), note: "a number asks again until the answer is one"},
 			{label: "default", cell: textCellOf(s.Default), template: true, note: "what an empty answer gives"},
+			{label: "secret", cell: gridCell{kind: toggleCell, on: s.Secret}, note: "the answer shows as • while typed, and the run never shows it"},
 		},
 		build: func(v []formValue) (flow.Step, error) {
 			s.Prompt, s.Var, s.Type, s.Default = v[0].value, v[1].value, v[2].value, v[3].value
+			s.Secret = v[4].value != ""
 			if s.Type == flow.TextParam {
 				s.Type = ""
 			}

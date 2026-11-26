@@ -963,7 +963,10 @@ func (p *inspectPanel) SendMouse(event uv.MouseEvent) {
 			p.pan, p.centered = p.clampPan(p.drag.pan.Sub(point.Sub(p.drag.from))), false
 			return
 		}
-		p.centered = false // the details go while a card is carried: the chart stays put
+		// The details go while a card is carried: the chart stays put and takes their rows now, so
+		// the card can land there before the next draw.
+		p.centered = false
+		p.chartArea, p.details = p.chartArea.Union(p.details), image.Rectangle{}
 		p.panAtEdge(point)
 	case uv.MouseReleaseEvent:
 		switch {

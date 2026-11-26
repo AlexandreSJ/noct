@@ -49,6 +49,9 @@ type Runner struct {
 	// Ask puts a question to whoever watches the run and returns the answer, for on_fail: ask;
 	// nil when nobody can answer, and then a failure stops the flow.
 	Ask func(question string) string
+	// AskSecret asks as Ask does, the answer masked as it is typed, for a secret prompt; nil when
+	// nobody can answer.
+	AskSecret func(question string) string
 	// OpenPane asks noct's workspace for a pane that runs a step; nil outside noct.
 	OpenPane func(PaneRequest) (int, error)
 	// Attention asks noct's workspace to show the run, before a prompt waits for the user; nil
@@ -86,6 +89,8 @@ type running struct {
 	// deadline is when the flow's timeout, as written in timeout, ends the run; zero without one.
 	deadline time.Time
 	timeout  string
+	// secrets are the values of secret variables and prompts, which the run never shows.
+	secrets []string
 }
 
 // Run runs the flow with the parameters given over its defaults. Result.Exit is the exit code of
@@ -125,9 +130,32 @@ func (r *Runner) start(f Flow, params map[string]string) (*running, error) {
 		steps:    map[string]map[string]string{},
 		result:   Result{Flow: f.Name, Start: time.Now(), Steps: map[string]StepResult{}, OK: true},
 	}
+	for _, name := range f.ParamNames() {
+		if f.Params[name].Secret {
+			x.keepSecret(vars[name])
+		}
+	}
 	x.startDeadline(f)
 	return x, err
 }
+
+// keepSecret takes note of a secret value, for the run to mask it where it shows values.
+func (x *running) keepSecret(value string) {
+	if value != "" {
+		x.secrets = append(x.secrets, value)
+	}
+}
+
+// masked is a text the run shows with its secret values masked.
+func (x *running) masked(text string) string {
+	for _, secret := range x.secrets {
+		text = strings.ReplaceAll(text, secret, secretMask)
+	}
+	return text
+}
+
+// secretMask stands for a secret value where the run would show it.
+const secretMask = "••••"
 
 // runSteps runs a list of steps, reporting false when the flow must stop.
 func (x *running) runSteps(steps []Step, parent, branch string) bool {
@@ -541,9 +569,9 @@ func (x *running) execute(command, dir string, deadline time.Time) (string, int)
 
 // header announces a step in the output: a symbol, the step in bold, a detail dimmed.
 func (x *running) header(symbol, title, detail string) {
-	fmt.Fprintf(x.Out, "\n\x1b[1m%s %s\x1b[0m", symbol, title)
+	fmt.Fprintf(x.Out, "\n\x1b[1m%s %s\x1b[0m", symbol, x.masked(title))
 	if detail != "" {
-		fmt.Fprintf(x.Out, " \x1b[2m%s\x1b[0m", detail)
+		fmt.Fprintf(x.Out, " \x1b[2m%s\x1b[0m", x.masked(detail))
 	}
 	fmt.Fprintln(x.Out)
 }

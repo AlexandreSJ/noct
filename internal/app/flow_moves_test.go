@@ -174,3 +174,19 @@ func TestADragLetsGoWhereverTheButtonGoesUp(t *testing.T) {
 		t.Errorf("letting go near where it was picked moved the card: %+v", steps)
 	}
 }
+
+// The details under the chart keep their height whatever block is selected, so the chart,
+// centered on the selection, does not jump up and down as it moves.
+func TestTheChartKeepsItsPlaceAsTheSelectionMoves(t *testing.T) {
+	a, p := openMovesFlow(t)
+	area, pan := p.chartArea, p.pan
+	for range 3 {
+		pressDrawn(a, letter('j'))
+		if p.chartArea != area {
+			t.Fatalf("at %s the chart is %v, it was %v", p.selected, p.chartArea, area)
+		}
+		if p.pan.X != pan.X {
+			t.Errorf("at %s the chart moved sideways: %v, was %v", p.selected, p.pan, pan)
+		}
+	}
+}

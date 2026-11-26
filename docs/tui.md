@@ -60,7 +60,7 @@ A **tecla prefixo** (padrão `Ctrl+Space`, configurável) liga o **modo noct**. 
 
 No modo noct:
 
-- **Navegação mantém o modo ligado**, para andar por painéis e tabs com um único prefixo. Segurar `→` percorre os painéis e, na borda da tab, passa para a próxima.
+- **Navegação mantém o modo ligado**, para andar por painéis e tabs com um único prefixo. Segurar `→` percorre os painéis e, na borda da tab, passa para a próxima. Ao entrar numa tab, o foco vai para o painel que ela tinha ao ser deixada, se ele está na borda por onde se entra (o de cima de dois empilhados também); senão, para o último painel dessa borda.
 - **Ações encerram o modo** depois de executadas.
 - `Esc` ou o prefixo de novo cancelam o modo. Teclas desconhecidas são ignoradas.
 - Na home, o popup mostra só os comandos que não precisam de uma tab.

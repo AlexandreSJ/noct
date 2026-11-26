@@ -18,7 +18,8 @@ import (
 // scrolls it while the mouse is over it.
 
 // Sizes of the details: the least rows the chart keeps above them, and the share of the chart's
-// rows they take at most.
+// rows they take, however long their text: a height that changed with the block selected would
+// move the chart, centered on it, up and down as the selection moves.
 const (
 	detailsLeastChart = 10
 	detailsShare      = 35 // percent
@@ -40,7 +41,7 @@ func (p *inspectPanel) drawDetails(screen uv.Screen, area image.Rectangle, f flo
 			lines = append(lines, styledLine{part, line.style})
 		}
 	}
-	rows := min(len(lines)+2, max(area.Dy()*detailsShare/100, detailsLeastRows))
+	rows := max(area.Dy()*detailsShare/100, detailsLeastRows)
 	if area.Dy()-rows < detailsLeastChart {
 		return area
 	}

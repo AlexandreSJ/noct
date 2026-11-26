@@ -96,8 +96,8 @@ func (s Step) validate(ids map[string]bool, lookup func(id string) (script.Scrip
 
 // validateFieldsBelong refuses fields that only another kind of step uses.
 func (s Step) validateFieldsBelong(kind Kind) error {
-	if (s.Var != "" || s.Default != "" || s.Type != "") && kind != PromptStep {
-		return errors.New("var, default and type belong to a prompt")
+	if (s.Var != "" || s.Default != "" || s.Type != "" || s.Secret) && kind != PromptStep {
+		return errors.New("var, default, type and secret belong to a prompt")
 	}
 	if len(s.Then) > 0 && kind != IfStep {
 		return errors.New("then belongs to an if")

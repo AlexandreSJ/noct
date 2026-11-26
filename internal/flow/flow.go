@@ -99,12 +99,14 @@ type Step struct {
 
 	Wait string `yaml:"wait,omitempty"`
 
-	// Prompt asks whoever watches the run, and keeps the answer in the variable Var; an empty
-	// answer keeps Default. Type number asks again until the answer is a number.
+	// Prompt asks whoever watches the run, shown as it is written, and keeps the answer in the
+	// variable Var; an empty answer keeps Default. Type number asks again until the answer is a
+	// number. Secret masks the answer as it is typed and keeps it out of the run's result.
 	Prompt  string `yaml:"prompt,omitempty"`
 	Var     string `yaml:"var,omitempty"`
 	Default string `yaml:"default,omitempty"`
 	Type    string `yaml:"type,omitempty"`
+	Secret  bool   `yaml:"secret,omitempty"`
 
 	// Set gives variables, new or not, the values of its texts: name after it.
 	Set map[string]string `yaml:"set,omitempty"`

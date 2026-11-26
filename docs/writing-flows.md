@@ -110,7 +110,7 @@ A step sets exactly one of these:
 | `switch: <expression>` | Runs the first case whose `is` holds the value, or `else` | `cases`, `else`, `export` |
 | `repeat: {...}` | Runs `steps` in passes: `times`, `until`, or once per item of `each` | `steps`, `export` |
 | `wait: <duration>` | Sleeps (`5s`, `1m30s`) | — |
-| `prompt: <text>` | Asks the user on the run's terminal; the answer goes to a variable | `var` (required), `default`, `type` |
+| `prompt: <text>` | Asks the user on the run's terminal, the text shown as written; the answer goes to a variable | `var` (required), `default`, `type`, `secret` |
 | `set: {name: <text>}` | Gives variables, new or not, a value | — |
 | `unset: [name, steps.build]` | Clears variables and a step's results | — |
 
@@ -131,6 +131,9 @@ steps:
     var: a                        # a new variable, or one to change
     default: $a                   # what an empty answer keeps
     type: number                  # asks again until the answer is a number, 3 times at most
+  - prompt: 'Password:'           # shown as written, a space before the answer
+    var: password
+    secret: true                  # typed as •, kept out of the run's result and masked as ••••
   - unset: [sum, steps.add]       # reads as empty after this
 ```
 
