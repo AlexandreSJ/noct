@@ -396,8 +396,10 @@ whose arguments are expressions, or any expression in braces, `${count + 1}`.
 - **In a run line each value is safe:** outside quotes it is one shell word; inside `"..."` or
   `'...'` it is escaped to stay inside them; in `$(( ))` it must be a number; in a heredoc, it
   goes in as it is after `<<'EOF'` and with `\`, `$` and `` ` `` escaped after `<<EOF`, and a
-  value with a line that would end the heredoc fails the step. So
-  `echo $msg` and `echo "msg: $msg"` never run what the value holds. A program that reads its
+  value with a line that would end the heredoc fails the step. Inside `$( )`, even within
+  `"..."` or a heredoc, it is one word of that command again. Inside `` ` ` `` a value is
+  refused, since its first `` ` `` would end the command: write `$( )` there. So
+  `echo $msg`, `echo "msg: $msg"` and `echo "$(basename $file)"` never run what the value holds. A program that reads its
   own text (`sh -c '...'`, `jq '...'`) still reads the value as its own code: pass it as an
   argument instead.
 - **`{{ }}` is not a template in a flow.** One that reads a flow's name (`{{.version}}`) is

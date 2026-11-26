@@ -199,8 +199,14 @@ type splitter struct {
 	kind  textKind
 	known knownNames
 	quote quoting
-	// depth counts the parentheses open in a $(( )).
-	depth int
+	// depth counts the parentheses open in a $(( )), and arithmeticOf is the quotes it is in.
+	depth        int
+	arithmeticOf quoting
+	// subs are the $( ) open, each a command line of its own, whose values are words of it.
+	subs []substitution
+	// backtick tells a ` ` open, which ends at the first ` of a value, so a value there is
+	// refused.
+	backtick bool
 	// heredoc is the word that ends a heredoc the line opened, whose body starts at the next line;
 	// dash is <<-, whose end may be indented with tabs.
 	heredoc       string
@@ -209,6 +215,15 @@ type splitter struct {
 	plain         strings.Builder
 	pieces        []piece
 }
+
+// substitution is a $( ) open: the quotes it is in, and the parentheses open inside it.
+type substitution struct {
+	outer quoting
+	depth int
+}
+
+// inBacktick refuses a value inside ` `.
+var inBacktick = errors.New("a value inside ` ` could end it early; write $( ) in its place")
 
 func (s *splitter) run() ([]piece, error) {
 	for s.at < len(s.text) {
@@ -277,31 +292,81 @@ func (s *splitter) heredocBody() error {
 			s.heredoc = ""
 			return nil // the end's line, and what follows it, is the shell's again
 		}
-		for stop := s.at + end; s.at < stop; {
-			if s.text[s.at] != '$' {
-				s.copy(1)
-				continue
-			}
-			s.quote = quote
-			err := s.dollar()
-			s.quote = unquoted
-			if err != nil {
-				return err
-			}
+		if err := s.heredocLine(s.at+end, quote); err != nil {
+			return err
 		}
 		s.copy(1)
 	}
 	return nil
 }
 
-// track follows the quotes a character opens or closes: the shell's ' and ", JSON's ", and the
-// shell's $(( )).
+// heredocLine reads a line of a heredoc's body up to stop, a $ in it going in as the heredoc
+// keeps it, or as a word inside a $( ) of it.
+func (s *splitter) heredocLine(stop int, quote quoting) error {
+	for s.at < stop {
+		if quote == heredocShell && s.heredocCommand() {
+			continue
+		}
+		if s.text[s.at] != '$' {
+			s.copy(1)
+			continue
+		}
+		s.quote = s.heredocQuote(quote)
+		err := s.dollar()
+		s.quote = unquoted
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// heredocCommand copies what at the cursor of an unquoted heredoc's body is the shell's: an
+// escaped character, and the $( ), ` and ) that open and close a command in it.
+func (s *splitter) heredocCommand() bool {
+	rest := s.text[s.at:]
+	switch {
+	case rest[0] == '\\':
+		s.copy(2)
+	case strings.HasPrefix(rest, "$(") && !strings.HasPrefix(rest, "$(("):
+		s.subs = append(s.subs, substitution{outer: heredocShell, depth: 1})
+		s.copy(2)
+	case rest[0] == '(' && len(s.subs) > 0:
+		s.subs[len(s.subs)-1].depth++
+		s.copy(1)
+	case rest[0] == ')' && len(s.subs) > 0:
+		if s.subs[len(s.subs)-1].depth--; s.subs[len(s.subs)-1].depth == 0 {
+			s.subs = s.subs[:len(s.subs)-1]
+		}
+		s.copy(1)
+	case rest[0] == '`':
+		s.backtick = !s.backtick
+		s.copy(1)
+	default:
+		return false
+	}
+	return true
+}
+
+// heredocQuote is where a value lands in a heredoc's body: as a word inside a $( ) of it.
+func (s *splitter) heredocQuote(quote quoting) quoting {
+	if quote == heredocShell && len(s.subs) > 0 {
+		return unquoted
+	}
+	return quote
+}
+
+// track follows the quotes a character opens or closes: the shell's ' and ", JSON's ", the
+// shell's $(( )), and the ( ) and ` of a command inside a run line.
 func (s *splitter) track(c byte) {
 	if s.quote == arithmetic {
 		s.depth += map[byte]int{'(': 1, ')': -1}[c]
 		if s.depth == 0 {
-			s.quote = unquoted
+			s.quote = s.arithmeticOf
 		}
+		return
+	}
+	if s.kind == shellText && s.trackCommand(c) {
 		return
 	}
 	switch {
@@ -312,15 +377,42 @@ func (s *splitter) track(c byte) {
 	}
 }
 
+// trackCommand follows a ` and the parentheses inside a $( ), whose ) gives back the quotes the
+// $( ) was in.
+func (s *splitter) trackCommand(c byte) bool {
+	if c == '`' && s.quote != singleQuoted {
+		s.backtick = !s.backtick
+		return true
+	}
+	n := len(s.subs)
+	if n == 0 || s.quote != unquoted {
+		return false
+	}
+	switch c {
+	case '(':
+		s.subs[n-1].depth++
+	case ')':
+		if s.subs[n-1].depth--; s.subs[n-1].depth == 0 {
+			s.quote, s.subs = s.subs[n-1].outer, s.subs[:n-1]
+		}
+	}
+	return false
+}
+
 // dollar reads the $ at the cursor: a reference the flow knows, $$name for the shell's $name, or
 // a $ left as it is.
 func (s *splitter) dollar() error {
 	rest := s.text[s.at+1:]
 	name := leadingName(rest)
 	switch {
-	case s.kind == shellText && s.quote == unquoted && strings.HasPrefix(rest, "(("):
-		s.quote, s.depth = arithmetic, 2
+	case s.kind == shellText && (s.quote == unquoted || s.quote == doubleQuoted) && strings.HasPrefix(rest, "(("):
+		s.arithmeticOf, s.quote, s.depth = s.quote, arithmetic, 2
 		s.copy(3)
+		return nil
+	case s.kind == shellText && (s.quote == unquoted || s.quote == doubleQuoted) && strings.HasPrefix(rest, "("):
+		s.subs = append(s.subs, substitution{outer: s.quote, depth: 1})
+		s.quote = unquoted
+		s.copy(2)
 		return nil
 	case strings.HasPrefix(rest, "$") && (leadingName(rest[1:]) != "" || strings.HasPrefix(rest[1:], "{")):
 		s.plain.WriteByte('$') // $$name and $${name} are the shell's $name and ${name}
@@ -328,11 +420,13 @@ func (s *splitter) dollar() error {
 		s.copy(max(len(leadingName(rest[1:])), 1))
 		return nil
 	case strings.HasPrefix(rest, "{"):
-		s.braces(rest)
-		return nil
+		return s.braces(rest)
 	case name == "" || !s.known.has(name) && !(expr.IsFunction(name) && strings.HasPrefix(rest[len(name):], "(")):
 		s.copy(1 + len(name)) // not the flow's: the shell's, or text
 		return nil
+	}
+	if s.backtick {
+		return inBacktick
 	}
 	ref, n, err := expr.ParseRef(rest)
 	if err != nil {
@@ -359,17 +453,21 @@ func (s *splitter) add(ref *expr.Expr) {
 // braces reads ${expression}, rest being what follows the $: the flow's when the expression
 // reads names and the flow knows them all, as ${count + 1} or ${name}s, and the shell's
 // otherwise, as ${HOME} or ${1}.
-func (s *splitter) braces(rest string) {
+func (s *splitter) braces(rest string) error {
 	end := closingBrace(rest)
 	if end > 0 {
 		e, err := expr.Parse(rest[1:end])
 		if err == nil && len(e.Names()) > 0 && s.known.knowsAll(e) && s.known.check(e) == nil {
+			if s.backtick {
+				return inBacktick
+			}
 			s.add(e)
 			s.at += 1 + end + 1
-			return
+			return nil
 		}
 	}
 	s.copy(2)
+	return nil
 }
 
 // closingBrace is where the } that closes the { text starts with is, outside quotes, or -1.

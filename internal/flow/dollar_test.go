@@ -120,3 +120,29 @@ steps: [{run: 'true'}]
 		t.Errorf("login = %s (%v), want %s", x.vars["login"], err, want)
 	}
 }
+
+// A $( ) reads its text as a command line of its own, inside quotes or a heredoc too, so a value
+// in it is a word of that line; ` ` ends at the value's first `, so a value there is refused.
+func TestAValueInACommandSubstitutionStaysOneWord(t *testing.T) {
+	known := knownNames{vars: map[string]bool{"f": true, "n": true}}
+	vars := map[string]string{"f": "x; touch PWNED", "n": "2"}
+	for text, want := range map[string]string{
+		`echo "$(cat $f) at $f"`:         `echo "$(cat 'x; touch PWNED') at x; touch PWNED"`,
+		`echo "$(cat "$f" $(ls $f)) $f"`: `echo "$(cat "x; touch PWNED" $(ls 'x; touch PWNED')) x; touch PWNED"`,
+		`echo "$(( $n + 1 )) $f"`:        `echo "$(( 2 + 1 )) x; touch PWNED"`,
+		"cat <<EOF\n$(cat $f) $f\nEOF\n": "cat <<EOF\n$(cat 'x; touch PWNED') x; touch PWNED\nEOF\n",
+		"cat <<EOF\n\\$(cat $f)\nEOF\n":  "cat <<EOF\n\\$(cat x; touch PWNED)\nEOF\n",
+		"cat <<'EOF'\n$(cat $f)\nEOF\n":  "cat <<'EOF'\n$(cat x; touch PWNED)\nEOF\n",
+		`echo '$(' $f`:                   `echo '$(' 'x; touch PWNED'`,
+	} {
+		got, err := renderText(text, shellText, known, vars, nil, nil)
+		if err != nil || got != want {
+			t.Errorf("%q: got %q (%v), want %q", text, got, err, want)
+		}
+	}
+	for _, text := range []string{"echo `cat $f`", "echo \"`cat ${f}`\"", "cat <<EOF\n`cat $f`\nEOF\n"} {
+		if got, err := splitText(text, shellText, known); err == nil || !strings.Contains(err.Error(), "$( )") {
+			t.Errorf("%q split into %v (%v), want it refused", text, got, err)
+		}
+	}
+}
