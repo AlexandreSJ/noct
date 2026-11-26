@@ -45,6 +45,8 @@ the shortcut is `Alt` by default. How to write an entry is in
   adds the comma, and it shows a member a line, indented, in the colors of conditions. A list
   or an object that reads itself is refused.
 - An object's fields complete after its name: `obj` shows `.isOnline` dim, and `Tab` puts it in.
+- A flow's `prompt` reads the escapes a print does, as `\n` and `\t`; its form shows them in
+  the primary color, dimmed.
 - `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
   chart, and shows them again.
 - Flow conditions take `nand`, `nor` and `xor`. The inspect's details show a condition with

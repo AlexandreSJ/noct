@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/AlexandreSJ/noct/internal/flow"
 )
@@ -47,8 +48,9 @@ type gridCell struct {
 	secret               bool
 	names                bool
 	autoFor              string
-	// json closes braces, brackets and quotes as they are typed in a value that is JSON.
-	json bool
+	// json closes braces, brackets and quotes as they are typed in a value that is JSON; escapes
+	// marks a backslash and what it escapes, as \n.
+	json, escapes bool
 }
 
 func textCellOf(text string) gridCell { return gridCell{kind: textCell, field: newTextField(text)} }
@@ -595,10 +597,16 @@ func (g *editGrid) windowFit(height int, heightOf func(row int) int) []int {
 // in, else lines, lit while focused.
 func (g *editGrid) drawBlock(screen uv.Screen, rect image.Rectangle, row, col int, lines []styledLine, pal *palette) {
 	g.hit(rect, row, col)
-	field := &g.at(row, col).field
+	cell := g.at(row, col)
+	field := &cell.field
 	switch {
 	case g.lit(row, col) && g.editing:
 		at := field.drawLines(screen, rect, pal.typing(), pal.selectedRow)
+		if cell.escapes {
+			for i, line := range strings.Split(field.String(), "\n")[field.top:] {
+				markEscapes(screen, image.Pt(rect.Min.X, rect.Min.Y+i), rect, line, pal)
+			}
+		}
 		drawGhost(screen, at, image.Rect(rect.Min.X, at.Y, rect.Max.X, at.Y+1), g.ghost(), pal)
 		return
 	case g.lit(row, col):
@@ -609,6 +617,31 @@ func (g *editGrid) drawBlock(screen uv.Screen, rect image.Rectangle, row, col in
 	}
 	for i, line := range lines[:min(len(lines), rect.Dy())] {
 		drawTextCut(screen, rect.Min.X, rect.Min.Y+i, rect.Max.X, line.text, line.style)
+		if cell.escapes {
+			markEscapes(screen, image.Pt(rect.Min.X, rect.Min.Y+i), rect, line.text, pal)
+		}
+	}
+}
+
+// markEscapes colors each backslash of text drawn at at, and the character after it, in the
+// primary color dimmed.
+func markEscapes(screen uv.Screen, at image.Point, rect image.Rectangle, text string, pal *palette) {
+	if at.Y >= rect.Max.Y {
+		return
+	}
+	fg := shadeStyle(pal, conditionShades/2).Fg
+	runes, x, left := []rune(text), at.X, 0
+	for i := 0; i < len(runes) && x < rect.Max.X; i++ {
+		if left == 0 && runes[i] == '\\' && i+1 < len(runes) {
+			left = 2
+		}
+		if c := screen.CellAt(x, at.Y); c != nil && left > 0 {
+			cell := *c
+			cell.Style.Fg = fg
+			screen.SetCell(x, at.Y, &cell)
+			left--
+		}
+		x += max(ansi.StringWidth(string(runes[i])), 1)
 	}
 }
 

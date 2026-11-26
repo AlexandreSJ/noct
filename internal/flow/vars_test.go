@@ -443,3 +443,11 @@ steps:
 		}
 	}
 }
+
+func TestAPromptReadsItsEscapes(t *testing.T) {
+	for text, want := range map[string]string{`a\nb`: "a\nb", `tab\there`: "tab\there", `back\\slash`: `back\slash`, `odd\q`: `odd\q`, `end\`: `end\`} {
+		if got := Unescape(text); got != want {
+			t.Errorf("Unescape(%q) = %q, want %q", text, got, want)
+		}
+	}
+}

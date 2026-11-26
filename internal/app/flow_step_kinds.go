@@ -260,7 +260,7 @@ func promptForm(s flow.Step) stepFormSpec {
 	return stepFormSpec{
 		title: "prompt",
 		fields: []stepField{
-			{label: "ask", cell: textCellOf(s.Prompt), template: true, check: needed("a question"), note: "shown as written to whoever watches the run, as login:"},
+			{label: "ask", cell: escapedCellOf(s.Prompt), template: true, check: needed("a question"), note: `shown as written to whoever watches the run, as login:; \n is a new line, \t a tab`},
 			{label: "into", cell: textCellOf(s.Var), check: checkVariable, note: "the variable the answer goes to, new or not"},
 			{label: "type", cell: optionCellOf(orDefault(s.Type, flow.TextParam), []string{flow.TextParam, flow.NumberParam}), note: "a number asks again until the answer is one"},
 			{label: "default", cell: textCellOf(s.Default), template: true, note: "what an empty answer gives"},
@@ -475,4 +475,10 @@ func checkAgentCommand(command string) string {
 		return err.Error()
 	}
 	return ""
+}
+
+func escapedCellOf(text string) gridCell {
+	cell := textCellOf(text)
+	cell.escapes = true
+	return cell
 }

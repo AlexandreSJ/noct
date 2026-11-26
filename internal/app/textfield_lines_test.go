@@ -1,6 +1,12 @@
 package app
 
-import "testing"
+import (
+	"image"
+	"image/color"
+	"testing"
+
+	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
+)
 
 func TestAMultilineFieldMovesThroughItsLines(t *testing.T) {
 	f := newTextField("")
@@ -24,5 +30,22 @@ func TestAMultilineFieldMovesThroughItsLines(t *testing.T) {
 	single.insert("a\nb")
 	if single.String() != "a b" {
 		t.Errorf("a field of one line took %q", single.String())
+	}
+}
+
+func TestAnEscapeShowsInTheDimmedPrimaryColor(t *testing.T) {
+	pal := &palette{
+		selectedRow: uv.Style{Bg: color.RGBA{R: 0xd0, G: 0x80, B: 0x20, A: 0xff}},
+		panelMuted:  uv.Style{Fg: color.RGBA{R: 0x60, G: 0x60, B: 0x60, A: 0xff}},
+	}
+	buffer := uv.NewScreenBuffer(20, 1)
+	rect := image.Rect(0, 0, 20, 1)
+	drawTextCut(buffer, 0, 0, 20, `a\nb`, pal.panelText)
+	markEscapes(buffer, image.Pt(0, 0), rect, `a\nb`, pal)
+	want := shadeStyle(pal, conditionShades/2).Fg
+	for x, marked := range []bool{false, true, true, false} {
+		if got := buffer.CellAt(x, 0).Style.Fg; (got == want) != marked {
+			t.Errorf("cell %d: %v, marked %v", x, got, marked)
+		}
 	}
 }

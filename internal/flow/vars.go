@@ -311,6 +311,7 @@ func (x *running) runPrompt(s Step, path string) bool {
 	if err != nil {
 		return x.stop(path, "prompt: "+err.Error(), 1)
 	}
+	question = Unescape(question)
 	fallback, err := x.render(s.Default)
 	if err != nil {
 		return x.stop(path, "default: "+err.Error(), 1)
@@ -425,4 +426,24 @@ func (x *running) runUnset(s Step, path string) {
 	}
 	x.header("∅", s.Label(), strings.Join(s.Unset, ", "))
 	x.result.Steps[path] = StepResult{Status: StatusOK, Message: "cleared " + strings.Join(s.Unset, ", ")}
+}
+
+var escapes = map[rune]string{'n': "\n", 't': "\t", 'r': "\r", 'e': "\x1b", 'a': "\a", '\\': "\\", '"': "\"", '\'': "'"}
+
+// Unescape reads the escapes a prompt writes as print does, \n a new line and \t a tab; an
+// escape it does not know stays as written.
+func Unescape(text string) string {
+	var out strings.Builder
+	runes := []rune(text)
+	for i := 0; i < len(runes); i++ {
+		if runes[i] == '\\' && i+1 < len(runes) {
+			if e, ok := escapes[runes[i+1]]; ok {
+				out.WriteString(e)
+				i++
+				continue
+			}
+		}
+		out.WriteRune(runes[i])
+	}
+	return out.String()
 }
