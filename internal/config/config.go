@@ -156,21 +156,18 @@ const (
 const DefaultApprovalSeconds = 300
 
 // Flows bounds what a flow's last result keeps of each step's output: OutputKB kilobytes, or
-// all of what the templates read when 0. LeaveForm is what leaving a step's form in the
-// inspect does with what was changed in it, out of LeaveFormChoices.
+// all of what the templates read when 0.
 type Flows struct {
 	OutputKB  int    `toml:"output_kb"`
 	LeaveForm string `toml:"leave_form"`
 }
 
-// What leaving a step's form changed does: save it, ask whether to, or leave the step as it was.
 const (
 	LeaveSaves   = "save"
 	LeaveAsks    = "ask"
 	LeaveDiscard = "discard"
 )
 
-// LeaveFormChoices are the choices of Flows.LeaveForm, the default first.
 var LeaveFormChoices = []string{LeaveSaves, LeaveAsks, LeaveDiscard}
 
 func (f Flows) normalized() Flows {

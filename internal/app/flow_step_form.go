@@ -36,7 +36,6 @@ type stepField struct {
 	// when, when set, shows the row only while the form's values give true, as the name of a
 	// custom agent only once custom agent is picked.
 	when func(values []formValue) bool
-	// kind is the type a typed form's row starts with.
 	kind string
 }
 
@@ -49,11 +48,9 @@ type stepFormSpec struct {
 	named    bool
 	rowField stepField
 	adds     string
-	// types, when set, are the types a named form's rows take, the first unless a row says;
-	// typeOf is the type the flow gives a name already, which a row named so takes.
-	types  []string
-	typeOf func(name string) string
-	build  func(values []formValue) (flow.Step, error)
+	types    []string
+	typeOf   func(name string) string
+	build    func(values []formValue) (flow.Step, error)
 	// finish, when set, saves the step built in its own way, as adding a custom agent first.
 	finish func(step flow.Step, save func(flow.Step) error) error
 	// saveValues, when set, saves the answers itself, for a form that makes no step, as a
@@ -76,10 +73,7 @@ type stepForm struct {
 	// message is why the last save was refused.
 	message string
 	// values are the variables in scope with their last values, for the help.
-	values map[string]string
-	// leaving is what esc does with what changed since opened, the form's values then: save it,
-	// ask first, while asking is on, or leave the step; refused is on after a save on leaving
-	// was refused, so esc again leaves the step as it was.
+	values          map[string]string
 	leaving         string
 	opened          []formValue
 	asking, refused bool
@@ -91,7 +85,6 @@ const (
 	stepFormTypeColumn
 )
 
-// stepFormTypeWidth is the type column of a typed form, wide enough for boolean.
 const stepFormTypeWidth = 9
 
 func (a *App) newStepForm(spec stepFormSpec, vars []flow.Variable, values map[string]string, adding bool, save func(flow.Step) error) *stepForm {
@@ -108,7 +101,7 @@ func (a *App) newStepForm(spec stepFormSpec, vars []flow.Variable, values map[st
 	form.showRows()
 	form.grid.focusNear(0, form.firstColumn())
 	if spec.named && len(spec.fields) == 1 && spec.fields[0].label == "" {
-		form.grid.startEdit() // a new set is typed in at once: its first variable's name
+		form.grid.startEdit()
 	}
 	form.opened = form.formValues()
 	return form
@@ -145,8 +138,6 @@ func (s *stepForm) row(field stepField) gridRow {
 	return row
 }
 
-// fillTypes gives a typed form's row whose name changed the type the flow gives that name, if
-// it gives one.
 func (s *stepForm) fillTypes() {
 	if s.spec.typeOf == nil {
 		return
@@ -260,8 +251,6 @@ func (s *stepForm) handleKey(key uv.KeyPressEvent) bool {
 	return s.after(s.grid.handleKey(key))
 }
 
-// leave is esc out of the form: what changed is saved, asked about first, or left, as the
-// config says. Nothing changed, it only leaves.
 func (s *stepForm) leave() bool {
 	switch {
 	case s.leaving == config.LeaveDiscard || !s.changed():
@@ -273,8 +262,6 @@ func (s *stepForm) leave() bool {
 	return s.saveOnLeaving()
 }
 
-// answer is the key pressed while asking whether to save what changed: y or enter saves, n
-// leaves the step as it was, and any other key goes back to the form.
 func (s *stepForm) answer(name string) bool {
 	s.asking = false
 	switch name {
@@ -286,7 +273,6 @@ func (s *stepForm) answer(name string) bool {
 	return false
 }
 
-// saveOnLeaving saves on the way out; refused, the form stays with why, and esc again leaves.
 func (s *stepForm) saveOnLeaving() bool {
 	if s.submit() {
 		return true
@@ -296,7 +282,6 @@ func (s *stepForm) saveOnLeaving() bool {
 	return false
 }
 
-// changed tells whether the form's values are no longer the ones it opened with.
 func (s *stepForm) changed() bool {
 	return !slices.EqualFunc(s.formValues(), s.opened, func(a, b formValue) bool {
 		return a.name == b.name && a.value == b.value && a.kind == b.kind && slices.Equal(a.items, b.items)

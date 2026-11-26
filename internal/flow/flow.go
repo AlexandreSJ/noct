@@ -108,8 +108,7 @@ type Step struct {
 	Type    string `yaml:"type,omitempty"`
 	Secret  bool   `yaml:"secret,omitempty"`
 
-	// Set gives variables, new or not, the values of its texts: name after it. Types are their
-	// types, by name; a name without one is a var, whose value says what it is.
+	// Set gives variables, new or not, the values of its texts: name after it.
 	Set   map[string]string `yaml:"set,omitempty"`
 	Types map[string]string `yaml:"types,omitempty"`
 	// Unset clears variables (name) and steps' results (steps.<id>).

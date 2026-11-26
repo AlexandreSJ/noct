@@ -389,7 +389,6 @@ func orDefault(value, fallback string) string {
 	return value
 }
 
-// scriptStepItems are the scripts a step can run, for the step picker to list.
 func (a *App) scriptStepItems(picked func(flow.Step)) []finderItem {
 	var items []finderItem
 	for _, s := range a.scripts.All() {
@@ -712,14 +711,8 @@ func stepResultLines(r flow.Result, path string, pal *palette) []styledLine {
 	return lines
 }
 
-// conditionShades are how many shades of the primary color a condition's parts take, a level
-// each, from the color toward the dim text, before the next level starts over at the color.
 const conditionShades = 4
 
-// conditionLines lay an expression out by its logic (expr.Outline), a part a line indented by
-// its level, as a and b or c is [a and b] or [c]: each level in its shade of the primary color,
-// and the operators that join them, and, or and the rest, in the color itself. An expression
-// without them is its one line.
 func conditionLines(text string, pal *palette) []styledLine {
 	outline := expr.Outline(text)
 	if len(outline) == 1 {

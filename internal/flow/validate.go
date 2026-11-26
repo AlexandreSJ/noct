@@ -115,8 +115,6 @@ func (s Step) validateFieldsBelong(kind Kind) error {
 	return s.Retry.validate()
 }
 
-// kindField is a field only some kinds of step use: whether a step uses it, those kinds, and
-// what tells so.
 type kindField struct {
 	used    bool
 	kinds   []Kind

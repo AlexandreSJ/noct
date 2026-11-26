@@ -25,7 +25,6 @@ func (a *App) newFunction(folder string, created func(key string)) {
 	})
 }
 
-// functionItems are the functions a call step can run, for the step picker to list.
 func (a *App) functionItems(picked func(fn flow.Flow)) []finderItem {
 	var items []finderItem
 	for _, fn := range a.functions {

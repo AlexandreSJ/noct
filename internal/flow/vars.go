@@ -30,12 +30,8 @@ const (
 // ParamTypes are the types a parameter can have, in the order the inspect offers them.
 var ParamTypes = []string{TextParam, NumberParam, BooleanParam, OptionParam, PathParam, ListParam, ObjectParam}
 
-// VarType is a set's variable of no type of its own: its value says what it is, a list or an
-// object when it is one in JSON, and else a text, which expressions read as a number or a
-// boolean when it reads as one.
 const VarType = "var"
 
-// SetTypes are the types a set gives its variables, in the order the inspect offers them.
 var SetTypes = []string{VarType, TextParam, NumberParam, BooleanParam, ListParam, ObjectParam}
 
 // legacyParamTypes are the names flows written before ADR-071 use, read as the names now.
@@ -244,7 +240,6 @@ func (s Step) validateVariables(kind Kind) error {
 	return nil
 }
 
-// validateSetTypes refuses a type for a name the set does not set, and a type it has not.
 func (s Step) validateSetTypes() error {
 	for _, name := range slices.Sorted(maps.Keys(s.Types)) {
 		if _, set := s.Set[name]; !set {
@@ -257,8 +252,6 @@ func (s Step) validateSetTypes() error {
 	return nil
 }
 
-// VariableType is the type the flow gives a variable: its own as a flow variable, or else as
-// the last set or prompt in the flow that gives it a value; "" for a name nothing gives one.
 func (f Flow) VariableType(name string) string {
 	if p, ok := f.Params[name]; ok {
 		return cmp.Or(p.Type, TextParam)
@@ -275,8 +268,6 @@ func (f Flow) VariableType(name string) string {
 	return kind
 }
 
-// setKind is the JSON kind a set's value takes as the type given, ListParam or ObjectParam, ""
-// for a text, or why the value is not of that type.
 func setKind(kind, value string) (string, error) {
 	switch kind {
 	case NumberParam:

@@ -45,10 +45,8 @@ type gridCell struct {
 	// or alone in an expression; secret shows a dot a character.
 	template, expression bool
 	secret               bool
-	// names completes the name of a variable in scope, as a set's row is named.
-	names bool
-	// autoFor is the name a type cell last took its type for, so a name changed gives it again.
-	autoFor string
+	names                bool
+	autoFor              string
 }
 
 func textCellOf(text string) gridCell { return gridCell{kind: textCell, field: newTextField(text)} }
@@ -748,8 +746,6 @@ func (g *editGrid) suggestions() ([]string, int) {
 	return nil, 0
 }
 
-// ghost is what tab puts in after the cursor, shown dim there: the rest of the suggestion lit,
-// while the cursor is at the end of what is typed.
 func (g *editGrid) ghost() string {
 	matches, from := g.suggestions()
 	field := &g.cell().field
@@ -811,8 +807,6 @@ func (g *editGrid) hints(idle string) string {
 	return idle
 }
 
-// drawGhost writes what tab would put in, dim, from the cursor at the end of the text, at, as far
-// as the cell's rect goes; the cursor stays on its first character.
 func drawGhost(screen uv.Screen, at int, rect image.Rectangle, ghost string, pal *palette) {
 	if ghost == "" || at >= rect.Max.X {
 		return

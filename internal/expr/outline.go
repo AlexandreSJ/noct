@@ -5,16 +5,12 @@ import (
 	"strings"
 )
 
-// Line is a line of an expression's outline: a part of it, or the logic operator that joins the
-// parts around it, which sit a level deeper than the operator.
 type Line struct {
 	Depth    int
 	Text     string
 	Operator bool
 }
 
-// logicLevels are the logic operators from the loosest, as the parser binds them: or and nor,
-// xor, then and and nand.
 var logicLevels = levels[1:notLevel]
 
 // Outline lays an expression out by its logic, so a and b or c reads as [a and b] or [c]: the
@@ -65,8 +61,6 @@ func logicCuts(text string) []token {
 	return nil
 }
 
-// outsideTokens are text's tokens outside parentheses, brackets and braces; none when the text
-// does not read.
 func outsideTokens(text string) []token {
 	var outside []token
 	nesting := 0
@@ -86,7 +80,6 @@ func outsideTokens(text string) []token {
 	return outside
 }
 
-// unwrapped is text without the parentheses around the whole of it, as many as there are.
 func unwrapped(text string) string {
 	for strings.HasPrefix(text, "(") && closes(text) == len(text)-1 {
 		text = strings.TrimSpace(text[1 : len(text)-1])
@@ -94,7 +87,6 @@ func unwrapped(text string) string {
 	return text
 }
 
-// closes is where the parenthesis that opens text closes, or -1.
 func closes(text string) int {
 	nesting := 0
 	l := lexer{text: text}

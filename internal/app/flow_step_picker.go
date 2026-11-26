@@ -8,35 +8,24 @@ import (
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 )
 
-// The step picker asks, over a flow's chart, what to add: a list in a box centered on the chart,
-// narrowed by what is typed, picked with enter or a click. It is an inspect editor, so every other
-// pane and tab stays a prefix away (ADR-071); a script or a function call asks which one next, in
-// the same box. tab adds again what was added last.
-
 const (
 	stepPickerWidth = 56
 	stepPickerRows  = 12
 )
 
-// floatingEditor is an inspect editor drawn in a box centered over the chart, which shows around
-// it, as big as boxSize says.
 type floatingEditor interface {
 	boxSize() image.Point
 }
 
 type stepPicker struct {
-	pal  *palette
-	list finder
-	// stage counts the lists shown, so a pick that shows the next one keeps the picker open.
-	stage int
-	// path are the labels picked on the way to the step, as [script, deploy]; again is the path
-	// of the step added last, which tab follows again, and added keeps a path once it adds.
+	pal         *palette
+	list        finder
+	stage       int
 	path, again []string
 	added       func(path []string)
-	// rows are where the items shown are, the first at first, for the mouse.
-	rows  image.Rectangle
-	first int
-	box   image.Rectangle
+	rows        image.Rectangle
+	first       int
+	box         image.Rectangle
 }
 
 func newStepPicker(pal *palette, items []finderItem, again []string, added func([]string)) *stepPicker {
@@ -45,7 +34,6 @@ func newStepPicker(pal *palette, items []finderItem, again []string, added func(
 	return s
 }
 
-// show lists items in place of the ones shown, as the scripts after script is picked.
 func (s *stepPicker) show(title string, items []finderItem) {
 	s.list = finder{title: title, items: items}
 	s.list.filter()
@@ -62,7 +50,6 @@ func (s *stepPicker) hints() string {
 	return "type to filter  {up}{down} select  {enter} add  tab again  esc cancel"
 }
 
-// pick picks an item and tells whether the picker is done: a pick that lists more keeps it.
 func (s *stepPicker) pick(item finderItem) bool {
 	s.path = append(s.path, item.label)
 	stage := s.stage
@@ -74,7 +61,6 @@ func (s *stepPicker) pick(item finderItem) bool {
 	return true
 }
 
-// pickAgain follows the path of the step added last, as far as its labels are still there.
 func (s *stepPicker) pickAgain() bool {
 	for _, label := range s.again {
 		i := slices.IndexFunc(s.list.items, func(item finderItem) bool { return item.label == label })
@@ -111,7 +97,6 @@ func (s *stepPicker) handleKey(key uv.KeyPressEvent) bool {
 	return false
 }
 
-// mouse picks the item clicked and scrolls with the wheel; a click outside the box gives up.
 func (s *stepPicker) mouse(event uv.MouseEvent, at image.Point) bool {
 	f := &s.list
 	switch e := event.(type) {
@@ -129,7 +114,6 @@ func (s *stepPicker) mouse(event uv.MouseEvent, at image.Point) bool {
 	return false
 }
 
-// itemAt is the index of the item shown at a point on the screen.
 func (s *stepPicker) itemAt(at image.Point) (int, bool) {
 	i := s.first + at.Y - s.rows.Min.Y
 	return i, at.In(s.rows) && i < len(s.list.matches)

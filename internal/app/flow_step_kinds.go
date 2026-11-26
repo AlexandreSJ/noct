@@ -277,9 +277,6 @@ func promptForm(s flow.Step) stepFormSpec {
 	}
 }
 
-// setForm asks a set's variables, a row each: the name, which tab completes from the variables
-// in scope, the value, and the type, which a variable the flow has already gives the row. A new
-// set starts with a row, typed in at once.
 func setForm(s flow.Step, typeOf func(name string) string) stepFormSpec {
 	row := stepField{note: "a name, then its value: text, $name reads others; $name reads it after; a var is what its value is", template: true}
 	spec := stepFormSpec{title: "set", named: true, rowField: row, adds: "variable", types: flow.SetTypes, typeOf: typeOf}
@@ -295,7 +292,6 @@ func setForm(s flow.Step, typeOf func(name string) string) stepFormSpec {
 	return spec
 }
 
-// setStep is s setting the rows' variables to their values, with the types other than var.
 func setStep(s flow.Step, rows []formValue) (flow.Step, error) {
 	s.Set, s.Types = map[string]string{}, map[string]string{}
 	for _, row := range rows {
