@@ -888,3 +888,34 @@ func drawGhost(screen uv.Screen, at image.Point, rect image.Rectangle, ghost str
 		screen.SetCell(at.X, at.Y, &cursor)
 	}
 }
+
+const maxCellLines = 12
+
+// blockHeight is how many lines a row takes for its cell of several lines at col.
+func (g *editGrid) blockHeight(row, col int, pal *palette) int {
+	if row >= len(g.rows) || !g.at(row, col).field.multiline {
+		return 1
+	}
+	cell := g.at(row, col)
+	if g.editing && g.lit(row, col) {
+		return min(cell.field.lineCount(), maxCellLines)
+	}
+	return min(len(blockLines(cell, pal.panelText, pal)), maxCellLines)
+}
+
+// blockLines are how a cell of several lines shows while not typed in: a condition laid out by
+// its logic, JSON a member a line, other text line by line.
+func blockLines(cell *gridCell, style uv.Style, pal *palette) []styledLine {
+	text := cell.value()
+	switch trimmed := strings.TrimSpace(text); {
+	case cell.expression && style == pal.panelText:
+		return conditionLines(text, pal)
+	case cell.json && style == pal.panelText && (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")):
+		return jsonLines(text, pal)
+	}
+	var lines []styledLine
+	for _, line := range strings.Split(text, "\n") {
+		lines = append(lines, styledLine{line, style})
+	}
+	return lines
+}

@@ -110,6 +110,7 @@ func defaultCell(p flow.Param) gridCell {
 	default:
 		cell = textCellOf(p.Default)
 		cell.template, cell.json = true, true // a default reads the variables before it: {"user": "$user"}
+		cell.field.multiline = !p.Secret
 	}
 	cell.secret = p.Secret
 	return cell
@@ -382,8 +383,9 @@ func (t *paramsTable) draw(screen uv.Screen, area image.Rectangle, _ bool) {
 		x += widths[c] + 2
 	}
 	y := area.Min.Y + 1
-	for _, row := range t.grid.window(area.Dy() - 2) {
-		line := image.Rect(left, y, area.Max.X-1, y+1)
+	height := func(row int) int { return t.grid.blockHeight(row, paramDefaultColumn, pal) }
+	for _, row := range t.grid.windowFit(area.Dy()-2, height) {
+		line := image.Rect(left, y, area.Max.X-1, y+min(height(row), area.Max.Y-1-y))
 		if b, ok := t.grid.buttonAt(row); ok {
 			t.grid.drawButton(screen, line, row, b, pal)
 		} else {
@@ -393,7 +395,7 @@ func (t *paramsTable) draw(screen uv.Screen, area image.Rectangle, _ bool) {
 			t.drawRow(screen, line, row, widths, from, to)
 			t.grid.drawMark(screen, line, row)
 		}
-		y++
+		y += line.Dy()
 	}
 	t.drawProblem(screen, area)
 	t.grid.drawOverlay(screen, area, pal)
@@ -411,7 +413,11 @@ func (t *paramsTable) drawRow(screen uv.Screen, line image.Rectangle, i int, wid
 		case problems[c] != "":
 			style = pal.failure
 		}
-		t.grid.drawCell(screen, image.Rect(x, line.Min.Y, x+widths[c], line.Max.Y), i, c, t.cellText(i, c), style, pal)
+		if cell := t.grid.at(i, c); cell.field.multiline && cell.kind == textCell {
+			t.grid.drawBlock(screen, image.Rect(x, line.Min.Y, x+widths[c], line.Max.Y), i, c, blockLines(cell, style, pal), pal)
+		} else {
+			t.grid.drawCell(screen, image.Rect(x, line.Min.Y, x+widths[c], line.Min.Y+1), i, c, t.cellText(i, c), style, pal)
+		}
 		x += widths[c] + 2
 	}
 }

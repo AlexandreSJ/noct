@@ -460,43 +460,17 @@ func (s *stepForm) drawCell(screen uv.Screen, rect image.Rectangle, row, column 
 	case cell.skip:
 		drawTextCut(screen, rect.Min.X, rect.Min.Y, rect.Max.X, text, style)
 	case cell.field.multiline:
-		s.grid.drawBlock(screen, rect, row, column, s.valueLines(cell, style), pal)
+		s.grid.drawBlock(screen, rect, row, column, blockLines(cell, style, pal), pal)
 	default:
 		s.grid.drawCell(screen, rect, row, column, text, style, pal)
 	}
 }
 
-const maxCellLines = 12
-
 func (s *stepForm) rowHeight(row int) int {
 	if row >= len(s.grid.rows) {
 		return 1
 	}
-	cell := s.grid.at(row, stepFormValueColumn)
-	if s.grid.editing && s.grid.lit(row, stepFormValueColumn) {
-		return min(cell.field.lineCount(), maxCellLines)
-	}
-	return min(len(s.valueLines(cell, s.app.palette.panelText)), maxCellLines)
-}
-
-// valueLines are how a cell of several lines shows while not typed in: a condition laid out by
-// its logic, other text line by line.
-func (s *stepForm) valueLines(cell *gridCell, style uv.Style) []styledLine {
-	text := cell.value()
-	if !cell.field.multiline {
-		return []styledLine{{text, style}}
-	}
-	switch trimmed := strings.TrimSpace(text); {
-	case cell.expression && style == s.app.palette.panelText:
-		return conditionLines(text, &s.app.palette)
-	case cell.json && style == s.app.palette.panelText && (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")):
-		return jsonLines(text, &s.app.palette)
-	}
-	var lines []styledLine
-	for _, line := range strings.Split(text, "\n") {
-		lines = append(lines, styledLine{line, style})
-	}
-	return lines
+	return s.grid.blockHeight(row, stepFormValueColumn, &s.app.palette)
 }
 
 // help is the row's note and examples, then the variables in scope: the ones that complete what

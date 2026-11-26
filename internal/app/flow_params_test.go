@@ -467,3 +467,24 @@ func TestDraggingOverAParamCellCopiesItsText(t *testing.T) {
 		t.Errorf("typing over the marked text gave %q", got)
 	}
 }
+
+// A variable's default takes several lines, enter starting a new one, and its row is as tall.
+func TestAVariablesDefaultTakesLines(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "lines", "variables: {env: dev}\nsteps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, letter('a'))
+	typeDrawn(a, "motd")
+	pressDrawn(a, enterPress, letter('l'), enterPress)
+	typeDrawn(a, "hello")
+	pressDrawn(a, enterPress)
+	typeDrawn(a, "world")
+	pressDrawn(a, escPress)
+	if got := loadFlowParams(t, "lines")["motd"].Default; got != "hello\nworld" {
+		t.Fatalf("saved %q", got)
+	}
+	screen := screenText(a)
+	if !strings.Contains(screen, "hello") || !strings.Contains(screen, "world") {
+		t.Errorf("the row does not show both lines:\n%s", screen)
+	}
+}
