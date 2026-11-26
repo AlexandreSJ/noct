@@ -284,3 +284,57 @@ func TestAFormsTextTakesLinesAndAConditionShowsByItsLogic(t *testing.T) {
 		t.Fatalf("steps %+v", steps)
 	}
 }
+
+// An object's fields complete after its name, the next one shown dim, and tab puts it in.
+func TestAnObjectsFieldsComplete(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "objects", "variables:\n  obj: '{\"isOnline\": true, \"user\": {\"name\": \"$login\"}}'\nsteps: [{run: 'true'}]\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	addStep(a, "if")
+	pressDrawn(a, enterPress)
+	typeDrawn(a, "obj")
+	form := openStepForm(t, a)
+	if ghost := form.grid.ghost(); ghost != ".isOnline" {
+		t.Errorf("after obj the ghost is %q", ghost)
+	}
+	typeDrawn(a, ".user.")
+	if ghost := form.grid.ghost(); ghost != "name" {
+		t.Errorf("after obj.user. the ghost is %q", ghost)
+	}
+	pressDrawn(a, tabPress)
+	if got := form.grid.cell().field.String(); got != "obj.user.name" {
+		t.Errorf("tab put in %q", got)
+	}
+}
+
+// A set's JSON closes its braces and quotes as it is typed, enter adds the comma, it shows a
+// member a line, and an object that reads itself is refused.
+func TestASetsJSONIsTypedAndShownAsJSON(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "json", "variables: {login: ana}\nsteps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	addStep(a, "set")
+	typeDrawn(a, "user")
+	pressDrawn(a, tabPress, enterPress)
+	typeDrawn(a, `{"name": "$login"`)
+	pressDrawn(a, enterPress)
+	typeDrawn(a, `"online": true`)
+	form := openStepForm(t, a)
+	if got := form.grid.cell().field.String(); got != "{\"name\": \"$login\",\n  \"online\": true}" {
+		t.Fatalf("typed %q", got)
+	}
+	pressDrawn(a, escPress)
+	for _, want := range []string{"{", `  "name": "$login",`, `  "online": true`, "}"} {
+		if !strings.Contains(screenText(a), want) {
+			t.Errorf("the JSON does not show %q:\n%s", want, screenText(a))
+		}
+	}
+	pressDrawn(a, enterPress, clearLine)
+	typeDrawn(a, `{"me": "$user`)
+	pressDrawn(a, escPress, ctrlS)
+	if !strings.Contains(form.message+form.problem(0), "reads itself") {
+		t.Errorf("an object reading itself: %q", form.message)
+	}
+}

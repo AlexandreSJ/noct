@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"image"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -130,6 +131,7 @@ func (s *stepForm) row(field stepField) gridRow {
 	label.skip, label.names = !s.spec.named, s.spec.named
 	field.cell.template, field.cell.expression = field.template || field.expression, field.expression
 	field.cell.field.multiline = field.cell.kind == textCell && !field.cell.secret
+	field.cell.json = s.spec.types != nil
 	row := gridRow{cells: []gridCell{label, field.cell}}
 	if s.spec.types != nil {
 		kind := optionCellOf(cmp.Or(field.kind, s.spec.types[0]), s.spec.types)
@@ -192,7 +194,21 @@ func (s *stepForm) problem(row int) string {
 	if row >= len(s.grid.rows) {
 		return ""
 	}
-	return orDefault(s.nameProblem(row), s.valueProblem(row))
+	return cmp.Or(s.nameProblem(row), s.valueProblem(row), s.readsItself(row))
+}
+
+func (s *stepForm) readsItself(row int) string {
+	if s.spec.types == nil {
+		return ""
+	}
+	name := strings.TrimSpace(s.grid.at(row, stepFormLabelColumn).value())
+	value, kind := s.grid.at(row, stepFormValueColumn).value(), s.grid.at(row, stepFormTypeColumn).value()
+	trimmed := strings.TrimSpace(value)
+	object := kind == flow.ListParam || kind == flow.ObjectParam || kind == flow.VarType && (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "["))
+	if name == "" || !object || !regexp.MustCompile(`\$\{?`+regexp.QuoteMeta(name)+`\b`).MatchString(value) {
+		return ""
+	}
+	return name + " reads itself: a list or an object is made of other variables"
 }
 
 // nameProblem is why a named form's row cannot have its name; a row without a name or a value
@@ -463,8 +479,11 @@ func (s *stepForm) valueLines(cell *gridCell, style uv.Style) []styledLine {
 	if !cell.field.multiline {
 		return []styledLine{{text, style}}
 	}
-	if cell.expression && style == s.app.palette.panelText {
+	switch trimmed := strings.TrimSpace(text); {
+	case cell.expression && style == s.app.palette.panelText:
 		return conditionLines(text, &s.app.palette)
+	case cell.json && style == s.app.palette.panelText && (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")):
+		return jsonLines(text, &s.app.palette)
 	}
 	var lines []styledLine
 	for _, line := range strings.Split(text, "\n") {
@@ -550,7 +569,7 @@ func (p *inspectPanel) addStep(f flow.Flow, at chartBlock) {
 		parent, branch, index = flow.SplitPath(at.path)
 		index++
 	}
-	vars := f.Scope(parent, branch, index, p.app.scripts.Find)
+	vars := f.WithObjectPaths(f.Scope(parent, branch, index, p.app.scripts.Find))
 	insert := func(step flow.Step) error {
 		path, err := p.app.insertStep(f, parent, branch, index, step)
 		if err == nil {
@@ -604,7 +623,7 @@ func (p *inspectPanel) editStep(f flow.Flow, path string) {
 		return
 	}
 	parent, branch, index := flow.SplitPath(path)
-	vars := f.Scope(parent, branch, index, p.app.scripts.Find)
+	vars := f.WithObjectPaths(f.Scope(parent, branch, index, p.app.scripts.Find))
 	spec, ok := p.app.stepFormFor(f, step, vars)
 	if !ok {
 		p.app.editFlowStep(f, path)

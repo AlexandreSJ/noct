@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"maps"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/AlexandreSJ/noct/internal/expr"
+	"github.com/AlexandreSJ/noct/internal/naming"
 )
 
 var (
@@ -121,4 +125,56 @@ func compactRaw(raw []byte) string {
 		return string(raw)
 	}
 	return out.String()
+}
+
+var dollarRef = regexp.MustCompile(`\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_.]*`)
+
+// ObjectPaths are the fields, at any depth, of the object a variable is: its default as a flow
+// variable, or the value the last set in the flow gives it, read with each $ in it as null.
+func (f Flow) ObjectPaths(name string) []string {
+	text := ""
+	if p, ok := f.Params[name]; ok {
+		text = p.Default
+	}
+	walkSteps(f.Steps, "", "", func(s Step, _ string) {
+		if value, ok := s.Set[name]; ok {
+			text = value
+		}
+	})
+	value, err := expr.FromJSON(dollarRef.ReplaceAllString(text, "null"))
+	if err != nil {
+		return nil
+	}
+	var paths []string
+	var walk func(prefix string, v any)
+	walk = func(prefix string, v any) {
+		object, ok := v.(map[string]any)
+		if !ok {
+			return
+		}
+		for _, key := range slices.Sorted(maps.Keys(object)) {
+			if !naming.IsIdentifier(key) {
+				continue
+			}
+			paths = append(paths, prefix+"."+key)
+			walk(prefix+"."+key, object[key])
+		}
+	}
+	walk(name, value)
+	return paths
+}
+
+// WithObjectPaths are vars and the fields of the objects among them, as obj.isOnline, which an
+// expression reads and a form completes.
+func (f Flow) WithObjectPaths(vars []Variable) []Variable {
+	out := slices.Clone(vars)
+	for _, v := range vars {
+		if v.Step != "" {
+			continue
+		}
+		for _, path := range f.ObjectPaths(v.Field) {
+			out = append(out, Variable{Path: v.Path, Field: path, Certainty: v.Certainty})
+		}
+	}
+	return out
 }

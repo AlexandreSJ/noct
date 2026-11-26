@@ -47,6 +47,8 @@ type gridCell struct {
 	secret               bool
 	names                bool
 	autoFor              string
+	// json closes braces, brackets and quotes as they are typed in a value that is JSON.
+	json bool
 }
 
 func textCellOf(text string) gridCell { return gridCell{kind: textCell, field: newTextField(text)} }
@@ -298,8 +300,16 @@ func (g *editGrid) editKey(key uv.KeyPressEvent) gridOutcome {
 	if g.completionKey(name) {
 		return gridNothing
 	}
-	if field := &g.cell().field; field.multiline {
+	c := g.cell()
+	if r := []rune(key.Text); c.json && isPlainText(key) && len(r) == 1 && c.field.typeJSON(r[0]) {
+		g.suggested = 0
+		return gridNothing
+	}
+	if field := &c.field; field.multiline {
 		switch {
+		case name == "enter" && c.json && field.inJSON():
+			field.newJSONLine()
+			return gridNothing
 		case name == "enter":
 			field.insert("\n")
 			return gridNothing

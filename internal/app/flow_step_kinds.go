@@ -278,7 +278,8 @@ func promptForm(s flow.Step) stepFormSpec {
 }
 
 func setForm(s flow.Step, typeOf func(name string) string) stepFormSpec {
-	row := stepField{note: "a name, then its value: text, $name reads others; $name reads it after; a var is what its value is", template: true}
+	row := stepField{note: "a name, then its value: text, $name reads others; $name reads it after; a var is what its value is", template: true,
+		examples: []string{`{"user": "$login", "online": true}: braces, brackets and quotes close themselves, enter adds the comma, $ completes the variables`}}
 	spec := stepFormSpec{title: "set", named: true, rowField: row, adds: "variable", types: flow.SetTypes, typeOf: typeOf}
 	for _, name := range slices.Sorted(maps.Keys(s.Set)) {
 		field := row

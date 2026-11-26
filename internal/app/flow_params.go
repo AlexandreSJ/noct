@@ -109,7 +109,7 @@ func defaultCell(p flow.Param) gridCell {
 		cell = listCellOf(items, -1, false, "item")
 	default:
 		cell = textCellOf(p.Default)
-		cell.template = true // a default reads the variables before it: {"user": "$user"}
+		cell.template, cell.json = true, true // a default reads the variables before it: {"user": "$user"}
 	}
 	cell.secret = p.Secret
 	return cell

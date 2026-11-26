@@ -108,7 +108,7 @@ func completeTemplate(field *textField, chosen string, from int) {
 func variableNameSuggestions(typed string, vars []flow.Variable) []string {
 	var names []string
 	for _, v := range vars {
-		if v.Step == "" {
+		if v.Step == "" && !strings.Contains(v.Field, ".") {
 			names = append(names, v.Field)
 		}
 	}

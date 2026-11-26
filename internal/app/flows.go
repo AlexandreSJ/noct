@@ -718,17 +718,29 @@ func conditionLines(text string, pal *palette) []styledLine {
 	if len(outline) == 1 {
 		return []styledLine{{text, pal.panelText}}
 	}
-	primary := orColor(pal.selectedRow.Bg, pal.panelHeading.Fg)
-	dim := orColor(pal.panelMuted.Fg, primary)
 	lines := make([]styledLine, len(outline))
 	for i, part := range outline {
-		style := pal.panelText
+		style := shadeStyle(pal, part.Depth)
 		if part.Operator {
-			style.Fg, style.Attrs = primary, uv.AttrBold
-		} else if primary != nil {
-			style.Fg = mix(primary, dim, float64(part.Depth%conditionShades)/(conditionShades-1))
+			style = primaryStyle(pal)
 		}
 		lines[i] = styledLine{strings.Repeat("  ", part.Depth) + strings.Join(strings.Fields(part.Text), " "), style}
 	}
 	return lines
+}
+
+func primaryStyle(pal *palette) uv.Style {
+	style := pal.panelText
+	style.Fg, style.Attrs = orColor(pal.selectedRow.Bg, pal.panelHeading.Fg), uv.AttrBold
+	return style
+}
+
+// shadeStyle is a level's shade of the primary color, from it toward the dim text and back to it
+// every conditionShades levels.
+func shadeStyle(pal *palette, depth int) uv.Style {
+	style, primary := pal.panelText, orColor(pal.selectedRow.Bg, pal.panelHeading.Fg)
+	if primary != nil {
+		style.Fg = mix(primary, orColor(pal.panelMuted.Fg, primary), float64(depth%conditionShades)/(conditionShades-1))
+	}
+	return style
 }
