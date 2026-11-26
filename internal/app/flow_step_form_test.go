@@ -402,6 +402,9 @@ func TestASetOfAFieldInheritsItsTypeAndRetypingIsTold(t *testing.T) {
 	if kind := form.grid.at(0, stepFormTypeColumn).value(); kind != "inherit" || value.kind != optionCell || !slices.Equal(value.options, []string{"true", "false", "none"}) {
 		t.Fatalf("type %q, value %+v", kind, value)
 	}
+	if problem := form.problem(0); problem != "" {
+		t.Errorf("obj.isOnline is refused: %q", problem)
+	}
 	pressDrawn(a, letter('j'))
 	form.grid.addRow(form.row(form.spec.rowField))
 	form.grid.at(1, stepFormLabelColumn).field = newTextField("count")

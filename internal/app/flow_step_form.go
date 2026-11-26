@@ -262,8 +262,23 @@ func (s *stepForm) nameProblem(row int) string {
 		return ""
 	case name == "":
 		return "a name is needed for this value; ctrl+delete removes it"
+	case s.spec.types != nil && strings.Contains(name, "."):
+		return s.fieldProblem(name)
 	}
 	return checkVariable(name)
+}
+
+// fieldProblem is why a set cannot give obj.field a value: obj must be an object of the flow and
+// each field a name.
+func (s *stepForm) fieldProblem(name string) string {
+	root, _, _ := strings.Cut(name, ".")
+	switch {
+	case !flow.IsSetName(name):
+		return "a field is written obj.field, each part letters, digits and _"
+	case s.spec.typeOf != nil && s.spec.typeOf(root) != flow.ObjectParam && s.spec.typeOf(root) != flow.VarType:
+		return root + " is no object, so it has no fields"
+	}
+	return ""
 }
 
 func (s *stepForm) valueProblem(row int) string {

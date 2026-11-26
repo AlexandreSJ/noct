@@ -20,7 +20,8 @@ func splitField(name string) (string, []string) {
 	return parts[0], parts[1:]
 }
 
-func isSetName(name string) bool {
+// IsSetName tells whether a set can give name a value: a variable, or a field of one, as obj.field.
+func IsSetName(name string) bool {
 	root, fields := splitField(name)
 	return isVariable(root) && !slices.ContainsFunc(fields, func(f string) bool { return !naming.IsIdentifier(f) })
 }

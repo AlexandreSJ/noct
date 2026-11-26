@@ -237,7 +237,7 @@ func (s Step) validateVariables(kind Kind) error {
 		return checkType(s.Type)
 	case SetStep:
 		for name := range s.Set {
-			if !isSetName(name) {
+			if !IsSetName(name) {
 				return fmt.Errorf("set name %q must be letters, digits and _ only, and not steps, or a field of one as obj.field", name)
 			}
 		}
