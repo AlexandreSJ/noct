@@ -210,20 +210,24 @@ func TestVHidesTheDetails(t *testing.T) {
 	}
 }
 
-// g selects the flow's start and G its last step, as they go to the top and end of a log.
+// g selects the flow's start and G its end, as they go to the top and end of a log.
 func TestGHomeAndEndGoToTheFlowsStartAndEnd(t *testing.T) {
 	a, p := openMovesFlow(t)
 	pressDrawn(a, letter('G'))
-	if p.selected != stepKey("2") {
-		t.Errorf("G selected %q, want the last step", p.selected)
+	if p.selected != endKey {
+		t.Errorf("G selected %q, want the end", p.selected)
+	}
+	pressDrawn(a, letter('a'), letter('e'))
+	if p.editor != nil || len(loadFlowSteps(t, "moves")) != 3 {
+		t.Errorf("a or e at the end did something: editor %T", p.editor)
 	}
 	pressDrawn(a, letter('g'))
 	if p.selected != headKey(chartSlot{}) {
 		t.Errorf("g selected %q, want the start", p.selected)
 	}
 	pressDrawn(a, uv.KeyPressEvent{Code: uv.KeyEnd})
-	if p.selected != stepKey("2") {
-		t.Errorf("end selected %q, want the last step", p.selected)
+	if p.selected != endKey {
+		t.Errorf("end selected %q, want the end", p.selected)
 	}
 	pressDrawn(a, uv.KeyPressEvent{Code: uv.KeyHome})
 	if p.selected != headKey(chartSlot{}) {

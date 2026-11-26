@@ -90,14 +90,17 @@ type chartBlock struct {
 	slot  chartSlot
 	index int
 	rect  image.Rectangle
-	// params marks the params card, which is neither a step nor a place to add one.
-	params bool
+	// params marks the params card, which is neither a step nor a place to add one; end marks
+	// the flow's end, which only shows where it ends.
+	params, end bool
 }
 
 // Keys of the chart's blocks, which stay the same while the chart is drawn again.
+const endKey = "end"
+
 func stepKey(path string) string                 { return "step:" + path }
 func headKey(slot chartSlot) string              { return "head:" + slot.parent + ":" + slot.branch }
-func (b chartBlock) isInsertion() bool           { return b.path == "" && !b.params }
+func (b chartBlock) isInsertion() bool           { return b.path == "" && !b.params && !b.end }
 func (b chartBlock) contains(p image.Point) bool { return p.In(b.rect) }
 
 // flowChart is a flow drawn at a zoom, with where each block is and the arrow out of each step.
@@ -433,10 +436,14 @@ func (s chartStyle) draw(c *flowChart, n *chartNode, x, y int) {
 		s.drawParams(c, n, x, y)
 	case pillNode:
 		style := s.pal.panelMuted
-		if n.label == startLabel {
+		switch n.label {
+		case startLabel:
 			key := headKey(chartSlot{})
 			c.blocks = append(c.blocks, chartBlock{key: key, rect: image.Rect(x, y, x+n.w, y+1)})
 			style = s.headStyle(key)
+		case endLabel:
+			c.blocks = append(c.blocks, chartBlock{key: endKey, end: true, rect: image.Rect(x, y, x+n.w, y+1)})
+			style = s.headStyle(endKey)
 		}
 		drawText(c.canvas, x, y, x+n.w, n.label, style)
 	}

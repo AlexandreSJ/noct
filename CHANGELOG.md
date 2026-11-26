@@ -15,8 +15,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - `Space` on **Flows → tell when runs end** in the config sends a test notification, the way a
   run's end is told.
-- `g` or `Home` in a flow's chart in the inspect selects its start, and `G` or `End` its last
-  step, as in a log.
+- `g` or `Home` in a flow's chart in the inspect selects its start, and `G` or `End` its end,
+  which selects but takes no step, as in a log.
 - `a` in a flow's chart picks the kind of step in a list centered over the chart, in the panel,
   so noct's prefix and the other panes stay a key away: typing narrows the list, the arrows and
   the wheel move through it, `Enter` or a click adds, and `Tab` adds again the step added last,

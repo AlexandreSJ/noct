@@ -384,6 +384,10 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 		return
 	}
 	block, selected := p.selectedBlock()
+	if selected && block.end && !slices.Contains([]string{"z", "y", "esc", "s", "v"}, name) {
+		p.chartViewKey(name) // the end takes no step
+		return
+	}
 	switch name {
 	case "z":
 		p.app.undoFlow(f, false)
@@ -607,8 +611,7 @@ func (p *inspectPanel) selectStart() {
 	}
 }
 
-// selectLast selects the block nearest the flow's end, its last step, as G goes to the end of a
-// log.
+// selectLast selects the flow's end, as G goes to the end of a log.
 func (p *inspectPanel) selectLast() {
 	if p.chart != nil {
 		p.moveSelection(len(p.chart.blocks))

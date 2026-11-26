@@ -80,6 +80,8 @@ func (p *inspectPanel) detailsTitle(f flow.Flow, block chartBlock) string {
 		return "variables"
 	case block.isInsertion():
 		return "a place for a step"
+	case block.end:
+		return "end"
 	}
 	step, _ := f.Step(block.path)
 	kind := stepKinds[step.Kind()]
@@ -100,6 +102,11 @@ func (p *inspectPanel) detailLines(f flow.Flow, block chartBlock, last *flow.Res
 		return []styledLine{
 			{"A step added here (a) runs first in this list.", pal.panelText},
 			{"An empty list, as a branch of an if, runs nothing.", pal.panelMuted},
+		}
+	case block.end:
+		return []styledLine{
+			{"The flow ends here; nothing goes after its end.", pal.panelText},
+			{"a on the last step adds one below it.", pal.panelMuted},
 		}
 	}
 	step, ok := f.Step(block.path)
