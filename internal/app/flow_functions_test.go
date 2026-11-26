@@ -24,16 +24,16 @@ func saveFunction(t *testing.T, name, content string) {
 func TestAFunctionShowsWhoCallsItAndIsCalledFromAStep(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 50)
-	saveFunction(t, "greet", "params: {who: {default: world}}\nsteps:\n  - {id: say, run: 'echo hi {{.who}}'}\nreturns: {greeting: '{{.output}}'}\n")
+	saveFunction(t, "greet", "variables: {who: {default: world}}\nsteps:\n  - {id: say, run: 'echo hi $who'}\nreturns: {greeting: '$output'}\n")
 	saveFlow(t, "morning", "steps:\n  - {id: wake, run: 'true'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	pressDrawn(a, letter('a'), letter('f'))
 	typeDrawn(a, "greet")
 	pressDrawn(a, enterPress)
-	setCell(a, "{{.output}}")
+	setCell(a, "$output")
 	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "morning")
-	if len(steps) != 2 || steps[1].Call != "greet" || steps[1].With["who"] != "world{{.output}}" && steps[1].With["who"] != "{{.output}}" {
+	if len(steps) != 2 || steps[1].Call != "greet" || steps[1].With["who"] != "world$output" && steps[1].With["who"] != "$output" {
 		t.Fatalf("steps %+v, want a call to greet after wake", steps)
 	}
 	if !strings.Contains(screenText(a), "ƒ greet") {
@@ -46,7 +46,7 @@ func TestAFunctionShowsWhoCallsItAndIsCalledFromAStep(t *testing.T) {
 	}
 	pressDrawn(a, enterPress)
 	screen := screenText(a)
-	for _, want := range []string{"used by morning", "↩ greeting = .output", "who  text = world"} {
+	for _, want := range []string{"used by morning", "↩ greeting = $output", "who  text = world"} {
 		if !strings.Contains(screen, want) {
 			t.Errorf("the function's chart lacks %q:\n%s", want, screen)
 		}

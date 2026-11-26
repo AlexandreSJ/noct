@@ -129,7 +129,7 @@ var keyContexts = []keyContext{
 		{"new-folder", "new folder, in the folder selected", []string{"N", "shift+n"}},
 		{"copy", "copy the flow or function under a new name", []string{"c"}},
 		{"run", "run", []string{"r"}},
-		{"params", "run with params", []string{"p"}},
+		{"params", "run with variables", []string{"p"}},
 		{"test", "test the step or range", []string{"t"}},
 		{"edit", "edit the step", []string{"e"}},
 		{"edit-file", "edit the file", []string{"E"}},
@@ -273,7 +273,7 @@ var keyContexts = []keyContext{
 		{"erase", "erase a character", []string{"backspace"}},
 		{"clear", "erase to the start", []string{"ctrl+u"}},
 	}},
-	{id: "flow-editor", label: "flow params and step forms", actions: []keyAction{
+	{id: "flow-editor", label: "flow variables and step forms", actions: []keyAction{
 		{"enter", "edit the cell, pick, or press the button", []string{"enter"}},
 		{"up", "the row above", []string{"up", "k"}},
 		{"down", "the row below", []string{"down", "j"}},
@@ -296,7 +296,7 @@ var keyContexts = []keyContext{
 		{"help", "hide or show the help", []string{"v"}},
 		{"keys", "these keys", []string{"?"}},
 	}},
-	{id: "form", label: "params form", typing: true, actions: []keyAction{
+	{id: "form", label: "variables form", typing: true, actions: []keyAction{
 		{"run", "run", []string{"enter"}},
 		{"next", "next field", []string{"tab", "down"}},
 		{"previous", "previous field", []string{"shift+tab", "up"}},

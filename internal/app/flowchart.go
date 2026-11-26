@@ -156,7 +156,7 @@ func buildChart(f flow.Flow, style chartStyle) *flowChart {
 		pill.w, pill.h = ansi.StringWidth(pill.label), 1
 		pill.center = pill.w / 2
 	}
-	params := &chartNode{kind: paramsNode, label: "params", w: boxWidths[style.zoom]}
+	params := &chartNode{kind: paramsNode, label: "variables", w: boxWidths[style.zoom]}
 	for _, line := range style.paramLines {
 		params.w = max(params.w, min(ansi.StringWidth(line)+4, maxParamsWidth))
 	}
@@ -307,14 +307,14 @@ func (s chartStyle) repeatTitle(step flow.Step) string {
 	}
 	switch {
 	case r.Each != "":
-		title += fmt.Sprintf(" %s in %s", r.EachVar(), shortTemplate(r.Each))
+		title += fmt.Sprintf(" %s in %s", r.EachVar(), strings.TrimSpace(r.Each))
 		if r.Until != "" {
-			title += " until " + shortTemplate(r.Until)
+			title += " until " + strings.TrimSpace(r.Until)
 		}
 	case r.Times > 0:
 		title += fmt.Sprintf(" × %d", r.Times)
 	default:
-		title += fmt.Sprintf(" until %s (max %d)", shortTemplate(r.Until), r.Max)
+		title += fmt.Sprintf(" until %s (max %d)", strings.TrimSpace(r.Until), r.Max)
 	}
 	if r.Every != "" && s.zoom == 2 {
 		title += " every " + r.Every
@@ -323,11 +323,6 @@ func (s chartStyle) repeatTitle(step flow.Step) string {
 		title += " · " + export[0]
 	}
 	return title
-}
-
-// shortTemplate drops the braces of a template, so a condition reads shorter.
-func shortTemplate(text string) string {
-	return strings.TrimSpace(strings.NewReplacer("{{", "", "}}", "").Replace(text))
 }
 
 // boxText is what a step's box says below its title, as many lines as the zoom shows.
@@ -343,7 +338,7 @@ func (s chartStyle) boxText(step flow.Step) []string {
 	case flow.CommandStep:
 		lines = append(lines, strings.Join(strings.Fields(step.Run), " "))
 	case flow.AgentStep:
-		lines = append(lines, strings.Join(strings.Fields(shortTemplate(step.Agent.Ask)), " "))
+		lines = append(lines, strings.Join(strings.Fields(strings.TrimSpace(step.Agent.Ask)), " "))
 		if len(step.Agent.Choices) > 0 {
 			lines = append(lines, "→ "+strings.Join(step.Agent.Choices, " | "))
 		}
@@ -351,20 +346,20 @@ func (s chartStyle) boxText(step flow.Step) []string {
 		if use == flow.DefaultAgent {
 			use = ""
 		}
-		lines = append(lines, "asks "+orDefault(shortTemplate(use), "the default agent"))
+		lines = append(lines, "asks "+orDefault(strings.TrimSpace(use), "the default agent"))
 	case flow.CallStep:
 		lines = append(lines, step.Call)
 		lines = append(lines, withText(step.With)...)
 	case flow.IfStep:
-		lines = append(lines, shortTemplate(step.If))
+		lines = append(lines, strings.TrimSpace(step.If))
 		lines = append(lines, exportText(step.Export)...)
 	case flow.SwitchStep:
-		lines = append(lines, shortTemplate(step.Switch))
+		lines = append(lines, strings.TrimSpace(step.Switch))
 		lines = append(lines, exportText(step.Export)...)
 	case flow.WaitStep:
 		lines = append(lines, step.Wait)
 	case flow.PromptStep:
-		lines = append(lines, shortTemplate(step.Prompt), "→ ."+step.Var)
+		lines = append(lines, strings.TrimSpace(step.Prompt), "→ "+step.Var)
 	case flow.SetStep:
 		lines = append(lines, withText(step.Set)...)
 	case flow.UnsetStep:
@@ -398,7 +393,7 @@ func exportText(export map[string]string) []string {
 func withText(with map[string]string) []string {
 	var lines []string
 	for _, name := range slices.Sorted(maps.Keys(with)) {
-		lines = append(lines, name+" = "+shortTemplate(with[name]))
+		lines = append(lines, name+" = "+strings.TrimSpace(with[name]))
 	}
 	return lines
 }
@@ -698,7 +693,7 @@ func (s chartStyle) drawParams(c *flowChart, n *chartNode, x, y int) {
 		line, title = s.pal.focusedFrame, s.pal.focusedTitle
 	}
 	fillRect(c.canvas, rect, s.pal.panelText)
-	drawCard(c.canvas, rect, "$ params", line, title)
+	drawCard(c.canvas, rect, "$ variables", line, title)
 	for i, text := range s.paramLines {
 		drawTextCut(c.canvas, x+2, y+1+i, x+n.w-2, text, s.pal.panelMuted)
 	}

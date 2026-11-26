@@ -41,9 +41,10 @@ type gridCell struct {
 	noun    string
 	// skip marks a cell that does not apply to its row: drawn dim, never focused.
 	skip bool
-	// template completes the variables in scope as $ or {{. is typed; secret shows a dot a character.
-	template bool
-	secret   bool
+	// template completes the variables in scope and the functions as a name is typed: after a $,
+	// or alone in an expression; secret shows a dot a character.
+	template, expression bool
+	secret               bool
 }
 
 func textCellOf(text string) gridCell { return gridCell{kind: textCell, field: newTextField(text)} }
@@ -735,7 +736,7 @@ func (g *editGrid) suggestions() ([]string, int) {
 	if !g.editing || c == nil || !c.template {
 		return nil, 0
 	}
-	return templateSuggestions(&c.field, g.variables)
+	return templateSuggestions(&c.field, g.variables, c.expression)
 }
 
 func (g *editGrid) complete() {

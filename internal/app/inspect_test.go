@@ -35,7 +35,7 @@ func screenText(a *App) string {
 	return strings.Join(lines, "\n")
 }
 
-const threeSteps = "steps:\n  - {id: one, run: printf 1}\n  - {id: two, run: 'echo {{.steps.one.output}}'}\n  - {id: three, run: printf 3}\n"
+const threeSteps = "steps:\n  - {id: one, run: printf 1}\n  - {id: two, run: 'echo $one.output'}\n  - {id: three, run: printf 3}\n"
 
 // Shift+down selects the next step too, t tests the range, and esc leaves just the step;
 // ctrl+arrows pan the chart.
@@ -67,7 +67,7 @@ func TestInspectTestsARangeOfSteps(t *testing.T) {
 func TestScopePaneAndWarnings(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "trio", "steps:\n  - {id: one, run: printf 1, capture: {n: '(\\d)'}}\n  - {id: two, run: 'echo {{.steps.three.output}}'}\n  - {id: three, run: printf 3}\n")
+	saveFlow(t, "trio", "steps:\n  - {id: one, run: printf 1, capture: {n: '(\\d)'}}\n  - {id: two, run: 'echo $three.output'}\n  - {id: three, run: printf 3}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress, letter('s'))
 	screen := screenText(a)
 	for _, want := range []string{"scope", "  $n", "⚠ step three has not run yet here"} {
@@ -78,7 +78,7 @@ func TestScopePaneAndWarnings(t *testing.T) {
 	if strings.Contains(screen, "$one.n") {
 		t.Error("the scope names .n by its step, which only one step sets")
 	}
-	if strings.Contains(screen, "$three.output") {
+	if strings.Contains(screen, "  $three.output") {
 		t.Error("the scope of step two lists step three")
 	}
 }

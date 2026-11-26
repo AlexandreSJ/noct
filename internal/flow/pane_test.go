@@ -65,8 +65,8 @@ func TestPaneRequestCarriesTheStepsCommand(t *testing.T) {
 	r, _ := testRunner(t, nil)
 	var got []string
 	r.OpenPane = func(req PaneRequest) (int, error) { got = append(got, req.Command, req.Dir); return 0, nil }
-	r.Run(parse(t, "params: {who: you}\nsteps: [{run: 'echo {{.who}}', pane: new}]\n"), nil)
-	if !slices.Equal(got, []string{"echo you", r.Dir}) {
+	r.Run(parse(t, "variables: {who: you}\nsteps: [{run: 'echo $who', pane: new}]\n"), nil)
+	if !slices.Equal(got, []string{"echo 'you'", r.Dir}) {
 		t.Errorf("request %q", got)
 	}
 }

@@ -20,7 +20,7 @@ Folders nest at any depth. A flow, function or script inside them is named by it
 finds `utils/greet`).
 
 `$XDG_DATA_HOME` replaces `~/.local/share` when set. Flow names and ids use letters, digits, `.`,
-`-` and `_`; step ids, params and capture names use letters, digits and `_` only.
+`-` and `_`; step ids, variables, params and capture names use letters, digits and `_` only.
 
 ## A script a flow can use
 
@@ -39,18 +39,18 @@ outputs: [number]      # the first line number=... becomes $number in the flow
 
 - A script's `run` is a shell text; `{{.param}}` is replaced before it runs. Write
   `{{quote .param}}` for a value that may hold spaces, quotes or `;`: it becomes one shell word and
-  never runs as a command. Scripts keep `{{ }}`; the `$name` of flows (see Templates) is not theirs.
+  never runs as a command. Scripts keep `{{ }}` and `params`; the expressions and `$name` of
+  flows (see Expressions and `$`) are not theirs.
 - Give every param a `default`, or have every flow step that calls the script set it in `with`.
   A name in `with` that is not one of the script's params fails validation.
   A step runs without asking, so a param with `choices` and no value fails.
 - In a flow's run line, `$output` passes the last step's output as one argument. To read a
-  multi-line value line by line (a list of files), use a quoted heredoc so quotes and `$` in it are
-  not interpreted, and write `{{.entries}}` there: a heredoc's lines are not shell words, so a
-  `$entries` would come in quotes:
+  multi-line value line by line (a list of files), put `$entries` in a quoted heredoc, where it
+  goes in as it is and nothing in it is interpreted:
 
   ```sh
   cat <<'NOCT_ENTRIES' | while IFS= read -r entry; do ...; done
-  {{.entries}}
+  $entries
   NOCT_ENTRIES
   ```
 
@@ -58,13 +58,13 @@ outputs: [number]      # the first line number=... becomes $number in the flow
 
 ```yaml
 description: Rolls until a six, then deploys the version given
-params:                 # defaults; `noct flow run <flow> version=2.0` overrides them
+variables:              # defaults; `noct flow run <flow> version=2.0` overrides them
   version: "1.0.0"
 
 steps:
   - id: roll
     repeat:
-      until: '{{eq .steps.dice.number "6"}}'
+      until: dice.number == 6
       max: 10           # required with until: a loop never runs forever
       every: 1s         # optional pause between passes
     steps:
@@ -72,14 +72,14 @@ steps:
         script: tests-noct/dice
 
   - id: build
-    run: echo "building $version"; echo "artifact=app-$version.tar"   # $version.tar: no field tar, so .tar is text
+    run: echo "building $version"; echo "artifact=app-${version}.tar"   # ${...} where a name runs into text
     capture:
       artifact: '^artifact=(\S+)$'   # regex per line; group 1 (or the whole match) is the value
     expect:
       exit: 0
       output_matches: 'building'
 
-  - if: $build.ok
+  - if: build.ok
     then:
       - id: ship
         script: tests-noct/deploy-sim
@@ -103,23 +103,23 @@ A step sets exactly one of these:
 | Key | Does | Extra keys it may have |
 |---|---|---|
 | `script: <id>` | Runs a registered script | `with`, `capture`, `expect`, `on_fail`, `retry`, `timeout`, `pane`, `background` |
-| `run: <shell>` | Runs a shell line (a template) | `capture`, `expect`, `on_fail`, `retry`, `timeout`, `pane`, `background` |
-| `call: <function>` | Runs a function, its params from `with` | `with` |
-| `agent: {ask: <template>}` | Asks an AI agent; the answer goes to `$answer` | `use`, `choices` in `agent`; `capture`, `expect`, `on_fail`, `retry`, `timeout` |
-| `if: <template>` | Runs `then` or `else` | `then`, `else`, `export` |
-| `switch: <template>` | Runs the first case whose `is` holds the value, or `else` | `cases`, `else`, `export` |
-| `repeat: {...}` | Runs `steps` in passes: `times`, `until`, or once per line of `each` | `steps`, `export` |
+| `run: <shell>` | Runs a shell line, its values as `$name` | `capture`, `expect`, `on_fail`, `retry`, `timeout`, `pane`, `background` |
+| `call: <function>` | Runs a function, its variables from `with` | `with` |
+| `agent: {ask: <text>}` | Asks an AI agent; the answer goes to `answer` | `use`, `choices` in `agent`; `capture`, `expect`, `on_fail`, `retry`, `timeout` |
+| `if: <expression>` | Runs `then` or `else` | `then`, `else`, `export` |
+| `switch: <expression>` | Runs the first case whose `is` holds the value, or `else` | `cases`, `else`, `export` |
+| `repeat: {...}` | Runs `steps` in passes: `times`, `until`, or once per item of `each` | `steps`, `export` |
 | `wait: <duration>` | Sleeps (`5s`, `1m30s`) | — |
-| `prompt: <template>` | Asks the user on the run's terminal; the answer goes to a variable | `var` (required), `default`, `type` |
-| `set: {name: <template>}` | Gives variables, new or not, a value | — |
+| `prompt: <text>` | Asks the user on the run's terminal; the answer goes to a variable | `var` (required), `default`, `type` |
+| `set: {name: <text>}` | Gives variables, new or not, a value | — |
 | `unset: [name, steps.build]` | Clears variables and a step's results | — |
 
 `id` is optional on any step; give one to every step something later reads.
 
-### Params and variables
+### Variables
 
 ```yaml
-params:
+variables:
   env: staging                    # a default alone
   a: {type: number, required: true, prompt: First number}
   token: {from: 'env:DEPLOY_TOKEN', secret: true}   # the variable's value when set; asked when not
@@ -128,29 +128,30 @@ steps:
     run: echo $a | awk '{ print $1 + 1 }'   # $1 is awk's: noct knows no name 1
   - set: {sum: $add.output}       # $sum from here on
   - prompt: New a (enter keeps it)
-    var: a                        # a new variable, or one to change (a param too)
+    var: a                        # a new variable, or one to change
     default: $a                   # what an empty answer keeps
     type: number                  # asks again until the answer is a number, 3 times at most
   - unset: [sum, steps.add]       # reads as empty after this
 ```
 
-- A param is its default alone, or a mapping with `default`, `type` (`text`, `number`, `boolean`
+- `variables:` are the values a run starts with (it was `params:`, which no longer loads). Each is
+  its default alone, or a mapping with `default`, `type` (`text`, `number`, `boolean`
   for true or false, `option` with its `choices: [a, b]`, `path`, which tab completes in the
   form, `list` or `object`), `prompt` (the label in the form), `required`, `from` and `secret`.
-  `noct flow run` and the form refuse a value its type does not take and a `required` param left
-  empty. Flows written with `bool` and `choice` still load, as `boolean` and `option`. Params
-  keep the order they are written in, in the run form too; the inspect's params table moves them
-  (`J`/`K`). The demo flow `demo-params` has one of each type.
+  `noct flow run` and the form refuse a value its type does not take and a `required` variable
+  left empty. Flows written with `bool` and `choice` still load, as `boolean` and `option`.
+  Variables keep the order they are written in, in the run form too; the inspect's variables table
+  moves them (`J`/`K`). The demo flow `demo-params` has one of each type.
 - `list` and `object` hold JSON, lists and objects inside each other at any depth:
   `hosts: {type: list, default: '["a", "b"]'}`, `cfg: {type: object, default: '{"db": {"port": 5432}}'}`.
-  Templates read inside them: `$cfg.db.port`, `{{index .hosts 0}}`, `{{range .hosts}}{{.}} {{end}}`;
-  `$hosts` alone writes the compact JSON, one shell word in a run line. A
-  repeat goes through a list with `each: '{{range .hosts}}{{println .}}{{end}}'`.
-- A `default` is a template that reads the params written before it, so a param can be made of
+  Read inside them: `$cfg.db.port`, `$hosts[0]`, `$join(hosts, " ")`, `len(hosts) > 1`;
+  `$hosts` alone writes the compact JSON, one shell word in a run line. A repeat goes through a
+  list with `each: hosts`.
+- A `default` reads the variables written before it with `$`, so a variable can be made of
   others, from the environment too:
 
   ```yaml
-  params:
+  variables:
     user: {from: 'env:USER'}
     password: {secret: true}
     login:
@@ -161,40 +162,39 @@ steps:
   ```
 
   In a `list` or `object` default, `$name` goes in as JSON: inside quotes with its quotes and `\`
-  escaped, outside them as a JSON string, or a list or object as it is. `{{json .user}}` does the
-  same inside `{{ }}`.
+  escaped, outside them as a JSON string, or a list or object as it is.
   Only the default renders: a value typed in the form or given as `name=value` is taken as it is.
 - `from: env:NAME` takes the value from the variable `NAME` when it is set, and the form does not
-  ask for it; unset, the param is asked like any other. A value given as `name=value` wins.
+  ask for it; unset, the variable is asked like any other. A value given as `name=value` wins.
   Typed in the form, it goes to the run as `NAME`, never on its command line. `secret: true`
   masks it in the form and never remembers it. Scripts have the same `from` (ADR-063).
-- Params, `set` and `prompt` share one namespace: `$name`. `steps` is not a valid name.
-- Each script or run step also sets its results as variables of their own names: `$output`,
-  `$exit`, `$ok`, its captures and its script's outputs, which the next such step sets
-  again. `$build.output` reads the step whose `id` is `build`, for an earlier step's
-  field a later one set again. When two steps give the same capture before a template that reads
+- Variables, `set` and `prompt` share one namespace. `steps` is not a valid name.
+- Each script or run step also sets its results as variables of their own names: `output`,
+  `exit`, `ok`, its captures and its script's outputs, which the next such step sets
+  again. `build.output` reads the step whose `id` is `build`, for an earlier step's
+  field a later one set again. When two steps give the same capture before a step that reads
   it short, `noct check` warns which one the short name reads (`scope: version is set by build and
   test; ...`); `output`, `exit`, `ok` and `answer` never warn, since the last one is the one meant.
 - Ifs, switches and repeats scope variables as blocks do in a language: setting a variable that exists
   before the block changes it; one the block makes goes when it ends, unless the block exports it:
-  `export: {count: passes}` keeps `count` after the block as `$passes` (`{count: ""}` keeps
+  `export: {count: passes}` keeps `count` after the block as `passes` (`{count: ""}` keeps
   its name). `steps.build` results are not scoped. An if's export is surely set when both `then`
   and `else` make it, a switch's when every case and its `else` do; otherwise `noct check` warns
   that it may not be set.
 - `set` renders all its values first, then sets them, so `set: {a: $b, b: $a}` swaps.
 - A `prompt` needs someone at the terminal. In noct's workspace it brings the run's pane to the
   screen before asking; a run nobody watches (a trigger) fails at the prompt instead of waiting.
-- In the inspect, `p` opens the params form: enter checks the values, remembers them and runs.
-  `r` runs with the values remembered, and opens the form when a required param is empty.
+- In the inspect, `p` opens the variables form: enter checks the values, remembers them and runs.
+  `r` runs with the values remembered, and opens the form when a required variable is empty.
 
 ### Functions
 
-A function is steps any flow can call, in a file of its own. It has `params` and `steps` as a flow
-does, and `returns`, templates read at its end:
+A function is steps any flow can call, in a file of its own. It has `variables` and `steps` as a
+flow does, and `returns`, texts read at its end:
 
 ```yaml
 # ~/.local/share/noct/functions/health.yaml
-params:
+variables:
   url: {required: true}
 steps:
   - {id: probe, run: 'curl -s -o /dev/null -w "%{http_code}" $url'}
@@ -206,15 +206,15 @@ returns:
 # in a flow
 - id: check
   call: health
-  with: {url: 'https://{{.env}}.example.com'}
-- if: '{{eq .status "200"}}'     # or {{.steps.check.status}}
+  with: {url: 'https://$env.example.com'}
+- if: status == 200              # or check.status
 ```
 
-- The function runs in a scope of its own: it reads its params, not the flow's variables, and
+- The function runs in a scope of its own: it reads its variables, not the flow's, and
   what it makes goes when it ends. The returns become the call's captures and short variables.
 - Changing a function changes every flow that calls it; the inspect lists them on the function's
   chart (`used by …`), and `noct check` reports a call to a missing function, a `with` for a
-  param it has not, or a required param left out. Functions can call functions, 16 deep at most.
+  variable it has not, or a required variable left out. Functions can call functions, 16 deep at most.
 
 ### Agent steps
 
@@ -223,10 +223,10 @@ returns:
   agent:
     ask: 'The deploy health check printed $output. Ship or roll back?'
     use: default              # the config's agent; or auto, or a name: claude, ollama...
-                              # a template too, so $agent lets a param pick
+                              # a text too, so $agent lets a variable pick
     choices: [ship, rollback] # optional: the answer must say one of them
   timeout: 3m
-- if: '{{eq .answer "rollback"}}'
+- if: answer == "rollback"
   then: [{script: demo/rollback}]
 ```
 
@@ -276,13 +276,13 @@ returns:
   `Thinking...` and `<think>` tags); with `choices`, the first choice it says as a word, in any
   case, and an answer that says none fails the step (`on_fail` applies). `$output` is all it
   printed.
-- An answer is text an AI wrote from what the question carried: put it in a `run:` only as
-  `$answer`, which stays one word or inside its quotes, never inside `{{ }}` unquoted.
+- An answer is text an AI wrote from what the question carried: in a `run:`, `$answer` stays one
+  word or inside its quotes, so it never runs as code there.
 
 ### Switch
 
 ```yaml
-- switch: $answer
+- switch: answer
   cases:
     - is: flaky                  # one value alone
       steps: [{script: tests}]
@@ -293,7 +293,7 @@ returns:
       var: kind
 ```
 
-- The template is rendered and trimmed; the first case with an equal value (trimmed too) runs, else
+- The expression's value is trimmed; the first case with an equal value (trimmed too) runs, else
   `else`. Values compare as text, exactly: `Bug` is not `bug`.
 - A value in two cases is refused, since only the first would ever run. `is: ""` matches an empty
   value.
@@ -302,60 +302,109 @@ returns:
 
 ### Repeat
 
-- `times: N` runs N passes; `until: <template>` stops when it gives `true` and then `max` is
-  required. Reaching `max` without `until` becoming true is a failure.
-- `each: <template>` runs one pass for each line of the text, trimmed, skipping empty lines, with
-  the line in `$item`, or in the variable `as` names: `{each: $ls.output, as:
-  file}`. That variable is the repeat's own: one of the same name outside is the same after it.
-  `until` may end it early and `max` caps the passes; no lines is no pass, not a failure.
+- `times: N` runs N passes; `until: <expression>` stops when it holds, and then `max` is
+  required. Reaching `max` without `until` holding is a failure.
+- `each: <expression>` runs one pass for each item of a list (`each: hosts`), or each line of a
+  text, trimmed, skipping empty lines (`each: ls.output`), with the item in `item`, or in the
+  variable `as` names: `{each: ls.output, as: file}`. A list or object item is its JSON, whose
+  fields read as `$file.name`. That variable is the repeat's own: one of the same name outside is
+  the same after it. `until` may end it early and `max` caps the passes; no items is no pass, not a
+  failure.
 - `until` is checked after each pass, so it can read steps inside the repeat.
 - Each pass forgets the previous pass's inner steps: a step skipped in this pass reads as empty.
 
-### Templates
+### Expressions and `$`
 
-Rendered in `run`, `with` values, `if`, `switch`, `until`, `each`, `prompt`, `default` and `set`
-values, function `returns`, and in params' `default`. A template reads a value as `$name`, and
-logic is Go's `text/template` inside `{{ }}`.
+A flow reads values two ways (ADR-074):
+
+- **`if`, `until`, `switch` and `each` are expressions**: names alone, no `$`, `.` or `{{ }}`.
+
+  ```yaml
+  - if: login == expectedLogin and password == expectedPassword
+  - if: not ok
+  - if: build.exit != 0 or match(deploy.output, "error")
+  - if: any(hosts, h => startsWith(h, "prod-"))
+  - switch: lower(env)
+  - repeat: {until: status.output == "ready" || tries > 3, max: 10}
+  ```
+
+- **Every other text reads a value with `$`**: `run`, `with` and `set` values, `prompt` and its
+  `default`, an agent's `ask` and `use`, a function's `returns` and a variable's `default`.
+
+  ```yaml
+  - run: echo "$join(map(hosts, h => "host " + h), "; "); first is $hosts[0]"
+  - run: echo $target.by deploys $len(target.hosts) hosts, ${replicas * 2} pods
+  ```
 
 | Reads | Value |
 |---|---|
-| `$<name>` | A flow param, or a variable a `set` or `prompt` gave |
-| `$output` | The last step's output without colors, trailing newlines removed |
-| `$exit` | The last step's exit code, as a string: `"0"` |
-| `$ok` | `"true"` or `"false"` |
-| `$<capture>` | A capture, or an output the script declares |
-| `$build.output` | Any of the above for the step whose `id` is `build` |
-| `$cfg.db.port` | A field of an `object` param, at any depth |
+| `name` / `$name` | A variable: the flow's, or one a `set`, `prompt` or capture gave |
+| `output` | The last step's output without colors, trailing newlines removed |
+| `exit` | The last step's exit code: `0` |
+| `ok` | `true` or `false` |
+| `build.output` | Any of the above for the step whose `id` is `build` |
+| `cfg.db.port`, `hosts[0]`, `hosts[-1]` | A field of an object, an item of a list (from the end below 0) |
+| `api.output.status` | A field of a text that holds JSON |
+| `steps.build.output` | The step `build`, when a variable is also named `build` |
 
-- **Only the flow's names are its own.** `$name` is a template when the flow knows `name`: a
-  param, a variable a step sets, prompts, captures or exports, `output`, `exit`, `ok`, `answer`,
-  or a step's id. Anything else stays as it is, so the shell keeps `$HOME`, `$PATH` and `$1`.
-  `${name}` and `$$name` (written `$name` to the shell) are always the shell's, and so is a name
-  the run line sets itself: in `for f in *; do echo $f; done` and `n=3; echo $n`, `$f` and `$n`
-  are the shell's even when the flow has an `f` or an `n`.
+**The language.** Texts in `"..."` or `'...'`, numbers, `true`, `false`, `null`, lists `[a, b]`
+and objects `{key: value}`. From the loosest to the tightest:
+
+| Operators | Do |
+|---|---|
+| `a ?? b` | `a`, unless it is empty or null |
+| `or`, `\|\|` / `and`, `&&` | Join conditions; the right side is read only when needed |
+| `not x` | Holds the comparison after it, as in Python: `not a == b` is `not (a == b)` |
+| `== != < <= > >=`, `in`, `not in` | Compare, one at a time; `x in [a, b]`, `"db" in name`, `key in obj` |
+| `+ -` / `* / %` | Sum and the rest; `+` joins two texts or two lists |
+| `!x`, `-x` | Holds only the value after it: `!a == b` is `(!a) == b` |
+
+- **Every value a flow keeps is text**, so a text that reads as a number is a number to compare
+  and count with: `exit == 0`, `count + 1`, `"10" > "9"`. Anything else compares as text, exactly:
+  `Bug` is not `bug` (`lower(x)`).
+- **A condition holds** unless it is `false`, `null`, `0`, empty, `"false"`, `"0"`, or an empty
+  list or object.
+- **Lambdas**, `x => ...` or `(item, i) => ...`, are for `map`, `filter`, `any`, `all` and `find`.
+- **Functions:** `len`, `lower`, `upper`, `trim`, `split(text, sep)`, `join(list, sep)`,
+  `lines(text)`, `contains`, `startsWith`, `endsWith`, `replace(text, old, new)`, `match(text,
+  regex)`, `first`, `last`, `sort`, `unique`, `reverse`, `keys`, `values`, `json`, `fromJSON`,
+  `number`, `string`, `if(condition, yes, no)`, `min`, `max`, `round(x, digits)` and `abs`. In the
+  inspect, a condition's help lists them, and typing a name offers them. A list function given a
+  text goes through its lines.
+- **A name the flow does not know** is a `noct check` warning, and fails the step that reads it:
+  `there is no variable or step prod: write "prod" for a text`.
+- **YAML:** a value that starts with `!`, `[` or `{`, or holds `: `, needs quotes; write
+  `not ok`, or `'!ok'`.
+
+**`$` in a text:** `$name`, `$build.output`, `$hosts[0]`, a function's call, `$join(hosts, ", ")`,
+whose arguments are expressions, or any expression in braces, `${count + 1}`.
+
+- **Only the flow's names are its own.** `$name` reads a value when the flow knows `name`: a
+  variable, one a step sets, prompts, captures or exports, `output`, `exit`, `ok`, `answer`,
+  or a step's id. Anything else stays as it is, so the shell keeps `$HOME`, `$PATH` and `$1`, and
+  `${HOME}`, whose names the flow does not know. `$$name` and `$${name}` are the shell's `$name`
+  and `${name}`, and so is a name the run line sets itself: in `for f in *; do echo $f; done` and
+  `n=3; echo $n`, `$f` and `$n` are the shell's even when the flow has an `f` or an `n`.
+  (`echo key=$key` sets nothing: only `name=` where a command starts, or after `export` or
+  `local`, does.) A `$x.field` whose `x` the flow does not know warns, as a misspelt step id.
 - **A name ends** at the first character that is not a letter, digit or `_`, or a `.` no name
-  follows: `$version.tar` reads `version` and then the text `.tar`; `$obj.pass` reads a field.
-  Where a name runs into text, write `{{.version}}x`.
-- **In a run line each `$name` is safe:** outside quotes it is one shell word; inside `"..."`
-  or `'...'` it is escaped to stay inside them, so `echo $msg` and `echo "msg: $msg"` never run
-  what the value holds. A program that reads its own text (`sh -c '...'`, `jq '...'`) still reads
-  the value as its own code: pass it as an argument instead. Inside a heredoc, write `{{.name}}`.
-- A name that is both a variable and a step's id cannot be read with a field (`$build.output`):
-  `noct check` says so; rename one, or write `{{.steps.build.output}}`.
-- **Every value is a string**, but for `list` and `object` params. Compare with strings:
-  `{{eq .exit "0"}}`, not `0`. `gt`/`lt` compare text, so `"10" < "9"`; do number comparisons
-  inside a `run` step instead.
-- `if` and `until` must render to `true`, `false` or empty (false); anything else fails the step:
-  `if: $build.ok`, `until: '{{eq .status "ready"}}'`.
-- Inside `{{ }}`, names are `.name` and `.steps.build.output`. Functions: Go's built-ins (`eq`,
-  `ne`, `and`, `or`, `not`, `gt`, `lt`, `printf`, `len`, ...), `match`:
-  `{{match .steps.mail.output "sent"}}`, `quote`, which makes a value one shell word, and `json`,
-  which puts it in JSON.
-- A missing key renders empty, so a typo does not fail; `noct check` warns about it.
+  follows: `$version.` at the end of a sentence reads `version`; `$obj.pass` reads a field. Where
+  a name runs into text, write `${version}x`.
+- **In a run line each value is safe:** outside quotes it is one shell word; inside `"..."` or
+  `'...'` it is escaped to stay inside them; in `$(( ))` it goes in as inside double quotes; in a
+  heredoc, as it is after `<<'EOF'` and with `\`, `$` and `` ` `` escaped after `<<EOF`. So
+  `echo $msg` and `echo "msg: $msg"` never run what the value holds. A program that reads its
+  own text (`sh -c '...'`, `jq '...'`) still reads the value as its own code: pass it as an
+  argument instead.
+- **`{{ }}` is not a template in a flow.** One that reads a flow's name (`{{.version}}`) is
+  refused, with the `$` to write instead; any other is another program's text and passes as it
+  is: `docker ps --format '{{.Names}}'`.
+- A name that is both a variable and a step's id cannot be read with a field (`build.output`):
+  `noct check` says so; rename one, or write `steps.build.output`.
 
 ### Scope
 
-A template sees the params, the variables set before it, and the steps with an `id` that ran
+A step sees the flow's variables, the ones set before it, and the steps with an `id` that ran
 before it, in its own list and in the lists around it; an `unset` before it takes them away.
 Steps inside an earlier `if` may not have run (`noct check` warns), and neither may what they set. Inside a
 repeat, inner steps hold only the current pass. Write the flow so each read has a step that surely
@@ -440,7 +489,7 @@ you drafted and ask them to promote it; do not edit the file to drop the mark.
 ## Check and run
 
 ```sh
-noct check                                  # schema, templates, scripts, max, scope and timeout warnings
+noct check                                  # schema, expressions, scripts, max, scope and timeout warnings
 noct flow ls                                # the flows, whether they load, their triggers on/off
 noct flow run <flow> [name=value ...]       # runs it in this terminal
 noct flow run <flow> --steps 2..3           # tests a range, reading the last run's values

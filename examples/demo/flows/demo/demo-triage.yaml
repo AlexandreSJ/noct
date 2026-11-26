@@ -6,7 +6,7 @@
 # The test is made up (demo/failing-test only prints), but the agent is real:
 # noct agents lists the ones it knows and which of them this machine has. This
 # demo asks ollama, which runs a model on this machine with no account. To ask
-# another, give the agent param:
+# another, give the agent variable:
 #   noct flow run demo-triage agent=claude
 #   noct flow run demo-triage agent=default    # agent = "<name>" in the config
 # use: default asks the config's agent; noct agents default <name> changes it.
@@ -20,12 +20,12 @@
 # carries a test's output, text written by someone else.
 description: A test fails; an AI agent you already use reads it and decides whether to run it again, explain it or ask you.
 
-params:
+variables:
   # fails can stay empty: the run asks how the test fails. fails=bug (or
   # flaky, env) skips the question.
   fails:
     prompt: How the test fails (empty asks during the run)
-  # use is a template, so a param can pick the agent: ollama unless you give
+  # use reads $agent, so a variable can pick the agent: ollama unless you give
   # another name, or default for the config's.
   agent:
     prompt: Agent (a name from noct agents, or default)
@@ -37,7 +37,7 @@ steps:
 
   # prompt asks whoever watches the run, in its pane; enter alone keeps the
   # default. A run nobody watches would stop here: give it fails= instead.
-  - if: '{{eq .fails ""}}'
+  - if: fails == ""
     then:
       - id: choose
         prompt: 'Which failure: flaky, bug or env? Enter alone picks one'
@@ -76,7 +76,7 @@ steps:
   # the cases, so it would go when the switch ends; export keeps it, as
   # $summary. The agent's choices make else unreachable, but a switch
   # can always end in one.
-  - switch: '$answer'
+  - switch: answer
     cases:
       # Run the real tests again; retry runs them up to 2 more times, 1s
       # apart, while they fail.
@@ -87,7 +87,7 @@ steps:
             capture: {passed: '([0-9]+ passed)'}
             retry: {max: 2, every: 1s}
           - set: {note: 'Ran the tests again: $again.passed.'}
-      # call: run the demo-explain function with these params; its returns
+      # call: run the demo-explain function with these values; its returns
       # come back as $cause and $hint.
       - is: bug
         steps:
@@ -106,7 +106,8 @@ steps:
       - set: {note: 'The agent answered something else.'}
     export: {note: summary}
 
-  # An answer is text an AI wrote: demo/report reads it only through quote.
+  # An answer is text an AI wrote: demo/report gets it as one shell word, never
+  # as code.
   - id: report
     script: demo/report
     with: {kind: '$triage.answer', expected: '$pick.kind', summary: '$summary'}

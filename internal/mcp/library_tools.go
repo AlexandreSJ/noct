@@ -27,7 +27,7 @@ func libraryTools(d Deps) []Tool {
 		},
 		{
 			Name: "list_flows", Title: "List flows", ReadOnly: true, Policy: config.PolicyAllow,
-			Description: "Lists the flows (name, description, params with their types, triggers and whether they are on, draft, problems, how many scope warnings, the last run), the functions flows call (params, returns, which flows call each), and the AI agents an agent step can ask.",
+			Description: "Lists the flows (name, description, variables with their types, triggers and whether they are on, draft, problems, how many scope warnings, the last run), the functions flows call (variables, returns, which flows call each), and the AI agents an agent step can ask.",
 			Run:         func(context.Context, json.RawMessage) (any, error) { return d.listFlows(), nil },
 		},
 		{
@@ -42,12 +42,12 @@ func libraryTools(d Deps) []Tool {
 		},
 		{
 			Name: "check", Title: "Check scripts and flows", ReadOnly: true, Policy: config.PolicyAllow,
-			Description: "Like noct check: every script and flow that cannot be used, and every template that reads a step that may not be there.",
+			Description: "Like noct check: every script and flow that cannot be used, and every expression or $ that reads a step that may not be there.",
 			Run:         func(context.Context, json.RawMessage) (any, error) { return d.check(), nil },
 		},
 		{
 			Name: "flow_scope", Title: "Variables a step can read", ReadOnly: true, Policy: config.PolicyAllow,
-			Description: "Lists what templates can read at a step of a flow or function ($param, short names like $output and captures, and $<id>.<field> for a field a later step set again), how sure each is to be set there (set, this_pass, maybe) and its value in the last run. Variables an if, switch or repeat makes go when it ends unless it exports them. Without a step, the end.",
+			Description: "Lists what a step of a flow or function can read: each variable's name as an expression reads it (output, build.output) and as a text does ($output), the short names first, <id>.<field> only for a field a later step set again, how sure each is to be set there (set, this_pass, maybe) and its value in the last run. Variables an if, switch or repeat makes go when it ends unless it exports them. Without a step, the end.",
 			Params: []Param{
 				{Name: "flow", Type: "string", Description: "The flow's name, or the function's with function."},
 				{Name: "function", Type: "string", Description: "A function's name, in place of flow."},
@@ -60,17 +60,17 @@ func libraryTools(d Deps) []Tool {
 			Description: "Creates or replaces a flow from its YAML, marked as a draft: it runs, by hand or by trigger, only after the user reviews and promotes it in noct. Replacing a flow that was not a draft keeps a copy as <name>.yaml.bak. Answers the problems and scope warnings found.",
 			Params: []Param{
 				{Name: "name", Type: "string", Description: "The flow's name: letters, digits, . - _, with / to put it in folders (ops/deploy)", Required: true},
-				{Name: "yaml", Type: "string", Description: "The whole flow file: description, params, triggers, steps.", Required: true},
+				{Name: "yaml", Type: "string", Description: "The whole flow file: description, variables, triggers, steps.", Required: true},
 			},
 			Summary: func(args json.RawMessage) string { return argText(args, "name", "yaml") },
 			Run:     noWait(d.draftFlow),
 		},
 		{
 			Name: "draft_function", Title: "Write a function as a draft", Policy: config.PolicyAllow,
-			Description: "Creates or replaces a function (params, steps, returns) from its YAML, marked as a draft: no flow runs it, and flows that call it have a problem, until the user reviews and promotes it in noct. Replacing a function that was not a draft keeps a copy as <name>.yaml.bak; the answer names the flows that call it.",
+			Description: "Creates or replaces a function (variables, steps, returns) from its YAML, marked as a draft: no flow runs it, and flows that call it have a problem, until the user reviews and promotes it in noct. Replacing a function that was not a draft keeps a copy as <name>.yaml.bak; the answer names the flows that call it.",
 			Params: []Param{
 				{Name: "name", Type: "string", Description: "The function's name: letters, digits, . - _, with / to put it in folders (utils/greet)", Required: true},
-				{Name: "yaml", Type: "string", Description: "The whole function file: description, params, steps, returns.", Required: true},
+				{Name: "yaml", Type: "string", Description: "The whole function file: description, variables, steps, returns.", Required: true},
 			},
 			Summary: func(args json.RawMessage) string { return argText(args, "name", "yaml") },
 			Run:     noWait(d.draftFunction),
@@ -158,7 +158,7 @@ func (d Deps) flowsAndFunctions() ([]flow.Flow, []flow.Flow) {
 type functionInfo struct {
 	Name        string                `json:"name"`
 	Description string                `json:"description,omitempty"`
-	Params      map[string]flow.Param `json:"params,omitempty"`
+	Params      map[string]flow.Param `json:"variables,omitempty"`
 	Returns     map[string]string     `json:"returns,omitempty"`
 	CalledBy    []string              `json:"called_by"`
 	Draft       bool                  `json:"draft,omitempty"`
@@ -181,7 +181,7 @@ func (d Deps) agentNames() map[string]any {
 type flowInfo struct {
 	Name        string                `json:"name"`
 	Description string                `json:"description,omitempty"`
-	Params      map[string]flow.Param `json:"params,omitempty"`
+	Params      map[string]flow.Param `json:"variables,omitempty"`
 	Triggers    []string              `json:"triggers,omitempty"`
 	TriggersOn  bool                  `json:"triggers_on,omitempty"`
 	Draft       bool                  `json:"draft,omitempty"`
@@ -322,7 +322,9 @@ func (d Deps) check() map[string]any {
 }
 
 type variableInfo struct {
-	Template  string `json:"template"`
+	// Name is how an expression reads it (if: build.ok), Text how a text does ($build.output).
+	Name      string `json:"name"`
+	Text      string `json:"text"`
 	Step      string `json:"step,omitempty"`
 	Path      string `json:"path,omitempty"`
 	Certainty string `json:"certainty"`
@@ -354,7 +356,7 @@ func (d Deps) flowScope(args json.RawMessage) (any, error) {
 	last, ran := flow.LastResult(flow.ResultsDir(), f.Name)
 	vars := []variableInfo{}
 	for _, v := range f.Scope(parent, branch, index, d.Library().Find) {
-		info := variableInfo{Template: v.Template(), Step: v.Step, Path: v.Path, Certainty: certaintyNames[v.Certainty]}
+		info := variableInfo{Name: v.Name(), Text: v.Dollar(), Step: v.Step, Path: v.Path, Certainty: certaintyNames[v.Certainty]}
 		if ran {
 			info.LastValue = lastValue(f, v, last)
 		}

@@ -64,9 +64,9 @@ func retryForm(s flow.Step) stepFormSpec {
 	}
 }
 
-// returnsForm asks a function's returns, a name and its template a row, and saves them.
+// returnsForm asks a function's returns, a name and its value a row, and saves them.
 func (a *App) returnsForm(f flow.Flow) stepFormSpec {
-	row := stepField{note: "a name the caller reads, then its value: a template read at the end", template: true}
+	row := stepField{note: "a name the caller reads, then its value: text with $names, read at the end", template: true}
 	spec := stepFormSpec{title: "returns of " + f.Name, named: true, rowField: row, adds: "return"}
 	for _, name := range slices.Sorted(maps.Keys(f.Returns)) {
 		field := row

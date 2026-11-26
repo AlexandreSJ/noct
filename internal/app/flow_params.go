@@ -73,7 +73,7 @@ type paramsTable struct {
 
 func (a *App) newParamsTable(f flow.Flow) *paramsTable {
 	t := &paramsTable{app: a, flow: f, seen: map[string]bool{}}
-	t.grid.buttons, t.grid.arranged = []string{"+ add param"}, true
+	t.grid.buttons, t.grid.arranged = []string{"+ add variable"}, true
 	for _, name := range f.ParamNames() {
 		t.grid.rows = append(t.grid.rows, paramRow(name, f.Params[name]))
 		t.seen[name] = true
@@ -108,7 +108,7 @@ func defaultCell(p flow.Param) gridCell {
 		cell = listCellOf(items, -1, false, "item")
 	default:
 		cell = textCellOf(p.Default)
-		cell.template = true // a default reads the params before it: {{json .user}}
+		cell.template = true // a default reads the variables before it: {"user": "$user"}
 	}
 	cell.secret = p.Secret
 	return cell
@@ -187,12 +187,12 @@ func (t *paramsTable) problems(i int) map[int]string {
 	problems := map[int]string{}
 	switch {
 	case name == "" && (t.grid.rows[i].key != "" || holdsValues(p)):
-		problems[paramNameColumn] = "a param needs a name; ctrl+delete removes it"
+		problems[paramNameColumn] = "a variable needs a name; ctrl+delete removes it"
 	case name == "":
 	case !naming.IsIdentifier(name) || name == "steps":
 		problems[paramNameColumn] = "a name is letters, digits and _, and not steps"
 	case t.nameTaken(i, name):
-		problems[paramNameColumn] = "another param is " + name
+		problems[paramNameColumn] = "another variable is " + name
 	}
 	if problem := optionsProblem(p); problem != "" {
 		problems[paramDefaultColumn] = problem
@@ -298,7 +298,7 @@ func (t *paramsTable) unsaved() int {
 	return count
 }
 
-func (t *paramsTable) title() string { return "params of " + t.flow.Name }
+func (t *paramsTable) title() string { return "variables of " + t.flow.Name }
 
 func (t *paramsTable) hints() string { return t.grid.hints("{enter} edit  esc close  {?} keys") }
 
@@ -311,11 +311,11 @@ func (t *paramsTable) handleKey(key uv.KeyPressEvent) bool {
 		switch key.String() {
 		case "esc":
 			if n := t.unsaved(); n > 0 {
-				t.app.notice = plural(n, "param") + " not saved: open the params again to fix the cells in red"
+				t.app.notice = plural(n, "variable") + " not saved: open the variables again to fix the cells in red"
 			}
 			return true
 		case "?":
-			t.app.showContextKeys("flow-editor", "params keys", "rows are saved as they change; a red cell keeps its row as it was")
+			t.app.showContextKeys("flow-editor", "variables keys", "rows are saved as they change; a red cell keeps its row as it was")
 			return false
 		}
 	}
@@ -481,7 +481,7 @@ func (t *paramsTable) help() []styledLine {
 	}
 	switch {
 	case t.grid.row >= len(t.grid.rows):
-		add(pal.panelText, "a param is a value the steps read, given when the flow runs")
+		add(pal.panelText, "a variable is a value the steps read, given when the flow runs")
 	case t.grid.col == paramTypeColumn:
 		for _, kind := range flow.ParamTypes {
 			add(pal.panelText, kind+"  "+paramTypeNotes[kind])
@@ -528,13 +528,13 @@ func defaultNote(p flow.Param) string {
 func readingExamples(name, kind string) []string {
 	switch kind {
 	case flow.ListParam:
-		return []string{"{{index ." + name + " 0}} the first", "{{range ." + name + "}}{{.}} {{end}} each", "$" + name + " the whole list as JSON"}
+		return []string{"$" + name + "[0] the first", "$join(" + name + ", \" \") its items as one text", "$" + name + " the whole list as JSON", "repeat each: " + name + " runs once an item"}
 	case flow.ObjectParam:
 		return []string{"$" + name + ".key a field, at any depth", "$" + name + " the whole object as JSON"}
 	case flow.BooleanParam:
-		return []string{"if: $" + name}
+		return []string{"if: " + name, "if: not " + name}
 	}
-	return []string{"{{quote ." + name + "}} in a command line"}
+	return []string{"$" + name + " in a text, one shell word in a command line", "if: " + name + ` == "value"`}
 }
 
 // maxEnvironmentMatches is how many environment variables the help lists.

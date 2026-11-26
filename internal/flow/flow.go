@@ -7,11 +7,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
-	"text/template"
 
 	"go.yaml.in/yaml/v3"
 
@@ -41,8 +39,9 @@ type Flow struct {
 	// Draft marks a flow an AI wrote: it does not run, by hand or by trigger, until the user
 	// reviews and promotes it.
 	Draft bool `yaml:"draft,omitempty"`
-	// Params are values the steps' templates read as {{.name}}, with their defaults.
-	Params map[string]Param `yaml:"params,omitempty"`
+	// Params are the flow's variables, written under variables: what a run starts them with, their
+	// types and defaults. A function's are what its callers give it in with.
+	Params map[string]Param `yaml:"variables,omitempty"`
 	// ParamOrder is the order of Params, as ParamNames gives it.
 	ParamOrder []string `yaml:"-" json:"-"`
 	// Triggers start the flow on their own, once enabled on this machine.
@@ -62,7 +61,7 @@ type Flow struct {
 // Step does one thing: runs a script or a command line, branches, repeats steps, waits, asks the
 // user, or sets or clears variables.
 type Step struct {
-	// ID names the step for the templates of the steps after it: {{.steps.<id>.output}}.
+	// ID names the step for the steps after it: <id>.output, $<id>.output in a text.
 	ID     string `yaml:"id,omitempty"`
 	Script string `yaml:"script,omitempty"`
 	// Call runs a function by its name, with the params With gives.
@@ -72,7 +71,7 @@ type Step struct {
 	With  map[string]string `yaml:"with,omitempty"`
 	Run   string            `yaml:"run,omitempty"`
 	// Capture extracts values from the output: name to a regex whose first group, or whole
-	// match, becomes {{.steps.<id>.<name>}}.
+	// match, becomes <id>.<name>, and <name> until another step sets it.
 	Capture map[string]string `yaml:"capture,omitempty"`
 	Expect  *Expect           `yaml:"expect,omitempty"`
 	// OnFail is what a failure does: OnFailStop (the default), OnFailContinue or OnFailAsk.
@@ -107,7 +106,7 @@ type Step struct {
 	Default string `yaml:"default,omitempty"`
 	Type    string `yaml:"type,omitempty"`
 
-	// Set gives variables, new or not, the values of its templates: {{.name}} after it.
+	// Set gives variables, new or not, the values of its texts: name after it.
 	Set map[string]string `yaml:"set,omitempty"`
 	// Unset clears variables (name) and steps' results (steps.<id>).
 	Unset []string `yaml:"unset,omitempty"`
@@ -484,26 +483,4 @@ func (f Flow) Delete() error {
 		return fmt.Errorf("deleting flow %s: %w", f.Name, err)
 	}
 	return nil
-}
-
-func parseTemplate(text string) (*template.Template, error) {
-	return template.New("").Option("missingkey=zero").Funcs(templateFuncs).Parse(text)
-}
-
-// templateFuncs are the functions templates can call besides Go's own.
-var templateFuncs = template.FuncMap{
-	// match tells whether text matches a regex: {{if match .steps.mail.output "sent"}}.
-	"match": func(text any, pattern string) (bool, error) {
-		return regexp.MatchString(pattern, fmt.Sprint(text))
-	},
-	// quote makes a value one shell word; a list or object param quotes as its JSON.
-	"quote": func(value any) string { return script.Quote(fmt.Sprint(value)) },
-	// json puts a value in JSON: {"user": {{json .user}}} quotes and escapes text, and a list or
-	// object param goes in as it is.
-	"json": toJSON,
-	// _sq, _dq and _js are what $name becomes inside a shell's single or double quotes, or a JSON
-	// string: the value escaped to stay inside them.
-	"_sq": inSingleQuotes,
-	"_dq": inDoubleQuotes,
-	"_js": inJSONString,
 }

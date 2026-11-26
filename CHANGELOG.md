@@ -15,21 +15,29 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - `Space` on **Flows → tell when runs end** in the config sends a test notification, the way a
   run's end is told.
-- Flow params can be a `list` or an `object`: JSON that holds lists and objects at any depth.
-  Steps read inside them, as `{{index .hosts 0}}`, `{{.cfg.db.port}}` and
-  `{{range .hosts}}…{{end}}`, and `{{.hosts}}` alone writes the JSON again.
+- A flow's `if`, `until`, `switch` and `each` are expressions, with names alone:
+  `if: login == expectedLogin and not ok`. They have `== != < <= > >=`, `and`/`&&`,
+  `or`/`||`, `not`/`!`, `+ - * / %`, `in`, `??`, lambdas such as `h => startsWith(h, "web")`
+  and functions: `len`, `lower`, `join`, `lines`, `match`, `map`, `filter`, `any`, `fromJSON` and
+  more, which the `if`'s help lists. A text that reads as a number compares as one, so
+  `exit == 0` works. A repeat's `each` goes through a list's items or a text's lines.
+- Every other text of a flow (a run line, `with` and `set` values, a prompt, a question)
+  reads a value as `$name`: `$version`, `$build.output` for a step's field, `$cfg.db.port` for an
+  object's, `$hosts[0]`, a function's call such as `$join(hosts, ", ")`, or any expression in
+  braces, `${count + 1}`. Only names the flow knows are its own, so `$HOME`, `${HOME}` and `$1`
+  stay the shell's, and so do `$$name` and a name the run line sets itself. In a run line each
+  value is escaped for where it lands: one shell word outside quotes, kept inside `"..."`,
+  `'...'`, `$(( ))` or a heredoc, so a value never runs as a command. Typing a name in a step
+  form completes the variables and the functions.
+- Flow variables can be a `list` or an `object`: JSON that holds lists and objects at any depth.
+  Steps read inside them, as `hosts[0]` and `cfg.db.port`, and `$hosts` alone writes the JSON
+  again.
 - A scope warning tells when two steps give the same capture before a step reads it by its short
-  name: `{{.version}}` reads the last one, and `{{.steps.build.version}}` picks another.
-- The demo installs `demo-params`, a flow with one param of each type that its steps read.
-- A flow param's `default` can read the params written before it, from the environment too:
-  `default: '{"user": {{json .user}}}'` makes an object of them. `json` puts a value in JSON,
-  quoted and escaped. Only the default renders: a value typed in the form is taken as it is.
-- Flow templates read a value as `$name`: `$version`, `$build.output` for a step's field and
-  `$cfg.db.port` for an object's, besides `{{ }}`, which stays for logic. Only names the flow
-  knows are its own, so `$HOME` and `$1` stay the shell's, and so do `${name}`, `$$name` and a
-  name the run line sets itself. In a run line each `$name` is escaped for where it lands: one
-  shell word outside quotes, kept inside `"..."` or `'...'`, so a value never runs as a command
-  and `{{quote}}` is no longer needed. Typing `$` in a step form completes the names.
+  name: `version` reads the last one, and `build.version` picks another.
+- The demo installs `demo-params`, a flow with one variable of each type that its steps read.
+- A flow variable's `default` can read the variables written before it, from the environment
+  too: `default: '{"user": "$user"}'` makes an object of them, each `$name` quoted and escaped as
+  JSON. Only the default renders: a value typed in the form is taken as it is.
 - Scripts, flows and functions can be kept in folders inside folders, at any depth. A flow in
   `flows/ops/deploy.yaml` is `ops/deploy` (`noct flow run ops/deploy`, or `deploy` while no
   other flow has that name), and `call: utils/greet` runs a function in a folder. The inspect's
@@ -53,6 +61,14 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Changed
 
+- A flow's `params:` are now `variables:`, and the inspect calls them variables. A flow or
+  function with `params:` does not load until the key is renamed.
+- `{{ }}` is no longer a template in a flow: conditions are expressions and texts read `$name`.
+  A condition with `{{ }}`, or a `{{ }}` in a text that reads one of the flow's names, is
+  refused with the new way to write it; any other `{{ }}` is text, as
+  `docker ps --format '{{.Names}}'`. Scripts keep `{{quote .name}}` in their `run`.
+- `echo key=$key` in a flow's run line reads the flow's `key`: only `name=` where a command
+  starts, or after `export` or `local`, makes a name the shell's.
 - A flow's run form no longer remembers a value that is the param's default, so a default changed
   in the flow is the one its next run takes.
 - The updates popup (`prefix` + `c`) draws each release's changelog as formatted markdown in
@@ -69,22 +85,22 @@ the shortcut is `Alt` by default. How to write an entry is in
 - While you type in a list's filter, the footer keeps the list's keys; the filter's line shows
   `enter`, which keeps it, and every list counts the same way: `3 of 12`, or `no match`.
 - Shorter notes and hints in the config, the binds' `?` list and the agent step's form.
-- `Enter` on a flow's params card in the inspect (`prefix` + `i`) opens its params as a table in
-  place of the chart, a param a row like declarations in code: type, name, value, environment
+- `Enter` on a flow's variables card in the inspect (`prefix` + `i`) opens its variables as a
+  table in place of the chart, a variable a row like declarations in code: type, name, value, environment
   variable, label, required and secret in columns. `hjkl` or the arrows move from cell to cell
   (with `Ctrl`, to the first or last), and `Enter` or a click edits one: it types in a text, or
   opens the choices of a type or a boolean right under the cell. An option's value is the list
   of its options, shown with the one it holds and how many there are, as `"dev" · 3 options`:
   add one, mark the one it holds with `Space`, filter with `f`. A list's value is a list of its
-  items too. `+ add param`, the last row, adds a param;
+  items too. `+ add variable`, the last row, adds a variable;
   `J`/`K` move one, `Ctrl+Delete` removes it and `Ctrl+Z`/`Ctrl+Y` undo and redo. The table is
   saved as it changes; a cell that keeps its row from being saved turns red and says why. What a
   click would work lights under the mouse, as a list's rows do. `v`
   hides the help beside it, and `esc` closes it.
-- Params keep the order they are written in, in the run form and the params card too.
+- Variables keep the order they are written in, in the run form and the variables card too.
 - Adding a step (`a`) or changing one (`e`) in the inspect fills one form in place of the chart
   instead of a chain of prompts. The variables the step can read are listed beside it, with
-  their last values and examples written with them, and `{{.` (or `{{eq .`) completes them.
+  their last values and examples written with them, and typing a name completes them.
   Changing a step keeps what its form does not ask, such as its captures and the steps inside.
   `Enter` or a click edits a row, and `Ctrl+S` or the last row adds or saves the step. A
   switch's cases, an agent's answers and the names an unset clears are lists, an item a row.
@@ -92,10 +108,10 @@ the shortcut is `Alt` by default. How to write an entry is in
 - Neither editor locks noct: the prefix still reaches every panel and tab while you edit, and
   the editor is there when you come back. Their hints take one row, and `?` lists their keys,
   which you can change in the config.
-- Param types are named `boolean` and `option`, for what were `bool` and `choice`; flows that
+- Variable types are named `boolean` and `option`, for what were `bool` and `choice`; flows that
   use the old names still work. Secret and environment variable are settings of any type.
-- The inspect names variables by their short names, as `{{.output}}` and `{{.version}}`;
-  `{{.steps.build.output}}` shows only for an earlier step's value a later step replaced.
+- The inspect names variables by their short names, as `$output` and `$version`;
+  `$build.output` shows only for an earlier step's value a later step replaced.
 
 ### Removed
 

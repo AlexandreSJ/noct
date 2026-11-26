@@ -10,7 +10,7 @@ import (
 
 func TestParamsKeepTheirOrder(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "order"+Ext)
-	if err := os.WriteFile(file, []byte("params:\n  zone: eu\n  app: {type: number}\n  mode: dev\nsteps: []\n"), 0o644); err != nil {
+	if err := os.WriteFile(file, []byte("variables:\n  zone: eu\n  app: {type: number}\n  mode: dev\nsteps: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	f, err := Load(file)

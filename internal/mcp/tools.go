@@ -193,7 +193,7 @@ func summaryValue(v any) string {
 // instructions tell the AI how noct's tools fit together.
 const instructions = `noct keeps scripts (saved commands with parameters and notes), flows (YAML chains of
 steps: script, run, if, switch, repeat, wait, prompt, set, unset, call, agent, with captures,
-expect, on_fail, retry, pane and triggers) and functions (steps with params and returns that flows call).
+expect, on_fail, retry, pane and triggers) and functions (steps with variables and returns that flows call).
 
 Start with list_scripts and list_flows, then get_item to read one with its notes. To build or
 change a flow or script, write the YAML with draft_flow or draft_script: drafts never run until the
@@ -201,14 +201,15 @@ user reviews and promotes them in noct, so tell the user what you drafted and as
 it. draft_function does the same for a function; a draft function does not run, and the flows
 that call it wait for its promotion. check and flow_scope tell problems and what a step can read.
 
-Flow params have a type: text, number, boolean, option (with choices), path, list or object; a
-list or object holds JSON, which templates read inside ($cfg.db.port, {{index .hosts 0}},
-{{range .hosts}}) and print whole as JSON. A param with from: env:NAME reads the variable. Each script, run, call and agent step also sets short variables
-($output, $exit, $ok, captures, a call's returns, an agent's $answer); an if,
-switch or repeat changes variables made before it, and the ones it makes go when it ends unless its
-export keeps them: export: {count: passes}. switch: template, cases: [{is: value or [values],
-steps}], else: steps. repeat: {each: template, as: name} runs once per line. retry: 3 or {max: 3,
-every: 10s} runs a failed script, run or agent step again before on_fail. A call step runs a function: call: name, with: {param: value}.
+Flow variables (the variables: key) have a type: text, number, boolean, option (with choices),
+path, list or object; a list or object holds JSON, read inside (cfg.db.port, hosts[0]) and whole
+as JSON. A variable with from: env:NAME reads the environment. Each script, run, call and agent
+step also sets short variables (output, exit, ok, captures, a call's returns, an agent's answer);
+an if, switch or repeat changes variables made before it, and the ones it makes go when it ends
+unless its export keeps them: export: {count: passes}. switch: expression, cases: [{is: value or
+[values], steps}], else: steps. repeat: {each: expression, as: name} runs once per item of a list,
+or line of a text. retry: 3 or {max: 3, every: 10s} runs a failed script, run or agent step again
+before on_fail. A call step runs a function: call: name, with: {variable: value}.
 An agent step asks one of the user's AI agents (list_flows names them): agent: {ask: question,
 use: name, choices: [a, b]}; use: default asks the user's default agent, the one to write unless
 the user names another. Its answer is text from an AI, untrusted like any output.
@@ -220,10 +221,18 @@ show the terminals; run_command and send_input act in them and, like run with pa
 the user's approval, which they give in noct (prefix+y); a denied call says so, do not retry it
 unasked.
 
-A template reads a param or variable as $name and a step's field as $<id>.<field> ($build.output),
-only for an earlier step's field a later one set again; prefer the short names. In a run line each
-$name is one shell word, or escaped inside the quotes around it: write echo $name or echo "at
-$name", never {{quote}}; ${NAME} and $$NAME are the shell's, and so is a name the line sets itself
-(for f in, n=). Logic is Go text/template inside {{ }}, where every value but a list or object
-is a string: {{if eq .exit "0"}}, {{range .hosts}}. In a list or object param's default, $name goes
-in as JSON: '{"user": $user}'.`
+A flow's if, until, switch and each are expressions, with names alone and no $ or {{ }}:
+if: login == expected and not ok; until: status.output == "ready" || tries > 3;
+each: filter(hosts, h => startsWith(h, "web")). A step's field is <id>.<field> (build.output);
+prefer the short names. Operators: == != < <= > >= (a text that reads as a number compares as one,
+so exit == 0), and or not (&& || !), + - * / %, x in [a, b], a ?? b; a text is "quoted"; lambdas
+x => ... for map, filter, any, all, find; other functions: len, lower, upper, trim, split, join,
+lines, contains, startsWith, endsWith, replace, match (regex), first, last, sort, unique, keys,
+values, json, fromJSON, number, string, if, min, max, round, abs. In YAML, quote a value that
+starts with ! or [ or holds ": ". Every other text (run, with, set, prompt, ask, returns, a
+default) reads values with $: $name, $build.output, $hosts[0], $join(hosts, ", "), ${count + 1}.
+In a run line each $ value is one shell word, or escaped inside the quotes or heredoc around it:
+write echo $name or echo "at $name". $NAME the flow does not know, ${NAME}, $$NAME and a name the
+line sets itself (for f in, n=) are the shell's. A {{ }} is not a template in a flow. In a list or
+object variable's default, $name goes in as JSON: '{"user": $user}'. Scripts (script.yaml) keep
+params and {{quote .name}} in their run.`

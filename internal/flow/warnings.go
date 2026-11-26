@@ -2,10 +2,11 @@ package flow
 
 import (
 	"fmt"
-	"maps"
+	"regexp"
 	"slices"
 	"strings"
 
+	"github.com/AlexandreSJ/noct/internal/expr"
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
@@ -28,11 +29,11 @@ func (f Flow) listWarnings(steps []Step, parent, branch string, lookup func(id s
 	for i, s := range steps {
 		path := Path(parent, branch, i)
 		before := f.scope(parent, branch, i, lookup)
-		for _, text := range s.orderedTemplates() {
-			warnings = append(warnings, f.check(path, text, before)...)
+		for _, r := range s.reads() {
+			warnings = append(warnings, f.check(path, r, before)...)
 		}
-		if s.Repeat != nil {
-			warnings = append(warnings, f.check(path, s.Repeat.Until, f.scope(path, "steps", len(s.Steps), lookup))...)
+		if s.Repeat != nil && s.Repeat.Until != "" {
+			warnings = append(warnings, f.check(path, read{text: s.Repeat.Until, expression: true}, f.scope(path, "steps", len(s.Steps), lookup))...)
 		}
 		for _, inner := range s.Branches() {
 			warnings = append(warnings, f.listWarnings(inner.Steps, path, inner.Name, lookup)...)
@@ -41,28 +42,36 @@ func (f Flow) listWarnings(steps []Step, parent, branch string, lookup func(id s
 	return warnings
 }
 
-// orderedTemplates are the texts of the step rendered before it runs, in a stable order, without
-// the repeat's until, which reads the scope at the end of a pass.
-func (s Step) orderedTemplates() []string {
-	texts := []string{s.Run, s.If, s.Switch, s.Prompt, s.Default}
+// read is a text of a step that reads values: an expression, or a text with $ references.
+type read struct {
+	text string
+	// expression is a condition or value read as an expression; shell, a run line.
+	expression, shell bool
+}
+
+// reads are the texts of the step read before it runs, in a stable order, without the repeat's
+// until, which reads the scope at the end of a pass.
+func (s Step) reads() []read {
+	before := []string{s.If, s.Switch}
 	if s.Repeat != nil {
-		texts = append(texts, s.Repeat.Each)
+		before = append(before, s.Repeat.Each)
 	}
-	if s.Agent != nil {
-		texts = append(texts, s.Agent.Ask, s.Agent.Use)
-	}
-	for _, values := range []map[string]string{s.With, s.Set} {
-		for _, name := range slices.Sorted(maps.Keys(values)) {
-			texts = append(texts, values[name])
+	var reads []read
+	for _, text := range before {
+		if text != "" {
+			reads = append(reads, read{text: text, expression: true})
 		}
 	}
-	return texts
+	for _, text := range s.texts() {
+		reads = append(reads, read{text: text, shell: s.textKind(text) == shellText})
+	}
+	return reads
 }
 
 // check warns about each variable or step a template reads that is not surely in scope.
-func (f Flow) check(path, text string, sc *scope) []Warning {
+func (f Flow) check(path string, r read, sc *scope) []Warning {
 	var warnings []Warning
-	for _, ref := range f.references(text, sc.lookup) {
+	for _, ref := range f.references(r, sc.lookup) {
 		i := slices.IndexFunc(sc.vars, func(v Variable) bool { return v.Step == ref.step && v.Field == ref.field })
 		var problem string
 		switch {
@@ -108,7 +117,7 @@ func (sc *scope) ambiguity(name string) string {
 		return ""
 	}
 	last := steps[len(steps)-1]
-	return fmt.Sprintf("scope: %s is set by %s; .%s reads %s's, .steps.%s.%s reads %s's", name, strings.Join(steps, " and "), name, last, steps[0], name, steps[0])
+	return fmt.Sprintf("scope: %s is set by %s; %s reads %s's, %s.%s reads %s's", name, strings.Join(steps, " and "), name, last, steps[0], name, steps[0])
 }
 
 // missing tells why a step's field is not in scope: no such step, no such field, or the step
@@ -167,34 +176,81 @@ func (f Flow) stepWithID(steps []Step, id string) (Step, bool) {
 	return Step{}, false
 }
 
-// reference is a step's field a template reads, {{.steps.<step>.<field>}}, or a variable,
-// {{.<field>}} with step "".
+// reference is a step's field a text reads, build.output, or a variable, name with step "".
 type reference struct {
 	step, field string
 }
 
-// references lists the variables and steps' fields a template reads, in order; a template that does not parse
-// reads none (Validate reports it).
-func (f Flow) references(text string, lookup func(id string) (script.Script, bool)) []reference {
-	if !isTemplate(text) {
-		return nil
-	}
-	expanded, err := expandDollars(text, plainText, f.knownNames(lookup))
-	if err != nil {
-		return nil
-	}
-	t, err := parseTemplate(expanded)
-	if err != nil {
-		return nil
-	}
+// references lists the variables and steps' fields a text or expression reads, in order; one
+// that does not parse reads none (Validate reports it). A text's $name.field whose name the flow
+// does not know is told as a step, for a misspelt id would go to the shell as it is.
+func (f Flow) references(r read, lookup func(id string) (script.Script, bool)) []reference {
+	known := f.knownNames(lookup)
 	var refs []reference
-	script.WalkFields(t.Root, func(ident []string) {
-		switch {
-		case len(ident) >= 3 && ident[0] == "steps":
-			refs = append(refs, reference{step: ident[1], field: ident[2]})
-		case ident[0] != "steps":
-			refs = append(refs, reference{field: ident[0]})
+	for _, e := range r.exprs(known) {
+		for _, path := range e.Names() {
+			if ref, ok := pathReference(path, known); ok {
+				refs = append(refs, ref)
+			}
 		}
-	})
+	}
+	if r.expression {
+		return refs
+	}
+	own := map[string]bool{}
+	if r.shell {
+		own = shellNames(r.text)
+	}
+	for _, m := range dottedNames.FindAllStringSubmatch(r.text, -1) {
+		if !known.has(m[1]) && !own[m[1]] && strings.ToUpper(m[1]) != m[1] {
+			refs = append(refs, reference{step: m[1], field: m[2]})
+		}
+	}
 	return refs
+}
+
+// dottedNames are a text's $name.field.
+var dottedNames = regexp.MustCompile(`\$([A-Za-z_]\w*)\.([A-Za-z_]\w*)`)
+
+// exprs are the expressions the read holds: itself, or a text's $ references.
+func (r read) exprs(known knownNames) []*expr.Expr {
+	if r.expression {
+		e, err := expr.Parse(r.text)
+		if err != nil {
+			return nil
+		}
+		return []*expr.Expr{e}
+	}
+	kind := plainText
+	if r.shell {
+		kind = shellText
+	}
+	pieces, err := splitText(r.text, kind, known)
+	if err != nil {
+		return nil
+	}
+	var exprs []*expr.Expr
+	for _, p := range pieces {
+		if p.ref != nil {
+			exprs = append(exprs, p.ref)
+		}
+	}
+	return exprs
+}
+
+// pathReference is what a name an expression reads is: a variable, or a step's field.
+func pathReference(path []string, known knownNames) (reference, bool) {
+	switch {
+	case path[0] == "steps" && len(path) > 2:
+		return reference{step: path[1], field: path[2]}, true
+	case path[0] == "steps":
+		return reference{}, false
+	case !known.has(path[0]) && len(path) > 1: // an unknown name with a field reads as a step
+		return reference{step: path[0], field: path[1]}, true
+	case known.vars[path[0]] || !known.steps[path[0]]:
+		return reference{field: path[0]}, true
+	case len(path) > 1:
+		return reference{step: path[0], field: path[1]}, true
+	}
+	return reference{}, false
 }

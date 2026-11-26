@@ -47,7 +47,7 @@ func TestRunStepsTestsARangeOverTheLastResult(t *testing.T) {
 	f := parse(t, `
 steps:
   - {id: a, run: printf fresh}
-  - {id: b, run: 'echo {{.steps.a.output}}-x'}
+  - {id: b, run: 'echo $a.output-x'}
   - {id: c, run: 'head -c 5000 /dev/zero | tr "\\0" y'}
 `)
 	r, out := testRunner(t, nil)

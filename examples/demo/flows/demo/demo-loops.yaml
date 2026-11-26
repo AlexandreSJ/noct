@@ -29,7 +29,7 @@ steps:
     set: {dots: ""}
   - id: until
     repeat:
-      until: '{{eq .dots "...."}}'
+      until: dots == "...."
       max: 5
       every: 200ms
     steps:
@@ -52,7 +52,7 @@ steps:
   - run: echo "captured $dice.rolled"
 
   # unset: clear a variable and a step's result. After this they read as empty;
-  # noct check would warn if a later template read them, so nothing does.
+  # noct check would warn if a later step read them, so nothing does.
   - id: clear
     unset: [greeting, steps.dice]
   - run: echo "cleared the greeting variable and the dice result"
@@ -64,7 +64,7 @@ steps:
     run: printf 'apple\nbanana\ncherry\n'
   - id: each
     repeat:
-      each: '$fruits.output'
+      each: fruits.output
       as: fruit
     steps:
       - run: echo "one $fruit"
@@ -84,7 +84,7 @@ steps:
   # does. One case can take several values.
   - set: {color: green}
   - id: switch
-    switch: '$color'
+    switch: color
     cases:
       - is: [red, orange]
         steps: [{run: echo "a warm color"}]

@@ -1,24 +1,28 @@
 package flow
 
 import (
+	"errors"
 	"maps"
 	"slices"
 
 	"go.yaml.in/yaml/v3"
 )
 
-// A flow's params keep the order they are written in, which the run form and the inspect show and
+// A flow's variables keep the order they are written in, which the run form and the inspect show and
 // the inspect can change. Params stay a map for every lookup; ParamOrder holds the order.
 
 // flowFields is Flow without its YAML methods, to decode and encode its mapping.
 type flowFields Flow
 
 func (f *Flow) UnmarshalYAML(node *yaml.Node) error {
+	if mappingValue(node, "params") != nil {
+		return errors.New("params is now variables: rename the key (ADR-074)")
+	}
 	if err := node.Decode((*flowFields)(f)); err != nil {
 		return err
 	}
 	f.ParamOrder = nil
-	if params := mappingValue(node, "params"); params != nil && params.Kind == yaml.MappingNode {
+	if params := mappingValue(node, "variables"); params != nil && params.Kind == yaml.MappingNode {
 		for i := 0; i+1 < len(params.Content); i += 2 {
 			f.ParamOrder = append(f.ParamOrder, params.Content[i].Value)
 		}
@@ -31,7 +35,7 @@ func (f Flow) MarshalYAML() (any, error) {
 	if err := node.Encode(flowFields(f)); err != nil {
 		return nil, err
 	}
-	if params := mappingValue(&node, "params"); params != nil {
+	if params := mappingValue(&node, "variables"); params != nil {
 		params.Content = orderedPairs(params.Content, f.ParamNames())
 	}
 	return &node, nil

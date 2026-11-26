@@ -1,15 +1,15 @@
-# demo-params: one param of each type, read by the steps after. Open it in
-# the inspect (prefix+i), select "$ params" and press enter to edit them as a
+# demo-params: one variable of each type, read by the steps after. Open it in
+# the inspect (prefix+i), select "$ variables" and press enter to edit them as a
 # table: enter or a click edits a cell, hjkl or the arrows move, J and K move a
 # row, ctrl+delete removes one and ctrl+z undoes. An option's options and a
 # list's items open in a list under their cell: + add adds one, space marks the
 # default and f filters them. Dragging over a cell's text copies it. ? lists
-# every key and v hides the help. target's default reads the params above it.
+# every key and v hides the help. target's default reads the variables above it.
 # Everything only prints. Run it with its defaults:
 #   noct flow run demo-params
-description: "Every param type, a param from the environment and a secret, read by the steps."
+description: "Every variable type, one from the environment and a secret, read by the steps."
 
-params:
+variables:
   region:
     type: option
     choices: [us-east, us-west, eu-central, eu-west, ap-south, ap-east, sa-east]
@@ -27,25 +27,25 @@ params:
   note: {default: first rollout, prompt: A word for the log}
   user: {from: "env:USER", prompt: Who deploys}
   token: {from: "env:API_TOKEN", secret: true, prompt: API token}
-  # a default reads the params written before it; json puts a value in JSON.
+  # a default reads the variables written before it, each $name as JSON.
   target:
     type: object
-    default: '{"by": {{json .user}}, "region": {{json .region}}, "hosts": {{json .hosts}}}'
+    default: '{"by": $user, "region": $region, "hosts": $hosts}'
 
 steps:
-  # text and number read as they are; quote keeps a value one shell word.
+  # text and number read as $name, which a command line gets as one shell word.
   - id: plan
     run: echo "$replicas replicas in $region by $user, $note"
 
-  # boolean: an if reads true or false as they are.
-  - if: "$dry_run"
+  # boolean: a condition is an expression, its names alone: dry_run, not dry_run.
+  - if: dry_run
     then:
       - run: echo "dry run, nothing changes"
     else:
       - run: echo "applying $manifest"
 
   # option: a switch runs the case of the option picked.
-  - switch: "$region"
+  - switch: region
     cases:
       - is: [us-east, us-west]
         steps: [{run: echo "an American region"}]
@@ -54,17 +54,20 @@ steps:
     else:
       - run: echo "$region is in no case"
 
-  # list: range walks the items and index reads one; the whole list is its
-  # JSON, which quote keeps one shell word.
-  - run: echo "{{range .hosts}}host {{.}}; {{end}}first is {{index .hosts 0}}"
+  # list: $hosts[0] reads an item, and a function's call reads it whole, its
+  # arguments expressions, as map's lambda h => ...; $hosts alone is its JSON.
+  - run: echo "$join(map(hosts, h => "host " + h), "; "); first is $hosts[0]"
+  - repeat: {each: 'filter(hosts, h => startsWith(h, "web"))', as: host}
+    steps: [{run: echo "web host $host"}]
   - run: echo all hosts $hosts
 
   # object: a field reads at any depth; the whole object is its JSON too.
   - run: echo "cpu $limits.cpu, memory up to $limits.memory.max"
   - run: echo all limits $limits
 
-  # an object made of other params, read like any object.
-  - run: echo $target.by deploys {{len .target.hosts}} hosts to $target.region
+  # an object made of other variables, read like any object.
+  # ${...} is any expression in a text: ${replicas * 2} pods.
+  - run: echo $target.by deploys $len(target.hosts) hosts to $target.region, ${replicas * 2} pods
   - run: echo target $target
 
   # from env and secret: $API_TOKEN when set, else asked masked in the form,

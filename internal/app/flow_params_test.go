@@ -12,12 +12,12 @@ import (
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 )
 
-const calcFlow = `params:
+const calcFlow = `variables:
   a: {type: number, required: true, prompt: First number}
   b: {type: number, default: "2"}
   text: hi
 steps:
-  - {run: 'echo {{.a}}'}
+  - {run: 'echo $a'}
 `
 
 // r on a flow with a required parameter empty opens its form; the form refuses what the types
@@ -70,7 +70,7 @@ func TestFlowParamsFormNeedsParameters(t *testing.T) {
 	a := testApp(t)
 	saveFlow(t, "plain", "steps:\n  - {run: 'true'}\n")
 	pressDrawn(a, prefixPress, letter('i'), letter('p'))
-	if a.mode == formMode || !strings.Contains(a.statusMessage, "no parameters") {
+	if a.mode == formMode || !strings.Contains(a.statusMessage, "no variables") {
 		t.Errorf("mode %v, status %q", a.mode, a.statusMessage)
 	}
 }
@@ -78,7 +78,7 @@ func TestFlowParamsFormNeedsParameters(t *testing.T) {
 // The add menu puts prompt, set and unset steps in, each from its form in place of the chart.
 func TestInspectAddsVariableSteps(t *testing.T) {
 	a := testApp(t)
-	saveFlow(t, "vars", "params: {b: \"1\"}\nsteps: []\n")
+	saveFlow(t, "vars", "variables: {b: \"1\"}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	pressDrawn(a, letter('a'), letter('p'))
 	setCell(a, "New b?")
@@ -87,7 +87,7 @@ func TestInspectAddsVariableSteps(t *testing.T) {
 	pressDrawn(a, ctrlS, letter('a'), letter('v'), enterPress)
 	typeDrawn(a, "sum")
 	pressDrawn(a, tabPress)
-	setCell(a, "{{.b}}")
+	setCell(a, "$b")
 	pressDrawn(a, ctrlS, letter('a'), letter('u'))
 	addItems(a, "sum", "steps.x", "b")
 	pressDrawn(a, ctrlS)
@@ -104,7 +104,7 @@ func TestInspectAddsVariableSteps(t *testing.T) {
 	switch {
 	case prompt.Prompt != "New b?" || prompt.Var != "b":
 		t.Errorf("prompt = %+v", prompt)
-	case set.Set["sum"] != "{{.b}}":
+	case set.Set["sum"] != "$b":
 		t.Errorf("set = %+v", set)
 	case !slices.Equal(unset.Unset, []string{"sum", "steps.x", "b"}):
 		t.Errorf("unset = %+v", unset)
@@ -117,11 +117,11 @@ func TestInspectAddsVariableSteps(t *testing.T) {
 	}
 }
 
-const tokenFlow = `params:
+const tokenFlow = `variables:
   token: {from: 'env:DEPLOY_TOKEN', secret: true, prompt: Deploy token}
   env: dev
 steps:
-  - {run: 'echo {{.env}}'}
+  - {run: 'echo $env'}
 `
 
 // A param whose variable is set is not asked; unset, the form asks it masked, and the value
@@ -168,7 +168,7 @@ func TestTheParamsTableAddsEveryType(t *testing.T) {
 	saveFlow(t, "typed", "steps:\n  - {id: one, run: 'true'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, upPress)
 	p := a.currentTab().focusedView().(*inspectPanel)
-	if p.selected != paramsKey || !strings.Contains(screenText(a), "$ params") {
+	if p.selected != paramsKey || !strings.Contains(screenText(a), "$ variables") {
 		t.Fatalf("up twice from the first step selected %q:\n%s", p.selected, screenText(a))
 	}
 	pressDrawn(a, letter('a'))
@@ -223,7 +223,7 @@ func TestTheParamsTableAddsEveryType(t *testing.T) {
 func TestAListParamTakesItsItemsInAList(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "hosts", "params: {hosts: {type: list, default: '[\"a\"]'}}\nsteps: []\n")
+	saveFlow(t, "hosts", "variables: {hosts: {type: list, default: '[\"a\"]'}}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress, letter('l'), letter('l'))
 	addItems(a, "b c", `{"port": 1}`)
 	if !strings.Contains(screenText(a), `"a" · 3 items`) {
@@ -258,7 +258,7 @@ func openParamsTable(t *testing.T, a *App) *paramsTable {
 func TestAParamRowThatIsNotValidWaitsToBeFixed(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "ports", "params: {env: dev}\nsteps: []\n")
+	saveFlow(t, "ports", "variables: {env: dev}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, letter('a'))
 	typeDrawn(a, "port")
 	pressDrawn(a, enterPress, letter('h'), enterPress, letter('j'), enterPress, letter('l'), letter('l'))
@@ -270,7 +270,7 @@ func TestAParamRowThatIsNotValidWaitsToBeFixed(t *testing.T) {
 	if got := loadFlowParams(t, "ports")["port"]; got.Default != "" || got.Type != flow.NumberParam {
 		t.Fatalf("saved %+v, want the number as it was before x", got)
 	}
-	if !strings.Contains(a.notice, "1 param not saved") {
+	if !strings.Contains(a.notice, "1 variable not saved") {
 		t.Errorf("notice %q", a.notice)
 	}
 	pressDrawn(a, enterPress)
@@ -290,10 +290,10 @@ func TestAParamRowThatIsNotValidWaitsToBeFixed(t *testing.T) {
 func TestTheParamsTableRemovesMovesAndRenames(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "pair", "params: {a: '1', b: '2', c: '3'}\nsteps: []\n")
+	saveFlow(t, "pair", "variables: {a: '1', b: '2', c: '3'}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress, letter('l'))
 	setCell(a, "b")
-	if !strings.Contains(screenText(a), "another param is b") {
+	if !strings.Contains(screenText(a), "another variable is b") {
 		t.Errorf("two rows named b are not told:\n%s", screenText(a))
 	}
 	pressDrawn(a, ctrlZ, letter('j'), letter('j'), ctrlDelete)
@@ -316,7 +316,7 @@ func TestTheParamsTableRemovesMovesAndRenames(t *testing.T) {
 func TestTheParamsTableLeavesNoctFree(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "free", "params: {a: '1'}\nsteps: []\n")
+	saveFlow(t, "free", "variables: {a: '1'}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress)
 	tab := a.currentTab()
 	pressDrawn(a, prefixPress, letter('t'))
@@ -340,11 +340,11 @@ func TestANewParamRowNeedsAName(t *testing.T) {
 	saveFlow(t, "named", "steps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, letter('a'), escPress, letter('l'))
 	setCell(a, "dev")
-	if !strings.Contains(screenText(a), "✗ name: a param needs a name") {
+	if !strings.Contains(screenText(a), "✗ name: a variable needs a name") {
 		t.Errorf("the row does not ask for a name:\n%s", screenText(a))
 	}
 	pressDrawn(a, escPress)
-	if !strings.Contains(a.notice, "1 param not saved") {
+	if !strings.Contains(a.notice, "1 variable not saved") {
 		t.Errorf("notice %q", a.notice)
 	}
 }
@@ -353,7 +353,7 @@ func TestANewParamRowNeedsAName(t *testing.T) {
 func TestAParamWithABadDefaultCanBeRemoved(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "bad", "params: {n: {type: number, default: '1'}, keep: x}\nsteps: []\n")
+	saveFlow(t, "bad", "variables: {n: {type: number, default: '1'}, keep: x}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress, letter('l'), letter('l'))
 	setCell(a, "z")
 	pressDrawn(a, ctrlDelete, escPress)
@@ -367,7 +367,7 @@ func TestAParamWithABadDefaultCanBeRemoved(t *testing.T) {
 func TestTheParamsTableTakesTheMouse(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "clicks", "params: {a: '1', b: '2'}\nsteps: []\n")
+	saveFlow(t, "clicks", "variables: {a: '1', b: '2'}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress)
 	table := openParamsTable(t, a)
 	click := func(row, col int) {
@@ -401,7 +401,7 @@ func TestTheParamsTableTakesTheMouse(t *testing.T) {
 func TestAnOptionDefaultOutsideItsOptionsIsKept(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "zones", "params: {region: {type: option, choices: [a, b], default: c}}\nsteps: []\n")
+	saveFlow(t, "zones", "variables: {region: {type: option, choices: [a, b], default: c}}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress, ctrlRight, letter('h'), letter('h'))
 	setCell(a, "Region")
 	if !strings.Contains(screenText(a), `must be one of a, b, not "c"`) {
@@ -417,7 +417,7 @@ func TestAnOptionDefaultOutsideItsOptionsIsKept(t *testing.T) {
 func TestTheParamsTableLightsWhatTheMouseIsOver(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "hover", "params: {a: '1', b: '2'}\nsteps: []\n")
+	saveFlow(t, "hover", "variables: {a: '1', b: '2'}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress)
 	table := openParamsTable(t, a)
 	var name, focused gridHit
@@ -443,7 +443,7 @@ func TestTheParamsTableLightsWhatTheMouseIsOver(t *testing.T) {
 func TestDraggingOverAParamCellCopiesItsText(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "drag", "params: {region: eu-central}\nsteps: []\n")
+	saveFlow(t, "drag", "variables: {region: eu-central}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, enterPress)
 	table := openParamsTable(t, a)
 	var value gridHit

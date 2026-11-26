@@ -14,12 +14,12 @@ import (
 )
 
 // An agent step asks an AI agent the user has, such as claude, ollama or opencode, and keeps its
-// answer for the steps after it: {{.answer}}, or {{.steps.<id>.answer}}. With choices, the answer
+// answer for the steps after it: answer, or <id>.answer. With choices, the answer
 // is the first of them it says, and an answer that says none fails the step, so an if can branch
 // on it. The question goes to the agent's command as its input, or in place of {prompt}, never
 // through a shell.
 
-// Agent is what an agent step asks: Ask, a template; Use, the agent: a name, auto, or default
+// Agent is what an agent step asks: Ask, a text with $names; Use, the agent: a name, auto, or default
 // (also "") for the config's; Choices, the answers it may give.
 type Agent struct {
 	Ask     string   `yaml:"ask"`

@@ -22,8 +22,9 @@ type stepField struct {
 	// note tells what the row takes; examples show it with the variables in scope.
 	note     string
 	examples []string
-	// template rows complete the variables in scope as $ or {{. is typed.
-	template bool
+	// template rows complete the variables in scope as a $ name is typed; expression rows are a
+	// condition or value read whole as an expression, where names are written alone.
+	template, expression bool
 	// check tells why a value does not fit, or "".
 	check func(value string) string
 	// describe, when set, tells about the value chosen instead of note.
@@ -110,7 +111,7 @@ func (s *stepForm) firstColumn() int {
 func (s *stepForm) row(field stepField) gridRow {
 	label := textCellOf(field.label)
 	label.skip = !s.spec.named
-	field.cell.template = field.template
+	field.cell.template, field.cell.expression = field.template || field.expression, field.expression
 	return gridRow{cells: []gridCell{label, field.cell}}
 }
 

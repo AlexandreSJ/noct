@@ -65,7 +65,7 @@ func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 		t.Errorf("the form took noct's mode %v; it belongs to the panel", a.mode)
 	}
 	pressDrawn(a, enterPress)
-	typeDrawn(a, "Did {{.ou")
+	typeDrawn(a, "Did $ou")
 	if !strings.Contains(screenText(a), "variables here") {
 		t.Errorf("the help does not list the variables:\n%s", screenText(a))
 	}
@@ -93,7 +93,7 @@ func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 		t.Fatalf("steps %+v", steps)
 	}
 	agent := steps[1].Agent
-	if agent.Ask != "Did {{.output}} pass?" || agent.Use != options[1] || strings.Join(agent.Choices, ",") != "pass,fail" || steps[1].Timeout != agentStepTimeout {
+	if agent.Ask != "Did $output pass?" || agent.Use != options[1] || strings.Join(agent.Choices, ",") != "pass,fail" || steps[1].Timeout != agentStepTimeout {
 		t.Errorf("agent %+v, timeout %q", agent, steps[1].Timeout)
 	}
 	if !strings.Contains(chartText(a.currentTab().focusedView().(*inspectPanel).chart), "→ pass | fail") {

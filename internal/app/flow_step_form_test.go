@@ -22,27 +22,27 @@ func TestEditingAStepKeepsWhatItsFormDoesNotAsk(t *testing.T) {
 	a.size = image.Pt(140, 40)
 	saveFlow(t, "branch", `steps:
   - {id: test, run: 'true', capture: {state: '(\w+)'}}
-  - if: '{{.ok}}'
+  - if: ok
     then: [{run: 'echo yes'}]
     else: [{run: 'echo no'}]
 `)
 	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress, letter('e'))
 	form := openStepForm(t, a)
-	if !strings.Contains(screenText(a), `{{eq .state "value"}}`) {
+	if !strings.Contains(screenText(a), `state == "value"`) {
 		t.Errorf("the if's examples do not use the flow's variables:\n%s", screenText(a))
 	}
 	pressDrawn(a, enterPress, clearLine, escPress, escPress)
-	if steps := loadFlowSteps(t, "branch"); steps[1].If != "{{.ok}}" {
+	if steps := loadFlowSteps(t, "branch"); steps[1].If != "ok" {
 		t.Fatalf("esc changed the if to %q", steps[1].If)
 	}
 	if !strings.Contains(form.hints(), "save") || form.grid.buttons[len(form.grid.buttons)-1] != "save" {
 		t.Errorf("editing hints %q, buttons %v", form.hints(), form.grid.buttons)
 	}
 	pressDrawn(a, letter('e'))
-	setCell(a, `{{eq .state "ready"}}`)
+	setCell(a, `state == "ready"`)
 	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "branch")
-	if steps[1].If != `{{eq .state "ready"}}` || len(steps[1].Then) != 1 || len(steps[1].Else) != 1 {
+	if steps[1].If != `state == "ready"` || len(steps[1].Then) != 1 || len(steps[1].Else) != 1 {
 		t.Errorf("the if became %+v", steps[1])
 	}
 }
@@ -52,7 +52,7 @@ func TestEditingAStepKeepsWhatItsFormDoesNotAsk(t *testing.T) {
 func TestEditingASwitchKeepsTheStepsOfItsCases(t *testing.T) {
 	a := testApp(t)
 	saveFlow(t, "sort", `steps:
-  - switch: '{{.answer}}'
+  - switch: answer
     cases:
       - {is: bug, steps: [{run: 'echo bug'}]}
       - {is: [flaky, env], steps: [{run: 'echo again'}]}
@@ -88,7 +88,7 @@ func TestACallStepAsksItsValuesInOneForm(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
 	saveFlow(t, "ship", "steps: []\n")
-	saveFunction(t, "deploy", "params:\n  env: {type: option, choices: [dev, prod]}\n  tries: {type: number, default: '1'}\nsteps: [{run: 'true'}]\n")
+	saveFunction(t, "deploy", "variables:\n  env: {type: option, choices: [dev, prod]}\n  tries: {type: number, default: '1'}\nsteps: [{run: 'true'}]\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, letter('a'), letter('f'))
 	typeDrawn(a, "deploy")
 	pressDrawn(a, enterPress)
@@ -97,10 +97,10 @@ func TestACallStepAsksItsValuesInOneForm(t *testing.T) {
 	if !strings.Contains(screenText(a), "must be one of dev, prod") {
 		t.Errorf("the call's form took staging:\n%s", screenText(a))
 	}
-	setCell(a, "{{.target}}")
+	setCell(a, "$target")
 	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "ship")
-	if len(steps) != 1 || steps[0].Call != "deploy" || steps[0].With["env"] != "{{.target}}" || len(steps[0].With) != 1 {
+	if len(steps) != 1 || steps[0].Call != "deploy" || steps[0].With["env"] != "$target" || len(steps[0].With) != 1 {
 		t.Errorf("steps %+v", steps)
 	}
 }
@@ -121,10 +121,10 @@ func TestASetStepTakesARowPerVariable(t *testing.T) {
 	pressDrawn(a, clearLine)
 	typeDrawn(a, "b")
 	pressDrawn(a, tabPress)
-	setCell(a, "{{.a}}")
+	setCell(a, "$a")
 	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "vars")
-	if len(steps) != 1 || steps[0].Set["a"] != "1" || steps[0].Set["b"] != "{{.a}}" || len(steps[0].Set) != 2 {
+	if len(steps) != 1 || steps[0].Set["a"] != "1" || steps[0].Set["b"] != "$a" || len(steps[0].Set) != 2 {
 		t.Errorf("steps %+v", steps)
 	}
 	if steps[0].Kind() != flow.SetStep {

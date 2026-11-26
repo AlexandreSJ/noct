@@ -96,7 +96,7 @@ func commandForm(s flow.Step) stepFormSpec {
 		fields: []stepField{{
 			label: "run", cell: textCellOf(s.Run), template: true, check: needed("a command"),
 			note:     "a command line the shell runs",
-			examples: []string{"echo {{quote .name}}: quote keeps a value one word"},
+			examples: []string{"echo $name: one shell word, quoted for you", "echo ${count + 1} $join(hosts, \",\")"},
 		}},
 		build: func(v []formValue) (flow.Step, error) {
 			s.Run = v[0].value
@@ -109,8 +109,8 @@ func ifForm(s flow.Step, vars []flow.Variable) stepFormSpec {
 	return stepFormSpec{
 		title: "if",
 		fields: []stepField{{
-			label: "if", cell: textCellOf(s.If), template: true, check: needed("a condition"),
-			note:     "yes runs when it gives true; no, when false or nothing",
+			label: "if", cell: textCellOf(s.If), expression: true, check: needed("a condition"),
+			note:     "yes runs when it holds; no when false, 0, empty or nothing",
 			examples: conditionExamples(flow.Readable(vars)),
 		}},
 		build: func(v []formValue) (flow.Step, error) {
@@ -128,25 +128,27 @@ func conditionExamples(vars []flow.Variable) []string {
 	}
 	var examples []string
 	if has("ok") {
-		examples = append(examples, "$ok: the step before passed")
+		examples = append(examples, "ok: the step before passed; not ok, when it failed")
 	}
 	for _, v := range vars {
 		if v.Step == "" && !slices.Contains([]string{"output", "exit", "ok", "answer"}, v.Field) {
-			examples = append(examples, `{{eq .`+v.Field+` "value"}}`)
+			examples = append(examples, v.Field+` == "value" and exit == 0`)
 			break
 		}
 	}
 	if has("output") {
-		examples = append(examples, `{{match .output "error"}}: a regex`)
+		examples = append(examples, `match(output, "error"): a regex; contains(output, "done")`)
 	}
-	return append(examples, "{{and .a .b}}, {{or .a .b}}, {{not .a}}")
+	return append(examples,
+		"and, or, not (&&, ||, !); == != < <= > >=; + - * / %; x in [a, b]",
+		`len(x), lower(x), any(list, x => startsWith(x, "web")): ? lists every function`)
 }
 
 func switchForm(s flow.Step) stepFormSpec {
 	return stepFormSpec{
 		title: "switch",
 		fields: []stepField{
-			{label: "on", cell: textCellOf(s.Switch), template: true, check: needed("the value"), note: "the value the cases compare", examples: []string{"$answer", "$env"}},
+			{label: "on", cell: textCellOf(s.Switch), expression: true, check: needed("the value"), note: "the value the cases compare", examples: []string{"answer", "lower(env)"}},
 			{label: "cases", cell: listCellOf(caseItems(s.Cases), -1, false, "case"), check: needed("a case"), note: "the values each case runs on; | puts two in one: bug|regression"},
 		},
 		build: func(v []formValue) (flow.Step, error) {
@@ -201,7 +203,7 @@ func repeatForm(s flow.Step) stepFormSpec {
 		title: "repeat",
 		fields: []stepField{
 			{label: "times", cell: textCellOf(countText(r.Times)), check: checkCount, note: "how many passes; empty repeats until"},
-			{label: "until", cell: textCellOf(r.Until), template: true, note: "stops after the pass where it gives true", examples: []string{"$ok", `{{eq .status "ready"}}`}},
+			{label: "until", cell: textCellOf(r.Until), expression: true, note: "stops after the pass where it holds", examples: []string{"ok", `status.output == "ready"`}},
 			{label: "max", cell: textCellOf(countText(r.Max)), check: checkCount, note: "the most passes an until runs; empty is 10"},
 			{label: "every", cell: textCellOf(r.Every), check: checkDuration, note: "a wait between passes, as 30s; empty is none"},
 		},
@@ -221,15 +223,15 @@ func repeatForm(s flow.Step) stepFormSpec {
 }
 
 func eachForm(s flow.Step) stepFormSpec {
-	r := flow.Repeat{Each: "$output"}
+	r := flow.Repeat{Each: "lines(output)"}
 	if s.Repeat != nil {
 		r = *s.Repeat
 	}
 	return stepFormSpec{
 		title: "for each line",
 		fields: []stepField{
-			{label: "lines of", cell: textCellOf(r.Each), template: true, check: needed("a text"), note: "its steps run once for each line", examples: []string{"$output", "{{range .list}}{{println .}}{{end}}: a list param"}},
-			{label: "as", cell: textCellOf(r.EachVar()), check: checkVariable, note: "the variable each line is in"},
+			{label: "items of", cell: textCellOf(r.Each), expression: true, check: needed("a list or a text"), note: "its steps run once for each item of a list, or line of a text", examples: []string{"hosts: a list variable", "lines(output)", `filter(hosts, h => startsWith(h, "web"))`}},
+			{label: "as", cell: textCellOf(r.EachVar()), check: checkVariable, note: "the variable each item is in"},
 		},
 		build: func(v []formValue) (flow.Step, error) {
 			r.Each, r.As = v[0].value, v[1].value
@@ -273,7 +275,7 @@ func promptForm(s flow.Step) stepFormSpec {
 }
 
 func setForm(s flow.Step) stepFormSpec {
-	row := stepField{note: "a name, then its value: a template; $name reads it after", template: true}
+	row := stepField{note: "a name, then its value: text, $name reads others; $name reads it after", template: true}
 	spec := stepFormSpec{title: "set", named: true, rowField: row, adds: "variable"}
 	for _, name := range slices.Sorted(maps.Keys(s.Set)) {
 		field := row
@@ -347,10 +349,10 @@ func scriptParamNote(p script.Param) string {
 }
 
 // scriptValueProblem is why a step's value cannot be the script's param; a step runs without
-// asking, so a param without a default needs one, and a template is known only when it runs.
+// asking, so a param without a default needs one, and a value with a $ is known only when it runs.
 func scriptValueProblem(p script.Param, value string) string {
 	switch {
-	case strings.Contains(value, "{{"):
+	case strings.Contains(value, "$"):
 		return ""
 	case value == "" && p.Default == "" && p.From == "":
 		return "the script needs it: a step runs without asking"
@@ -387,11 +389,11 @@ func callForm(fn flow.Flow, s flow.Step) stepFormSpec {
 	return spec
 }
 
-// callValueProblem is why a call's value cannot be the param's; a template is known only when it
-// runs.
+// callValueProblem is why a call's value cannot be the param's; a value with a $ is known only
+// when it runs.
 func callValueProblem(p flow.Param, value string) string {
 	switch {
-	case strings.Contains(value, "{{"):
+	case strings.Contains(value, "$"):
 		return ""
 	case value == "" && p.Required && p.Default == "":
 		return "the function needs it"

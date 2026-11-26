@@ -10,7 +10,7 @@ import (
 
 func TestParamsTakeAPlainDefaultOrASpec(t *testing.T) {
 	f := parse(t, `
-params:
+variables:
   env: dev
   a: {default: "3", type: number, prompt: First number}
   b: {type: number, required: true}
@@ -36,7 +36,7 @@ steps: [{run: 'true'}]
 
 // A plain default saves back as plain text, so flows that never used a spec stay the same.
 func TestParamsSaveBackPlainWhenTheyOnlyHaveADefault(t *testing.T) {
-	f := parse(t, "params:\n  env: dev\n  a: {default: \"1\", type: number}\nsteps: [{run: 'true'}]\n")
+	f := parse(t, "variables:\n  env: dev\n  a: {default: \"1\", type: number}\nsteps: [{run: 'true'}]\n")
 	if err := f.Save(); err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestParamsSaveBackPlainWhenTheyOnlyHaveADefault(t *testing.T) {
 }
 
 func TestCheckParamsRefusesNonNumbersAndMissingRequired(t *testing.T) {
-	f := parse(t, "params:\n  a: {type: number}\n  b: {required: true}\nsteps: [{run: 'true'}]\n")
+	f := parse(t, "variables:\n  a: {type: number}\n  b: {required: true}\nsteps: [{run: 'true'}]\n")
 	cases := []struct {
 		values  map[string]string
 		problem string
@@ -70,7 +70,7 @@ func TestCheckParamsRefusesNonNumbersAndMissingRequired(t *testing.T) {
 }
 
 func TestAFlowParamComesFromItsVariableWhenSet(t *testing.T) {
-	f := parse(t, "params:\n  token: {from: 'env:DEPLOY_TOKEN', default: demo, secret: true}\n  env: dev\nsteps: [{run: 'true'}]\n")
+	f := parse(t, "variables:\n  token: {from: 'env:DEPLOY_TOKEN', default: demo, secret: true}\n  env: dev\nsteps: [{run: 'true'}]\n")
 	if err := f.Validate(nil); err != nil {
 		t.Fatal(err)
 	}
@@ -90,14 +90,14 @@ func TestAFlowParamComesFromItsVariableWhenSet(t *testing.T) {
 }
 
 func TestAFlowParamFromSomethingElseIsAProblem(t *testing.T) {
-	f := parse(t, "params:\n  a: {from: 'vault:x'}\nsteps: [{run: 'true'}]\n")
+	f := parse(t, "variables:\n  a: {from: 'vault:x'}\nsteps: [{run: 'true'}]\n")
 	if err := f.Validate(nil); err == nil || !strings.Contains(err.Error(), "env:NAME") {
 		t.Errorf("err = %v", err)
 	}
 }
 
 func TestARunReadsAnEnvParamFromItsEnvironment(t *testing.T) {
-	f := parse(t, "params:\n  token: {from: 'env:DEPLOY_TOKEN'}\nsteps: [{run: 'true'}]\n")
+	f := parse(t, "variables:\n  token: {from: 'env:DEPLOY_TOKEN'}\nsteps: [{run: 'true'}]\n")
 	r := &Runner{Getenv: func(name string) string { return map[string]string{"DEPLOY_TOKEN": "s3cret"}[name] }}
 	if x, _ := r.start(f, nil); x.vars["token"] != "s3cret" {
 		t.Errorf("token = %q, want the environment's", x.vars["token"])
@@ -108,7 +108,7 @@ func TestARunReadsAnEnvParamFromItsEnvironment(t *testing.T) {
 }
 
 func TestInvalidParamTypeIsAProblem(t *testing.T) {
-	f := parse(t, "params:\n  a: {type: date}\nsteps: [{run: 'true'}]\n")
+	f := parse(t, "variables:\n  a: {type: date}\nsteps: [{run: 'true'}]\n")
 	if err := f.Validate(nil); err == nil || !strings.Contains(err.Error(), "type") {
 		t.Errorf("err = %v", err)
 	}
@@ -126,7 +126,7 @@ func TestSetAndUnsetValidation(t *testing.T) {
 		"steps: [{unset: []}]":                               "exactly one",
 		"steps: [{run: 'true', var: x}]":                     "belong to a prompt",
 		"steps: [{prompt: 'N?', var: n, type: date}]":        "type",
-		"steps: [{prompt: '{{.x', var: n}]":                  "unclosed",
+		"steps: [{prompt: '$len(x', var: n}]":                "$len",
 		"steps: [{set: {a: '1'}, run: 'true'}]":              "exactly one",
 		"steps: [{prompt: 'N?', var: n, capture: {x: '.'}}]": "capture",
 	}
@@ -147,11 +147,11 @@ func TestSetAndUnsetValidation(t *testing.T) {
 func TestSetCreatesAndOverwritesVariables(t *testing.T) {
 	r, out := testRunner(t, nil)
 	f := parse(t, `
-params: {a: "2"}
+variables: {a: "2"}
 steps:
-  - {id: sum, run: 'echo $(( {{.a}} + 3 ))'}
-  - set: {sum: '{{.steps.sum.output}}', a: 'ten'}
-  - run: 'echo sum={{.sum}} a={{.a}}'
+  - {id: sum, run: 'echo $(( $a + 3 ))'}
+  - set: {sum: '$steps.sum.output', a: 'ten'}
+  - run: 'echo sum=$sum a=$a'
 `)
 	result := r.Run(f, nil)
 	if !result.OK || !strings.Contains(out.String(), "sum=5 a=ten") {
@@ -165,12 +165,12 @@ steps:
 func TestUnsetClearsVariablesAndStepResults(t *testing.T) {
 	r, out := testRunner(t, nil)
 	f := parse(t, `
-params: {a: "2", text: hi}
+variables: {a: "2", text: hi}
 steps:
   - {id: sum, run: 'echo 5'}
-  - set: {sum: '{{.steps.sum.output}}'}
+  - set: {sum: '$steps.sum.output'}
   - unset: [a, sum, steps.sum]
-  - run: 'echo "a=[{{.a}}] sum=[{{.sum}}] out=[{{.steps.sum.output}}] text=[{{.text}}]"'
+  - run: 'echo "a=[$a] sum=[$sum] out=[$steps.sum.output] text=[$text]"'
 `)
 	result := r.Run(f, nil)
 	if !result.OK || !strings.Contains(out.String(), "a=[] sum=[] out=[] text=[hi]") {
@@ -188,10 +188,10 @@ func TestPromptSetsAVariableFromTheAnswer(t *testing.T) {
 	attention := 0
 	r.Attention = func() { attention++ }
 	f := parse(t, `
-params: {b: "3"}
+variables: {b: "3"}
 steps:
-  - {id: adjust, prompt: 'New b (was {{.b}})', var: b, default: '{{.b}}', type: number}
-  - run: 'echo b={{.b}}'
+  - {id: adjust, prompt: 'New b (was $b)', var: b, default: '$b', type: number}
+  - run: 'echo b=$b'
 `)
 	result := r.Run(f, nil)
 	if !result.OK || !strings.Contains(out.String(), "b=7") {
@@ -211,7 +211,7 @@ steps:
 func TestPromptEmptyAnswerKeepsTheDefault(t *testing.T) {
 	r, out := testRunner(t, nil)
 	r.Ask = func(string) string { return "  " }
-	f := parse(t, "params: {b: \"3\"}\nsteps:\n  - {prompt: New b, var: b, default: '{{.b}}'}\n  - run: 'echo b={{.b}}'\n")
+	f := parse(t, "variables: {b: \"3\"}\nsteps:\n  - {prompt: New b, var: b, default: '$b'}\n  - run: 'echo b=$b'\n")
 	if result := r.Run(f, nil); !result.OK || !strings.Contains(out.String(), "b=3") {
 		t.Errorf("ok %v:\n%s", result.OK, out)
 	}
@@ -245,27 +245,27 @@ func TestPromptWithoutATerminalFails(t *testing.T) {
 
 func TestScopeHoldsSetVariablesAndDropsUnsetOnes(t *testing.T) {
 	f := parse(t, `
-params: {a: "1", text: hi}
+variables: {a: "1", text: hi}
 steps:
   - {id: sum, run: 'echo 1'}
-  - {id: keep, set: {sum: '{{.steps.sum.output}}'}}
+  - {id: keep, set: {sum: '$steps.sum.output'}}
   - {id: ask, prompt: 'Name?', var: name}
   - unset: [a, sum, steps.sum]
-  - run: 'echo {{.text}}'
+  - run: 'echo $text'
 `)
 	at3 := names(f.Scope("", "", 3, nil))
-	for _, want := range []string{"{{.a}}", "{{.sum}}", "{{.name}}", "{{.steps.sum.output}}"} {
+	for _, want := range []string{"a", "sum", "name", "sum.output"} {
 		if !slices.Contains(at3, want) {
 			t.Errorf("before unset, scope lacks %s: %q", want, at3)
 		}
 	}
 	at4 := names(f.Scope("", "", 4, nil))
-	for _, gone := range []string{"{{.a}}", "{{.sum}}", "{{.steps.sum.output}}"} {
+	for _, gone := range []string{"a", "sum", "sum.output"} {
 		if slices.Contains(at4, gone) {
 			t.Errorf("after unset, scope keeps %s: %q", gone, at4)
 		}
 	}
-	if !slices.Contains(at4, "{{.text}}") || !slices.Contains(at4, "{{.name}}") {
+	if !slices.Contains(at4, "text") || !slices.Contains(at4, "name") {
 		t.Errorf("after unset, scope lost text or name: %q", at4)
 	}
 	// A variable set by a step points at it, so its last value comes from that step's result.
@@ -278,15 +278,15 @@ steps:
 
 func TestWarningsForVariablesNotSet(t *testing.T) {
 	f := parse(t, `
-params: {a: "1"}
+variables: {a: "1"}
 steps:
-  - run: 'echo {{.sum}}'
+  - run: 'echo $sum'
   - set: {sum: '1'}
   - unset: [a]
-  - run: 'echo {{.a}} {{.sum}}'
-  - if: 'true'
+  - run: 'echo $a $sum'
+  - if: true
     then: [{set: {maybe: '1'}}]
-  - run: 'echo {{.maybe}}'
+  - run: 'echo $maybe'
 `)
 	var got []string
 	for _, w := range f.Warnings(nil) {
@@ -308,12 +308,12 @@ func TestTestingAStepReadsVariablesOfTheLastRun(t *testing.T) {
 	r, out := testRunner(t, nil)
 	r.Ask = func(string) string { return "typed" }
 	f := parse(t, `
-params: {a: "1", gone: "x"}
+variables: {a: "1", gone: "x"}
 steps:
-  - set: {sum: '{{.a}}0'}
+  - set: {sum: '${a}0'}
   - {prompt: Name, var: name}
   - unset: [gone]
-  - run: 'echo "sum={{.sum}} name={{.name}} gone=[{{.gone}}]"'
+  - run: 'echo "sum=$sum name=$name gone=[$gone]"'
 `)
 	previous := r.Run(f, nil)
 	out.Reset()
@@ -335,7 +335,7 @@ func readFile(t *testing.T, file string) string {
 }
 
 func TestEveryParamTypeChecksItsValues(t *testing.T) {
-	f := parse(t, `params:
+	f := parse(t, `variables:
   deploy: {type: bool, default: "true"}
   env: {type: choice, choices: [dev, prod], default: dev}
   dir: {type: path}
@@ -358,10 +358,10 @@ steps: [{run: 'true'}]
 		}
 	}
 	for content, problem := range map[string]string{
-		"params:\n  a: {type: choice}\nsteps: [{run: 'true'}]\n":                           "needs its choices",
-		"params:\n  a: {type: bool, default: yes}\nsteps: [{run: 'true'}]\n":               "the default must be one of",
-		"params:\n  a: {type: date}\nsteps: [{run: 'true'}]\n":                             "one of text, number, boolean, option, path, list, object",
-		"params:\n  a: {type: choice, choices: [x], default: y}\nsteps: [{run: 'true'}]\n": "the default must be one of x",
+		"variables:\n  a: {type: choice}\nsteps: [{run: 'true'}]\n":                           "needs its choices",
+		"variables:\n  a: {type: bool, default: yes}\nsteps: [{run: 'true'}]\n":               "the default must be one of",
+		"variables:\n  a: {type: date}\nsteps: [{run: 'true'}]\n":                             "one of text, number, boolean, option, path, list, object",
+		"variables:\n  a: {type: choice, choices: [x], default: y}\nsteps: [{run: 'true'}]\n": "the default must be one of x",
 	} {
 		if err := parse(t, content).Validate(nil); err == nil || !strings.Contains(err.Error(), problem) {
 			t.Errorf("%q: %v, want %q", content, err, problem)

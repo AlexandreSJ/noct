@@ -50,7 +50,7 @@ func returnLines(f flow.Flow) []string {
 	}
 	var lines []string
 	for _, name := range slices.Sorted(maps.Keys(f.Returns)) {
-		lines = append(lines, "↩ "+name+" = "+shortTemplate(f.Returns[name]))
+		lines = append(lines, "↩ "+name+" = "+strings.TrimSpace(f.Returns[name]))
 	}
 	return lines
 }

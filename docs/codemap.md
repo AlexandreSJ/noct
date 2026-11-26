@@ -70,7 +70,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/scripts.go` | Script actions: reload the library, run (form or not) as a tracked run with its log and exit code, create, edit in the configured editor, rename, delete |
 | `internal/app/form.go` | Parameters form shown before a script runs, or a flow (`p` in the inspect) |
 | `internal/app/run_view.go` | A script's run: its terminal plus a status line, held open with the exit code |
-| `internal/app/template_complete.go` | Completing the variables in scope as `{{.` (or `.` after a function, `{{eq .`) is typed in a step form's template row |
+| `internal/app/template_complete.go` | Completing the variables in scope and the functions as a name is typed in a step form: alone in an expression, after a `$` in a text, alone again inside a `$f(` or `${` |
 | `internal/app/finder.go` | Fuzzy search over scripts, actions and tabs (prefix+space), or over given items (a flow step's script) |
 | `internal/app/help.go` | Help for the focused terminal's foreground program (prefix+?) |
 | `internal/app/home.go` | Home screen (no tabs or an empty tab): title, raven, intro and when it plays (animate intro), per-character flicker on hover, shortcuts reveal and timer |
@@ -173,12 +173,12 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `docs/assets/` | The README's logo (`logo.svg`, the home's art as rectangles) and GIFs |
 | `.github/workflows/ci.yml`, `.githooks/pre-push`, `Makefile` (`hooks`) | Checks before a release: `make check` on GitHub for every pushed branch and pull request, and locally on each pushed commit, which also stops a version tag off the tip of `main` or without its CHANGELOG section |
 | `.github/workflows/release.yml`, `Makefile` (`dist`, `release-notes`), `CHANGELOG.md` | Releases: a pushed `vX.Y.Z` tag runs the checks, builds the archives and checksums, and publishes the GitHub release with the tag's CHANGELOG section, which noct's updates read (ADR-047) |
-| `internal/script/script.go` | A script: load, validate (params and outputs), render its command line, create and delete; `WalkFields`, the template field walker flows also use |
+| `internal/script/script.go` | A script: load, validate (params and outputs), render its command line, create and delete; `WalkFields`, the template field walker |
 | `internal/script/library.go` | The library: personal scripts, folders of scripts (in the scripts folder, linked, project), IDs, lookups |
 | `internal/script/edit.go` | Creating a script (with optional hints) and updating it from the form's fields, keeping the rest of the YAML; params as YAML text |
 | `internal/script/values.go` | Starting values of parameters, checking them, remembered values file |
 | `internal/script/history.go` | The list of recent runs of scripts and flows (the last 1000), with exit code, log and session, and sorting scripts by name, edit or last run |
-| `internal/flow/flow.go` | A flow: steps (script, run, call, agent, if, switch, repeat with each, wait, prompt, set, unset, retry), the lists inside a step (`Branches`), loading, saving, creating, template functions |
+| `internal/flow/flow.go` | A flow: steps (script, run, call, agent, if, switch, repeat with each, wait, prompt, set, unset, retry), the lists inside a step (`Branches`), loading, saving, creating |
 | `internal/flow/timeout.go` | Flow and step timeouts: parsing and validation, the `noct check` warning, run and step deadlines, stopping a step's processes |
 | `internal/flow/validate.go` | Checking a flow and its steps: ids, fields that belong to each kind, patterns |
 | `internal/flow/agent.go` | Agent steps: a command split into words with the question in place of `{prompt}`, or as its input after `< {prompt}` or with no `{prompt}`, the answer without the model's thinking, and its choices |
@@ -190,10 +190,16 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/flow/result.go` | A run's result with each step's output and status; saving and loading the last one |
 | `internal/flow/try.go` | Testing a range of sibling steps over the last result (its steps' fields and variables), and merging what they did into it |
 | `internal/flow/vars.go` | Params with a type (text, number, boolean, option, path, list, object; `bool` and `choice` read as before), required and a label, and checking values; running prompt, set and unset steps |
-| `internal/flow/json.go` | List and object params: decoding their JSON, lists and objects inside each other, for templates to read inside and print whole as JSON; a list's items as the inspect edits them (`ListItems`, `ItemsJSON`) |
-| `internal/flow/dollar.go` | `$name` in flow templates: the names a flow knows (`knownNames`) and `expandDollars`, which rewrites them as `{{ }}` escaped for a run line's quotes or a JSON default |
+| `internal/flow/json.go` | List and object variables: decoding their JSON, lists and objects inside each other, for expressions to read inside and print whole as JSON; a list's items as the inspect edits them (`ListItems`, `ItemsJSON`) |
+| `internal/flow/dollar.go` | How a flow reads values (ADR-074): the names it knows (`knownNames`), its expressions (`parseExpression`), the `$` references of a text (`splitText`, following a run line's quotes, `$(( ))` and heredocs) rendered escaped where they land (`renderText`), the run's scope (`scopeOf`), and old `{{ }}` refused (`oldTemplate`) |
 | `internal/flow/move.go` | Flows and functions as files in folders: `Folders`, `CreateFolder`, `DeleteFolder`, `Copy`, `Rename` and `MoveFolder` (with the last result and triggers), `RenameCalls` |
-| `internal/flow/param_defaults.go` | Params' defaults as templates over the params before them (`withDefaults`, `DefaultProblem`), and the `json` template function |
+| `internal/flow/param_defaults.go` | Variables' defaults read over the variables before them (`withDefaults`, `DefaultProblem`) |
+| `internal/expr/expr.go` | noct's expressions (ADR-074): `Parse`, `ParseRef` for a `$` in a text, `Eval` over a `Scope`, and the names one reads (`Names`) |
+| `internal/expr/lex.go` | The tokens of an expression: names, numbers, quoted texts, operators |
+| `internal/expr/parse.go` | The parser: operators by precedence (`not` as in Python, `!` as in JS), fields, indexes, calls, lists, objects and lambdas |
+| `internal/expr/eval.go` | Evaluating the tree: the operators, short-circuit `and`/`or`, lambdas |
+| `internal/expr/values.go` | Values: text that reads as a number (`Number`), truth (`Truthy`), equality, text and JSON, fields of a JSON text, a text's lines as a list (`List`) |
+| `internal/expr/funcs.go` | The functions expressions call (`len`, `join`, `map`, `filter`, `match`, …), with their usage for the editor's help (`Functions`) |
 | `internal/flow/param_order.go` | The order of a flow's params: read and written as the YAML has them (`ParamOrder`), and `ParamNames` in that order |
 | `internal/flow/trigger.go` | Triggers (manual, cron, watch, after) in YAML, their validation, globs with `**`, loops of after triggers, which flows have them enabled |
 | `internal/flow/cron.go` | Five-field cron schedules: parsing and matching a minute |

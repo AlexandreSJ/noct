@@ -55,11 +55,11 @@ func TestInspectBuildsAFlowStepByStep(t *testing.T) {
 	pressDrawn(a, enterPress, letter('a'), letter('l'))
 	setCell(a, "") // no times: until
 	pressDrawn(a, letter('j'))
-	setCell(a, `{{ne .steps.dice.number "6"}}`)
+	setCell(a, `dice.number != 6`)
 	pressDrawn(a, ctrlS, downPress, letter('a'), letter('s'))
 	typeDrawn(a, "where")
 	pressDrawn(a, enterPress, letter('a'), letter('i'))
-	setCell(a, `{{eq .steps.where.exit "0"}}`)
+	setCell(a, `where.exit == 0`)
 	pressDrawn(a, ctrlS, downPress, letter('a'), letter('s'))
 	typeDrawn(a, "dice")
 	pressDrawn(a, enterPress, letter('e'))
@@ -80,11 +80,11 @@ func TestInspectBuildsAFlowStepByStep(t *testing.T) {
 	branch, _ := f.Step("0/steps/1")
 	dice, _ := f.Step("0/steps/1/then/0")
 	switch {
-	case repeat.Repeat == nil || repeat.Repeat.Until != `{{ne .steps.dice.number "6"}}` || repeat.Repeat.Max != 10:
+	case repeat.Repeat == nil || repeat.Repeat.Until != `dice.number != 6` || repeat.Repeat.Max != 10:
 		t.Errorf("repeat = %+v", repeat.Repeat)
 	case inner.Script != "where" || inner.ID != "where":
 		t.Errorf("first step inside = %+v", inner)
-	case branch.If != `{{eq .steps.where.exit "0"}}`:
+	case branch.If != `where.exit == 0`:
 		t.Errorf("if = %+v", branch)
 	case dice.Script != "dice" || dice.Capture["number"] != `number=(\d)`:
 		t.Errorf("then step = %+v", dice)

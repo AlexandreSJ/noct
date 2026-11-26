@@ -8,16 +8,16 @@ import (
 
 // A block works as in a language: it changes a variable made before it, and the ones it makes go
 // when it ends, unless it exports them.
-const scopedFlow = `params:
+const scopedFlow = `variables:
   env: dev
 steps:
   - {id: build, run: 'echo built; echo version=1.2'}
-  - if: 'true'
+  - if: true
     then:
       - set: {env: prod, inner: here}
       - {id: probe, run: 'echo probed'}
     export: {inner: kept}
-  - {run: 'echo "{{.env}} {{.output}} {{.kept}} [{{.inner}}] {{.steps.build.output}}"'}
+  - {run: 'echo "$env $output $kept [$inner] $build.output"'}
 `
 
 func TestABlockChangesWhatExistsAndDropsWhatItMade(t *testing.T) {
@@ -61,21 +61,21 @@ func TestOnlyIfsAndRepeatsExport(t *testing.T) {
 
 // An if's export is surely set only when both branches set it; the runner keeps whichever ran.
 func TestAnExportBothBranchesSetIsSurelySet(t *testing.T) {
-	f := parse(t, `params:
+	f := parse(t, `variables:
   pick: b
 steps:
-  - if: '{{eq .pick "a"}}'
+  - if: pick == "a"
     then: [{set: {note: from-a}}]
     else:
-      - if: '{{eq .pick "b"}}'
+      - if: pick == "b"
         then: [{set: {note: from-b}}]
         else: [{set: {note: other}}]
         export: {note: ""}
     export: {note: both}
-  - if: 'true'
+  - if: true
     then: [{set: {half: x}}]
     export: {half: ""}
-  - {run: 'echo "[{{.both}}] [{{.half}}]"'}
+  - {run: 'echo "[$both] [$half]"'}
 `)
 	var got []string
 	for _, w := range f.Warnings(nil) {

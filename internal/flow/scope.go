@@ -35,25 +35,20 @@ type Variable struct {
 	Certainty Certainty
 }
 
-// Dollar is how a template reads the variable most simply: $name, or $step.field.
-func (v Variable) Dollar() string {
+// Name is how an expression reads the variable: name, or step.field.
+func (v Variable) Name() string {
 	if v.Step == "" {
-		return "$" + v.Field
+		return v.Field
 	}
-	return "$" + v.Step + "." + v.Field
+	return v.Step + "." + v.Field
 }
 
-// Template is how a template reads the variable inside {{ }}.
-func (v Variable) Template() string {
-	if v.Step == "" {
-		return "{{." + v.Field + "}}"
-	}
-	return "{{.steps." + v.Step + "." + v.Field + "}}"
-}
+// Dollar is how a text reads the variable: $name, or $step.field.
+func (v Variable) Dollar() string { return "$" + v.Name() }
 
-// Readable are vars as a template reads them most simply, the short names first: a step's field
-// is left out where its short name, {{.field}}, reads that same step; a field a later step set
-// again stays, since only {{.steps.<id>.<field>}} reaches it.
+// Readable are vars as an expression reads them most simply, the short names first: a step's
+// field is left out where its short name, field, reads that same step; a field a later step set
+// again stays, since only step.field reaches it.
 func Readable(vars []Variable) []Variable {
 	setBy := map[string]string{}
 	for _, v := range vars {

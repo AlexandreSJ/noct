@@ -5,15 +5,15 @@ import (
 	"testing"
 )
 
-const objectFromParams = `params:
+const objectFromParams = `variables:
   user: {from: "env:DEPLOY_USER"}
   password: {default: 'say "hi"', secret: true}
+  hosts: {type: list, default: '["a"]'}
   login:
     type: object
-    default: '{"user": {{json .user}}, "pass": {{json .password}}, "hosts": {{json .hosts}}}'
-  hosts: {type: list, default: '["a"]'}
+    default: '{"user": $user, "pass": $password, "hosts": $hosts}'
 steps:
-  - run: printf '%s %s|' {{quote .login.user}} {{quote .login.pass}}
+  - run: printf '%s %s|' $login.user $login.pass
 `
 
 func TestAParamDefaultReadsTheParamsBeforeIt(t *testing.T) {
@@ -33,15 +33,15 @@ func TestAParamDefaultReadsTheParamsBeforeIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// hosts comes after login, so login reads it empty; the quotes in the password are escaped.
-	if want := `{"user": "ana", "pass": "say \"hi\"", "hosts": ""}`; x.vars["login"] != want {
+	// hosts comes before login, which reads it as JSON; the quotes in the password are escaped.
+	if want := `{"user": "ana", "pass": "say \"hi\"", "hosts": ["a"]}`; x.vars["login"] != want {
 		t.Errorf("login = %s, want %s", x.vars["login"], want)
 	}
 }
 
 func TestAValueGivenForATemplateDefaultIsNotRendered(t *testing.T) {
 	f := parse(t, objectFromParams)
-	given := `{"user": "{{.password}}"}`
+	given := `{"user": "$password"}`
 	x, err := (&Runner{}).start(f, map[string]string{"login": given})
 	if err != nil || x.vars["login"] != given {
 		t.Errorf("login = %q (%v), want the value given as it is", x.vars["login"], err)
@@ -49,15 +49,15 @@ func TestAValueGivenForATemplateDefaultIsNotRendered(t *testing.T) {
 }
 
 func TestADefaultThatRendersWrongIsTold(t *testing.T) {
-	f := parse(t, "params:\n  a: {type: object, default: '{\"x\": {{.b}}}'}\nsteps: [{run: 'true'}]\n")
+	f := parse(t, "variables:\n  a: {type: object, default: '{\"x\": $b}'}\nsteps: [{run: 'true'}]\n")
 	if err := f.Validate(nil); err != nil {
 		t.Fatalf("a template default is checked when it renders: %v", err)
 	}
 	if err := f.CheckParams(nil); err == nil || !strings.Contains(err.Error(), "JSON object") {
 		t.Errorf("CheckParams = %v, want the rendered default refused", err)
 	}
-	broken := parse(t, "params:\n  a: '{{.b'\nsteps: [{run: 'true'}]\n")
-	if err := broken.Validate(nil); err == nil || !strings.Contains(err.Error(), "template") {
+	broken := parse(t, "variables:\n  a: '$len(b'\nsteps: [{run: 'true'}]\n")
+	if err := broken.Validate(nil); err == nil || !strings.Contains(err.Error(), "$len") {
 		t.Errorf("Validate = %v, want a default that does not parse refused", err)
 	}
 }

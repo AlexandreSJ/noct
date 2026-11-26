@@ -55,11 +55,6 @@ func variableName(v flow.Variable) string {
 	return v.Dollar()
 }
 
-// fieldName is a variable as an action inside {{ }} reads it: .name, or .steps.step.field.
-func fieldName(v flow.Variable) string {
-	return strings.TrimSuffix(strings.TrimPrefix(v.Template(), "{{"), "}}")
-}
-
 // drawScope frames the variables a block reads, with their last values, under the warnings of
 // the step selected.
 func (p *inspectPanel) drawScope(screen uv.Screen, area image.Rectangle, f flow.Flow, r *flow.Result) {

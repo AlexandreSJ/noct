@@ -19,13 +19,13 @@ import (
 func (f Flow) Validate(lookup func(id string) (script.Script, bool)) error {
 	for name, p := range f.Params {
 		if !isVariable(name) {
-			return fmt.Errorf("parameter name %q must be letters, digits and _ only, and not steps", name)
+			return fmt.Errorf("variable name %q must be letters, digits and _ only", name)
 		}
 		if err := checkParam(p); err != nil {
-			return fmt.Errorf("parameter %s: %w", name, err)
+			return fmt.Errorf("variable %s: %w", name, err)
 		}
 		if _, ok := p.EnvName(); p.From != "" && !ok {
-			return fmt.Errorf("parameter %s: from must look like env:NAME", name)
+			return fmt.Errorf("variable %s: from must look like env:NAME", name)
 		}
 	}
 	for i, t := range f.Triggers {
@@ -36,8 +36,21 @@ func (f Flow) Validate(lookup func(id string) (script.Script, bool)) error {
 	if _, err := parseTimeout(f.Timeout); err != nil {
 		return err
 	}
-	ids := map[string]bool{}
-	return validateSteps(f.Steps, "", ids, lookup, f.knownNames(lookup))
+	known := f.knownNames(lookup)
+	if err := validateSteps(f.Steps, "", map[string]bool{}, lookup, known); err != nil {
+		return err
+	}
+	return f.validateReturns(known)
+}
+
+// validateReturns checks the $ references of a function's returns.
+func (f Flow) validateReturns(known knownNames) error {
+	for _, name := range slices.Sorted(maps.Keys(f.Returns)) {
+		if _, err := splitText(f.Returns[name], plainText, known); err != nil {
+			return fmt.Errorf("returns %s: %w", name, err)
+		}
+	}
+	return nil
 }
 
 func validateSteps(steps []Step, where string, ids map[string]bool, lookup func(id string) (script.Script, bool), known knownNames) error {
@@ -275,30 +288,50 @@ func (r *Repeat) validate() error {
 	return nil
 }
 
-// templates are every text of the step that is rendered: those before it runs and the repeat's
-// until.
-func (s Step) templates() []string {
-	texts := s.orderedTemplates()
+// expressions are the step's conditions and values read as expressions: its if, its switch, and
+// its repeat's each and until.
+func (s Step) expressions() []string {
+	texts := []string{s.If, s.Switch}
 	if s.Repeat != nil {
-		texts = append(texts, s.Repeat.Until)
+		texts = append(texts, s.Repeat.Each, s.Repeat.Until)
 	}
-	return texts
+	return slices.DeleteFunc(texts, func(text string) bool { return text == "" })
 }
 
+// texts are the step's texts that read values with $: its run line, prompt, question, and the
+// values of its with and set.
+func (s Step) texts() []string {
+	texts := []string{s.Run, s.Prompt, s.Default}
+	if s.Agent != nil {
+		texts = append(texts, s.Agent.Ask, s.Agent.Use)
+	}
+	for _, values := range []map[string]string{s.With, s.Set} {
+		for _, name := range slices.Sorted(maps.Keys(values)) {
+			texts = append(texts, values[name])
+		}
+	}
+	return slices.DeleteFunc(texts, func(text string) bool { return text == "" })
+}
+
+// validateTemplates checks the step's expressions and the $ references of its texts.
 func (s Step) validateTemplates(known knownNames) error {
-	for _, text := range s.templates() {
-		expanded, err := expandDollars(text, s.textKind(text), known)
-		if err != nil {
+	for _, text := range s.expressions() {
+		if _, err := parseExpression(text, known); err != nil {
+			return fmt.Errorf("%s: %w", text, err)
+		}
+	}
+	for _, text := range s.texts() {
+		if err := oldTemplate(text, known); err != nil {
 			return err
 		}
-		if _, err := parseTemplate(expanded); err != nil {
+		if _, err := splitText(text, s.textKind(text), known); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// textKind is what one of the step's templates is: its run line is the shell's.
+// textKind is what one of the step's texts is: its run line is the shell's.
 func (s Step) textKind(text string) textKind {
 	if text != "" && text == s.Run {
 		return shellText

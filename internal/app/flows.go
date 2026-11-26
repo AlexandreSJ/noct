@@ -114,7 +114,7 @@ func (a *App) fromEnvironment(p flow.Param) bool {
 // them and runs the flow.
 func (a *App) openFlowForm(f flow.Flow, values map[string]string) {
 	if len(f.Params) == 0 {
-		a.statusMessage = "flow " + f.Name + " has no parameters"
+		a.statusMessage = "flow " + f.Name + " has no variables"
 		return
 	}
 	var fields []script.Param

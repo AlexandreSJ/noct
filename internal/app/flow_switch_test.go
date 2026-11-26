@@ -18,7 +18,7 @@ func TestASwitchIsAddedAndDrawnWithABranchPerCase(t *testing.T) {
 	p := a.currentTab().focusedView().(*inspectPanel)
 	p.selected = stepKey("0")
 	pressDrawn(a, letter('a'), letter('o'))
-	setCell(a, "{{.output}}")
+	setCell(a, "output")
 	pressDrawn(a, letter('j'))
 	addItems(a, "flaky", "bug|regression")
 	pressDrawn(a, ctrlS)
@@ -26,7 +26,7 @@ func TestASwitchIsAddedAndDrawnWithABranchPerCase(t *testing.T) {
 		t.Fatalf("status: %s", a.statusMessage)
 	}
 	steps := loadFlowSteps(t, "sort")
-	if len(steps) != 2 || steps[1].Switch != "{{.output}}" || len(steps[1].Cases) != 2 || strings.Join(steps[1].Cases[1].Is, " ") != "bug regression" {
+	if len(steps) != 2 || steps[1].Switch != "output" || len(steps[1].Cases) != 2 || strings.Join(steps[1].Cases[1].Is, " ") != "bug regression" {
 		t.Fatalf("steps = %+v", steps)
 	}
 	text := chartText(p.chart)
@@ -54,15 +54,15 @@ func TestAForEachIsAddedAndTitledByItsLines(t *testing.T) {
 	p := a.currentTab().focusedView().(*inspectPanel)
 	p.selected = stepKey("0")
 	pressDrawn(a, letter('a'), letter('e'))
-	setCell(a, "{{.steps.list.output}}")
+	setCell(a, "list.output")
 	pressDrawn(a, letter('j'))
 	setCell(a, "host")
 	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "hosts")
-	if len(steps) != 2 || steps[1].Repeat == nil || steps[1].Repeat.Each != "{{.steps.list.output}}" || steps[1].Repeat.As != "host" {
+	if len(steps) != 2 || steps[1].Repeat == nil || steps[1].Repeat.Each != "list.output" || steps[1].Repeat.As != "host" {
 		t.Fatalf("steps = %+v", steps)
 	}
-	if text := chartText(p.chart); !strings.Contains(text, "↻ for each host in .steps.list.output") {
+	if text := chartText(p.chart); !strings.Contains(text, "↻ for each host in list.output") {
 		t.Errorf("chart lacks the for each title:\n%s", text)
 	}
 }

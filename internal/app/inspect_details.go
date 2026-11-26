@@ -74,9 +74,9 @@ func (p *inspectPanel) scrollDetails(rows int) {
 func (p *inspectPanel) detailsTitle(f flow.Flow, block chartBlock) string {
 	switch {
 	case block.params && f.Function:
-		return "params and returns"
+		return "variables and returns"
 	case block.params:
-		return "params"
+		return "variables"
 	case block.isInsertion():
 		return "a place for a step"
 	}
@@ -117,7 +117,7 @@ func (p *inspectPanel) detailLines(f flow.Flow, block chartBlock, last *flow.Res
 func (p *inspectPanel) paramDetails(f flow.Flow) []styledLine {
 	pal := &p.app.palette
 	if len(f.Params) == 0 && len(f.Returns) == 0 {
-		return []styledLine{{"No params: a run asks nothing. a adds one.", pal.panelText}}
+		return []styledLine{{"No variables: a run asks nothing. a adds one.", pal.panelText}}
 	}
 	lines := []styledLine{{"A run asks for these in a form, or takes them as name=value:", pal.panelHeading}}
 	for _, name := range f.ParamNames() {

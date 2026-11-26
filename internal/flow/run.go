@@ -17,6 +17,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/AlexandreSJ/noct/internal/expr"
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
@@ -68,9 +69,9 @@ type running struct {
 	*Runner
 	// vars are the flow's variables: its parameters, and what set and prompt steps gave.
 	vars map[string]string
-	// jsonVars are the list and object params among vars, by name, which templates read as JSON.
+	// jsonVars are the list and object variables among vars, by name, which expressions read as JSON.
 	jsonVars map[string]string
-	// known are the names the flow's templates read with $, besides those set.
+	// known are the names the flow reads, in expressions and with $, besides those set.
 	known knownNames
 	// steps holds, by step id, output, exit, ok and the captures, for the templates.
 	steps  map[string]map[string]string
@@ -201,11 +202,11 @@ func (x *running) runIf(s Step, path string) bool {
 
 // runSwitch runs the steps of the first case whose values hold the switch's, or its else.
 func (x *running) runSwitch(s Step, path string) bool {
-	value, err := x.render(s.Switch)
+	result, err := x.evaluate(s.Switch)
 	if err != nil {
 		return x.stop(path, "switch: "+err.Error(), 1)
 	}
-	value = strings.TrimSpace(value)
+	value := strings.TrimSpace(expr.String(result))
 	branch, steps, answer := "else", s.Else, "else"
 	for i, c := range s.Cases {
 		if slices.ContainsFunc(c.Is, func(is string) bool { return strings.TrimSpace(is) == value }) {
@@ -223,16 +224,19 @@ func (x *running) runSwitch(s Step, path string) bool {
 	return x.runSteps(steps, path, branch)
 }
 
-// eachLines are the lines a repeat each runs its steps for: the text's lines, trimmed, without
-// the empty ones.
-func eachLines(text string) []string {
-	var lines []string
-	for _, line := range strings.Split(text, "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			lines = append(lines, line)
-		}
+// eachItems are what a repeat each runs its steps for: a list's items, or a text's lines without
+// the empty ones, each as its text, a list or object as its JSON.
+func (x *running) eachItems(text string) ([]string, error) {
+	value, err := x.evaluate(text)
+	if err != nil {
+		return nil, err
 	}
-	return lines
+	list, err := expr.List(value)
+	items := make([]string, len(list))
+	for i, item := range list {
+		items[i] = expr.String(item)
+	}
+	return items, err
 }
 
 // runRepeat runs the steps pass after pass. Each pass starts without the results of the steps
@@ -242,11 +246,11 @@ func (x *running) runRepeat(s Step, path string) bool {
 	passes := r.passes()
 	var lines []string
 	if r.Each != "" {
-		text, err := x.render(r.Each)
+		items, err := x.eachItems(r.Each)
 		if err != nil {
 			return x.stop(path, "each: "+err.Error(), 1)
 		}
-		lines = eachLines(text)
+		lines = items
 		passes = len(lines)
 		if r.Max > 0 {
 			passes = min(passes, r.Max)
@@ -372,8 +376,8 @@ func (x *running) launch(s Step, command, dir string, deadline time.Time) (strin
 
 // keepStepValues makes a step's output, exit, ok and captures readable by the templates after
 // it.
-// keepStepValues keeps what a script or run step gave: as {{.steps.<id>.<name>}}, and as the
-// variables of the same names, {{.output}}, {{.exit}}, {{.ok}} and its captures, which the next
+// keepStepValues keeps what a script or run step gave: as <id>.<name>, and as the
+// variables of the same names, output, exit, ok and its captures, which the next
 // such step gives again.
 func (x *running) keepStepValues(id string, result StepResult, output string, ok bool) {
 	values := stepValues(output, result.Exit, ok, result.Captures)
@@ -419,7 +423,7 @@ func (x *running) closeBlock(export map[string]string) {
 	}
 }
 
-// stepValues are what templates read from a script or run step: {{.steps.<id>.<name>}}.
+// stepValues are what the steps after read from a script or run step: <id>.<name>.
 func stepValues(output string, exit int, ok bool, captures map[string]string) map[string]string {
 	values := map[string]string{"output": output, "exit": strconv.Itoa(exit), "ok": strconv.FormatBool(ok)}
 	maps.Copy(values, captures)
@@ -554,56 +558,29 @@ func (x *running) stop(path, reason string, exit int) bool {
 	return false
 }
 
-// condition renders a template that must give true or false.
-func (x *running) condition(text string) (bool, error) {
-	value, err := x.render(text)
+// evaluate reads an expression, a condition or a switch's or each's value, and gives its value.
+func (x *running) evaluate(text string) (any, error) {
+	known := x.known.with(x.vars, x.steps)
+	e, err := parseExpression(text, known)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	switch strings.TrimSpace(value) {
-	case "true":
-		return true, nil
-	case "false", "":
-		return false, nil
-	}
-	return false, fmt.Errorf("gave %q, not true or false", value)
+	return e.Eval(scopeOf(known, x.vars, x.jsonVars, x.steps))
+}
+
+// condition evaluates an expression as a condition: see expr.Truthy.
+func (x *running) condition(text string) (bool, error) {
+	value, err := x.evaluate(text)
+	return expr.Truthy(value), err
 }
 
 func (x *running) render(text string) (string, error) {
-	return renderVars(text, plainText, x.known, x.vars, x.jsonVars, x.steps)
+	return renderText(text, plainText, x.known, x.vars, x.jsonVars, x.steps)
 }
 
 // renderShell renders a run line: each $name one shell word, or escaped inside its quotes.
 func (x *running) renderShell(text string) (string, error) {
-	return renderVars(text, shellText, x.known, x.vars, x.jsonVars, x.steps)
-}
-
-// renderVars renders a template of a kind over variables, the list and object ones among them
-// read as JSON, and the steps' results. Its $ names are those known and those set.
-func renderVars(text string, kind textKind, known knownNames, vars, jsonVars map[string]string, steps map[string]map[string]string) (string, error) {
-	expanded, err := expandDollars(text, kind, known.with(vars, steps))
-	if err != nil {
-		return "", err
-	}
-	t, err := parseTemplate(expanded)
-	if err != nil {
-		return "", err
-	}
-	data := map[string]any{"steps": steps}
-	for name, value := range vars {
-		data[name] = readAs(jsonVars[name], value)
-	}
-	// A variable not set, or unset, reads as empty rather than as <no value>.
-	script.WalkFields(t.Root, func(ident []string) {
-		if _, set := data[ident[0]]; !set {
-			data[ident[0]] = ""
-		}
-	})
-	var out bytes.Buffer
-	if err := t.Execute(&out, data); err != nil {
-		return "", err
-	}
-	return out.String(), nil
+	return renderText(text, shellText, x.known, x.vars, x.jsonVars, x.steps)
 }
 
 // capture applies each regex to the output line by line (^ and $ match at each line); the first
