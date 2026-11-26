@@ -12,9 +12,9 @@ import (
 
 func TestSwitchRunsTheFirstCaseThatHoldsTheValue(t *testing.T) {
 	f := parse(t, `
-params: { kind: "" }
+variables: { kind: "" }
 steps:
-  - switch: '{{.kind}}'
+  - switch: kind
     cases:
       - is: flaky
         steps: [ { run: echo ran-flaky } ]
@@ -142,16 +142,16 @@ steps:
 func TestRepeatEachRunsOncePerLine(t *testing.T) {
 	r, out := testRunner(t, nil)
 	f := parse(t, `
-params: { file: outer }
+variables: { file: outer }
 steps:
   - id: list
     run: printf 'a.txt\n\n  b.txt \nc.txt\n'
-  - repeat: { each: '{{.steps.list.output}}', as: file, until: '{{eq .file "b.txt"}}' }
+  - repeat: { each: list.output, as: file, until: file == "b.txt" }
     steps:
-      - run: 'echo got-{{.file}}'
-  - run: 'echo then-{{.file}}'
-  - repeat: { each: '{{.steps.list.output}}' }
-    steps: [ { run: 'echo item-{{.item}}' } ]
+      - run: 'echo got-$file'
+  - run: 'echo then-$file'
+  - repeat: { each: list.output }
+    steps: [ { run: 'echo item-$item' } ]
 `)
 	if err := f.Validate(nil); err != nil {
 		t.Fatal(err)
@@ -189,9 +189,9 @@ func TestRepeatEachValidationAndScope(t *testing.T) {
 	}
 	f := parse(t, `
 steps:
-  - repeat: { each: 'a', as: host }
-    steps: [ { run: 'echo {{.host}}' } ]
-  - run: 'echo {{.host}}'
+  - repeat: { each: '"a"', as: host }
+    steps: [ { run: 'echo $host' } ]
+  - run: 'echo $host'
 `)
 	warnings := f.Warnings(nil)
 	if len(warnings) != 1 || warnings[0].Path != "1" {
@@ -215,6 +215,7 @@ func containsVariable(vars []Variable, name string) bool {
 // A variable every case and the else set is set after the switch, as after an if.
 func TestSwitchScope(t *testing.T) {
 	f := parse(t, `
+variables: {x: a}
 steps:
   - switch: x
     cases:
@@ -224,8 +225,8 @@ steps:
         steps: [ { set: { note: two } } ]
     else: [ { set: { note: three } } ]
     export: { note: "", only: "" }
-  - run: 'echo {{.note}}'
-  - run: 'echo {{.only}}'
+  - run: 'echo $note'
+  - run: 'echo $only'
 `)
 	warnings := f.Warnings(nil)
 	if len(warnings) != 1 || warnings[0].Path != "2" || !strings.Contains(warnings[0].Text, "may not") {

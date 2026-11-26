@@ -329,3 +329,29 @@ func TestUnreadRepliesDoNotFreezeTheScreen(t *testing.T) {
 		t.Error("the program's output stopped showing")
 	}
 }
+
+// A pane with views shows the clean view first, and ToggleView shows the full one.
+func TestAPaneWithViewsShowsTheCleanOneFirst(t *testing.T) {
+	exited := make(chan struct{})
+	p, err := Start(Options{
+		Argv:   []string{"sh", "-c", `printf 'ask\r\n\033]7770;full\007HEADER\r\n\033]7770;both\007out\r\n\033]7770;clean\007exit 0\033]7770;both\007'`},
+		Env:    []string{"TERM=xterm-256color", "PATH=/usr/bin:/bin"},
+		Size:   pty.Size{Cols: 20, Rows: 5},
+		OnExit: func(int) { close(exited) },
+		Views:  true,
+	})
+	if err != nil {
+		t.Fatalf("starting pane: %v", err)
+	}
+	t.Cleanup(p.Close)
+	waitFor(t, exited)
+	if text := screenText(p); !strings.Contains(text, "exit 0") || strings.Contains(text, "HEADER") {
+		t.Errorf("the clean view:\n%s", text)
+	}
+	if !p.ToggleView() {
+		t.Fatal("the pane has no views")
+	}
+	if text := screenText(p); strings.Contains(text, "exit 0") || !strings.Contains(text, "HEADER") {
+		t.Errorf("the full view:\n%s", text)
+	}
+}

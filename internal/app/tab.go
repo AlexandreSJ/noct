@@ -209,9 +209,21 @@ func (t *tab) removeView(id layout.PaneID) {
 	}
 }
 
-// edgePane is the pane a pane arriving from the given heading lands next to: moving right, a
-// pane enters a tab from its left side, so it lands beside the first pane.
-func (t *tab) edgePane(heading layout.Heading) layout.PaneID {
+// edgePane is the pane focus, or a pane, arriving from the given heading lands at: moving right,
+// it enters a tab from its left side, so the first pane. The pane focused when the tab was left
+// wins when it is on that side too, so going to a tab and back keeps the pane, as for the top
+// of two stacked panes.
+func (t *tab) edgePane(heading layout.Heading, area image.Rectangle) layout.PaneID {
+	rects := t.rects(area)
+	onSide := func(id layout.PaneID) bool {
+		if heading == layout.Left {
+			return rects[id].Max.X == area.Max.X
+		}
+		return rects[id].Min.X == area.Min.X
+	}
+	if focused := t.tiledFocus(); onSide(focused) {
+		return focused
+	}
 	panes := t.tree.Panes()
 	if heading == layout.Left {
 		return panes[len(panes)-1]

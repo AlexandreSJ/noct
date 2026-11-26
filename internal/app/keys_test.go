@@ -133,6 +133,31 @@ func TestArrowsCrossFromPanesIntoTabs(t *testing.T) {
 	}
 }
 
+// Back into a tab, focus goes to the pane it left when that pane is on the side it comes in at,
+// as the top of two stacked panes, and to the side's last pane otherwise.
+func TestArrowsBackIntoATabKeepItsPane(t *testing.T) {
+	for _, start := range []layout.PaneID{1, 2} {
+		column := newTab(1, &fakeView{})
+		column.tree.Split(1, 2, layout.Stacked)
+		column.views[2] = &fakeView{}
+		column.focus(start)
+		a := testApp(t, column, newTab(3, &fakeView{}))
+		a.session.activeTab = 0
+		press(a, prefixPress, rightPress, leftPress)
+		if a.session.activeTab != 0 || focusedPaneID(a) != start {
+			t.Errorf("from %d, over to the next tab and back: tab %d focus %d", start, a.session.activeTab, focusedPaneID(a))
+		}
+	}
+
+	a := testApp(t, sideBySideTab(1, 2), newTab(3, &fakeView{}))
+	a.session.activeTab = 1
+	a.session.tabs[0].focus(1) // on the left side, not the right one focus comes in at
+	press(a, prefixPress, leftPress)
+	if focusedPaneID(a) != 2 {
+		t.Errorf("into a tab from its right side: focus %d, want 2", focusedPaneID(a))
+	}
+}
+
 func TestTabAndShiftTabChangeTabs(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2), sideBySideTab(3, 4), sideBySideTab(5, 6))
 	press(a, prefixPress, backTab)

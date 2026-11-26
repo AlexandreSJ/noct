@@ -90,3 +90,27 @@ func TestSecondInstallKeepsEdits(t *testing.T) {
 		t.Errorf("second install overwrote the user's edit to %s", edited)
 	}
 }
+
+// A demo flow an older noct installed outside the demo folder moves into it, edits and all.
+func TestADemoInstalledOutsideItsFolderMovesIntoIt(t *testing.T) {
+	scriptsDir := filepath.Join(t.TempDir(), "scripts")
+	flowsDir := filepath.Join(t.TempDir(), "flows")
+	functionsDir := filepath.Join(t.TempDir(), "functions")
+	if err := os.MkdirAll(flowsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	old := filepath.Join(flowsDir, "demo-deploy.yaml")
+	if err := os.WriteFile(old, []byte("# edited\nsteps: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := InstallDemo(scriptsDir, flowsDir, functionsDir); err != nil {
+		t.Fatal(err)
+	}
+	moved, err := os.ReadFile(filepath.Join(flowsDir, "demo", "demo-deploy.yaml"))
+	if err != nil || string(moved) != "# edited\nsteps: []\n" {
+		t.Errorf("the old demo flow did not move with its edits: %q, %v", moved, err)
+	}
+	if _, err := os.Stat(old); err == nil {
+		t.Error("the old demo flow is still outside the folder")
+	}
+}

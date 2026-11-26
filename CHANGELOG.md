@@ -15,9 +15,128 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - `Space` on **Flows → tell when runs end** in the config sends a test notification, the way a
   run's end is told.
+- `g` or `Home` in a flow's chart in the inspect selects its start, and `G` or `End` its end,
+  which selects but takes no step, as in a log.
+- `a` in a flow's chart picks the kind of step in a list centered over the chart, in the panel,
+  so noct's prefix and the other panes stay a key away: typing narrows the list, the arrows and
+  the wheel move through it, `Enter` or a click adds, and `Tab` adds again the step added last,
+  down to its script or function, shown dim after what is typed while it starts so. A script
+  or a function is picked in the same list.
+- A flow's `set` gives its variables types with `types: {count: number}`: `var`, the default,
+  is what its value is, a list or an object when it is one in JSON; `text`, `number`, `boolean`,
+  `list` and `object` refuse a value of another type. Its form has a type column, starts typing
+  the first variable's name, and `Tab` completes the name of a variable in scope, which brings
+  its type.
+- What `Tab` would put in shows dim after the cursor in the inspect's forms and tables.
+- **Flows → when leaving a step's form** in the config says what `esc` does with what changed in
+  a step's form: `ask` first (the default), `save`, or `discard`. A save that is refused keeps the
+  form with why, and `esc` again leaves the step as it was.
+- Dragging over the text of a popup selects it, and letting go copies it, as in a pane.
+- Clickable rows light under the mouse with the hover animation in popups too: the config, the
+  commands, the agents, choices and the search, which a click now picks from, and the cards of
+  a flow's chart.
+- A flow variable's type is `var` unless it says another, and new ones start as `var`: its value
+  is what it is, and JSON of a list or an object is read inside, as `cfg.port`.
+- `g` and `G` go to the first and last setting in the config, as `Home` and `End` do.
+- `Space` opens an option's choices in the inspect's forms and tables, as `Enter` does.
+- A variable's default in the inspect's table takes several lines too, its row as tall, and a
+  card shows a text's first line and `…` for the rest. A field too long for its cell scrolls
+  only as far as keeps the cursor and a few characters around it in sight, `…` before what is
+  left of it, and a condition's `and`, `or` and
+  parentheses take the primary color as they are typed.
+- A step form's text can take several lines: while typing, `Enter` starts a new line, and `esc`,
+  `Ctrl+Enter` or `Alt+Enter` leave the cell. A condition shows laid out by its logic in the
+  form too, its groups in parentheses on lines of their own.
+- A set's and a prompt's type is `inherit` for a variable the flow has already, which keeps
+  its type; giving it another one is refused (a `var` takes any). A set can give an object's
+  field a value, as `obj.isOnline: true`, of the field's type in its JSON; a boolean offers
+  `true`, `false` and `none`.
+- A set's or a variable's JSON closes its braces, brackets and quotes as it is typed, `Enter`
+  adds the comma, and it shows a member a line, indented, in the colors of conditions. A list
+  or an object that reads itself is refused.
+- An object's fields complete after its name: `obj` shows `.isOnline` dim, and `Tab` puts it in.
+- A flow's `prompt` reads the escapes a print does, as `\n` and `\t`; its form shows them in
+  the primary color, dimmed.
+- Letters work on the rows of the inspect's tables and of row forms, as the set's, while nothing
+  is typed: `Shift+↑↓` mark rows and `Ctrl`+click marks one, `esc` lets the marks go; `d`
+  doubles, `c` copies, `x` cuts and `v` pastes the marked rows, or the focused one; `Delete`
+  removes them; `z` and `y` undo and redo.
+- The help beside an inspect editor hides with `i` (it was `v`, which now pastes rows), and
+  `Shift+↑↓` mark rows instead of moving them; `J` and `K` still move a row.
+- A flow run's pane shows the clean view first: the questions and answers, secrets as `•`, what
+  the steps print, and `exit 0` at the end. `Tab` switches to the full view, with each step's
+  header and the `✓ flow … done` line, and back; a run's log in the logs view switches too.
+- `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
+  chart, and shows them again.
+- Flow conditions take `nand`, `nor` and `xor`. The inspect's details show a condition with
+  them, or with `and` and `or`, a part a line indented by its level, as `[a and b] or [c]`: each
+  level in a shade of the primary color, the operators in the color itself.
+- A flow's `prompt` can be `secret: true`: each character typed shows as `•`, the answer stays
+  out of the run's result, and the run shows it as `••••`, as in a run line that reads it. What
+  a step prints, captures or sets of a secret, a secret variable's too, is `••••` in the result
+  that the inspect and AI agents read. The prompt's form has a `secret` toggle.
+- A flow's `if`, `until`, `switch` and `each` are expressions, with names alone:
+  `if: login == expectedLogin and not ok`. They have `== != < <= > >=`, `and`/`&&`,
+  `or`/`||`, `not`/`!`, `+ - * / %`, `in`, `??`, lambdas such as `h => startsWith(h, "web")`
+  and functions: `len`, `lower`, `join`, `lines`, `match`, `map`, `filter`, `any`, `fromJSON` and
+  more, which the `if`'s help lists. A text that reads as a number compares as one, so
+  `exit == 0` works. A repeat's `each` goes through a list's items or a text's lines.
+- Every other text of a flow (a run line, `with` and `set` values, a prompt, a question)
+  reads a value as `$name`: `$version`, `$build.output` for a step's field, `$cfg.db.port` for an
+  object's, `$hosts[0]`, a function's call such as `$join(hosts, ", ")`, or any expression in
+  braces, `${count + 1}`. Only names the flow knows are its own, so `$HOME`, `${HOME}` and `$1`
+  stay the shell's, and so do `$$name` and a name the run line sets itself. In a run line each
+  value is escaped for where it lands: one shell word outside quotes, kept inside `"..."`,
+  `'...'`, `$(( ))` or a heredoc, and one word again inside a `$( )`, so a value never runs as a
+  command. A value between backticks is refused: write `$( )` there. Typing a name in a step
+  form completes the variables and the functions.
+- Flow variables can be a `list` or an `object`: JSON that holds lists and objects at any depth.
+  Steps read inside them, as `hosts[0]` and `cfg.db.port`, and `$hosts` alone writes the JSON
+  again.
+- A scope warning tells when two steps give the same capture before a step reads it by its short
+  name: `version` reads the last one, and `build.version` picks another.
+- The demo installs `demo-params`, a flow with one variable of each type that its steps read.
+- A flow variable's `default` can read the variables written before it, from the environment
+  too: `default: '{"user": "$user"}'` makes an object of them, each `$name` quoted and escaped as
+  JSON. Only the default renders: a value typed in the form is taken as it is.
+- Scripts, flows and functions can be kept in folders inside folders, at any depth. A flow in
+  `flows/ops/deploy.yaml` is `ops/deploy` (`noct flow run ops/deploy`, or `deploy` while no
+  other flow has that name), and `call: utils/greet` runs a function in a folder. The inspect's
+  list shows flows in their folders like the scripts panel does, with the functions under
+  `ƒ functions`; `a` in a folder starts the new flow's name with its path, and a `/` makes
+  folders.
+- In the inspect's list, `N` makes a folder, `m` moves or renames a flow, a function or a folder
+  (a `/` puts it in folders, none takes it out), `c` copies a flow or function, `delete` removes
+  a folder, and dragging a flow onto a folder moves it there. Remembered values, the last result
+  and triggers go with a moved flow, and the calls of a moved function follow it.
+- The keys popup (`?`) and other text popups filter their lines with `f` or `/`, scroll with the
+  mouse wheel and tell which lines show when the text is taller than the popup.
+- The demo installs its flows and functions in a folder `demo`, as its scripts, and moves the
+  ones an older noct installed outside it there; they still run by their names alone, as
+  `noct flow run demo-deploy`.
+- The inspect opens on the flow selected last, and a saved session remembers the flow of each
+  inspect and the script of each scripts panel. One that is gone leaves the panel on the first
+  of its list.
+- Dragging the mouse over a cell's text in the inspect's params table and step forms selects it
+  and copies it; `Ctrl+C` while typing copies the selection or the whole cell.
 
 ### Changed
 
+- A flow's chart starts at `‹ start ›` and ends at `‹ end ›`, centered on its line, in place of
+  `● start` and `◉ end`.
+- The hints under a flow's chart show only the main keys; `?` lists all of them.
+- A flow's `prompt` is shown as written, without a `:` after it (`login:` no longer shows
+  `login::`); what an empty answer keeps shows beside the step's name.
+- A flow's `params:` are now `variables:`, and the inspect calls them variables. A flow or
+  function with `params:` does not load until the key is renamed.
+- `{{ }}` is no longer a template in a flow: conditions are expressions and texts read `$name`.
+  A condition with `{{ }}`, or a `{{ }}` in a text that reads one of the flow's names, is
+  refused with the new way to write it; any other `{{ }}` is text, as
+  `docker ps --format '{{.Names}}'`. Scripts keep `{{quote .name}}` in their `run`.
+- `echo key=$key` in a flow's run line reads the flow's `key`: only `name=` where a command
+  starts, or after `export` or `local`, makes a name the shell's.
+- A flow's run form no longer remembers a value that is the param's default, so a default changed
+  in the flow is the one its next run takes.
 - The updates popup (`prefix` + `c`) draws each release's changelog as formatted markdown in
   the theme's colors: headings, `•` lists wrapped under their text, `code`, **bold**, *italic*,
   quotes and links.
@@ -32,10 +151,46 @@ the shortcut is `Alt` by default. How to write an entry is in
 - While you type in a list's filter, the footer keeps the list's keys; the filter's line shows
   `enter`, which keeps it, and every list counts the same way: `3 of 12`, or `no match`.
 - Shorter notes and hints in the config, the binds' `?` list and the agent step's form.
+- `Enter` on a flow's variables card in the inspect (`prefix` + `i`) opens its variables as a
+  table in place of the chart, a variable a row like declarations in code: type, name, value, environment
+  variable, label, required and secret in columns. `hjkl` or the arrows move from cell to cell
+  (with `Ctrl`, to the first or last), and `Enter` or a click edits one: it types in a text, or
+  opens the choices of a type or a boolean right under the cell. An option's value is the list
+  of its options, shown with the one it holds and how many there are, as `"dev" · 3 options`:
+  add one, mark the one it holds with `Space`, filter with `f`. A list's value is a list of its
+  items too. `+ add variable`, the last row, adds a variable;
+  `J`/`K` move one, `Ctrl+Delete` removes it and `Ctrl+Z`/`Ctrl+Y` undo and redo. The table is
+  saved as it changes; a cell that keeps its row from being saved turns red and says why. What a
+  click would work lights under the mouse, as a list's rows do. `i`
+  hides the help beside it, and `esc` closes it.
+- Variables keep the order they are written in, in the run form and the variables card too.
+- Adding a step (`a`) or changing one (`e`) in the inspect fills one form in place of the chart
+  instead of a chain of prompts. The variables the step can read are listed beside it, with
+  their last values and examples written with them, and typing a name completes them.
+  Changing a step keeps what its form does not ask, such as its captures and the steps inside.
+  `Enter` or a click edits a row, and `Ctrl+S` or the last row adds or saves the step. A
+  switch's cases, an agent's answers and the names an unset clears are lists, an item a row.
+  A block's exports (`x`), a step's retry (`R`) and a function's returns open the same way.
+- Neither editor locks noct: the prefix still reaches every panel and tab while you edit, and
+  the editor is there when you come back. Their hints take one row, and `?` lists their keys,
+  which you can change in the config.
+- Variable types are named `boolean` and `option`, for what were `bool` and `choice`; flows that
+  use the old names still work. Secret and environment variable are settings of any type.
+- The inspect names variables by their short names, as `$output` and `$version`;
+  `$build.output` shows only for an earlier step's value a later step replaced.
+
+### Removed
+
+- `ctrl+t` in the inspect's prompts and forms, which many terminals take to open a tab: the
+  variables are listed beside the step's form now.
 
 ### Fixed
 
 - The mouse wheel scrolls the updates popup (`prefix` + `c`).
+- A flow's chart in the inspect no longer moves up and down as the selection moves: the details
+  under it keep one height for every block, and the hints keep the rows of the longest.
+- Going to the next tab and back with the arrows keeps the pane you left, the top one of two
+  stacked panes too, instead of taking the bottom one.
 
 ## v0.3.1 - 2026-11-15
 

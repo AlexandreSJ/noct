@@ -1,22 +1,23 @@
 # demo-deploy: the overview flow. It deploys a fictitious service, "api", and
 # shows most of what a flow can do. Everything it calls only prints and sleeps.
 #
-# Run it from the inspect (prefix+i, then p to fill the params), or from a shell:
+# Run it from the inspect (prefix+i, then p to fill the variables), or from a shell:
 #   noct flow run demo-deploy env=staging
 #   noct flow run demo-deploy env=staging fail_health=yes   # takes the rollback path
 #
 # Each block below is commented with the feature it shows and where to change it.
 description: Build, test and deploy a fictitious "api" service, with a health check and rollback.
 
-# params: the values the steps read as {{.name}}. Override any of them on the
-# command line (name=value) or in the params form. Change a default here.
-params:
+# variables: the values the steps read, as $env in a text and env alone in a
+# condition. Override any of them on the command line (name=value) or in the
+# variables form. Change a default here.
+variables:
   env: staging           # staging or production; production asks to confirm first
   version: "1.4.2"       # which version to pretend to ship
   fail_health: "no"      # yes makes the health check fail, so the rollback runs
-  # from: an env param. With DEMO_DEPLOY_TOKEN set in your shell, noct reads the
-  # token from it and never asks; unset, the form asks for it like any other
-  # param. secret masks it in the form and keeps it out of the remembered values
+  # from: a variable from the environment. With DEMO_DEPLOY_TOKEN set in your
+  # shell, noct reads the token from it and never asks; unset, the form asks for
+  # it like any other variable. secret masks it in the form and keeps it out of the remembered values
   # and off the command line. Try: export DEMO_DEPLOY_TOKEN=abc123
   token:
     from: env:DEMO_DEPLOY_TOKEN
@@ -28,13 +29,13 @@ steps:
   # prompt (inside an if): only production asks for confirmation. A prompt needs
   # someone at the terminal; a run with nobody watching fails here instead of
   # waiting, so staging skips this whole branch.
-  - if: '{{eq .env "production"}}'
+  - if: env == "production"
     then:
       - id: confirm
         prompt: Deploy to PRODUCTION? Type yes to continue
-        var: confirmed     # the answer lands in {{.confirmed}}
+        var: confirmed     # the answer lands in $confirmed
         default: "no"      # an empty answer keeps this
-      - if: '{{ne .confirmed "yes"}}'
+      - if: confirmed != "yes"
         then:
           - run: echo "Aborted before touching production."; exit 1
 
@@ -43,12 +44,12 @@ steps:
   - id: build
     script: demo/build
     with:
-      version: '{{.version}}'
+      version: '$version'
     expect:
       output_matches: 'Build complete'
 
   # script step with a regex capture: pull the passed-test count out of the
-  # output into {{.steps.test.passed}}, and fail if any test failed.
+  # output into $test.passed, and fail if any test failed.
   - id: test
     script: demo/test
     capture:
@@ -61,9 +62,9 @@ steps:
   - id: deploy
     script: demo/deploy
     with:
-      env: '{{.env}}'
-      version: '{{.version}}'
-      token: '{{.token}}'
+      env: '$env'
+      version: '$version'
+      token: '$token'
     pane: new
 
   # start the retry counter and the last-known health status before the loop, so
@@ -79,31 +80,31 @@ steps:
   # by one dot each pass; variables set inside a repeat survive between passes.
   - id: health
     repeat:
-      until: '{{or (eq .steps.check.status "ok") (eq .attempts "...")}}'
+      until: check.status == "ok" or attempts == "..."
       max: 3
       every: 1s
     steps:
-      - set: {attempts: '{{.attempts}}.'}   # "", ".", "..", "..." across passes
+      - set: {attempts: '$attempts.'}   # "", ".", "..", "..." across passes
       - id: check
         script: demo/health
         with:
-          fail: '{{.fail_health}}'
+          fail: '$fail_health'
         capture:
           status: 'status: (\w+)'           # ok or degraded
-      - set: {health_status: '{{.steps.check.status}}'}   # kept for the if after the loop
+      - set: {health_status: '$check.status'}   # kept for the if after the loop
 
   # if + rollback + fail the flow: when health never came back, roll back and
   # exit non-zero so the run is marked failed.
-  - if: '{{ne .health_status "ok"}}'
+  - if: health_status != "ok"
     then:
       - id: rollback
         script: demo/rollback
         with:
-          env: '{{.env}}'
-          version: '{{.version}}'
+          env: '$env'
+          version: '$version'
       - run: echo "Deploy failed; rolled back."; exit 1
 
   # set: build a one-line summary from earlier steps, then print it.
   - set:
-      summary: 'Deployed api {{.version}} to {{.env}} ({{.steps.test.passed}} tests passed).'
-  - run: echo "{{.summary}}"
+      summary: 'Deployed api $version to $env ($test.passed tests passed).'
+  - run: echo "$summary"

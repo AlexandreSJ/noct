@@ -19,13 +19,13 @@ import (
 func (f Flow) Validate(lookup func(id string) (script.Script, bool)) error {
 	for name, p := range f.Params {
 		if !isVariable(name) {
-			return fmt.Errorf("parameter name %q must be letters, digits and _ only, and not steps", name)
+			return fmt.Errorf("variable name %q must be letters, digits and _ only", name)
 		}
 		if err := checkParam(p); err != nil {
-			return fmt.Errorf("parameter %s: %w", name, err)
+			return fmt.Errorf("variable %s: %w", name, err)
 		}
 		if _, ok := p.EnvName(); p.From != "" && !ok {
-			return fmt.Errorf("parameter %s: from must look like env:NAME", name)
+			return fmt.Errorf("variable %s: from must look like env:NAME", name)
 		}
 	}
 	for i, t := range f.Triggers {
@@ -36,21 +36,37 @@ func (f Flow) Validate(lookup func(id string) (script.Script, bool)) error {
 	if _, err := parseTimeout(f.Timeout); err != nil {
 		return err
 	}
-	ids := map[string]bool{}
-	return validateSteps(f.Steps, "", ids, lookup)
+	known := f.knownNames(lookup)
+	if err := validateSteps(f.Steps, "", map[string]bool{}, lookup, known); err != nil {
+		return err
+	}
+	if err := f.validateRetyping(); err != nil {
+		return err
+	}
+	return f.validateReturns(known)
 }
 
-func validateSteps(steps []Step, where string, ids map[string]bool, lookup func(id string) (script.Script, bool)) error {
+// validateReturns checks the $ references of a function's returns.
+func (f Flow) validateReturns(known knownNames) error {
+	for _, name := range slices.Sorted(maps.Keys(f.Returns)) {
+		if _, err := splitText(f.Returns[name], plainText, known); err != nil {
+			return fmt.Errorf("returns %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func validateSteps(steps []Step, where string, ids map[string]bool, lookup func(id string) (script.Script, bool), known knownNames) error {
 	for i, s := range steps {
 		at := fmt.Sprintf("%sstep %d", where, i+1)
 		if s.ID != "" {
 			at += " (" + s.ID + ")"
 		}
-		if err := s.validate(ids, lookup); err != nil {
+		if err := s.validate(ids, lookup, known); err != nil {
 			return fmt.Errorf("%s: %w", at, err)
 		}
 		for _, inner := range s.Branches() {
-			if err := validateSteps(inner.Steps, at+" > ", ids, lookup); err != nil {
+			if err := validateSteps(inner.Steps, at+" > ", ids, lookup, known); err != nil {
 				return err
 			}
 		}
@@ -58,7 +74,7 @@ func validateSteps(steps []Step, where string, ids map[string]bool, lookup func(
 	return nil
 }
 
-func (s Step) validate(ids map[string]bool, lookup func(id string) (script.Script, bool)) error {
+func (s Step) validate(ids map[string]bool, lookup func(id string) (script.Script, bool), known knownNames) error {
 	if err := s.validateID(ids); err != nil {
 		return err
 	}
@@ -75,7 +91,7 @@ func (s Step) validate(ids map[string]bool, lookup func(id string) (script.Scrip
 	if err := s.validateTimeout(kind); err != nil {
 		return err
 	}
-	if err := s.validateTemplates(); err != nil {
+	if err := s.validateTemplates(known); err != nil {
 		return err
 	}
 	return s.validateKind(kind, lookup)
@@ -83,26 +99,10 @@ func (s Step) validate(ids map[string]bool, lookup func(id string) (script.Scrip
 
 // validateFieldsBelong refuses fields that only another kind of step uses.
 func (s Step) validateFieldsBelong(kind Kind) error {
-	if (s.Var != "" || s.Default != "" || s.Type != "") && kind != PromptStep {
-		return errors.New("var, default and type belong to a prompt")
-	}
-	if len(s.Then) > 0 && kind != IfStep {
-		return errors.New("then belongs to an if")
-	}
-	if len(s.Else) > 0 && kind != IfStep && kind != SwitchStep {
-		return errors.New("else belongs to an if or a switch")
-	}
-	if len(s.Cases) > 0 && kind != SwitchStep {
-		return errors.New("cases belong to a switch")
-	}
-	if len(s.Steps) > 0 && kind != RepeatStep {
-		return errors.New("steps belong to a repeat")
-	}
-	if (len(s.Capture) > 0 || s.Expect != nil || s.OnFail != "" || s.Retry != nil) && kind != ScriptStep && kind != CommandStep && kind != AgentStep {
-		return errors.New("capture, expect, on_fail and retry belong to a script, run or agent step")
-	}
-	if len(s.With) > 0 && kind != ScriptStep && kind != CallStep {
-		return errors.New("with belongs to a script or call step")
+	for _, f := range s.kindFields() {
+		if f.used && !slices.Contains(f.kinds, kind) {
+			return errors.New(f.message)
+		}
 	}
 	if len(s.Export) > 0 && !s.IsBlock() {
 		return errors.New("export belongs to an if, a switch or a repeat")
@@ -116,6 +116,25 @@ func (s Step) validateFieldsBelong(kind Kind) error {
 		return fmt.Errorf("on_fail is %s, %s or %s", OnFailStop, OnFailContinue, OnFailAsk)
 	}
 	return s.Retry.validate()
+}
+
+type kindField struct {
+	used    bool
+	kinds   []Kind
+	message string
+}
+
+func (s Step) kindFields() []kindField {
+	return []kindField{
+		{s.Var != "" || s.Default != "" || s.Type != "" || s.Secret, []Kind{PromptStep}, "var, default, type and secret belong to a prompt"},
+		{len(s.Types) > 0, []Kind{SetStep}, "types belong to a set"},
+		{len(s.Then) > 0, []Kind{IfStep}, "then belongs to an if"},
+		{len(s.Else) > 0, []Kind{IfStep, SwitchStep}, "else belongs to an if or a switch"},
+		{len(s.Cases) > 0, []Kind{SwitchStep}, "cases belong to a switch"},
+		{len(s.Steps) > 0, []Kind{RepeatStep}, "steps belong to a repeat"},
+		{len(s.Capture) > 0 || s.Expect != nil || s.OnFail != "" || s.Retry != nil, []Kind{ScriptStep, CommandStep, AgentStep}, "capture, expect, on_fail and retry belong to a script, run or agent step"},
+		{len(s.With) > 0, []Kind{ScriptStep, CallStep}, "with belongs to a script or call step"},
+	}
 }
 
 func (r *Retry) validate() error {
@@ -188,7 +207,7 @@ func (s Step) validateKind(kind Kind, lookup func(id string) (script.Script, boo
 		}
 		return s.validatePatterns()
 	case CallStep:
-		if !naming.IsValid(s.Call) {
+		if !naming.IsValidPath(s.Call) {
 			return fmt.Errorf("call %q is not a function's name", s.Call)
 		}
 		for name := range s.With {
@@ -275,21 +294,53 @@ func (r *Repeat) validate() error {
 	return nil
 }
 
-// templates are every text of the step that is rendered: those before it runs and the repeat's
-// until.
-func (s Step) templates() []string {
-	texts := s.orderedTemplates()
+// expressions are the step's conditions and values read as expressions: its if, its switch, and
+// its repeat's each and until.
+func (s Step) expressions() []string {
+	texts := []string{s.If, s.Switch}
 	if s.Repeat != nil {
-		texts = append(texts, s.Repeat.Until)
+		texts = append(texts, s.Repeat.Each, s.Repeat.Until)
 	}
-	return texts
+	return slices.DeleteFunc(texts, func(text string) bool { return text == "" })
 }
 
-func (s Step) validateTemplates() error {
-	for _, text := range s.templates() {
-		if _, err := parseTemplate(text); err != nil {
+// texts are the step's texts that read values with $: its run line, prompt, question, and the
+// values of its with and set.
+func (s Step) texts() []string {
+	texts := []string{s.Run, s.Prompt, s.Default}
+	if s.Agent != nil {
+		texts = append(texts, s.Agent.Ask, s.Agent.Use)
+	}
+	for _, values := range []map[string]string{s.With, s.Set} {
+		for _, name := range slices.Sorted(maps.Keys(values)) {
+			texts = append(texts, values[name])
+		}
+	}
+	return slices.DeleteFunc(texts, func(text string) bool { return text == "" })
+}
+
+// validateTemplates checks the step's expressions and the $ references of its texts.
+func (s Step) validateTemplates(known knownNames) error {
+	for _, text := range s.expressions() {
+		if _, err := parseExpression(text, known); err != nil {
+			return fmt.Errorf("%s: %w", text, err)
+		}
+	}
+	for _, text := range s.texts() {
+		if err := oldTemplate(text, known); err != nil {
+			return err
+		}
+		if _, err := splitText(text, s.textKind(text), known); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// textKind is what one of the step's texts is: its run line is the shell's.
+func (s Step) textKind(text string) textKind {
+	if text != "" && text == s.Run {
+		return shellText
+	}
+	return plainText
 }

@@ -37,7 +37,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 		ScriptFolders: []string{"~/work/scripts", "/srv/shared"},
 		Keys:          map[string]map[string][]string{"scripts": {"edit": {"x", "ctrl+e"}, "delete": {}}},
 		Logs:          Logs{KeepDays: 30, MaxSizeKB: 20000, Terminals: true, Columns: []string{"name", "edited", "size"}, Preview: "right", PreviewPercent: 30},
-		Flows:         Flows{OutputKB: 64},
+		Flows:         Flows{OutputKB: 64, LeaveForm: LeaveAsks},
 		MCP:           MCP{Policy: map[string]string{"run_command": PolicyDeny}, ApprovalSeconds: 60},
 		Notify:        NotifyBell,
 		Agent:         "local",

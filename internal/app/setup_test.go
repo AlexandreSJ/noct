@@ -153,7 +153,7 @@ func TestTheSetupInstallsTheDemo(t *testing.T) {
 		t.Errorf("esc went to %v, want the animations", a.setup.step)
 	}
 	press(a, enterPress, enterPress, enterPress, enterPress, enterPress)
-	if _, err := os.Stat(filepath.Join(flow.Dir(), "demo-deploy.yaml")); err != nil {
+	if _, err := os.Stat(filepath.Join(flow.Dir(), "demo", "demo-deploy.yaml")); err != nil {
 		t.Errorf("the demo was not installed: %v", err)
 	}
 }

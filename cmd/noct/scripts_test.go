@@ -117,7 +117,7 @@ func TestFlowCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	flowText := "steps:\n  - {id: pick, run: echo color=red, capture: {color: 'color=(\\w+)'}}\n" +
-		"  - if: '{{eq .steps.pick.color \"red\"}}'\n    then: [{script: shout, with: {word: '{{.steps.pick.color}}'}}]\n" +
+		"  - if: 'pick.color == \"red\"'\n    then: [{script: shout, with: {word: '$pick.color'}}]\n" +
 		"  - run: exit 5\n"
 	if err := os.WriteFile(filepath.Join(flows, "colors.yaml"), []byte(flowText), 0o644); err != nil {
 		t.Fatal(err)

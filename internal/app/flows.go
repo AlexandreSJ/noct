@@ -8,12 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"go.yaml.in/yaml/v3"
 
+	"github.com/AlexandreSJ/noct/internal/expr"
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/layout"
 	"github.com/AlexandreSJ/noct/internal/script"
@@ -25,17 +25,19 @@ const stepHints = `# One step: script (with, capture, expect, on_fail, retry, ti
 # (times, each with as, or until with max; every; steps) or wait (5s, 1m).
 # timeout stops a script or run step that runs longer: 30s, 10m, 1h30m. retry: 3 runs a failed
 # step again up to 3 times; retry: {max: 3, every: 10s} waits between tries.
-# Templates read {{.steps.<id>.output}}, .exit, .ok and captures. See docs/fluxos.md.
+# Templates read $output, $exit, $ok and captures by name, $build.output an earlier step's;
+# in run, each $name is one shell word, and ${name} or $$name is the shell's. See docs/fluxos.md.
 `
 
 // reloadFlows reads the flows again, checking their scripts against the library.
 func (a *App) reloadFlows() {
-	a.flowsSignature = dirSignature([]string{flow.Dir(), flow.FunctionsDir()}, 1) // before reading: a change meanwhile shows next time
+	a.flowsSignature = dirSignature([]string{flow.Dir(), flow.FunctionsDir()}, flowsDepth) // before reading: a change meanwhile shows next time
 	flows, functions, err := flow.LoadWithFunctions(flow.Dir(), flow.FunctionsDir(), a.scripts.Find)
 	if err != nil {
 		a.statusMessage = err.Error()
 	}
 	a.flows, a.functions = flows, functions
+	a.flowFolders, a.functionFolders = flow.Folders(flow.Dir()), flow.Folders(flow.FunctionsDir())
 }
 
 // scriptDescription is what a script does, for the boxes of the steps that run it.
@@ -47,9 +49,10 @@ func (a *App) scriptDescription(id string) string {
 	return s.Description
 }
 
-// newFlow asks for a name and creates an empty flow, telling created its name.
-func (a *App) newFlow(created func(name string)) {
-	a.openPrompt("new flow", "", "{enter} create  esc cancel  letters, digits, . - _", func(name string) {
+// newFlow asks for a name, starting with folder, and creates an empty flow, telling created its
+// name; a / in the name puts it in a folder, which it makes.
+func (a *App) newFlow(folder string, created func(name string)) {
+	a.openPrompt("new flow", folder, "{enter} create  esc cancel  letters, digits, . - _  / for folders", func(name string) {
 		f, err := flow.Create(flow.Dir(), name)
 		if err != nil {
 			a.statusMessage = err.Error()
@@ -112,11 +115,11 @@ func (a *App) fromEnvironment(p flow.Param) bool {
 // them and runs the flow.
 func (a *App) openFlowForm(f flow.Flow, values map[string]string) {
 	if len(f.Params) == 0 {
-		a.statusMessage = "flow " + f.Name + " has no parameters"
+		a.statusMessage = "flow " + f.Name + " has no variables"
 		return
 	}
 	var fields []script.Param
-	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
+	for _, name := range f.ParamNames() {
 		p := f.Params[name]
 		if a.fromEnvironment(p) {
 			continue
@@ -154,22 +157,27 @@ func (a *App) openFlowForm(f flow.Flow, values map[string]string) {
 // startFlow runs the flow with noct flow run and the values, which it remembers for the next run.
 func (a *App) startFlow(f flow.Flow, values map[string]string) {
 	kept := maps.Clone(values)
-	maps.DeleteFunc(kept, func(name string, _ string) bool { return !remembered(f.Params[name]) })
-	if len(kept) > 0 {
+	// A value at its default is not kept, so a default changed in the flow is the one it runs with.
+	maps.DeleteFunc(kept, func(name, value string) bool { return !remembered(f.Params[name]) || value == f.Params[name].Default })
+	if len(kept) > 0 || len(a.memory.FlowValues(f.Name)) > 0 { // what it kept before goes too
 		if err := a.memory.RememberFlow(f.Name, kept); err != nil {
 			a.statusMessage = err.Error() // the run goes on; only the memory is lost
 		}
 	}
 	args, env := a.flowArgs(f, values)
 	argv := append([]string{orDefault(a.binary.path, "noct"), "flow", "run", f.Name}, args...)
-	a.openTrackedRun("flow "+f.Name, script.Run{Flow: f.Name}, program{argv: argv, dir: a.workDir, env: env})
+	a.openTrackedRun("flow "+f.Name, script.Run{Flow: f.Name}, program{argv: argv, dir: a.workDir, env: env, views: true})
 }
 
 // flowArgs are the values as noct flow run takes them: name=value arguments, but an env
-// parameter's value as its variable, which the run reads, and none when the environment has it.
+// parameter's value as its variable, which the run reads, and none when the environment has it
+// or the value is the default.
 func (a *App) flowArgs(f flow.Flow, values map[string]string) (args, env []string) {
 	given := maps.Clone(values)
 	for name, p := range f.Params {
+		if given[name] == p.Default {
+			delete(given, name) // the run takes it, and renders it when it is a template
+		}
 		if variable, ok := p.EnvName(); ok {
 			if value := given[name]; value != "" && value != a.getenv(variable) {
 				env = append(env, variable+"="+value)
@@ -204,7 +212,7 @@ func (a *App) testFlowSteps(f flow.Flow, first, last string) {
 		steps += ".." + last
 	}
 	binary := orDefault(a.binary.path, "noct")
-	run := program{argv: []string{binary, "flow", "run", f.Name, "--steps", steps}, dir: a.workDir}
+	run := program{argv: []string{binary, "flow", "run", f.Name, "--steps", steps}, dir: a.workDir, views: true}
 	a.openTrackedRun("test "+f.Name+" "+steps, script.Run{Flow: f.Name}, run)
 }
 
@@ -333,6 +341,7 @@ func (a *App) changeFlow(f flow.Flow, change func(*flow.Flow) error) error {
 	if err != nil {
 		return err
 	}
+	fresh.Name = f.Name // with its folders, which the file alone does not tell
 	before := fresh.Validate(a.scripts.Find)
 	if err := change(&fresh); err != nil {
 		return err
@@ -351,29 +360,9 @@ func (a *App) changeFlow(f flow.Flow, change func(*flow.Flow) error) error {
 	return nil
 }
 
-// addStep asks what kind of step to add, and its main setting, and puts it where the selected
-// block is: at a gap or into an empty list, or right after a step. added gets the new step's path.
-func (a *App) addStep(f flow.Flow, at chartBlock, added func(path string)) {
-	parent, branch, index := at.slot.parent, at.slot.branch, at.index
-	if !at.isInsertion() {
-		parent, branch, index = flow.SplitPath(at.path)
-		index++
-	}
-	insert := func(step flow.Step) { a.insertFlowStep(f, parent, branch, index, step, added) }
-	// Templates typed here read what runs before the new step; ctrl+t searches it.
-	vars := f.Scope(parent, branch, index, a.scripts.Find)
-	templatePrompt := func(title, initial, hints string, submit func(text string)) {
-		a.openPrompt(title, initial, hints+"  ctrl+t variable", submit)
-		a.prompt.pick = func() { a.pickVariable(f, vars) }
-		a.withVariables(vars)
-	}
-	options := a.flowStepChoices(insert, templatePrompt, func() { a.pickVariable(f, vars) })
-	options = append(options, a.variableStepChoices(insert, templatePrompt)...)
-	a.openChoice("add step", options...)
-}
-
-// insertFlowStep adds step to f at the slot, naming a script or command step that has no id.
-func (a *App) insertFlowStep(f flow.Flow, parent, branch string, index int, step flow.Step, added func(path string)) {
+// insertStep adds step to f at the slot, naming a script, command, call or agent step that has
+// no id, and gives its path.
+func (a *App) insertStep(f flow.Flow, parent, branch string, index int, step flow.Step) (string, error) {
 	var path string
 	err := a.changeFlow(f, func(f *flow.Flow) error {
 		if step.ID == "" && (step.Script != "" || step.Run != "" || step.Call != "" || step.Agent != nil) {
@@ -383,88 +372,13 @@ func (a *App) insertFlowStep(f flow.Flow, parent, branch string, index int, step
 		path, err = f.Insert(parent, branch, index, step)
 		return err
 	})
+	return path, err
+}
+
+// reportError shows err in the status line, when there is one.
+func (a *App) reportError(err error) {
 	if err != nil {
 		a.statusMessage = err.Error()
-		return
-	}
-	added(path)
-}
-
-type stepTemplatePrompt func(title, initial, hints string, submit func(text string))
-
-// flowStepChoices are the add step options that run something or shape the flow.
-func (a *App) flowStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt, pickVariable func()) []choiceOption {
-	return []choiceOption{
-		{key: "s", label: "script", pick: func() { a.pickScript(insert) }},
-		{key: "f", label: "call a function", pick: func() { a.pickFunction(insert) }},
-		{key: "a", label: "AI agent", pick: func() { a.openAgentForm(insert, pickVariable) }},
-		{key: "c", label: "command line", pick: func() {
-			templatePrompt("command line", "", "{enter} add  esc cancel", func(text string) {
-				insert(flow.Step{Run: text})
-			})
-		}},
-		{key: "i", label: "if / else", pick: func() {
-			templatePrompt("if", `{{eq .steps.<id>.<capture> "value"}}`, "{enter} add  esc cancel  true runs then", func(text string) {
-				insert(flow.Step{If: text})
-			})
-		}},
-		{key: "o", label: "switch: one of cases", pick: func() {
-			templatePrompt("switch on", "{{.answer}}", "{enter} next  esc cancel  the value the cases compare", func(value string) {
-				a.openPrompt("cases", "", "{enter} add  esc cancel  the values, a space between: flaky bug env; | joins two in one case: bug|regression", func(text string) {
-					step, err := switchStep(value, text)
-					if err != nil {
-						a.statusMessage = err.Error()
-						return
-					}
-					insert(step)
-				})
-			})
-		}},
-		{key: "l", label: "repeat", pick: func() {
-			templatePrompt("repeat", "3", "{enter} add  esc cancel  times, or until", func(text string) {
-				insert(repeatStep(text))
-			})
-		}},
-		{key: "e", label: "for each line", pick: func() {
-			templatePrompt("for each line of", "{{.output}}", "{enter} next  esc cancel  a text; its steps run once per line", func(each string) {
-				a.openPrompt("each line in variable", flow.DefaultEachVar, "{enter} add  esc cancel  the steps read it as {{.name}}", func(name string) {
-					step := flow.Step{Repeat: &flow.Repeat{Each: each}}
-					if name = strings.TrimSpace(name); name != flow.DefaultEachVar {
-						step.Repeat.As = name
-					}
-					insert(step)
-				})
-			})
-		}},
-		{key: "w", label: "wait", pick: func() {
-			a.openPrompt("wait", "5s", "{enter} add  esc cancel  like 5s, 1m30s", func(text string) {
-				insert(flow.Step{Wait: text})
-			})
-		}},
-	}
-}
-
-// variableStepChoices are the add step options that ask for, set or clear variables.
-func (a *App) variableStepChoices(insert func(flow.Step), templatePrompt stepTemplatePrompt) []choiceOption {
-	return []choiceOption{
-		{key: "p", label: "prompt the user", pick: func() {
-			templatePrompt("prompt", "", "{enter} next  esc cancel  the question asked", func(question string) {
-				a.openPrompt("into variable", "", "{enter} add  esc cancel  new, or one to change", func(name string) {
-					insert(flow.Step{Prompt: question, Var: strings.TrimSpace(name)})
-				})
-			})
-		}},
-		{key: "v", label: "set variable", pick: func() {
-			templatePrompt("set", "name = ", "{enter} add  esc cancel  name = value", func(text string) {
-				name, value, _ := strings.Cut(text, "=")
-				insert(flow.Step{Set: map[string]string{strings.TrimSpace(name): strings.TrimSpace(value)}})
-			})
-		}},
-		{key: "u", label: "unset variables", pick: func() {
-			a.openPrompt("unset", "", "{enter} add  esc cancel  names, steps.<id>", func(text string) {
-				insert(flow.Step{Unset: strings.FieldsFunc(text, func(r rune) bool { return r == ',' || r == ' ' })})
-			})
-		}},
 	}
 }
 
@@ -475,28 +389,7 @@ func orDefault(value, fallback string) string {
 	return value
 }
 
-// switchStep compares value with a case for each word of cases; values joined by | share one.
-func switchStep(value, cases string) (flow.Step, error) {
-	step := flow.Step{Switch: value}
-	for _, word := range strings.Fields(cases) {
-		step.Cases = append(step.Cases, flow.Case{Is: strings.Split(word, "|")})
-	}
-	if len(step.Cases) == 0 {
-		return flow.Step{}, errors.New("cases: the values the switch compares, as flaky bug env")
-	}
-	return step, nil // changing the flow checks it, a value in two cases too
-}
-
-// repeatStep repeats a number of times, or until a condition, at most 10 times.
-func repeatStep(text string) flow.Step {
-	if times, err := strconv.Atoi(text); err == nil {
-		return flow.Step{Repeat: &flow.Repeat{Times: times}}
-	}
-	return flow.Step{Repeat: &flow.Repeat{Until: text, Max: 10}}
-}
-
-// pickScript searches the scripts for the one a step runs.
-func (a *App) pickScript(picked func(flow.Step)) {
+func (a *App) scriptStepItems(picked func(flow.Step)) []finderItem {
 	var items []finderItem
 	for _, s := range a.scripts.All() {
 		if s.Problem == nil {
@@ -505,9 +398,8 @@ func (a *App) pickScript(picked func(flow.Step)) {
 	}
 	if len(items) == 0 {
 		a.statusMessage = "no scripts yet: create one in the scripts panel (prefix+s)"
-		return
 	}
-	a.openFinderWith("script for the step", items)
+	return items
 }
 
 func (a *App) removeStep(f flow.Flow, path string) {
@@ -547,80 +439,6 @@ func (a *App) moveStep(f flow.Flow, path string, down bool, moved func(path stri
 		return
 	}
 	moved(to)
-}
-
-// exportFromBlock asks a variable an if, a switch or a repeat makes, to keep it after the block, under its
-// name or another: "count", or "count as passes"; the name alone again stops exporting it.
-func (a *App) exportFromBlock(f flow.Flow, path string) {
-	s, ok := f.Step(path)
-	if !ok || !s.IsBlock() {
-		a.statusMessage = "only an if, a switch or a repeat exports variables"
-		return
-	}
-	inside := s.Branches()[0] // the first list's end: what its steps make
-	vars := f.Scope(path, inside.Name, len(inside.Steps), a.scripts.Find)
-	a.openPrompt("export from "+s.Label(), "", "{enter} keep it after the block  esc cancel  name, or name as other; an exported name again stops it", func(text string) {
-		inner, outer, _ := strings.Cut(strings.Join(strings.Fields(text), " "), " as ")
-		err := a.changeFlow(f, func(f *flow.Flow) error {
-			step, _ := f.Step(path)
-			if step.Export == nil {
-				step.Export = map[string]string{}
-			}
-			if previous, exported := step.Export[inner]; exported && previous == outer {
-				delete(step.Export, inner)
-			} else {
-				step.Export[inner] = outer
-			}
-			return f.Replace(path, step)
-		})
-		if err != nil {
-			a.statusMessage = err.Error()
-		}
-	})
-	a.withVariables(vars)
-}
-
-// retryStep asks how many times a failed script, run or agent step runs again, and how long it
-// waits before each try: "3", or "3 every 10s"; 0 or nothing runs it once.
-func (a *App) retryStep(f flow.Flow, path string) {
-	s, ok := f.Step(path)
-	if kind := s.Kind(); !ok || kind != flow.ScriptStep && kind != flow.CommandStep && kind != flow.AgentStep {
-		a.statusMessage = "only a script, command or agent step retries"
-		return
-	}
-	initial := "3"
-	if s.Retry != nil {
-		initial = strings.TrimPrefix(retryText(s.Retry), "retry ")
-		initial = strings.Replace(initial, "×", "", 1)
-	}
-	a.openPrompt("retry "+s.Label(), initial, "{enter} set  esc cancel  times it runs again when it fails, as 3 or 3 every 10s; 0 none", func(text string) {
-		retry, err := parseRetry(text)
-		if err != nil {
-			a.statusMessage = err.Error()
-			return
-		}
-		err = a.changeFlow(f, func(f *flow.Flow) error {
-			step, _ := f.Step(path)
-			step.Retry = retry
-			return f.Replace(path, step)
-		})
-		if err != nil {
-			a.statusMessage = err.Error()
-		}
-	})
-}
-
-// parseRetry reads "3" or "3 every 10s"; 0 or nothing is no retry.
-func parseRetry(text string) (*flow.Retry, error) {
-	times, every, _ := strings.Cut(strings.Join(strings.Fields(text), " "), " every ")
-	if times == "" || times == "0" {
-		return nil, nil
-	}
-	n, err := strconv.Atoi(times)
-	if err != nil || n < 0 {
-		return nil, fmt.Errorf("retry %q: a number of times, as 3 or 3 every 10s", text)
-	}
-	return &flow.Retry{Max: n, Every: every}, nil
 }
 
 // dropStep moves the step at path to index of the list at parent's branch, as the flow is before
@@ -673,12 +491,12 @@ func (a *App) stepKindLines(step flow.Step) []styledLine {
 		add("$ "+step.Run, pal.panelText)
 	case flow.IfStep:
 		add("Chooses a branch: then when this is true, else when false.", pal.panelHeading)
-		add(step.If, pal.panelText)
+		lines = append(lines, conditionLines(step.If, pal)...)
 		add(fmt.Sprintf("then: %d steps · else: %d steps", countSteps(step.Then...), countSteps(step.Else...)), pal.panelMuted)
 		lines = append(lines, exportLines(step, pal)...)
 	case flow.SwitchStep:
 		add("Runs the first case that holds this value, else the else:", pal.panelHeading)
-		add(step.Switch, pal.panelText)
+		lines = append(lines, conditionLines(step.Switch, pal)...)
 		labels := branchLabels(step)
 		for i, branch := range step.Branches() {
 			add(fmt.Sprintf("%s: %d steps", labels[i], countSteps(branch.Steps...)), pal.panelMuted)
@@ -691,6 +509,10 @@ func (a *App) stepKindLines(step flow.Step) []styledLine {
 			add("Repeats the steps inside it.", pal.panelHeading)
 		}
 		add(repeatText(step.Repeat), pal.panelText)
+		if until := conditionLines(step.Repeat.Until, pal); len(until) > 1 {
+			add("until:", pal.panelMuted)
+			lines = append(lines, until...)
+		}
 		add("Each pass forgets the results of the pass before.", pal.panelMuted)
 		lines = append(lines, exportLines(step, pal)...)
 	case flow.AgentStep:
@@ -737,7 +559,7 @@ func (a *App) agentStepLines(step flow.Step) []styledLine {
 	if len(step.Agent.Choices) > 0 {
 		lines = append(lines, styledLine{"the answer must be one of " + strings.Join(step.Agent.Choices, ", ") + "; one that says none fails the step", pal.panelMuted})
 	}
-	return append(lines, styledLine{"later steps read it as {{.answer}} and {{.steps." + orDefault(step.ID, "<id>") + ".answer}}", pal.panelMuted})
+	return append(lines, styledLine{"later steps read it as $answer, until another agent answers", pal.panelMuted})
 }
 
 // callStepLines tell which function a call step runs and what comes back from it.
@@ -760,13 +582,16 @@ func (a *App) promptStepLines(step flow.Step) []styledLine {
 	lines := []styledLine{
 		{"Asks the user, and waits for the answer:", pal.panelHeading},
 		{step.Prompt, pal.panelText},
-		{"the answer goes to {{." + step.Var + "}}", pal.panelText},
+		{"the answer goes to $" + step.Var, pal.panelText},
 	}
 	if step.Default != "" {
 		lines = append(lines, styledLine{"an empty answer keeps " + step.Default, pal.panelMuted})
 	}
 	if step.Type == flow.NumberParam {
 		lines = append(lines, styledLine{"asks again until the answer is a number", pal.panelMuted})
+	}
+	if step.Secret {
+		lines = append(lines, styledLine{"secret: typed as •, never shown by the run", pal.panelMuted})
 	}
 	return append(lines, styledLine{"a run nobody watches (a trigger) fails here", pal.panelMuted})
 }
@@ -783,7 +608,7 @@ func (a *App) stepResultLines(step flow.Step) []styledLine {
 		add(fmt.Sprintf("captures %s from %s", name, step.Capture[name]), pal.panelText)
 	}
 	if step.ID != "" && (step.Kind() == flow.ScriptStep || step.Kind() == flow.CommandStep) {
-		add("later steps read {{.steps."+step.ID+".output}}, .exit, .ok and the captures", pal.panelMuted)
+		add("later steps read $output, $exit, $ok and the captures, until another step gives its own; $"+step.ID+".output reads this one's after that", pal.panelMuted)
 	}
 	if step.Timeout != "" {
 		add("stopped, and failed, after "+step.Timeout+" (timeout)", pal.panelMuted)
@@ -833,7 +658,7 @@ func repeatText(r *flow.Repeat) string {
 	text := fmt.Sprintf("%d times", r.Times)
 	switch {
 	case r.Each != "":
-		text = r.Each + ", each line in {{." + r.EachVar() + "}}"
+		text = r.Each + ", each line in $" + r.EachVar()
 		if r.Until != "" {
 			text += ", until " + r.Until
 		}
@@ -884,4 +709,38 @@ func stepResultLines(r flow.Result, path string, pal *palette) []styledLine {
 		}
 	}
 	return lines
+}
+
+const conditionShades = 4
+
+func conditionLines(text string, pal *palette) []styledLine {
+	outline := expr.Outline(text)
+	if len(outline) == 1 {
+		return []styledLine{{text, pal.panelText}}
+	}
+	lines := make([]styledLine, len(outline))
+	for i, part := range outline {
+		style := shadeStyle(pal, part.Depth)
+		if part.Operator {
+			style = primaryStyle(pal)
+		}
+		lines[i] = styledLine{strings.Repeat("  ", part.Depth) + strings.Join(strings.Fields(part.Text), " "), style}
+	}
+	return lines
+}
+
+func primaryStyle(pal *palette) uv.Style {
+	style := pal.panelText
+	style.Fg, style.Attrs = orColor(pal.selectedRow.Bg, pal.panelHeading.Fg), uv.AttrBold
+	return style
+}
+
+// shadeStyle is a level's shade of the primary color, from it toward the dim text and back to it
+// every conditionShades levels.
+func shadeStyle(pal *palette, depth int) uv.Style {
+	style, primary := pal.panelText, orColor(pal.selectedRow.Bg, pal.panelHeading.Fg)
+	if primary != nil {
+		style.Fg = mix(primary, orColor(pal.panelMuted.Fg, primary), float64(depth%conditionShades)/(conditionShades-1))
+	}
+	return style
 }

@@ -22,6 +22,16 @@ func TestARunTellsTheStepItIsOn(t *testing.T) {
 	}
 }
 
+func TestARunInAFolderTellsItsStepOnItsFirstRun(t *testing.T) {
+	dir := t.TempDir()
+	if err := SaveProgress(dir, "ops/deploy", "0"); err != nil {
+		t.Fatal(err)
+	}
+	if p, running := ReadProgress(dir, "ops/deploy"); !running || p.Path != "0" {
+		t.Errorf("progress %+v, running %v", p, running)
+	}
+}
+
 func TestTheRunnerTellsEachStepAsItStarts(t *testing.T) {
 	f := parse(t, "steps:\n  - {id: a, run: 'true'}\n  - if: 'true'\n    then: [{id: b, run: 'true'}]\n")
 	var seen []string

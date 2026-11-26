@@ -27,8 +27,8 @@ func TestAnAgentStepKeepsTheAnswerOfOneOfItsChoices(t *testing.T) {
 	f := parse(t, `steps:
   - {id: health, run: 'echo 503'}
   - id: review
-    agent: {ask: 'Health said {{.output}}. Ship or roll back?', use: tester, choices: [ship, rollback]}
-  - if: '{{eq .answer "rollback"}}'
+    agent: {ask: 'Health said $output. Ship or roll back?', use: tester, choices: [ship, rollback]}
+  - if: answer == "rollback"
     then: [{run: 'echo rolling back'}]
 `)
 	if err := f.Validate(nil); err != nil {
@@ -152,7 +152,7 @@ func TestUseCanComeFromAParam(t *testing.T) {
 	r, out := testRunner(t, nil)
 	r.Agents = AgentConfig{Own: map[string]string{"picked": command}}
 	r.DefaultAgent = "nobody"
-	f := parse(t, "params: {agent: picked}\nsteps:\n  - agent: {ask: hi, use: '{{.agent}}'}\n")
+	f := parse(t, "variables: {agent: picked}\nsteps:\n  - agent: {ask: hi, use: $agent}\n")
 	if result := r.Run(f, nil); !result.OK {
 		t.Fatalf("result %+v:\n%s", result.Steps["0"], out)
 	}

@@ -18,7 +18,8 @@ import (
 // scrolls it while the mouse is over it.
 
 // Sizes of the details: the least rows the chart keeps above them, and the share of the chart's
-// rows they take at most.
+// rows they take, however long their text: a height that changed with the block selected would
+// move the chart, centered on it, up and down as the selection moves.
 const (
 	detailsLeastChart = 10
 	detailsShare      = 35 // percent
@@ -30,7 +31,7 @@ const (
 func (p *inspectPanel) drawDetails(screen uv.Screen, area image.Rectangle, f flow.Flow, last *flow.Result) image.Rectangle {
 	p.details = image.Rectangle{}
 	block, ok := p.selectedBlock()
-	if !ok || p.carried() != "" { // a card carried has the whole chart to land on
+	if !ok || p.hideDetails || p.carried() != "" { // a card carried has the whole chart to land on
 		return area
 	}
 	width := area.Dx() - 4
@@ -40,7 +41,7 @@ func (p *inspectPanel) drawDetails(screen uv.Screen, area image.Rectangle, f flo
 			lines = append(lines, styledLine{part, line.style})
 		}
 	}
-	rows := min(len(lines)+2, max(area.Dy()*detailsShare/100, detailsLeastRows))
+	rows := max(area.Dy()*detailsShare/100, detailsLeastRows)
 	if area.Dy()-rows < detailsLeastChart {
 		return area
 	}
@@ -74,11 +75,13 @@ func (p *inspectPanel) scrollDetails(rows int) {
 func (p *inspectPanel) detailsTitle(f flow.Flow, block chartBlock) string {
 	switch {
 	case block.params && f.Function:
-		return "params and returns"
+		return "variables and returns"
 	case block.params:
-		return "params"
+		return "variables"
 	case block.isInsertion():
 		return "a place for a step"
+	case block.end:
+		return "end"
 	}
 	step, _ := f.Step(block.path)
 	kind := stepKinds[step.Kind()]
@@ -100,6 +103,11 @@ func (p *inspectPanel) detailLines(f flow.Flow, block chartBlock, last *flow.Res
 			{"A step added here (a) runs first in this list.", pal.panelText},
 			{"An empty list, as a branch of an if, runs nothing.", pal.panelMuted},
 		}
+	case block.end:
+		return []styledLine{
+			{"The flow ends here; nothing goes after its end.", pal.panelText},
+			{"a on the last step adds one below it.", pal.panelMuted},
+		}
 	}
 	step, ok := f.Step(block.path)
 	if !ok {
@@ -117,10 +125,10 @@ func (p *inspectPanel) detailLines(f flow.Flow, block chartBlock, last *flow.Res
 func (p *inspectPanel) paramDetails(f flow.Flow) []styledLine {
 	pal := &p.app.palette
 	if len(f.Params) == 0 && len(f.Returns) == 0 {
-		return []styledLine{{"No params: a run asks nothing. a adds one.", pal.panelText}}
+		return []styledLine{{"No variables: a run asks nothing. a adds one.", pal.panelText}}
 	}
 	lines := []styledLine{{"A run asks for these in a form, or takes them as name=value:", pal.panelHeading}}
-	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
+	for _, name := range f.ParamNames() {
 		param := f.Params[name]
 		lines = append(lines, styledLine{name + "  " + paramText(param), pal.panelText})
 		if param.Prompt != "" {

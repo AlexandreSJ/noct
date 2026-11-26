@@ -9,7 +9,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/AlexandreSJ/noct/internal/naming"
 	"github.com/AlexandreSJ/noct/internal/script"
 )
 
@@ -37,10 +36,10 @@ func LoadFunctions(dir string, lookup func(id string) (script.Script, bool)) ([]
 
 // CreateFunction writes a new, empty function called name in dir.
 func CreateFunction(dir, name string) (Flow, error) {
-	if !naming.IsValid(name) {
-		return Flow{}, fmt.Errorf("function name %q: use letters, digits, . - _", name)
+	if err := ValidName("function", name); err != nil {
+		return Flow{}, err
 	}
-	f := Flow{Name: name, File: filepath.Join(dir, name+Ext), Function: true}
+	f := Flow{Name: name, File: FilePath(dir, name), Function: true}
 	if _, err := os.Stat(f.File); err == nil {
 		return Flow{}, fmt.Errorf("function %s already exists", name)
 	}
@@ -78,7 +77,7 @@ func (f Flow) CheckCalls(functions []Flow) error {
 				return
 			}
 		}
-		for _, name := range slices.Sorted(maps.Keys(fn.Params)) {
+		for _, name := range fn.ParamNames() {
 			if p := fn.Params[name]; p.Required && p.Default == "" && s.With[name] == "" {
 				problem = fmt.Errorf("step %s leaves out %s, which function %s needs", s.Label(), name, fn.Name)
 				return
@@ -137,10 +136,12 @@ func (x *running) runCall(s Step, path string) bool {
 	if err := fn.CheckParams(values); err != nil {
 		return x.stop(path, "function "+fn.Name+": "+err.Error(), 1)
 	}
+	values, _ = fn.withDefaults(values) // CheckParams rendered them already
 	x.header("ƒ", s.Label(), "call "+fn.Name)
 	start := time.Now()
 	caller := *x
-	x.vars, x.steps, x.blocks = values, map[string]map[string]string{}, nil
+	x.vars, x.jsonVars, x.steps, x.blocks, x.types = values, fn.jsonParams(values), map[string]map[string]string{}, nil, fn.paramTypes()
+	x.known = fn.knownNames(x.Lookup)
 	x.depth++
 	ran := x.runSteps(fn.Steps, path, "call")
 	returns := map[string]string{}
@@ -153,7 +154,8 @@ func (x *running) runCall(s Step, path string) bool {
 			break
 		}
 	}
-	x.vars, x.steps, x.blocks, x.depth = caller.vars, caller.steps, caller.blocks, caller.depth
+	x.vars, x.jsonVars, x.steps, x.blocks, x.depth, x.types = caller.vars, caller.jsonVars, caller.steps, caller.blocks, caller.depth, caller.types
+	x.known = caller.known
 	if !ran {
 		x.result.Steps[path] = StepResult{Status: StatusFailed, Exit: x.result.Exit, Duration: time.Since(start), Message: "function " + fn.Name + " stopped"}
 		return false

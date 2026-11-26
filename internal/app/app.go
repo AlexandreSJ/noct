@@ -120,6 +120,7 @@ type App struct {
 	// lastPopup is the popup the last frame drew, which closing it animates. popupArea is where
 	// the popup of the frame being drawn is, kept by drawPanel while drawingPopup.
 	lastPopup    drawnPopup
+	popupSel     *popupSelection
 	popupArea    image.Rectangle
 	drawingPopup bool
 	// paneTitles are where the frame being drawn put each pane's title, which hovering animates.
@@ -176,9 +177,15 @@ type App struct {
 	themeProblem string
 	// expanded are the folders open in the scripts panels, by path; folders start closed.
 	expanded map[string]bool
-	versions *script.Versions
-	memory   *script.Memory
-	flows    []flow.Flow
+	// lastFlow is the flow or function the inspect selected last, which a new inspect opens on.
+	lastFlow      string
+	lastStepAdded []string
+	// flowFolders and functionFolders are the folders the flows and functions are kept in, the
+	// empty ones too, by their paths.
+	flowFolders, functionFolders []string
+	versions                     *script.Versions
+	memory                       *script.Memory
+	flows                        []flow.Flow
 	// functions are the steps flows call by name (flow.FunctionsDir).
 	functions []flow.Flow
 

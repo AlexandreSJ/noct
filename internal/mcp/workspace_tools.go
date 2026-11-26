@@ -27,7 +27,7 @@ func workspaceTools(d Deps) []Tool {
 			Params: []Param{
 				{Name: "script", Type: "string", Description: "A script's id."},
 				{Name: "flow", Type: "string", Description: "A flow's name."},
-				{Name: "params", Type: "object", Description: "Parameter values by name, over the defaults; they go into the command, so a call with params usually needs the user's approval. Secret parameters come from the environment; do not pass them."},
+				{Name: "params", Type: "object", Description: "Values by name, a script's params or a flow's variables, over the defaults; they go into the command, so a call with params usually needs the user's approval. Secret parameters come from the environment; do not pass them."},
 				{Name: "steps", Type: "string", Description: "For a flow, the steps to test alone: first..last in one list, or one path."},
 			},
 			AskWhen: hasParams,

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"fmt"
 	"image"
 	"os"
@@ -51,6 +52,7 @@ const (
 	logsPreviewPercentRow
 	agentRow
 	flowsOutputRow
+	leaveFormRow
 	notifyRow
 	updateCheckRow
 	resetRow
@@ -207,6 +209,10 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 		a.moveConfigSelection(-1)
 	case "j":
 		a.moveConfigSelection(1)
+	case "g":
+		a.jumpConfigSelection("home")
+	case "G", "shift+g":
+		a.jumpConfigSelection("end")
 	case "left", "h":
 		a.changeSetting(-1)
 	case "right", "l", "enter", "space":
@@ -491,6 +497,8 @@ func (a *App) stepSetting(next *config.Config, row configRow, step int) (after f
 	case flowsOutputRow:
 		i := max(slices.Index(flowOutputChoices, next.Flows.OutputKB), 0)
 		next.Flows.OutputKB = flowOutputChoices[min(max(i+step, 0), len(flowOutputChoices)-1)]
+	case leaveFormRow:
+		next.Flows.LeaveForm = cycle(config.LeaveFormChoices, next.Flows.LeaveForm, step)
 	case notifyRow:
 		i := slices.Index(config.NotifyChoices, next.Notify)
 		next.Notify = config.NotifyChoices[min(max(i+step, 0), len(config.NotifyChoices)-1)]
@@ -715,6 +723,7 @@ func (a *App) flowsLines() []configLine {
 	return append(lines, []configLine{
 		{label: "step output kept", value: choiceValue(flowOutputLabel(a.config.Flows.OutputKB)), row: flowsOutputRow},
 		{label: "in each flow's last result; tests keep 4 KB", note: true},
+		{label: "when leaving a step's form", value: choiceValue(cmp.Or(a.config.Flows.LeaveForm, config.LeaveAsks)), row: leaveFormRow},
 		{label: "tell when runs end", value: choiceValue(a.config.Notify), row: notifyRow},
 		{label: "space to test", note: true},
 	}...)
@@ -1185,8 +1194,6 @@ func (a *App) configLineStyle(line configLine) uv.Style {
 		return a.palette.panelHeading
 	case line.row == a.configPanel.selected:
 		return a.palette.selectedRow
-	case a.configPanel.hovering && line.row == a.configPanel.hover:
-		return a.palette.focusedTitle
 	}
 	return a.palette.panelText
 }

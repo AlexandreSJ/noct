@@ -3,22 +3,20 @@
 package flow
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
-	"text/template"
 
 	"go.yaml.in/yaml/v3"
 
 	"github.com/AlexandreSJ/noct/internal/atomicfile"
 	"github.com/AlexandreSJ/noct/internal/naming"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/tree"
 )
 
 // Ext is the extension of a flow's file; the name before it is the flow's name.
@@ -41,8 +39,11 @@ type Flow struct {
 	// Draft marks a flow an AI wrote: it does not run, by hand or by trigger, until the user
 	// reviews and promotes it.
 	Draft bool `yaml:"draft,omitempty"`
-	// Params are values the steps' templates read as {{.name}}, with their defaults.
-	Params map[string]Param `yaml:"params,omitempty"`
+	// Params are the flow's variables, written under variables: what a run starts them with, their
+	// types and defaults. A function's are what its callers give it in with.
+	Params map[string]Param `yaml:"variables,omitempty"`
+	// ParamOrder is the order of Params, as ParamNames gives it.
+	ParamOrder []string `yaml:"-" json:"-"`
 	// Triggers start the flow on their own, once enabled on this machine.
 	Triggers []Trigger `yaml:"triggers,omitempty"`
 	// Timeout bounds the whole run, as a duration like 1h30m; empty is no limit.
@@ -60,7 +61,7 @@ type Flow struct {
 // Step does one thing: runs a script or a command line, branches, repeats steps, waits, asks the
 // user, or sets or clears variables.
 type Step struct {
-	// ID names the step for the templates of the steps after it: {{.steps.<id>.output}}.
+	// ID names the step for the steps after it: <id>.output, $<id>.output in a text.
 	ID     string `yaml:"id,omitempty"`
 	Script string `yaml:"script,omitempty"`
 	// Call runs a function by its name, with the params With gives.
@@ -70,7 +71,7 @@ type Step struct {
 	With  map[string]string `yaml:"with,omitempty"`
 	Run   string            `yaml:"run,omitempty"`
 	// Capture extracts values from the output: name to a regex whose first group, or whole
-	// match, becomes {{.steps.<id>.<name>}}.
+	// match, becomes <id>.<name>, and <name> until another step sets it.
 	Capture map[string]string `yaml:"capture,omitempty"`
 	Expect  *Expect           `yaml:"expect,omitempty"`
 	// OnFail is what a failure does: OnFailStop (the default), OnFailContinue or OnFailAsk.
@@ -98,15 +99,18 @@ type Step struct {
 
 	Wait string `yaml:"wait,omitempty"`
 
-	// Prompt asks whoever watches the run, and keeps the answer in the variable Var; an empty
-	// answer keeps Default. Type number asks again until the answer is a number.
+	// Prompt asks whoever watches the run, shown as it is written, and keeps the answer in the
+	// variable Var; an empty answer keeps Default. Type number asks again until the answer is a
+	// number. Secret masks the answer as it is typed and keeps it out of the run's result.
 	Prompt  string `yaml:"prompt,omitempty"`
 	Var     string `yaml:"var,omitempty"`
 	Default string `yaml:"default,omitempty"`
 	Type    string `yaml:"type,omitempty"`
+	Secret  bool   `yaml:"secret,omitempty"`
 
-	// Set gives variables, new or not, the values of its templates: {{.name}} after it.
-	Set map[string]string `yaml:"set,omitempty"`
+	// Set gives variables, new or not, the values of its texts: name after it.
+	Set   map[string]string `yaml:"set,omitempty"`
+	Types map[string]string `yaml:"types,omitempty"`
 	// Unset clears variables (name) and steps' results (steps.<id>).
 	Unset []string `yaml:"unset,omitempty"`
 
@@ -370,22 +374,16 @@ func Load(file string) (Flow, error) {
 	return f, nil
 }
 
-// LoadAll reads every flow in dir, by name. A flow that cannot be read or is not valid comes with
-// its Problem; lookup finds the scripts the steps name.
+// LoadAll reads every flow in dir and in the folders inside it, each named by its path from dir
+// (ops/deploy). A flow that cannot be read or is not valid comes with its Problem; lookup finds
+// the scripts the steps name.
 func LoadAll(dir string, lookup func(id string) (script.Script, bool)) ([]Flow, error) {
-	files, err := os.ReadDir(dir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("reading the flows: %w", err)
-	}
 	var flows []Flow
-	for _, file := range files {
-		if file.IsDir() || filepath.Ext(file.Name()) != Ext {
-			continue
-		}
-		f, err := Load(filepath.Join(dir, file.Name()))
+	err := tree.Walk(dir, func(_ string, entry fs.DirEntry) bool {
+		return !entry.IsDir() && filepath.Ext(entry.Name()) == Ext
+	}, nil, func(folder, file string) {
+		f, err := Load(file)
+		f.Name = folderName(folder, f.Name)
 		if err == nil {
 			if err = f.Validate(lookup); err != nil {
 				err = fmt.Errorf("flow %s: %w", f.Name, err)
@@ -393,27 +391,67 @@ func LoadAll(dir string, lookup func(id string) (script.Script, bool)) ([]Flow, 
 		}
 		f.Problem = err
 		flows = append(flows, f)
+	})
+	if err != nil {
+		err = fmt.Errorf("reading the flows: %w", err)
 	}
 	markAfterLoops(flows)
-	return flows, nil
+	return flows, err
 }
 
-func Find(flows []Flow, name string) (Flow, bool) {
-	i := slices.IndexFunc(flows, func(f Flow) bool { return f.Name == name })
-	if i < 0 {
-		return Flow{}, false
+// folderName is a name inside a folder path, or the name alone outside folders.
+func folderName(folder, name string) string {
+	if folder == "" {
+		return name
 	}
-	return flows[i], true
+	return folder + "/" + name
+}
+
+// Folder is the path of the folders the flow is in, as ops in ops/deploy, or "".
+func (f Flow) Folder() string { return tree.Parent(f.Name) }
+
+// Base is the flow's name without its folders: deploy in ops/deploy.
+func (f Flow) Base() string { return tree.Base(f.Name) }
+
+// FilePath is the file of the flow or function named name, which may be inside folders, in dir.
+func FilePath(dir, name string) string {
+	return filepath.Join(dir, filepath.FromSlash(name)+Ext)
+}
+
+// ValidName tells why name cannot name a flow or function, or "": letters, digits, . - and _,
+// with / between folders.
+func ValidName(kind, name string) error {
+	if !naming.IsValidPath(name) {
+		return fmt.Errorf("%s name %q: use letters, digits, . - _, and / to put it in a folder", kind, name)
+	}
+	return nil
+}
+
+// Find is the flow named name, or the only one whose name without folders is name.
+func Find(flows []Flow, name string) (Flow, bool) {
+	if i := slices.IndexFunc(flows, func(f Flow) bool { return f.Name == name }); i >= 0 {
+		return flows[i], true
+	}
+	var found []Flow
+	for _, f := range flows {
+		if f.Base() == name {
+			found = append(found, f)
+		}
+	}
+	if len(found) == 1 {
+		return found[0], true
+	}
+	return Flow{}, false
 }
 
 const exactlyOne = "a step sets exactly one of script, call, agent, run, if, repeat, wait, prompt, set and unset"
 
-// Create writes a new, empty flow called name in dir.
+// Create writes a new, empty flow called name in dir; a name with / makes its folders.
 func Create(dir, name string) (Flow, error) {
-	if !naming.IsValid(name) {
-		return Flow{}, fmt.Errorf("flow name %q: use letters, digits, . - _", name)
+	if err := ValidName("flow", name); err != nil {
+		return Flow{}, err
 	}
-	f := Flow{Name: name, File: filepath.Join(dir, name+Ext)}
+	f := Flow{Name: name, File: FilePath(dir, name)}
 	if _, err := os.Stat(f.File); err == nil {
 		return Flow{}, fmt.Errorf("flow %s already exists", name)
 	}
@@ -448,17 +486,4 @@ func (f Flow) Delete() error {
 		return fmt.Errorf("deleting flow %s: %w", f.Name, err)
 	}
 	return nil
-}
-
-func parseTemplate(text string) (*template.Template, error) {
-	return template.New("").Option("missingkey=zero").Funcs(templateFuncs).Parse(text)
-}
-
-// templateFuncs are the functions templates can call besides Go's own.
-var templateFuncs = template.FuncMap{
-	// match tells whether text matches a regex: {{if match .steps.mail.output "sent"}}.
-	"match": func(text, pattern string) (bool, error) {
-		return regexp.MatchString(pattern, text)
-	},
-	"quote": script.Quote,
 }

@@ -5,8 +5,6 @@ import (
 	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
-
-	"github.com/AlexandreSJ/noct/internal/flow"
 )
 
 // textPrompt asks for one line of text, such as a tab's or a new script's name.
@@ -17,12 +15,6 @@ type textPrompt struct {
 	submit func(text string)
 	// cancel, when set, runs after esc.
 	cancel func()
-	// pick, when set, lets ctrl+t search for text to type, such as a flow's variables.
-	pick func()
-	// variables are what a template typed here can read, offered as {{. is typed; suggested is
-	// the one picked.
-	variables []flow.Variable
-	suggested int
 }
 
 // confirmation asks before doing something that cannot be undone.
@@ -75,16 +67,7 @@ func (a *App) handlePromptKey(key uv.KeyPressEvent) {
 	case "enter":
 		a.mode = normalMode // before submit, which may open another panel
 		a.prompt.submit(strings.TrimSpace(a.prompt.input.String()))
-	case "ctrl+t":
-		if a.prompt.pick != nil {
-			a.prompt.pick()
-		}
-	case "tab":
-		a.prompt.complete()
-	case "up", "down":
-		a.prompt.moveSuggestion(map[string]int{"up": -1, "down": 1}[key.String()])
 	default:
-		a.prompt.suggested = 0
 		a.typeKey(key)
 	}
 }
@@ -95,20 +78,11 @@ func isPlainText(key uv.KeyPressEvent) bool {
 
 func (a *App) drawPrompt(screen uv.Screen) {
 	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	matches, _ := a.prompt.suggestions()
-	rows := min(len(matches), maxSuggestions)
 	// wide enough for what is typed, such as an agent's command, up to the screen
-	width := max(50+20*min(rows, 1), min(len(a.prompt.input.String())+8, a.size.X-4))
+	width := max(50, min(len(a.prompt.input.String())+8, a.size.X-4))
 	hints := a.hint("prompt", a.prompt.hints)
-	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(3+rows+moreHintRows(hints, width))), a.prompt.title)
+	inner := a.drawPanel(screen, centeredRect(area, width, panelHeight(3+moreHintRows(hints, width))), a.prompt.title)
 	a.prompt.input.draw(screen, inner.Min.X+1, inner.Min.Y, inner.Dx()-2, false, a.palette.typing(), a.palette.selectedRow)
-	a.drawSuggestions(inner, inner.Min.Y+1, func(x, y, maxX int, text string, selected bool) {
-		style := a.palette.panelMuted
-		if selected {
-			style = a.palette.typing()
-		}
-		drawText(screen, x, y, maxX, text, style)
-	})
 	drawHints(screen, inner, hints, a.palette.panelMuted)
 }
 

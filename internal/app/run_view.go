@@ -76,7 +76,16 @@ func (v *runView) restart() {
 	}
 }
 
+// viewed is a terminal with a clean and a full view of its output, as a flow run's.
+type viewed interface {
+	ToggleView() bool
+	Views() (has, full bool)
+}
+
 func (v *runView) SendKey(key uv.KeyPressEvent) {
+	if t, ok := v.terminal.(viewed); ok && key.String() == "tab" && t.ToggleView() {
+		return
+	}
 	if v.running {
 		v.terminal.SendKey(key)
 		return
@@ -127,13 +136,19 @@ func (v *runView) DrawScrolled(screen uv.Screen, area uv.Rectangle, offset int) 
 
 // status is the line under the output, in the color of the hints; the title tells how it ended.
 func (v *runView) status() (string, uv.Style) {
+	views := ""
+	if t, ok := v.terminal.(viewed); ok {
+		if has, full := t.Views(); has {
+			views = map[bool]string{true: "  tab clean view", false: "  tab full view"}[full]
+		}
+	}
 	switch {
 	case v.running:
-		return "running  ctrl+c stops", v.palette.panelMuted
+		return "running  ctrl+c stops" + views, v.palette.panelMuted
 	case v.exitCode == 0:
-		return "✓ done  r run again  enter close", v.palette.success
+		return "✓ done  r run again  enter close" + views, v.palette.success
 	}
-	return fmt.Sprintf("✗ exit %d  r run again  enter close", v.exitCode), v.palette.failure
+	return fmt.Sprintf("✗ exit %d  r run again  enter close", v.exitCode) + views, v.palette.failure
 }
 
 // FooterRows is the status line: it is not part of the script's output, so it is not selected.

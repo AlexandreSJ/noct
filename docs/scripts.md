@@ -14,11 +14,11 @@ scripts/
 Locais:
 
 - `~/.local/share/noct/scripts/` (ou `$XDG_DATA_HOME/noct/scripts/`): pessoais. O local pode ser trocado no config (`Scripts → location`).
-- **Pastas de scripts** dentro dela: uma subpasta sem `script.yaml` é uma pasta que agrupa scripts (ex.: `scripts/tests-noct/greet/`). Um nível só: pastas dentro de pastas não são lidas.
+- **Pastas de scripts** dentro dela: uma subpasta sem `script.yaml` é uma pasta que agrupa scripts (ex.: `scripts/tests-noct/greet/`), e pode ter outras pastas dentro, em qualquer profundidade (`scripts/ops/db/backup/`); pastas vinculadas e a do projeto também (ADR-072).
 - **Pastas vinculadas:** qualquer pasta de scripts em outro lugar, adicionada pelo caminho (`a` no scripts panel; fica em `script_folders` no config). Os arquivos continuam onde estão.
 - `.noct/scripts/` do projeto: o mais próximo, subindo a partir do diretório em que o `noct` foi aberto, como o git acha o repositório. Aparece como a pasta `project`.
 
-O nome do script é o nome da sua pasta: letras, dígitos, `.`, `-` e `_`. O **ID** de um script é `pasta/nome` dentro de uma pasta, ou só `nome` fora delas; é por ele que valores lembrados, histórico de execuções e `noct -s` o identificam. Scripts com o mesmo nome em pastas diferentes convivem.
+O nome do script é o nome da sua pasta: letras, dígitos, `.`, `-` e `_`. O **ID** de um script é o caminho das pastas e o nome (`ops/db/backup`), ou só `nome` fora delas; é por ele que valores lembrados, histórico de execuções e `noct -s` o identificam. Scripts com o mesmo nome em pastas diferentes convivem.
 
 ## Formato
 
@@ -48,7 +48,7 @@ outputs: [token, expires]      # opcional: o que o script devolve a um fluxo, em
 
 - **`run`** é um `text/template` do Go, renderizado com os valores dos parâmetros (`{{.nome}}`); um parâmetro que não existe é erro. A linha roda com `$SHELL -c`, então pipes, `&&` e variáveis de ambiente funcionam como no terminal. `{{quote .nome}}` põe o valor entre aspas simples, como uma palavra só do shell: espaços, aspas e `;` nele não viram comando.
 - **Valor inicial** de cada parâmetro: o ambiente para `from: env:`, quando a variável existe (e então ele não é perguntado); o último valor usado se `remember: true`; senão o `default`; senão a primeira das `choices`. Um parâmetro `from: env:` sem a variável é perguntado como os outros e nunca é lembrado; vazio, o script não roda (ADR-063).
-- **`outputs`** são o "retorno" do script num fluxo: para cada nome, a primeira linha `nome=valor` da saída vira `{{.steps.<id>.nome}}`, sem escrever um `capture` com regex. Um `capture` do passo com o mesmo nome vence. Os nomes aparecem no painel scope do inspect ([fluxos.md](fluxos.md#variáveis-e-escopo)).
+- **`outputs`** são o "retorno" do script num fluxo: para cada nome, a primeira linha `nome=valor` da saída vira `{{.nome}}` (e `{{.steps.build.nome}}`, pelo `id` do passo), sem escrever um `capture` com regex. Um `capture` do passo com o mesmo nome vence. Os nomes aparecem no painel scope do inspect ([fluxos.md](fluxos.md#variáveis-e-escopo)).
 - **Valores lembrados** ficam em `~/.local/state/noct/params.json`, compartilhados pela TUI e pela CLI. Segredos nunca são gravados.
 - **Validação:** `run` não vazio, nomes de parâmetro como identificadores e sem repetição, `default` dentro das `choices`, `from` no formato `env:NOME`, `outputs` como identificadores, template que compila e só usa parâmetros que existem. Um script inválido não some: aparece como problema no scripts panel e em `noct check`.
 

@@ -9,14 +9,14 @@ import (
 )
 
 const greetFunction = `description: Greets someone
-params:
+variables:
   who: {required: true}
 steps:
-  - {id: say, run: 'echo hello {{.who}}'}
-  - set: {shout: 'HELLO {{.who}}'}
+  - {id: say, run: 'echo hello $who'}
+  - set: {shout: 'HELLO $who'}
 returns:
-  greeting: '{{.steps.say.output}}'
-  loud: '{{.shout}}'
+  greeting: '$say.output'
+  loud: '$shout'
 `
 
 func functionsIn(t *testing.T, files map[string]string) []Flow {
@@ -39,7 +39,7 @@ func TestACallRunsTheFunctionInAScopeOfItsOwn(t *testing.T) {
 	f := parse(t, `steps:
   - set: {shout: mine}
   - {id: hi, call: greet, with: {who: ana}}
-  - {run: 'echo "[{{.greeting}}] [{{.steps.hi.loud}}] [{{.shout}}] [{{.who}}]"'}
+  - {run: 'echo "[$greeting] [$hi.loud] [$shout] [$who]"'}
 `)
 	lookup := func(name string) (Flow, bool) { return Find(functions, name) }
 	f.WithFunctions(lookup)

@@ -52,13 +52,19 @@ func TestInspectBuildsAFlowStepByStep(t *testing.T) {
 	}
 	pressDrawn(a, letter('a'))
 	typeDrawn(a, "explore")
-	pressDrawn(a, enterPress, letter('a'), letter('l'), clearLine)
-	typeDrawn(a, `{{ne .steps.dice.number "6"}}`)
-	pressDrawn(a, enterPress, downPress, letter('a'), letter('s'))
+	pressDrawn(a, enterPress)
+	addStep(a, "repeat")
+	setCell(a, "") // no times: until
+	pressDrawn(a, letter('j'))
+	setCell(a, `dice.number != 6`)
+	pressDrawn(a, ctrlS, downPress)
+	addStep(a, "script")
 	typeDrawn(a, "where")
-	pressDrawn(a, enterPress, letter('a'), letter('i'), clearLine)
-	typeDrawn(a, `{{eq .steps.where.exit "0"}}`)
-	pressDrawn(a, enterPress, downPress, letter('a'), letter('s'))
+	pressDrawn(a, enterPress)
+	addStep(a, "if")
+	setCell(a, `where.exit == 0`)
+	pressDrawn(a, ctrlS, downPress)
+	addStep(a, "script")
 	typeDrawn(a, "dice")
 	pressDrawn(a, enterPress, letter('e'))
 	editPart(t, l, "id: dice\nscript: dice\ncapture: {number: 'number=(\\d)'}\n")
@@ -78,11 +84,11 @@ func TestInspectBuildsAFlowStepByStep(t *testing.T) {
 	branch, _ := f.Step("0/steps/1")
 	dice, _ := f.Step("0/steps/1/then/0")
 	switch {
-	case repeat.Repeat == nil || repeat.Repeat.Until != `{{ne .steps.dice.number "6"}}` || repeat.Repeat.Max != 10:
+	case repeat.Repeat == nil || repeat.Repeat.Until != `dice.number != 6` || repeat.Repeat.Max != 10:
 		t.Errorf("repeat = %+v", repeat.Repeat)
 	case inner.Script != "where" || inner.ID != "where":
 		t.Errorf("first step inside = %+v", inner)
-	case branch.If != `{{eq .steps.where.exit "0"}}`:
+	case branch.If != `where.exit == 0`:
 		t.Errorf("if = %+v", branch)
 	case dice.Script != "dice" || dice.Capture["number"] != `number=(\d)`:
 		t.Errorf("then step = %+v", dice)
@@ -145,17 +151,18 @@ func TestInspectAddsAboveTheFirstStepAndBelowTheSelected(t *testing.T) {
 }
 
 func addCommand(a *App, command string) {
-	pressDrawn(a, letter('a'), letter('c'))
-	typeDrawn(a, command)
-	pressDrawn(a, enterPress)
+	addStep(a, "command")
+	setCell(a, command)
+	pressDrawn(a, ctrlS)
 }
 
 func saveFlow(t *testing.T, name, content string) {
 	t.Helper()
-	if err := os.MkdirAll(flow.Dir(), 0o755); err != nil {
+	file := flow.FilePath(flow.Dir(), name) // a name with / goes in folders
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(flow.Dir(), name+flow.Ext), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

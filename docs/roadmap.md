@@ -68,6 +68,14 @@ Encadear scripts num editor visual (ver [fluxos.md](fluxos.md)).
 10. **Agente:** um passo `agent:` com um prompt que roda um agente de linha de comando do usuário (`claude -p`, `ollama run`, `opencode run`, ou um comando próprio) e devolve a resposta, opcionalmente uma entre `choices`, para os passos seguintes decidirem.
 11. **MCP:** as ferramentas leem e rascunham funções, passos de agente, tipos e o escopo novo, com a mesma política de aprovação.
 
+**Editores no painel (pedido do mantenedor, 2026-11-24; ADR-071, na branch `feat/flow-editor`).** Os params numa tabela, um por linha em colunas, e cada passo num formulário, os dois no lugar do fluxograma e sem travar o noct, com as variáveis do escopo e exemplos ao lado; tipos `boolean`, `option`, `list` e `object` (JSON com recursão); nomes curtos em toda lista e o aviso de escopo; sem o `Ctrl+T`, e dicas numa linha só. Depois, a pedido também: navegar com `hjkl` e editar com `Enter` ou clique, menus e listas com filtro embaixo da célula (as opções de um `option` com a padrão marcada, os itens de um `list`), `+ add param`, mover (`J`/`K`), remover (`Ctrl+Delete`), desfazer (`Ctrl+Z`/`Ctrl+Y`), a ordem dos params guardada, `v` para esconder a ajuda e o fluxo `demo-params`. Com isso saem do "Próximo no inspect" acima: editar um passo existente num formulário (menos o script, ainda em YAML), os `every`/`max` do `repeat` e definir os params do fluxo.
+
+**Pastas e onde parou (pedido do mantenedor, 2026-11-25; ADR-072, na mesma branch).** Scripts, fluxos e funções em pastas dentro de pastas, lidas pelo mesmo código (`internal/tree`) e listadas pela mesma árvore no scripts panel e no inspect, com as funções na pasta `ƒ functions`; o nome de um fluxo numa pasta é o caminho (`ops/deploy`). O inspect abre no último fluxo, e a sessão lembra o fluxo e o script de cada painel.
+
+**`$nome` nos templates (pedido do mantenedor, 2026-11-25; ADR-073, na mesma branch).** `$nome`, `$passo.campo` e `$obj.campo` leem valores; só os nomes do fluxo, o resto é do shell; numa linha `run`, escapados conforme as aspas, sem `{{quote}}`.
+
+**Expressões no lugar de `{{ }}` (pedido do mantenedor, 2026-11-25; ADR-074, na mesma branch).** `if`, `until`, `switch` e `each` são expressões com nomes soltos (`login == expected and not ok`), operadores, lambdas e funções, num parser próprio (`internal/expr`); os textos leem `$nome`, `$f(…)` e `${…}`; `{{ }}` sai dos fluxos, sem compatibilidade, e `params:` vira `variables:`. Falta decidir os scripts, que mantêm `params` e `{{quote .nome}}`.
+
 **Pronto quando:** um teste de ponta a ponta com várias etapas é montado sem editar YAML à mão, roda sozinho por cron, para no passo certo em caso de falha, e a execução de ontem é encontrada pelo calendário.
 
 ## Fase 3 — IA (MCP)
@@ -111,7 +119,7 @@ O que a revisão de novembro de 2026 achou e não corrigiu, por pedir uma decis�
 **Segurança e correção**
 
 1. **Params do `run` como texto no template.** Desde o ADR-060 o `run` com `params` pede aprovação, mas os valores ainda entram no comando renderizado para `sh -c`. Passá-los como variáveis de ambiente (`"$pattern"`) ou argumentos posicionais fecha a injeção sem depender da aprovação; muda o formato dos scripts e pede ADR próprio. O ADR-063 tratou só dos params lidos do ambiente (`from: env:`) e deixou essa mudança de formato fora; o `{{quote …}}` cobre quem precisa.
-2. **Saídas de passos em `run:`** (`{{.steps.x.output}}`) também entram cruas no shell quando o fluxo não usa `{{quote …}}`. Com o `quote` nos templates, o que falta é decidir se ele vira o padrão junto com o item 1.
+2. ~~**Saídas de passos em `run:`** entravam cruas no shell sem `{{quote …}}`.~~ Resolvido nos fluxos pelos ADR-073 e ADR-074: cada `$` sai escapado onde cai. Falta o mesmo nos scripts, junto com o item 1.
 
 **Dependências**
 

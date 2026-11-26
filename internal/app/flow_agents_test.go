@@ -10,8 +10,48 @@ import (
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 )
 
-// An agent step is set up in one form, what it asks, its answers, the agent and the timeout,
-// and one enter adds it.
+// openStepForm is the step form the focused inspect shows in place of its chart.
+func openStepForm(t *testing.T, a *App) *stepForm {
+	t.Helper()
+	p, ok := a.currentTab().focusedView().(*inspectPanel)
+	if !ok {
+		t.Fatalf("the focused view is not the inspect")
+	}
+	form, ok := p.editor.(*stepForm)
+	if !ok {
+		t.Fatalf("the inspect shows no step form:\n%s", screenText(a))
+	}
+	return form
+}
+
+// pickOption opens the focused option cell's menu and picks value from it.
+func pickOption(t *testing.T, a *App, value string) {
+	t.Helper()
+	form := openStepForm(t, a)
+	options := form.grid.cell().options
+	if !slices.Contains(options, value) {
+		t.Fatalf("no option %q in %v", value, options)
+	}
+	pressDrawn(a, enterPress)
+	for form.grid.menu != nil && options[form.grid.menu.lit] != value {
+		pressDrawn(a, letter('j'))
+	}
+	pressDrawn(a, enterPress)
+}
+
+// addItems adds items to the focused list cell, from its + add button, and closes it.
+func addItems(a *App, items ...string) {
+	pressDrawn(a, enterPress)
+	for _, item := range items {
+		pressDrawn(a, uv.KeyPressEvent{Code: uv.KeyDown, Mod: uv.ModCtrl}, enterPress)
+		typeDrawn(a, item)
+		pressDrawn(a, enterPress)
+	}
+	pressDrawn(a, escPress)
+}
+
+// An agent step is set up in one form in place of the chart, what it asks, its answers, the
+// agent and the timeout, and ctrl+s adds it; {{. completes the variables in scope.
 func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 	machineAgents(t)
 	a := testApp(t)
@@ -19,37 +59,41 @@ func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 	a.config.Agents = map[string]string{"local": "ollama run qwen"}
 	saveFlow(t, "review", "steps:\n  - {id: test, run: 'echo 3 failed'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
-	pressDrawn(a, letter('a'), letter('a'))
-	if a.mode != formMode {
-		t.Fatalf("a, a opened mode %v, want the agent form", a.mode)
+	addStep(a, "AI agent")
+	form := openStepForm(t, a)
+	if a.mode != normalMode {
+		t.Errorf("the form took noct's mode %v; it belongs to the panel", a.mode)
 	}
-	typeDrawn(a, "Did ")
-	pressDrawn(a, uv.KeyPressEvent{Code: 't', Mod: uv.ModCtrl})
-	typeDrawn(a, "steps.test.output")
 	pressDrawn(a, enterPress)
+	typeDrawn(a, "Did $ou")
+	if !strings.Contains(screenText(a), "variables here") {
+		t.Errorf("the help does not list the variables:\n%s", screenText(a))
+	}
+	pressDrawn(a, tabPress)
 	typeDrawn(a, " pass?")
-	pressDrawn(a, tabPress)
-	typeDrawn(a, "pass fail")
-	pressDrawn(a, tabPress)
+	pressDrawn(a, escPress, letter('j'))
+	addItems(a, "pass", "fail")
+	pressDrawn(a, letter('j'))
+	options := form.grid.cell().options
 	for _, want := range []string{"auto", "local", "ollama"} {
-		if !slices.Contains(a.form.fields[2].Choices, want) {
-			t.Errorf("the agents offered %v lack %q", a.form.fields[2].Choices, want)
+		if !slices.Contains(options, want) {
+			t.Errorf("the agents offered %v lack %q", options, want)
 		}
 	}
-	if slices.Contains(a.form.fields[2].Choices, "codex") {
-		t.Errorf("the agents offered %v hold codex, which this machine lacks", a.form.fields[2].Choices)
+	if slices.Contains(options, "codex") {
+		t.Errorf("the agents offered %v hold codex, which this machine lacks", options)
 	}
-	pressDrawn(a, rightPress) // the agent after the default
-	if !strings.Contains(screenText(a), "enter add") {
-		t.Errorf("the form does not say enter adds:\n%s", screenText(a))
+	pickOption(t, a, options[1]) // the agent after the default
+	if !strings.Contains(screenText(a), "add step") {
+		t.Errorf("the form shows no add step:\n%s", screenText(a))
 	}
-	pressDrawn(a, enterPress)
+	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "review")
 	if len(steps) != 2 || steps[1].Agent == nil || steps[1].ID != "agent" {
 		t.Fatalf("steps %+v", steps)
 	}
 	agent := steps[1].Agent
-	if agent.Ask != "Did {{.steps.test.output}} pass?" || agent.Use != a.form.fields[2].Choices[1] || strings.Join(agent.Choices, ",") != "pass,fail" || steps[1].Timeout != agentStepTimeout {
+	if agent.Ask != "Did $output pass?" || agent.Use != options[1] || strings.Join(agent.Choices, ",") != "pass,fail" || steps[1].Timeout != agentStepTimeout {
 		t.Errorf("agent %+v, timeout %q", agent, steps[1].Timeout)
 	}
 	if !strings.Contains(chartText(a.currentTab().focusedView().(*inspectPanel).chart), "→ pass | fail") {
@@ -64,17 +108,17 @@ func TestAnAgentStepAsksTheDefaultAgentByName(t *testing.T) {
 	a.size = image.Pt(140, 50)
 	saveFlow(t, "review", "steps:\n  - {id: test, run: 'echo 3 failed'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
-	pressDrawn(a, letter('a'), letter('a'))
-	choices := a.form.fields[2].Choices
-	if choices[0] != "default" || choices[1] != "auto" || choices[len(choices)-1] != customAgent {
-		t.Fatalf("the agents offered: %v", choices)
+	addStep(a, "AI agent")
+	setCell(a, "Is it flaky?")
+	pressDrawn(a, letter('j'), letter('j'))
+	options := openStepForm(t, a).grid.cell().options
+	if options[0] != "default" || options[1] != "auto" || options[len(options)-1] != customAgent {
+		t.Fatalf("the agents offered: %v", options)
 	}
-	typeDrawn(a, "Is it flaky?")
-	pressDrawn(a, tabPress, tabPress)
 	if !strings.Contains(screenText(a), "default: ") {
 		t.Errorf("the form does not tell what default asks:\n%s", screenText(a))
 	}
-	pressDrawn(a, enterPress)
+	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "review")
 	if len(steps) != 2 || steps[1].Agent == nil || steps[1].Agent.Use != "default" {
 		t.Fatalf("steps %+v", steps)
@@ -84,32 +128,30 @@ func TestAnAgentStepAsksTheDefaultAgentByName(t *testing.T) {
 	}
 }
 
-// custom agent asks for a name and a command, adds them to the config's [agents], and the step
-// asks that agent; a reserved name is refused.
+// custom agent shows rows for the agent's name and command in the same form; saving adds them to
+// the config's [agents] and the step asks that agent, and a reserved name is refused in place.
 func TestACustomAgentIsAddedToTheConfig(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 50)
 	saveFlow(t, "review", "steps:\n  - {id: test, run: 'echo 3 failed'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
-	pressDrawn(a, letter('a'), letter('a'))
-	typeDrawn(a, "Is it flaky?")
-	pressDrawn(a, tabPress, tabPress, leftPress)
-	if a.form.values["agent"] != customAgent {
-		t.Fatalf("left from default picked %q", a.form.values["agent"])
+	addStep(a, "AI agent")
+	setCell(a, "Is it flaky?")
+	pressDrawn(a, letter('j'), letter('j'))
+	if strings.Contains(screenText(a), "command") {
+		t.Errorf("the custom agent's rows show before it is picked:\n%s", screenText(a))
 	}
-	pressDrawn(a, enterPress)
-	typeDrawn(a, "auto")
-	pressDrawn(a, enterPress)
-	if !strings.Contains(a.statusMessage, "names another agent") {
-		t.Errorf("auto was taken as a name: %q", a.statusMessage)
+	pickOption(t, a, customAgent)
+	pressDrawn(a, letter('j'), letter('j'))
+	setCell(a, "auto")
+	pressDrawn(a, ctrlS)
+	if !strings.Contains(screenText(a), "names another agent") || a.mode != normalMode {
+		t.Errorf("auto was taken as a name:\n%s", screenText(a))
 	}
-	pressDrawn(a, letter('a'), letter('a'))
-	typeDrawn(a, "Is it flaky?")
-	pressDrawn(a, tabPress, tabPress, leftPress, enterPress)
-	typeDrawn(a, "mymodel")
-	pressDrawn(a, enterPress)
-	typeDrawn(a, "ollama run qwen3.5:4b")
-	pressDrawn(a, enterPress)
+	setCell(a, "mymodel")
+	pressDrawn(a, letter('j'))
+	setCell(a, "ollama run qwen3.5:4b")
+	pressDrawn(a, ctrlS)
 	saved, err := config.Load(a.configPath)
 	if err != nil || saved.Agents["mymodel"] != "ollama run qwen3.5:4b" || a.config.Agents["mymodel"] == "" {
 		t.Fatalf("config agents %v, %v", saved.Agents, err)

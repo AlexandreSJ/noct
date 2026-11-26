@@ -94,7 +94,7 @@ func promote(name string) error {
 		if err != nil {
 			return err
 		}
-		fresh.Draft = false
+		fresh.Name, fresh.Draft = f.Name, false
 		return fresh.Save()
 	}
 	if s, ok := lib.Find(name); ok {
@@ -209,7 +209,9 @@ func newFlowRunner(lib script.Library) *flow.Runner {
 		Sleep:  time.Sleep,
 		// The config keeps kilobytes; 0, all of the output, stays 0.
 		KeepOutput:   cfg.Flows.OutputKB << 10,
+		Sections:     os.Getenv("NOCT_PANE") != "",
 		Ask:          terminalAsk(os.Stdin, os.Stdout),
+		AskSecret:    terminalAskSecret(os.Stdin, os.Stdout),
 		OpenPane:     workspacePanes(),
 		Attention:    workspaceAttention(),
 		Function:     loadFunctions(lib),

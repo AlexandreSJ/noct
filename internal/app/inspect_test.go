@@ -2,7 +2,6 @@ package app
 
 import (
 	"image"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -36,7 +35,7 @@ func screenText(a *App) string {
 	return strings.Join(lines, "\n")
 }
 
-const threeSteps = "steps:\n  - {id: one, run: printf 1}\n  - {id: two, run: 'echo {{.steps.one.output}}'}\n  - {id: three, run: printf 3}\n"
+const threeSteps = "steps:\n  - {id: one, run: printf 1}\n  - {id: two, run: 'echo $one.output'}\n  - {id: three, run: printf 3}\n"
 
 // Shift+down selects the next step too, t tests the range, and esc leaves just the step;
 // ctrl+arrows pan the chart.
@@ -68,37 +67,19 @@ func TestInspectTestsARangeOfSteps(t *testing.T) {
 func TestScopePaneAndWarnings(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
-	saveFlow(t, "trio", "steps:\n  - {id: one, run: printf 1, capture: {n: '(\\d)'}}\n  - {id: two, run: 'echo {{.steps.three.output}}'}\n  - {id: three, run: printf 3}\n")
+	saveFlow(t, "trio", "steps:\n  - {id: one, run: printf 1, capture: {n: '(\\d)'}}\n  - {id: two, run: 'echo $three.output'}\n  - {id: three, run: printf 3}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress, letter('s'))
 	screen := screenText(a)
-	for _, want := range []string{"scope", ".steps.one.n", "⚠ step three has not run yet here"} {
+	for _, want := range []string{"scope", "  $n", "⚠ step three has not run yet here"} {
 		if !strings.Contains(screen, want) {
 			t.Errorf("screen lacks %q:\n%s", want, screen)
 		}
 	}
-	if regexp.MustCompile(`[^{]\.steps\.three\.output`).MatchString(screen) { // not the command's {{.steps.three.output}}
+	if strings.Contains(screen, "$one.n") {
+		t.Error("the scope names .n by its step, which only one step sets")
+	}
+	if strings.Contains(screen, "  $three.output") {
 		t.Error("the scope of step two lists step three")
-	}
-}
-
-// ctrl+t in a template prompt picks a variable in scope and types it.
-func TestPromptInsertsAVariableInScope(t *testing.T) {
-	a := testApp(t)
-	saveFlow(t, "trio", threeSteps)
-	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress, letter('a'), letter('c'))
-	typeDrawn(a, "echo ")
-	pressDrawn(a, uv.KeyPressEvent{Code: 't', Mod: uv.ModCtrl})
-	if a.mode != finderMode {
-		t.Fatalf("ctrl+t: mode %v, want the finder", a.mode)
-	}
-	typeDrawn(a, "one.output")
-	pressDrawn(a, enterPress)
-	if a.mode != promptMode || a.prompt.input.String() != "echo {{.steps.one.output}}" {
-		t.Errorf("mode %v, prompt %q", a.mode, a.prompt.input.String())
-	}
-	pressDrawn(a, uv.KeyPressEvent{Code: 't', Mod: uv.ModCtrl}, escPress)
-	if a.mode != promptMode {
-		t.Errorf("esc in the finder left the prompt: mode %v", a.mode)
 	}
 }
 

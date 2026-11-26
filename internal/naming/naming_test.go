@@ -23,3 +23,14 @@ func TestIsIdentifier(t *testing.T) {
 		}
 	}
 }
+
+func TestIsValidPath(t *testing.T) {
+	for path, want := range map[string]bool{
+		"deploy": true, "ops/deploy": true, "ops/db/backup": true,
+		"": false, "/ops": false, "ops/": false, "ops//x": false, "../x": false, "ops/../x": false,
+	} {
+		if got := IsValidPath(path); got != want {
+			t.Errorf("IsValidPath(%q) = %v, want %v", path, got, want)
+		}
+	}
+}

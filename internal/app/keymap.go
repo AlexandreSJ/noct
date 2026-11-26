@@ -114,8 +114,10 @@ var keyContexts = []keyContext{
 	{id: "flows", label: "inspect flows", actions: []keyAction{
 		{"up", "previous flow, or the step above", []string{"up", "k"}},
 		{"down", "next flow, or the step below", []string{"down", "j"}},
-		{"first", "the first flow", []string{"home"}},
-		{"last", "the last flow", []string{"end"}},
+		{"start", "the flow's start, in the chart", []string{"g"}},
+		{"end", "the flow's end, in the chart", []string{"G", "shift+g"}},
+		{"first", "the first flow, or the flow's start in the chart", []string{"home"}},
+		{"last", "the last flow, or the flow's end in the chart", []string{"end"}},
 		{"page-up", "a page up of flows", []string{"pgup"}},
 		{"page-down", "a page down of flows", []string{"pgdown"}},
 
@@ -126,8 +128,10 @@ var keyContexts = []keyContext{
 		{"switch", "list or chart", []string{"tab", "shift+tab"}},
 		{"add", "new flow, or add a step", []string{"a"}},
 		{"new-function", "new function", []string{"F", "shift+f"}},
+		{"new-folder", "new folder, in the folder selected", []string{"N", "shift+n"}},
+		{"copy", "copy the flow or function under a new name", []string{"c"}},
 		{"run", "run", []string{"r"}},
-		{"params", "run with params", []string{"p"}},
+		{"params", "run with variables", []string{"p"}},
 		{"test", "test the step or range", []string{"t"}},
 		{"edit", "edit the step", []string{"e"}},
 		{"edit-file", "edit the file", []string{"E"}},
@@ -135,12 +139,13 @@ var keyContexts = []keyContext{
 		{"range-down", "grow the range down", []string{"shift+down"}},
 		{"move-down", "move the step down", []string{"J", "shift+j"}},
 		{"move-up", "move the step up", []string{"K", "shift+k"}},
-		{"move-mode", "move the step with the arrows", []string{"m"}},
+		{"move-mode", "move the step with the arrows; in the list, move or rename the flow or folder", []string{"m"}},
 		{"export", "keep a variable an if, a switch or a repeat makes after it", []string{"x"}},
 		{"retry", "run a failed step again, how many times", []string{"R", "shift+r"}},
 		{"undo", "undo the last change", []string{"z"}},
 		{"redo", "redo what was undone", []string{"y"}},
 		{"scope", "show the scope", []string{"s"}},
+		{"details", "hide or show the details under the chart", []string{"v"}},
 		{"triggers", "triggers on or off", []string{"o"}},
 		{"add-trigger", "add a trigger", []string{"T", "shift+t"}},
 		{"promote", "promote a draft", []string{"P", "shift+p"}},
@@ -153,7 +158,7 @@ var keyContexts = []keyContext{
 		{"pan-right", "pan right", []string{"ctrl+right"}},
 		{"keys", "these keys", []string{"?"}},
 		{"filter", "filter the flows by name or description", []string{"f", "/"}},
-		{"delete", "delete the flow, or remove the step", []string{"delete"}},
+		{"delete", "delete the flow or folder, or remove the step", []string{"delete"}},
 		{"close", "close the panel", []string{"ctrl+d"}},
 	}},
 	{id: "logs", label: "logs", actions: []keyAction{
@@ -270,9 +275,37 @@ var keyContexts = []keyContext{
 		{"submit", "submit", []string{"enter"}},
 		{"erase", "erase a character", []string{"backspace"}},
 		{"clear", "erase to the start", []string{"ctrl+u"}},
-		{"pick", "pick from a list", []string{"ctrl+t"}},
 	}},
-	{id: "form", label: "params form", typing: true, actions: []keyAction{
+	{id: "flow-editor", label: "flow variables and step forms", actions: []keyAction{
+		{"enter", "edit the cell, pick, or press the button", []string{"enter"}},
+		{"up", "the row above", []string{"up", "k"}},
+		{"down", "the row below", []string{"down", "j"}},
+		{"left", "the cell to the left", []string{"left", "h"}},
+		{"right", "the cell to the right", []string{"right", "l"}},
+		{"first-row", "the first row", []string{"ctrl+up", "ctrl+k"}},
+		{"last-row", "the last row", []string{"ctrl+down", "ctrl+j"}},
+		{"first-cell", "the row's first cell", []string{"ctrl+left", "ctrl+h"}},
+		{"last-cell", "the row's last cell", []string{"ctrl+right", "ctrl+l"}},
+		{"next", "the next cell", []string{"tab"}},
+		{"previous", "the cell before", []string{"shift+tab"}},
+		{"move-up", "move the row up", []string{"K", "shift+k"}},
+		{"move-down", "move the row down", []string{"J", "shift+j"}},
+		{"mark-up", "mark rows up; ctrl+click marks one, esc lets the marks go", []string{"shift+up"}},
+		{"mark-down", "mark rows down", []string{"shift+down"}},
+		{"remove", "remove the rows", []string{"delete", "ctrl+delete"}},
+		{"double", "double the rows", []string{"d"}},
+		{"cut", "cut the rows", []string{"x"}},
+		{"copy", "copy the rows, or what is marked in a cell typed in", []string{"c", "ctrl+c"}},
+		{"paste", "paste the rows", []string{"v"}},
+		{"undo", "undo", []string{"z", "ctrl+z"}},
+		{"redo", "redo", []string{"y", "ctrl+y"}},
+		{"space", "flip, open the options, or mark the value in a list", []string{"space"}},
+		{"filter", "filter a list", []string{"f", "/"}},
+		{"save", "save the step", []string{"ctrl+s"}},
+		{"help", "hide or show the help", []string{"i"}},
+		{"keys", "these keys", []string{"?"}},
+	}},
+	{id: "form", label: "variables form", typing: true, actions: []keyAction{
 		{"run", "run", []string{"enter"}},
 		{"next", "next field", []string{"tab", "down"}},
 		{"previous", "previous field", []string{"shift+tab", "up"}},
@@ -296,8 +329,8 @@ var keyContexts = []keyContext{
 	{id: "config", label: "config", typing: true, actions: []keyAction{
 		{"up", "previous setting", []string{"up", "k"}},
 		{"down", "next setting", []string{"down", "j"}},
-		{"first", "the first setting", []string{"home"}},
-		{"last", "the last setting", []string{"end"}},
+		{"first", "the first setting", []string{"home", "g"}},
+		{"last", "the last setting", []string{"end", "G", "shift+g"}},
 		{"page-up", "a page up", []string{"pgup"}},
 		{"page-down", "a page down", []string{"pgdown"}},
 		{"back", "change back", []string{"left", "h"}},
@@ -514,6 +547,9 @@ func viewKeyContext(v view) string {
 	case *scriptsPanel:
 		return "scripts"
 	case *inspectPanel:
+		if v.editor != nil {
+			return "flow-editor"
+		}
 		return "flows"
 	case *logsPanel:
 		return "logs"

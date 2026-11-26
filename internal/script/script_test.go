@@ -414,7 +414,8 @@ func TestFromCommandAsksEachValueAsAPath(t *testing.T) {
 	}
 }
 
-func TestWalkFieldsVisitsEveryFieldInOrder(t *testing.T) {
+// Fields inside a range or with read the item, so only the ones reading the template's data count.
+func TestWalkFieldsVisitsTheTemplatesFieldsInOrder(t *testing.T) {
 	text := `{{.a}}{{if .steps.x.ok}}{{.b | printf "%s"}}{{else}}{{range .c}}{{.d.e}}{{end}}{{end}}{{with .f}}{{end}}`
 	tree, err := template.New("").Parse(text)
 	if err != nil {
@@ -422,7 +423,7 @@ func TestWalkFieldsVisitsEveryFieldInOrder(t *testing.T) {
 	}
 	var visited []string
 	WalkFields(tree.Root, func(ident []string) { visited = append(visited, strings.Join(ident, ".")) })
-	if got := strings.Join(visited, " "); got != "a steps.x.ok b c d.e f" {
+	if got := strings.Join(visited, " "); got != "a steps.x.ok b c f" {
 		t.Errorf("visited %s", got)
 	}
 }
@@ -456,5 +457,31 @@ func TestQuoteRendersAValueAsOneShellWord(t *testing.T) {
 	command, err := s.Command(map[string]string{"pattern": `x'; rm -rf ~; echo '`})
 	if want := `grep -r 'x'\''; rm -rf ~; echo '\''' .`; err != nil || command != want {
 		t.Errorf("command %q, %v; want %q", command, err, want)
+	}
+}
+
+// Folders hold folders at any depth, in the personal folder and in a linked one.
+func TestTheLibraryReadsFoldersInFolders(t *testing.T) {
+	personal, linked := t.TempDir(), t.TempDir()
+	writeScript(t, filepath.Join(personal, "ops", "db"), "backup", "run: echo backup")
+	writeScript(t, filepath.Join(personal, "ops"), "deploy", "run: echo deploy")
+	writeScript(t, filepath.Join(linked, "net"), "ping", "run: ping")
+	lib := LoadLibrary(personal, []string{linked}, "")
+	parents := map[string]string{}
+	for _, f := range lib.Folders {
+		parents[f.Name] = f.Parent
+	}
+	ops, db, net := filepath.Join(personal, "ops"), filepath.Join(personal, "ops", "db"), filepath.Base(linked)+"/net"
+	if parents["ops"] != "" || parents["ops/db"] != ops || parents[net] != linked {
+		t.Fatalf("folders and their parents: %v", parents)
+	}
+	if s, ok := lib.Find("ops/db/backup"); !ok || s.Dir != filepath.Join(db, "backup") {
+		t.Errorf("ops/db/backup: %+v", s)
+	}
+	if s, ok := lib.Find("backup"); !ok || s.ID() != "ops/db/backup" {
+		t.Errorf("a name in a single folder: %+v", s)
+	}
+	if s, ok := lib.Find(net + "/ping"); !ok || s.Run != "ping" {
+		t.Errorf("a script in a linked folder's folder: %+v", s)
 	}
 }

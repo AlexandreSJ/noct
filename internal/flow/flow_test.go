@@ -51,7 +51,7 @@ steps:
     capture: { id: 'id=(\d+)' }
   - id: second
     script: shout
-    with: { word: 'got {{.steps.first.id}}' }
+    with: { word: 'got $first.id' }
 `)
 	if err := f.Validate(r.Lookup); err != nil {
 		t.Fatal(err)
@@ -71,9 +71,9 @@ steps:
 func TestIfTakesTheBranchTheConditionGives(t *testing.T) {
 	r, out := testRunner(t, nil)
 	f := parse(t, `
-params: { color: red }
+variables: { color: red }
 steps:
-  - if: '{{eq .color "red"}}'
+  - if: color == "red"
     then: [ { run: echo took-then } ]
     else: [ { run: echo took-else } ]
 `)
@@ -93,12 +93,12 @@ func TestRepeatForgetsStepsThatDidNotRunThisPass(t *testing.T) {
 	counter := filepath.Join(r.Dir, "count")
 	f := parse(t, `
 steps:
-  - repeat: { until: '{{ne .steps.six.value "6"}}', max: 5 }
+  - repeat: { until: six.value != "6", max: 5 }
     steps:
       - id: roll
         run: 'n=$(($(cat count 2>/dev/null || echo 0) + 1)); echo $n > count; echo roll=$n'
         capture: { n: 'roll=(\d+)' }
-      - if: '{{eq .steps.roll.n "1"}}'
+      - if: roll.n == "1"
         then:
           - id: six
             run: echo value=6
@@ -170,7 +170,7 @@ func TestValidateRejects(t *testing.T) {
 		"unknown script": `steps: [ { script: missing } ]`,
 		"script capture": `steps: [ { script: known, capture: { x: '(' } } ]`,
 		"twice the id":   `steps: [ { id: a, run: ls }, { id: a, run: ls } ]`,
-		"bad template":   `steps: [ { run: '{{.x' } ]`,
+		"bad template":   `steps: [ { run: 'echo $len(x' } ]`,
 		"capture on if":  `steps: [ { if: 'true', capture: { x: y } } ]`,
 	}
 	for name, text := range cases {
@@ -187,7 +187,7 @@ func TestEditingByPath(t *testing.T) {
 	f := parse(t, `
 steps:
   - { id: a, run: echo a }
-  - if: 'true'
+  - if: true
     then: [ { id: b, run: echo b } ]
 `)
 	path, err := f.Insert("1", "else", 0, Step{ID: f.UniqueID("a"), Run: "echo c"})
@@ -242,7 +242,7 @@ steps:
   - id: tricky
     run: printf '%s' "it's; echo injected"
   - id: echo
-    run: printf '[%s]' {{quote .steps.tricky.output}}
+    run: printf '[%s]' $tricky.output
 `)
 	if err := f.Validate(r.Lookup); err != nil {
 		t.Fatal(err)
@@ -253,5 +253,35 @@ steps:
 	}
 	if got := result.Steps["1"].Output; got != "[it's; echo injected]" {
 		t.Errorf("output = %q", got)
+	}
+}
+
+// Flows in folders are named by their path, and found by their name alone while it is the only one.
+func TestFlowsInFoldersAreNamedByTheirPath(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"ops/db/backup", "ops/deploy", "deploy"} {
+		if _, err := Create(dir, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := Create(dir, "../out"); err == nil {
+		t.Error("a name that leaves the folder was taken")
+	}
+	flows, err := LoadAll(dir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, f := range flows {
+		names = append(names, f.Name)
+	}
+	if want := []string{"deploy", "ops/db/backup", "ops/deploy"}; strings.Join(names, ",") != strings.Join(want, ",") {
+		t.Errorf("names %v, want %v", names, want)
+	}
+	if f, ok := Find(flows, "backup"); !ok || f.Name != "ops/db/backup" || f.Folder() != "ops/db" || f.Base() != "backup" {
+		t.Errorf("backup: %+v", f)
+	}
+	if f, ok := Find(flows, "deploy"); !ok || f.Name != "deploy" {
+		t.Errorf("deploy is the one outside folders: %+v", f)
 	}
 }

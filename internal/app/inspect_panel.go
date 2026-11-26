@@ -16,9 +16,9 @@ import (
 
 const (
 	flowsListHints = "{up}{down} flow  {enter} open  {a} new  {r} run  {f} filter  {?} all keys  {tab} hide list"
-	flowStepHints  = "{up}{down}{left}{right} select  {enter} about  {a} add below  {e} edit  {delete} remove  {r} run  {t} test  {m} move  alt+drag move  {z} undo  {+} {-} zoom  {?} all keys  {tab} list"
+	flowStepHints  = "{up}{down}{left}{right} select  {enter} about  {a} add below  {e} edit  {r} run  {?} all keys  {tab} list"
 	flowMoveHints  = "{up}{down} move the step, in and out of blocks  {m} {enter} {esc} put it down"
-	flowGapHints   = "{up}{down}{left}{right} select  {a} add here  {r} run  {+} {-} zoom  {?} all keys  {tab} list"
+	flowGapHints   = "{up}{down}{left}{right} select  {a} add here  {r} run  {?} all keys  {tab} list"
 	// flowsListWidth is the list of flows beside the chart, in panels wide enough for both.
 	flowsListWidth = 24
 	// panStep is how far shift+arrows move the chart.
@@ -31,12 +31,16 @@ type inspectPanel struct {
 	app   *App
 	close func()
 
-	flowName   string
+	flowName string
+	// rowKey is the folder selected in the list, or "" while the selection is flowName's row.
+	rowKey     string
 	focusChart bool
 	listHidden bool
 	// anchor is the step a range started at with shift, or "" for the selected step alone.
 	anchor    string
 	showScope bool
+	// hideDetails gives the details' rows under the chart to the chart, until v shows them again.
+	hideDetails bool
 	// moving moves the selected step with the arrows, until m, enter or esc.
 	moving bool
 	// warnings are the flow's, found when it is drawn.
@@ -59,12 +63,22 @@ type inspectPanel struct {
 	detailsFirst int
 	detailsKey   string
 	drag         *chartDrag
+	listDrag     *listDrag
 	lastClick    time.Time
 	clickedKey   string
 	// filter narrows the list to the flows that hold what is typed; first is the list's row on its
 	// top line.
 	filter listFilter
 	first  int
+	// editor edits the flow's params or a step in place of the chart; paramDrafts keep, by flow,
+	// the params tables closed with rows not saved.
+	editor      inspectEditor
+	paramDrafts map[string]*paramsTable
+	// helpHidden gives an editor the room of the help beside it; origin is where the panel was
+	// last drawn and editorArea where the editor was, as the editor takes its clicks.
+	helpHidden bool
+	origin     image.Point
+	editorArea image.Rectangle
 }
 
 // chartDrag is the mouse held down on the chart: it pans the chart, or, pressed on a step's card
@@ -80,11 +94,8 @@ type chartDrag struct {
 func (a *App) startInspect(id layout.PaneID, _ image.Rectangle) (view, error) {
 	a.reloadScripts()
 	a.reloadFlows()
-	p := &inspectPanel{app: a, close: func() { a.detachView(id) }, zoom: 1, centered: true}
-	if len(a.flows) > 0 {
-		p.flowName = entryKey(a.flows[0])
-	}
-	return p, nil
+	// It opens on the flow selected last; current falls back to the list's first when it is gone.
+	return &inspectPanel{app: a, close: func() { a.detachView(id) }, zoom: 1, centered: true, flowName: a.lastFlow}, nil
 }
 
 // openFlowRun shows a flow's chart with how each block went in one of its runs.
@@ -141,8 +152,10 @@ func (p *inspectPanel) shown() []flow.Flow {
 	})
 }
 
-// takesText tells that the keys type in the filter, as they are pressed.
-func (p *inspectPanel) takesText() bool { return p.filter.typing }
+// takesText tells that the keys type in the filter or the editor, as they are pressed.
+func (p *inspectPanel) takesText() bool {
+	return p.filter.typing || p.editor != nil && p.editor.typing()
+}
 
 // filterKey runs the filter's keys: typing in it while it is open, f or / to open it, esc to clear
 // it. It tells whether it used the key.
@@ -175,55 +188,134 @@ func (p *inspectPanel) current() (flow.Flow, int, bool) {
 	if len(flows) == 0 {
 		return flow.Flow{}, 0, false
 	}
-	i := max(slices.IndexFunc(flows, func(f flow.Flow) bool { return entryKey(f) == p.flowName }), 0)
+	i := slices.IndexFunc(flows, func(f flow.Flow) bool { return entryKey(f) == p.flowName })
+	if i < 0 {
+		i = p.firstShown(flows)
+		p.selected, p.centered, p.anchor, p.run = "", true, "", nil
+	}
 	p.flowName = entryKey(flows[i])
+	p.app.lastFlow = p.flowName
 	return flows[i], i, true
 }
 
-func (p *inspectPanel) selectFlow(step int) {
-	_, i, ok := p.current()
-	if !ok {
+// firstShown is the first of flows the list shows at its top, or the first of all when every
+// one is in a closed folder.
+func (p *inspectPanel) firstShown(flows []flow.Flow) int {
+	for _, row := range p.rows() {
+		if row.entry == nil {
+			continue
+		}
+		if i := slices.IndexFunc(flows, func(f flow.Flow) bool { return entryKey(f) == entryKey(*row.entry) }); i >= 0 {
+			return i
+		}
+	}
+	return 0
+}
+
+// editorKey gives the key to the editor open, but i, which hides its help, while nothing is typed.
+func (p *inspectPanel) editorKey(key uv.KeyPressEvent) {
+	editor := p.editor
+	switch {
+	case key.String() == "i" && !editor.typing():
+		p.helpHidden = !p.helpHidden
+	case editor.handleKey(key):
+		p.closeDone(editor)
+	default:
+		p.copyFromEditor()
+	}
+}
+
+// copyFromEditor puts on the clipboard what the editor copied, if anything.
+func (p *inspectPanel) copyFromEditor() {
+	if text := p.editor.takeCopied(); text != "" {
+		p.app.copyToClipboard(text)
+		p.app.notice = "copied to the clipboard"
+	}
+}
+
+// editorMouse gives the editor open the event, at its point on the screen.
+func (p *inspectPanel) editorMouse(event uv.MouseEvent) {
+	m := event.Mouse()
+	editor := p.editor
+	if editor.mouse(event, image.Pt(m.X, m.Y).Add(p.origin)) {
+		p.closeDone(editor)
 		return
 	}
-	entries := p.shown()
-	i = min(max(i+step, 0), len(entries)-1)
-	p.flowName, p.selected, p.centered, p.anchor, p.run = entryKey(entries[i]), "", true, "", nil
+	p.copyFromEditor()
+}
+
+// closeDone closes editor, which told it is done, unless it opened another in its place, as the
+// step picker opens the form of the step picked.
+func (p *inspectPanel) closeDone(editor inspectEditor) {
+	if p.editor == editor {
+		p.closeEditor()
+	}
+}
+
+// panelKey runs the keys of the whole panel, list and chart alike, and tells whether name was
+// one; hasFlow tells a flow is selected.
+func (p *inspectPanel) panelKey(name string, hasFlow bool) bool {
+	switch name {
+	case "ctrl+d":
+		p.close()
+	case "tab", "shift+tab":
+		p.listHidden = !p.listHidden && hasFlow
+		p.focusChart = p.listHidden
+	case "?":
+		p.app.showContextKeys("flows", "inspect keys",
+			"enter or space opens a folder of the list; h closes it, or goes up to the folder it is in",
+			"m on a flow or folder asks where it goes: a / puts it in folders, none takes it out; dragging a flow onto a folder moves it there",
+			"click selects a block; a double click tells about it",
+			"alt+drag (or ctrl+drag) carries a card: the dashed outline is where it lands",
+			"drag pans the chart; the wheel scrolls it, or the details under it")
+	default:
+		return false
+	}
+	return true
 }
 
 func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
+	if p.editor != nil {
+		p.editorKey(key)
+		return
+	}
 	if p.filterKey(key) {
 		return
 	}
 	name := key.String()
 	f, _, ok := p.current()
-	switch name {
-	case "ctrl+d":
-		p.close()
+	if p.panelKey(name, ok) {
 		return
-	case "tab", "shift+tab":
-		p.listHidden = !p.listHidden && ok
-		p.focusChart = p.listHidden
-		return
-	case "?":
-		p.app.showContextKeys("flows", "inspect keys",
-			"click selects a block; a double click tells about it",
-			"alt+drag (or ctrl+drag) carries a card: the dashed outline is where it lands",
-			"drag pans the chart; the wheel scrolls it, or the details under it")
+	}
+	if row, _, selected := p.selectedRow(); selected && row.entry == nil && !p.focusChart {
+		p.folderKey(name, row)
 		return
 	}
 	if !ok || !p.focusChart && name == "a" {
 		p.listKey(name, f)
 		return
 	}
+	switch {
+	case p.flowKey(name, f):
+	case p.focusChart:
+		p.chartKey(name, f)
+	default:
+		p.listKey(name, f)
+	}
+}
+
+// flowKey runs the keys that act on the selected flow, the list's and the chart's alike, and
+// tells whether name was one.
+func (p *inspectPanel) flowKey(name string, f flow.Flow) bool {
 	if f.Function && slices.Contains([]string{"r", "p", "T", "shift+t"}, name) && !(name == "r" && p.paramsSelected()) {
 		p.app.notice = "function " + f.Name + " runs when a flow calls it; a call step in a flow does"
-		return
+		return true
 	}
 	switch name {
 	case "r":
 		if p.paramsSelected() && f.Function {
-			p.app.editReturn(f)
-			return
+			p.editReturns(f)
+			return true
 		}
 		p.app.runFlow(f)
 	case "p":
@@ -235,12 +327,9 @@ func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
 	case "P", "shift+p":
 		p.app.promoteFlow(f)
 	default:
-		if p.focusChart {
-			p.chartKey(name, f)
-		} else {
-			p.listKey(name, f)
-		}
+		return false
 	}
+	return true
 }
 
 // toggleTriggers turns the flow's triggers on or off on this machine.
@@ -269,18 +358,18 @@ func triggersText(f flow.Flow, on bool) string {
 // listKey runs the list's keys; f is the zero flow when there are none.
 func (p *inspectPanel) listKey(name string, f flow.Flow) {
 	switch name {
-	case "a":
-		p.app.newFlow(func(created string) { p.flowName, p.focusChart, p.selected = created, true, "" })
-	case "F", "shift+f":
-		p.app.newFunction(func(created string) { p.flowName, p.focusChart, p.selected = created, true, "" })
-	case "up", "k":
-		p.selectFlow(-1)
-	case "down", "j":
-		p.selectFlow(1)
-	case "pgup", "pgdown", "home", "end":
-		if _, i, ok := p.current(); ok {
-			to, _ := listJump(name, i, len(p.shown()), max(p.list.Dy(), 1))
-			p.selectFlow(to - i)
+	case "a", "F", "shift+f":
+		row, _, _ := p.selectedRow()
+		p.newEntry(name != "a", row)
+	case "up", "k", "down", "j", "pgup", "pgdown", "home", "end":
+		p.listMoveKey(name)
+	case "left", "h":
+		if row, _, ok := p.selectedRow(); ok {
+			p.selectFolderOf(row)
+		}
+	case "N", "shift+n", "m", "c":
+		if row, _, ok := p.selectedRow(); ok {
+			p.organizeKey(name, row)
 		}
 	case "enter", "right", "l":
 		p.focusChart = true
@@ -312,6 +401,10 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 		return
 	}
 	block, selected := p.selectedBlock()
+	if selected && block.end && !slices.Contains([]string{"z", "y", "esc", "s", "v"}, name) {
+		p.chartViewKey(name) // the end takes no step
+		return
+	}
 	switch name {
 	case "z":
 		p.app.undoFlow(f, false)
@@ -327,23 +420,15 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 		p.testSelection(f, block, selected)
 	case "s":
 		p.showScope = !p.showScope
+	case "v":
+		p.hideDetails = !p.hideDetails
 	case "enter", "space", "e":
-		switch {
-		case selected && block.params:
-			p.app.editFlowParams(f)
-		case name == "e":
-			if selected && !block.isInsertion() {
-				p.stepKey(name, f, block.path)
-			}
-		case selected && !block.isInsertion():
-			p.app.aboutStep(f, block.path, p.result(f))
+		if selected {
+			p.openBlock(name, f, block)
 		}
 	case "a":
-		switch {
-		case selected && block.params:
-			p.app.addFlowParam(f)
-		case selected:
-			p.app.addStep(f, block, func(path string) { p.selected = stepKey(path) })
+		if selected {
+			p.addToBlock(f, block)
 		}
 	default:
 		if p.chartViewKey(name) {
@@ -353,6 +438,30 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 			p.stepKey(name, f, block.path)
 		}
 	}
+}
+
+// openBlock opens the selected block: the variables' table, a step's form with e, or what a step
+// did.
+func (p *inspectPanel) openBlock(name string, f flow.Flow, block chartBlock) {
+	switch {
+	case block.params:
+		p.openParams(f)
+	case block.isInsertion():
+	case name == "e":
+		p.stepKey(name, f, block.path)
+	default:
+		p.app.aboutStep(f, block.path, p.result(f))
+	}
+}
+
+// addToBlock adds a variable on the variables card, and a step anywhere else.
+func (p *inspectPanel) addToBlock(f flow.Flow, block chartBlock) {
+	if block.params {
+		p.openParams(f)
+		p.editor.(*paramsTable).addParam()
+		return
+	}
+	p.addStep(f, block)
 }
 
 // escapeChart drops the range anchor first, and leaves the chart when there is none.
@@ -371,6 +480,10 @@ func (p *inspectPanel) chartViewKey(name string) bool {
 		p.moveSelection(-1)
 	case "down", "j":
 		p.moveSelection(1)
+	case "g", "home":
+		p.selectStart()
+	case "G", "shift+g", "end":
+		p.selectLast()
 	case "left", "h":
 		p.moveAcross(-1)
 	case "right", "l":
@@ -394,7 +507,7 @@ func (p *inspectPanel) stepKey(name string, f flow.Flow, path string) {
 	p.anchor = ""
 	switch name {
 	case "e":
-		p.app.editFlowStep(f, path)
+		p.editStep(f, path)
 	case "delete":
 		p.app.removeStep(f, path)
 	case "J", "shift+j":
@@ -404,9 +517,9 @@ func (p *inspectPanel) stepKey(name string, f flow.Flow, path string) {
 	case "m":
 		p.moving = true
 	case "x":
-		p.app.exportFromBlock(f, path)
+		p.exportStep(f, path)
 	case "R", "shift+r":
-		p.app.retryStep(f, path)
+		p.retryStep(f, path)
 	}
 }
 
@@ -517,6 +630,24 @@ func (p *inspectPanel) moveSelection(step int) {
 	p.keepInView(order[i].rect)
 }
 
+// selectStart selects the flow's start, as g goes to the top of a log.
+func (p *inspectPanel) selectStart() {
+	if p.chart == nil {
+		return
+	}
+	if start, ok := p.chart.block(headKey(chartSlot{})); ok {
+		p.anchor, p.selected = "", start.key
+		p.keepInView(start.rect)
+	}
+}
+
+// selectLast selects the flow's end, as G goes to the end of a log.
+func (p *inspectPanel) selectLast() {
+	if p.chart != nil {
+		p.moveSelection(len(p.chart.blocks))
+	}
+}
+
 // moveAcross goes to the nearest block on the left (step -1) or right (step 1) of the selected
 // one, preferring blocks on the same rows: from one branch of an if to the other.
 func (p *inspectPanel) moveAcross(step int) {
@@ -598,7 +729,15 @@ func (p *inspectPanel) centerPan() {
 
 func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	pal := &p.app.palette
-	rows := drawHints(screen, area, p.hints(), pal.panelMuted)
+	p.origin = area.Min
+	hints := p.hints()
+	if p.editor != nil {
+		hints = hintsInOneRow(hints, area.Dx()-1)
+	}
+	rows := drawHints(screen, area, hints, pal.panelMuted)
+	if p.focusChart && p.editor == nil {
+		rows = max(rows, p.chartHintRows(area.Dx()-1))
+	}
 	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-rows)
 	f, _, ok := p.current()
 	if !ok && p.filter.on() {
@@ -633,11 +772,30 @@ func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 		p.chart, p.chartArea, p.details = nil, image.Rectangle{}, image.Rectangle{}
 		return
 	}
+	if floating, ok := p.editor.(floatingEditor); ok {
+		p.drawFlowChart(screen, chartArea, f)
+		size := floating.boxSize()
+		box := centeredRect(p.chartArea, size.X, size.Y)
+		fillRect(screen, box, p.app.palette.panelText)
+		drawFrame(screen, box, p.editor.title(), p.app.palette.focusedFrame, p.app.palette.focusedTitle)
+		p.editor.draw(screen, box.Inset(1), false)
+		p.chartArea, p.details, p.editorArea = p.chartArea.Sub(area.Min), p.details.Sub(area.Min), box.Sub(area.Min)
+		return
+	}
+	if p.editor != nil {
+		p.chart, p.chartArea, p.details = nil, image.Rectangle{}, image.Rectangle{}
+		p.editorArea = chartArea.Sub(area.Min)
+		p.drawEditor(screen, chartArea)
+		return
+	}
 	p.drawFlowChart(screen, chartArea, f)
 	p.chartArea, p.details = p.chartArea.Sub(area.Min), p.details.Sub(area.Min)
 }
 
 func (p *inspectPanel) hints() string {
+	if p.editor != nil {
+		return p.app.hint("flow-editor", p.editor.hints())
+	}
 	if !p.focusChart {
 		return p.app.hint("flows", flowsListHints)
 	}
@@ -648,6 +806,16 @@ func (p *inspectPanel) hints() string {
 		return p.app.hint("flows", flowGapHints)
 	}
 	return p.app.hint("flows", flowStepHints)
+}
+
+// chartHintRows are the most rows the chart's hints take, whatever block is selected: hints
+// that wrap onto more rows for a step than for a gap would move the chart as the selection moves.
+func (p *inspectPanel) chartHintRows(width int) int {
+	rows := 0
+	for _, hints := range []string{flowStepHints, flowGapHints, flowMoveHints} {
+		rows = max(rows, len(wrapHints(p.app.hint("flows", hints), width, maxHintRows)))
+	}
+	return rows
 }
 
 // frameStyles are the styles of the list's or chart's frame: the accent while it has the focus.
@@ -664,21 +832,33 @@ func (p *inspectPanel) drawFlows(screen uv.Screen, area image.Rectangle) image.R
 	line, title := p.frameStyles(!p.focusChart)
 	drawFrame(screen, area, "flows", line, title)
 	inner := area.Inset(1)
+	pal := &p.app.palette
 	if p.filter.on() && inner.Dy() > 2 {
 		kept := filterCount(len(p.shown()), len(p.entries()))
-		p.filter.draw(screen, inner.Min.X+1, inner.Min.Y, inner.Max.X, kept, &p.app.palette)
+		p.filter.draw(screen, inner.Min.X+1, inner.Min.Y, inner.Max.X, kept, pal)
 		inner.Min.Y += 2
 	}
-	_, selected, ok := p.current()
-	entries := p.shown()
-	if !ok {
-		selected = -1
-	}
-	p.first = listFirst(p.first, max(selected, 0), len(entries), inner.Dy())
+	row, selected, _ := p.selectedRow()
+	rows := p.rows()
+	p.first = listFirst(p.first, max(selected, 0), len(rows), inner.Dy())
 	enabled := flow.Enabled(flow.TriggersFile())
-	for i := p.first; i < len(entries) && i-p.first < inner.Dy(); i++ {
-		f := entries[i]
-		drawRow(screen, inner, inner.Min.Y+i-p.first, flowListMarks(f, enabled)+f.Name, "", p.flowRowStyle(i == selected))
+	active := row.folder // the folder of the row selected, or the folder selected
+	for i := p.first; i < len(rows) && i-p.first < inner.Dy(); i++ {
+		r := rows[i]
+		label, value := p.rowLabel(r, enabled)
+		style := p.flowRowStyle(i == selected)
+		if r.entry == nil && i != selected {
+			style = pal.panelHeading
+		}
+		parent := r.folder
+		if r.entry == nil {
+			parent = folderParent(r.folder)
+		}
+		bar := pal.unfocusedFrame
+		if parent != "" && parent == active {
+			bar = pal.focusedFrame
+		}
+		drawTreeRow(screen, inner, inner.Min.Y+i-p.first, r.depth, label, value, style, pal.unfocusedFrame, bar)
 	}
 	return inner
 }
@@ -826,29 +1006,43 @@ func (p *inspectPanel) runText(r *flow.Result) string {
 	return fmt.Sprintf("%s %s ✗ exit %d", which, r.Start.Format("Jan 2 15:04"), r.Exit)
 }
 
-// RowAt is the row of the flows' list under point, which a click selects.
+// RowAt is what a click under point works: in an editor, its cell, button, option or item, or
+// else the row of the flows' list, which lights under the mouse.
 func (p *inspectPanel) RowAt(point image.Point) (image.Rectangle, bool, bool) {
-	_, selected, _ := p.current()
-	return listRowAt(p.list, point, p.first, len(p.shown()), selected)
+	if p.editor != nil {
+		rect, focused, ok := p.editor.hitAt(point.Add(p.origin))
+		return rect.Sub(p.origin), focused, ok
+	}
+	if p.chart != nil && point.In(p.chartArea) {
+		if block, ok := p.chart.blockAt(point.Sub(p.chartArea.Min).Add(p.pan)); ok {
+			rect := block.rect.Sub(p.pan).Add(p.chartArea.Min).Intersect(p.chartArea)
+			return rect, block.key == p.selected, true
+		}
+	}
+	_, selected, _ := p.selectedRow()
+	return listRowAt(p.list, point, p.first, len(p.rows()), selected)
 }
 
 // WantsMouseAt takes the mouse over the list and the chart.
 func (p *inspectPanel) WantsMouseAt(point image.Point) bool {
-	return point.In(p.list) || point.In(p.chartArea) || point.In(p.details)
+	return point.In(p.list) || point.In(p.chartArea) || point.In(p.details) || p.editor != nil && point.In(p.editorArea)
 }
 
 // SendMouse selects the flow or the block clicked; a double click on a step tells what it does.
 // Dragging the chart moves it, and the wheel scrolls it (with shift, across).
 func (p *inspectPanel) SendMouse(event uv.MouseEvent) {
+	if p.editor != nil {
+		p.editorMouse(event)
+		return
+	}
 	m := event.Mouse()
 	point := image.Pt(m.X, m.Y)
+	if p.listMouse(event, point) {
+		return
+	}
 	switch event.(type) {
 	case uv.MouseClickEvent:
 		if m.Button != uv.MouseLeft {
-			return
-		}
-		if point.In(p.list) {
-			p.clickFlow(p.first + point.Y - p.list.Min.Y)
 			return
 		}
 		if point.In(p.details) {
@@ -868,7 +1062,10 @@ func (p *inspectPanel) SendMouse(event uv.MouseEvent) {
 			p.pan, p.centered = p.clampPan(p.drag.pan.Sub(point.Sub(p.drag.from))), false
 			return
 		}
-		p.centered = false // the details go while a card is carried: the chart stays put
+		// The details go while a card is carried: the chart stays put and takes their rows now, so
+		// the card can land there before the next draw.
+		p.centered = false
+		p.chartArea, p.details = p.chartArea.Union(p.details), image.Rectangle{}
 		p.panAtEdge(point)
 	case uv.MouseReleaseEvent:
 		switch {
@@ -900,12 +1097,18 @@ func (p *inspectPanel) wheel(m uv.Mouse) {
 	p.panBy(heading)
 }
 
+// clickFlow selects the row at index, opening or closing it when it is a folder.
 func (p *inspectPanel) clickFlow(index int) {
-	entries := p.shown()
-	if index < 0 || index >= len(entries) {
+	rows := p.rows()
+	if index < 0 || index >= len(rows) {
 		return
 	}
-	p.flowName, p.focusChart, p.selected, p.centered, p.anchor, p.run = entryKey(entries[index]), false, "", true, "", nil
+	row := rows[index]
+	p.selectRow(row)
+	p.focusChart = false
+	if row.entry == nil {
+		p.app.setExpanded(row.folder, !p.app.folderOpen(row.folder))
+	}
 }
 
 // blockAt is the chart's block under point of the panel.
@@ -985,8 +1188,12 @@ func (p *inspectPanel) clickChart(point image.Point) {
 }
 
 func (p *inspectPanel) Resize(pty.Size) {}
-func (p *inspectPanel) Paste(string)    {}
-func (p *inspectPanel) Close()          {}
+func (p *inspectPanel) Paste(text string) {
+	if p.editor != nil {
+		p.editor.paste(text)
+	}
+}
+func (p *inspectPanel) Close() {}
 
 func (p *inspectPanel) Cursor() (uv.Position, bool) {
 	return image.Point{}, false

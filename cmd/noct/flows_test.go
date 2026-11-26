@@ -85,7 +85,7 @@ func TestFlowWarningsAndTestingAStep(t *testing.T) {
 	s := newSession(t)
 	writeFlow(t, s, "pair", `steps:
   - {id: a, run: printf one}
-  - {id: b, run: 'echo {{.steps.a.output}}-{{.steps.c.output}}'}
+  - {id: b, run: 'echo $a.output-$c.output'}
   - {id: c, run: printf three}
 `)
 	out, err := runNoct(t, s, "check")

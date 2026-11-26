@@ -2,7 +2,10 @@
 // and for the identifiers templates read, such as parameters and step IDs.
 package naming
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
@@ -17,4 +20,15 @@ func IsValid(name string) bool {
 // not starting with a digit.
 func IsIdentifier(name string) bool {
 	return identifier.MatchString(name)
+}
+
+// IsValidPath tells a name inside folders, as ops/db/backup: each part a valid name, so it never
+// leaves the folder it is read from.
+func IsValidPath(path string) bool {
+	for part := range strings.SplitSeq(path, "/") {
+		if !IsValid(part) {
+			return false
+		}
+	}
+	return true
 }

@@ -1,6 +1,8 @@
 package app
 
 import (
+	"image"
+	"image/color"
 	"strings"
 	"unicode"
 
@@ -12,6 +14,17 @@ import (
 type textField struct {
 	text   []rune
 	cursor int
+	// selecting marks the text from anchor to the cursor, as dragging the mouse over it does;
+	// typing replaces it and backspace erases it.
+	selecting bool
+	anchor    int
+	// shown is the first character the last draw showed, to tell which one a click is on.
+	shown int
+	// multiline keeps line breaks, which enter types; top is the first line the last draw showed.
+	multiline bool
+	top       int
+	// paint, when set, colors characters of a line as it is drawn, by their index in the line.
+	paint func(line string) map[int]color.Color
 }
 
 func newTextField(text string) textField {
@@ -25,7 +38,14 @@ func (f *textField) String() string {
 
 // insert types text at the cursor; a paste of several lines becomes one.
 func (f *textField) insert(text string) {
+	if from, to, ok := f.selection(); ok {
+		f.erase(from, to)
+	}
+	f.selecting = false
 	runes := []rune(singleLine(text))
+	if f.multiline {
+		runes = []rune(keptLines(text))
+	}
 	f.text = append(f.text[:f.cursor], append(runes, f.text[f.cursor:]...)...)
 	f.cursor += len(runes)
 }
@@ -53,6 +73,14 @@ func (f *textField) erase(from, to int) {
 
 // handleKey edits or moves through the text and tells whether the key was one of its keys.
 func (f *textField) handleKey(key uv.KeyPressEvent) bool {
+	if from, to, ok := f.selection(); ok && isEraseKey(key.String()) {
+		f.erase(from, to)
+		f.selecting = false
+		return true
+	}
+	if !isPlainText(key) {
+		f.selecting = false // a key that moves leaves the text unmarked
+	}
 	switch key.String() {
 	case "left", "ctrl+b":
 		f.cursor = max(f.cursor-1, 0)
@@ -63,9 +91,9 @@ func (f *textField) handleKey(key uv.KeyPressEvent) bool {
 	case "ctrl+right", "alt+right", "alt+f":
 		f.cursor = f.wordEndAfter()
 	case "home", "ctrl+a":
-		f.cursor = 0
+		f.cursor = f.lineStart()
 	case "end", "ctrl+e":
-		f.cursor = len(f.text)
+		f.cursor = f.lineEnd()
 	case "backspace", "shift+backspace":
 		f.erase(max(f.cursor-1, 0), f.cursor)
 	case "delete", "ctrl+d":
@@ -75,9 +103,9 @@ func (f *textField) handleKey(key uv.KeyPressEvent) bool {
 	case "alt+d", "ctrl+delete":
 		f.erase(f.cursor, f.wordEndAfter())
 	case "ctrl+u":
-		f.erase(0, f.cursor)
+		f.erase(f.lineStart(), f.cursor)
 	case "ctrl+k":
-		f.erase(f.cursor, len(f.text))
+		f.erase(f.cursor, f.lineEnd())
 	default:
 		if !isPlainText(key) {
 			return false
@@ -85,6 +113,48 @@ func (f *textField) handleKey(key uv.KeyPressEvent) bool {
 		f.insert(key.Text)
 	}
 	return true
+}
+
+func isEraseKey(name string) bool {
+	return name == "backspace" || name == "shift+backspace" || name == "delete" || name == "ctrl+d"
+}
+
+// selection is the marked text's start and end, when some is.
+func (f *textField) selection() (from, to int, ok bool) {
+	if !f.selecting || f.anchor == f.cursor {
+		return 0, 0, false
+	}
+	return min(f.anchor, f.cursor), max(f.anchor, f.cursor), true
+}
+
+// selected is the marked text, or "".
+func (f *textField) selected() string {
+	from, to, ok := f.selection()
+	if !ok {
+		return ""
+	}
+	return string(f.text[from:to])
+}
+
+// mark starts marking the text at the cursor, which moves to mark more.
+func (f *textField) mark() {
+	f.selecting, f.anchor = true, f.cursor
+}
+
+// posAt is the position x cells from the start of where the last draw put the field: before
+// the character there, the end past the text, and one before what shows left of it.
+func (f *textField) posAt(x int) int {
+	if x < 0 {
+		return max(f.shown-1, 0)
+	}
+	at := f.shown
+	for width := 0; at < len(f.text); at++ {
+		width += max(ansi.StringWidth(string(f.text[at])), 1)
+		if width > x {
+			break
+		}
+	}
+	return at
 }
 
 func isWordRune(r rune) bool {
@@ -128,12 +198,13 @@ func (f *textField) draw(screen uv.Screen, x, y, width int, secret bool, style, 
 	if width <= 0 {
 		return x
 	}
-	start := 0
-	for ansi.StringWidth(string(text[start:f.cursor])) > width-1 {
-		start++
+	start := scrolledTo(text, f.shown, f.cursor, width)
+	f.shown = start
+	end := drawText(screen, x, y, x+width, shownFrom(text, start, width), style)
+	if !secret {
+		f.paintLine(screen, image.Pt(x, y), x+width, string(text), start)
 	}
-	shown := ansi.Truncate(string(text[start:]), width, "…")
-	end := drawText(screen, x, y, x+width, shown, style)
+	f.drawSelection(screen, x, y, width, text)
 	under := " "
 	if f.cursor < len(text) {
 		under = string(text[f.cursor])
@@ -142,6 +213,26 @@ func (f *textField) draw(screen uv.Screen, x, y, width int, secret bool, style, 
 	cell := uv.Cell{Content: under, Width: max(ansi.StringWidth(under), 1), Style: cursor}
 	screen.SetCell(at, y, &cell)
 	return max(end, at+cell.Width)
+}
+
+// drawSelection shows the marked characters that show reversed, as a pane shows its selection.
+func (f *textField) drawSelection(screen uv.Screen, x, y, width int, text []rune) {
+	from, to, ok := f.selection()
+	if !ok {
+		return
+	}
+	at := x
+	for i := f.shown; i < to && at < x+width; i++ {
+		w := max(ansi.StringWidth(string(text[i])), 1)
+		if i >= from {
+			if cell := screen.CellAt(at, y); cell != nil {
+				marked := *cell
+				marked.Style.Attrs |= uv.AttrReverse
+				screen.SetCell(at, y, &marked)
+			}
+		}
+		at += w
+	}
 }
 
 // typedField is the text the current mode types into, if any, and what to do after it changes.
@@ -160,6 +251,10 @@ func (a *App) typedField() (*textField, func()) {
 	case templateSaveMode:
 		if a.templateSave.selected == 0 {
 			return &a.templateSave.name, nil
+		}
+	case infoMode:
+		if a.info.filter.typing {
+			return &a.info.filter.field, func() { a.info.first = 0 }
 		}
 	}
 	return nil, nil
@@ -213,5 +308,54 @@ func isPasteKey(key uv.KeyPressEvent) bool {
 func (a *App) requestClipboard() {
 	if a.screen != nil {
 		_, _ = a.screen.WriteString("\x1b]52;c;?\x07")
+	}
+}
+
+// scrolledTo is the first character shown of text in width cells, from the one shown before,
+// moved only as far as keeps the cursor in sight with a few characters around it, and never so
+// far that room is left after the end.
+func scrolledTo(text []rune, shown, cursor, width int) int {
+	margin := max(1, min(4, width/4))
+	start := min(max(shown, 0), len(text))
+	if cursor-margin < start {
+		start = max(cursor-margin, 0)
+	}
+	if start == 1 {
+		start = 0 // the … would stand for the one character left of it
+	}
+	for start < cursor && ansi.StringWidth(string(text[start:min(cursor+margin, len(text))])) > width-1 {
+		start++
+	}
+	for start > 0 && ansi.StringWidth(string(text[start-1:])) <= width-1 {
+		start--
+	}
+	return start
+}
+
+// shownFrom is text from start as width cells show it: … in place of the first character when
+// some are left of it, and … at the end when more follow.
+func shownFrom(text []rune, start, width int) string {
+	shown := string(text[start:])
+	if start > 0 && start < len(text) {
+		shown = "…" + string(text[start+1:])
+	}
+	return ansi.Truncate(shown, width, "…")
+}
+
+// paintLine gives the characters of line its paint colors, as drawn from at with start first.
+func (f *textField) paintLine(screen uv.Screen, at image.Point, maxX int, line string, start int) {
+	if f.paint == nil {
+		return
+	}
+	colors, runes, x := f.paint(line), []rune(line), at.X
+	for i := start; i < len(runes) && x < maxX; i++ {
+		if c, ok := colors[i]; ok && (i > start || start == 0) {
+			if cell := screen.CellAt(x, at.Y); cell != nil {
+				painted := *cell
+				painted.Style.Fg = c
+				screen.SetCell(x, at.Y, &painted)
+			}
+		}
+		x += max(ansi.StringWidth(string(runes[i])), 1)
 	}
 }

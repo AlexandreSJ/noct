@@ -17,7 +17,9 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/AlexandreSJ/noct/internal/expr"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/sections"
 )
 
 // maxCaptured bounds how much of a step's output is kept for captures and templates.
@@ -45,9 +47,15 @@ type Runner struct {
 	Sleep  func(time.Duration)
 	// KeepOutput is how many bytes of each step's output the result keeps; 0 keeps all of it.
 	KeepOutput int
+	// Sections marks what the run says of its steps as the full view's, and an exit line as the
+	// clean one's, for noct's run views to show either (package sections).
+	Sections bool
 	// Ask puts a question to whoever watches the run and returns the answer, for on_fail: ask;
 	// nil when nobody can answer, and then a failure stops the flow.
 	Ask func(question string) string
+	// AskSecret asks as Ask does, the answer masked as it is typed, for a secret prompt; nil when
+	// nobody can answer.
+	AskSecret func(question string) string
 	// OpenPane asks noct's workspace for a pane that runs a step; nil outside noct.
 	OpenPane func(PaneRequest) (int, error)
 	// Attention asks noct's workspace to show the run, before a prompt waits for the user; nil
@@ -68,6 +76,10 @@ type running struct {
 	*Runner
 	// vars are the flow's variables: its parameters, and what set and prompt steps gave.
 	vars map[string]string
+	// jsonVars are the list and object variables among vars, by name, which expressions read as JSON.
+	jsonVars map[string]string
+	// known are the names the flow reads, in expressions and with $, besides those set.
+	known knownNames
 	// steps holds, by step id, output, exit, ok and the captures, for the templates.
 	steps  map[string]map[string]string
 	result Result
@@ -81,18 +93,67 @@ type running struct {
 	// deadline is when the flow's timeout, as written in timeout, ends the run; zero without one.
 	deadline time.Time
 	timeout  string
+	// secrets are the values of secret variables and prompts, which the run never shows.
+	secrets []string
+	// reason is why the run stopped, for its exit line.
+	reason string
+	// types are the variables' types, which a set or a prompt that inherits keeps.
+	types map[string]string
 }
 
 // Run runs the flow with the parameters given over its defaults. Result.Exit is the exit code of
 // the step that stopped it, or 1 for a stop that was not a program's.
 func (r *Runner) Run(f Flow, params map[string]string) Result {
-	x := r.start(f, params)
-	x.runSteps(f.Steps, "", "")
+	x, err := r.start(f, params)
+	if err != nil {
+		x.result.OK, x.result.Exit, x.reason = false, 1, err.Error() // no step ran, so none failed
+		r.part(sections.Full, func() { fmt.Fprintf(r.Out, "\x1b[1m✗ flow %s stopped: %s\x1b[0m\n", f.Name, err) })
+	} else {
+		x.runSteps(f.Steps, "", "")
+	}
 	x.result.End = time.Now()
 	if x.result.OK {
-		fmt.Fprintf(r.Out, "\n\x1b[1m✓ flow %s done\x1b[0m in %s\n", f.Name, x.result.End.Sub(x.result.Start).Round(time.Millisecond))
+		r.part(sections.Full, func() {
+			fmt.Fprintf(r.Out, "\n\x1b[1m✓ flow %s done\x1b[0m in %s\n", f.Name, x.result.End.Sub(x.result.Start).Round(time.Millisecond))
+		})
 	}
+	if r.Sections {
+		r.part(sections.Clean, func() { fmt.Fprintln(r.Out, "\n"+exitLine(x.result.Exit, x.reason)) })
+	}
+	x.maskResult()
 	return x.result
+}
+
+// maskResult masks the secret values in what the result keeps of each step, which is saved and
+// read by the inspect and by AI agents through MCP: a step can print a secret, or a set or a
+// function's returns hold one.
+func (x *running) maskResult() {
+	if len(x.secrets) == 0 {
+		return
+	}
+	for path, step := range x.result.Steps {
+		step.Output, step.Message = x.masked(step.Output), x.masked(step.Message)
+		for name, value := range step.Captures {
+			step.Captures[name] = x.masked(value)
+		}
+		x.result.Steps[path] = step
+	}
+}
+
+func exitLine(code int, reason string) string {
+	if reason == "" {
+		return fmt.Sprintf("exit %d", code)
+	}
+	return fmt.Sprintf("exit %d · %s", code, reason)
+}
+
+// part writes what write does as a section only one view shows, when the run marks sections.
+func (r *Runner) part(section string, write func()) {
+	if r.Sections {
+		fmt.Fprint(r.Out, section)
+		defer fmt.Fprint(r.Out, sections.Both)
+	}
+	write()
 }
 
 func (r *Runner) getenv(name string) string {
@@ -103,17 +164,45 @@ func (r *Runner) getenv(name string) string {
 }
 
 // start begins a run of the flow with the parameters given over its defaults.
-func (r *Runner) start(f Flow, params map[string]string) *running {
+func (r *Runner) start(f Flow, params map[string]string) (*running, error) {
+	vars := f.Values(r.getenv)
+	maps.Copy(vars, params)
+	vars, err := f.withDefaults(vars)
 	x := &running{
-		Runner: r,
-		vars:   f.Values(r.getenv),
-		steps:  map[string]map[string]string{},
-		result: Result{Flow: f.Name, Start: time.Now(), Steps: map[string]StepResult{}, OK: true},
+		Runner:   r,
+		vars:     vars,
+		jsonVars: f.jsonParams(vars),
+		types:    f.paramTypes(),
+		known:    f.knownNames(r.Lookup),
+		steps:    map[string]map[string]string{},
+		result:   Result{Flow: f.Name, Start: time.Now(), Steps: map[string]StepResult{}, OK: true},
 	}
-	maps.Copy(x.vars, params)
+	for _, name := range f.ParamNames() {
+		if f.Params[name].Secret {
+			x.keepSecret(vars[name])
+		}
+	}
 	x.startDeadline(f)
-	return x
+	return x, err
 }
+
+// keepSecret takes note of a secret value, for the run to mask it where it shows values.
+func (x *running) keepSecret(value string) {
+	if value != "" {
+		x.secrets = append(x.secrets, value)
+	}
+}
+
+// masked is a text the run shows with its secret values masked.
+func (x *running) masked(text string) string {
+	for _, secret := range x.secrets {
+		text = strings.ReplaceAll(text, secret, secretMask)
+	}
+	return text
+}
+
+// secretMask stands for a secret value where the run would show it.
+const secretMask = "••••"
 
 // runSteps runs a list of steps, reporting false when the flow must stop.
 func (x *running) runSteps(steps []Step, parent, branch string) bool {
@@ -188,11 +277,11 @@ func (x *running) runIf(s Step, path string) bool {
 
 // runSwitch runs the steps of the first case whose values hold the switch's, or its else.
 func (x *running) runSwitch(s Step, path string) bool {
-	value, err := x.render(s.Switch)
+	result, err := x.evaluate(s.Switch)
 	if err != nil {
 		return x.stop(path, "switch: "+err.Error(), 1)
 	}
-	value = strings.TrimSpace(value)
+	value := strings.TrimSpace(expr.String(result))
 	branch, steps, answer := "else", s.Else, "else"
 	for i, c := range s.Cases {
 		if slices.ContainsFunc(c.Is, func(is string) bool { return strings.TrimSpace(is) == value }) {
@@ -210,16 +299,19 @@ func (x *running) runSwitch(s Step, path string) bool {
 	return x.runSteps(steps, path, branch)
 }
 
-// eachLines are the lines a repeat each runs its steps for: the text's lines, trimmed, without
-// the empty ones.
-func eachLines(text string) []string {
-	var lines []string
-	for _, line := range strings.Split(text, "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			lines = append(lines, line)
-		}
+// eachItems are what a repeat each runs its steps for: a list's items, or a text's lines without
+// the empty ones, each as its text, a list or object as its JSON.
+func (x *running) eachItems(text string) ([]string, error) {
+	value, err := x.evaluate(text)
+	if err != nil {
+		return nil, err
 	}
-	return lines
+	list, err := expr.List(value)
+	items := make([]string, len(list))
+	for i, item := range list {
+		items[i] = expr.String(item)
+	}
+	return items, err
 }
 
 // runRepeat runs the steps pass after pass. Each pass starts without the results of the steps
@@ -229,11 +321,11 @@ func (x *running) runRepeat(s Step, path string) bool {
 	passes := r.passes()
 	var lines []string
 	if r.Each != "" {
-		text, err := x.render(r.Each)
+		items, err := x.eachItems(r.Each)
 		if err != nil {
 			return x.stop(path, "each: "+err.Error(), 1)
 		}
-		lines = eachLines(text)
+		lines = items
 		passes = len(lines)
 		if r.Max > 0 {
 			passes = min(passes, r.Max)
@@ -359,8 +451,8 @@ func (x *running) launch(s Step, command, dir string, deadline time.Time) (strin
 
 // keepStepValues makes a step's output, exit, ok and captures readable by the templates after
 // it.
-// keepStepValues keeps what a script or run step gave: as {{.steps.<id>.<name>}}, and as the
-// variables of the same names, {{.output}}, {{.exit}}, {{.ok}} and its captures, which the next
+// keepStepValues keeps what a script or run step gave: as <id>.<name>, and as the
+// variables of the same names, output, exit, ok and its captures, which the next
 // such step gives again.
 func (x *running) keepStepValues(id string, result StepResult, output string, ok bool) {
 	values := stepValues(output, result.Exit, ok, result.Captures)
@@ -406,7 +498,7 @@ func (x *running) closeBlock(export map[string]string) {
 	}
 }
 
-// stepValues are what templates read from a script or run step: {{.steps.<id>.<name>}}.
+// stepValues are what the steps after read from a script or run step: <id>.<name>.
 func stepValues(output string, exit int, ok bool, captures map[string]string) map[string]string {
 	values := map[string]string{"output": output, "exit": strconv.Itoa(exit), "ok": strconv.FormatBool(ok)}
 	maps.Copy(values, captures)
@@ -422,7 +514,9 @@ func (x *running) afterFailure(s Step, path, reason string, exit int) bool {
 		}
 		x.retried[path] = tried + 1
 		defer delete(x.retried, path) // once the last try is done, the next time the step runs it starts over
-		fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; retry %d of %d\x1b[0m\n", s.Label(), reason, tried+1, s.Retry.Max)
+		x.part(sections.Full, func() {
+			fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; retry %d of %d\x1b[0m\n", s.Label(), reason, tried+1, s.Retry.Max)
+		})
 		if every, _ := time.ParseDuration(s.Retry.Every); every > 0 { // checked by Validate
 			x.sleep(every)
 		}
@@ -430,7 +524,7 @@ func (x *running) afterFailure(s Step, path, reason string, exit int) bool {
 	}
 	switch x.onFail(s, reason) {
 	case OnFailContinue:
-		fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; going on\x1b[0m\n", s.Label(), reason)
+		x.part(sections.Full, func() { fmt.Fprintf(x.Out, "\x1b[2m✗ %s: %s; going on\x1b[0m\n", s.Label(), reason) })
 		return true
 	case onFailRetry:
 		return x.runStep(s, path)
@@ -474,7 +568,7 @@ func (x *running) capturePatterns(s Step) map[string]string {
 // commandLine is the shell line a script or run step runs, and where.
 func (x *running) commandLine(s Step) (string, string, error) {
 	if s.Script == "" {
-		command, err := x.render(s.Run)
+		command, err := x.renderShell(s.Run)
 		return command, x.Dir, err
 	}
 	sc, ok := x.Lookup(s.Script)
@@ -524,11 +618,13 @@ func (x *running) execute(command, dir string, deadline time.Time) (string, int)
 
 // header announces a step in the output: a symbol, the step in bold, a detail dimmed.
 func (x *running) header(symbol, title, detail string) {
-	fmt.Fprintf(x.Out, "\n\x1b[1m%s %s\x1b[0m", symbol, title)
-	if detail != "" {
-		fmt.Fprintf(x.Out, " \x1b[2m%s\x1b[0m", detail)
-	}
-	fmt.Fprintln(x.Out)
+	x.part(sections.Full, func() {
+		fmt.Fprintf(x.Out, "\n\x1b[1m%s %s\x1b[0m", symbol, x.masked(title))
+		if detail != "" {
+			fmt.Fprintf(x.Out, " \x1b[2m%s\x1b[0m", x.masked(detail))
+		}
+		fmt.Fprintln(x.Out)
+	})
 }
 
 // stop ends the run at the step at path, which failed for reason.
@@ -536,46 +632,34 @@ func (x *running) stop(path, reason string, exit int) bool {
 	step := x.result.Steps[path]
 	step.Status, step.Message = StatusFailed, reason
 	x.result.Steps[path] = step
-	x.result.OK, x.result.Exit = false, exit
-	fmt.Fprintf(x.Out, "\n\x1b[1m✗ flow %s stopped: %s\x1b[0m\n", x.result.Flow, reason)
+	x.result.OK, x.result.Exit, x.reason = false, exit, reason
+	x.part(sections.Full, func() { fmt.Fprintf(x.Out, "\n\x1b[1m✗ flow %s stopped: %s\x1b[0m\n", x.result.Flow, reason) })
 	return false
 }
 
-// condition renders a template that must give true or false.
-func (x *running) condition(text string) (bool, error) {
-	value, err := x.render(text)
+// evaluate reads an expression, a condition or a switch's or each's value, and gives its value.
+func (x *running) evaluate(text string) (any, error) {
+	known := x.known.with(x.vars, x.steps)
+	e, err := parseExpression(text, known)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	switch strings.TrimSpace(value) {
-	case "true":
-		return true, nil
-	case "false", "":
-		return false, nil
-	}
-	return false, fmt.Errorf("gave %q, not true or false", value)
+	return e.Eval(scopeOf(known, x.vars, x.jsonVars, x.steps))
+}
+
+// condition evaluates an expression as a condition: see expr.Truthy.
+func (x *running) condition(text string) (bool, error) {
+	value, err := x.evaluate(text)
+	return expr.Truthy(value), err
 }
 
 func (x *running) render(text string) (string, error) {
-	t, err := parseTemplate(text)
-	if err != nil {
-		return "", err
-	}
-	data := map[string]any{"steps": x.steps}
-	for name, value := range x.vars {
-		data[name] = value
-	}
-	// A variable not set, or unset, reads as empty rather than as <no value>.
-	script.WalkFields(t.Root, func(ident []string) {
-		if _, set := data[ident[0]]; !set {
-			data[ident[0]] = ""
-		}
-	})
-	var out bytes.Buffer
-	if err := t.Execute(&out, data); err != nil {
-		return "", err
-	}
-	return out.String(), nil
+	return renderText(text, plainText, x.known, x.vars, x.jsonVars, x.steps)
+}
+
+// renderShell renders a run line: each $name one shell word, or escaped inside its quotes.
+func (x *running) renderShell(text string) (string, error) {
+	return renderText(text, shellText, x.known, x.vars, x.jsonVars, x.steps)
 }
 
 // capture applies each regex to the output line by line (^ and $ match at each line); the first

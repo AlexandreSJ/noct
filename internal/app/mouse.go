@@ -100,7 +100,7 @@ func (a *App) handleMouse(event uv.MouseEvent) {
 // mouseDown tells whether a button is held for noct: dragging a divider or a floating pane,
 // selecting text, or pressed on a pane that takes the mouse, such as the inspect's chart.
 func (a *App) mouseDown() bool {
-	return a.drag != nil || a.selection != nil && a.selection.dragging || a.mouseHeld != nil
+	return a.drag != nil || a.selection != nil && a.selection.dragging || a.mouseHeld != nil || a.popupSel != nil && a.popupSel.dragging
 }
 
 // letGoUnseen ends a drag whose button went up where noct could not see it. A terminal tells
@@ -132,11 +132,14 @@ func (a *App) handleMouseMotion(event uv.MouseEvent) {
 		a.dragFloating(point)
 	case a.selection != nil && a.selection.dragging:
 		a.extendSelection(event.Mouse())
+	case a.popupSel != nil && a.popupSel.dragging:
+		a.extendPopupSelection(point)
 	case a.onHome():
 		a.hoverHome(point)
 		a.hoverAt(point)
 	case a.mode == configMode:
 		a.hoverConfig(point)
+		a.hoverAt(point)
 	default:
 		hovered := a.hoverAt(point)
 		a.quietMotion = !a.forwardMouse(event) && !hovered
@@ -149,6 +152,8 @@ func (a *App) handleMouseRelease(event uv.MouseEvent) {
 		a.drag = nil
 	case a.selection != nil && a.selection.dragging:
 		a.finishSelection()
+	case a.popupSel != nil && a.popupSel.dragging:
+		a.finishPopupSelection()
 	default:
 		a.forwardMouse(event)
 	}
@@ -160,10 +165,17 @@ func (a *App) handleMouseRelease(event uv.MouseEvent) {
 func (a *App) handleClick(event uv.MouseEvent) {
 	m := event.Mouse()
 	// A release outside the window may never arrive; a new click ends that drag or selection.
-	a.drag, a.selection, a.mouseHeld = nil, nil, nil
+	a.drag, a.selection, a.mouseHeld, a.popupSel = nil, nil, nil, nil
+	if before := a.mode; isPopupMode(before) {
+		defer func() {
+			if a.mode == before && m.Button == uv.MouseLeft {
+				a.startPopupSelection(image.Pt(m.X, m.Y))
+			}
+		}()
+	}
 	switch a.mode {
 	case infoMode:
-		a.mode = a.info.back // a click closes what it tells, as a key does
+		a.clickInfo(image.Pt(m.X, m.Y)) // a click outside closes it, as a key does
 	case commandMode:
 		a.clickCommandShortcut(image.Pt(m.X, m.Y))
 	case configMode:
@@ -174,6 +186,10 @@ func (a *App) handleClick(event uv.MouseEvent) {
 		if m.Button == uv.MouseLeft {
 			a.clickAgents(image.Pt(m.X, m.Y))
 		}
+	case choiceMode:
+		a.clickChoice(image.Pt(m.X, m.Y))
+	case finderMode:
+		a.clickFinder(image.Pt(m.X, m.Y))
 	case normalMode, scrollMode:
 		if m.Y == 0 {
 			if index, ok := a.tabAt(m.X); ok {
@@ -261,6 +277,9 @@ func (a *App) handleWheel(event uv.MouseEvent) {
 		return
 	case updatesMode:
 		a.wheelUpdates(event.Mouse().Button)
+		return
+	case infoMode:
+		a.wheelInfo(event.Mouse().Button)
 		return
 	}
 	t := a.currentTab()

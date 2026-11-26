@@ -1,10 +1,10 @@
 package app
 
 import (
-	"image"
-
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 )
+
+const choiceHints = "{enter} choose  esc cancel"
 
 // choice asks which of a few things to do, such as what to create.
 type choice struct {
@@ -53,9 +53,8 @@ func (a *App) handleChoiceKey(key uv.KeyPressEvent) {
 
 func (a *App) drawChoice(screen uv.Screen) {
 	c := &a.choice
-	area := image.Rect(0, 0, a.size.X, a.size.Y)
-	hints := a.hint("choice", "{enter} choose  esc cancel")
-	inner := a.drawPanel(screen, centeredRect(area, 34, panelHeight(len(c.options)+2+moreHintRows(hints, 34))), c.title)
+	hints := a.hint("choice", choiceHints)
+	inner := a.drawPanel(screen, a.choicePanel(), c.title)
 	for i, option := range c.options {
 		style := a.palette.panelText
 		if i == c.selected {

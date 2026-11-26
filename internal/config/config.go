@@ -158,7 +158,24 @@ const DefaultApprovalSeconds = 300
 // Flows bounds what a flow's last result keeps of each step's output: OutputKB kilobytes, or
 // all of what the templates read when 0.
 type Flows struct {
-	OutputKB int `toml:"output_kb"`
+	OutputKB  int    `toml:"output_kb"`
+	LeaveForm string `toml:"leave_form"`
+}
+
+const (
+	LeaveSaves   = "save"
+	LeaveAsks    = "ask"
+	LeaveDiscard = "discard"
+)
+
+var LeaveFormChoices = []string{LeaveAsks, LeaveSaves, LeaveDiscard}
+
+func (f Flows) normalized() Flows {
+	f.OutputKB = max(f.OutputKB, 0)
+	if !slices.Contains(LeaveFormChoices, f.LeaveForm) {
+		f.LeaveForm = LeaveAsks
+	}
+	return f
 }
 
 // Logs bounds what noct keeps of what programs print: logs not written to for KeepDays go, and
@@ -494,7 +511,7 @@ func (c Config) normalized() Config {
 		c.Logs.PreviewPercent = DefaultPreviewPercent
 	}
 	c.Logs.PreviewPercent = min(max(c.Logs.PreviewPercent, MinPreviewPercent), MaxPreviewPercent)
-	c.Flows.OutputKB = max(c.Flows.OutputKB, 0)
+	c.Flows = c.Flows.normalized()
 	c.MCP = c.MCP.normalized()
 	if !slices.Contains(NotifyChoices, c.Notify) {
 		c.Notify = NotifySystem

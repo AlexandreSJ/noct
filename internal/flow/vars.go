@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"maps"
@@ -12,23 +13,40 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/AlexandreSJ/noct/internal/naming"
+	"github.com/AlexandreSJ/noct/internal/sections"
 )
 
-// Types a parameter or a prompt's answer can have; a parameter can also be yes or no, one of its
-// choices, or a path.
+// Types a parameter or a prompt's answer can have; a parameter can also be a boolean, one of its
+// options, a path, or JSON: a list or an object, which may hold lists and objects in turn.
 const (
-	TextParam   = "text"
-	NumberParam = "number"
-	BoolParam   = "bool"
-	ChoiceParam = "choice"
-	PathParam   = "path"
+	TextParam    = "text"
+	NumberParam  = "number"
+	BooleanParam = "boolean"
+	OptionParam  = "option"
+	PathParam    = "path"
+	ListParam    = "list"
+	ObjectParam  = "object"
 )
 
 // ParamTypes are the types a parameter can have, in the order the inspect offers them.
-var ParamTypes = []string{TextParam, NumberParam, BoolParam, ChoiceParam, PathParam}
+var ParamTypes = []string{VarType, TextParam, NumberParam, BooleanParam, OptionParam, PathParam, ListParam, ObjectParam}
 
-// BoolValues are what a yes or no parameter holds.
-var BoolValues = []string{"true", "false"}
+const VarType = "var"
+
+var SetTypes = []string{InheritType, VarType, TextParam, NumberParam, BooleanParam, ListParam, ObjectParam}
+
+// InheritType keeps the type a variable has already, or the one its field has in its JSON; a set
+// or prompt without a type inherits when the variable exists.
+const InheritType = "inherit"
+
+// PromptTypes are the types a prompt's answer can have.
+var PromptTypes = []string{InheritType, TextParam, NumberParam}
+
+// legacyParamTypes are the names flows written before ADR-071 use, read as the names now.
+var legacyParamTypes = map[string]string{"bool": BooleanParam, "choice": OptionParam}
+
+// BooleanValues are what a boolean parameter holds.
+var BooleanValues = []string{"true", "false"}
 
 const maxPromptTries = 3
 
@@ -36,9 +54,9 @@ const maxPromptTries = 3
 // rest (a: {default: "3", type: number, prompt: First number, required: true}).
 type Param struct {
 	Default string `yaml:"default,omitempty" json:"default,omitempty"`
-	// Type is one of ParamTypes; empty is TextParam.
+	// Type is one of ParamTypes; empty is VarType.
 	Type string `yaml:"type,omitempty" json:"type,omitempty"`
-	// Choices are the values a ChoiceParam can take.
+	// Choices are the values an OptionParam can take.
 	Choices []string `yaml:"choices,omitempty" json:"choices,omitempty"`
 	// Prompt is what the params form shows instead of the name.
 	Prompt string `yaml:"prompt,omitempty" json:"prompt,omitempty"`
@@ -64,7 +82,13 @@ func (p *Param) UnmarshalYAML(node *yaml.Node) error {
 		*p = Param{Default: node.Value}
 		return nil
 	}
-	return node.Decode((*paramFields)(p))
+	if err := node.Decode((*paramFields)(p)); err != nil {
+		return err
+	}
+	if current, ok := legacyParamTypes[p.Type]; ok {
+		p.Type = current
+	}
+	return nil
 }
 
 func (p Param) MarshalYAML() (any, error) {
@@ -104,24 +128,24 @@ func (f Flow) Values(getenv func(string) string) map[string]string {
 }
 
 // CheckParams reports values the flow cannot start with: names it has no parameter for,
-// numbers that are not, and required parameters left empty. Parameters missing from values
-// take their defaults.
+// numbers that are not, required parameters left empty and defaults that do not render.
+// Parameters missing from values take their defaults.
 func (f Flow) CheckParams(values map[string]string) error {
 	for _, name := range slices.Sorted(maps.Keys(values)) {
 		if _, ok := f.Params[name]; !ok {
 			return fmt.Errorf("flow %s has no parameter %s", f.Name, name)
 		}
 	}
-	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
-		p := f.Params[name]
-		value, given := values[name]
-		if !given {
-			value = p.Default
-		}
+	resolved, err := f.withDefaults(values)
+	if err != nil {
+		return err
+	}
+	for _, name := range f.ParamNames() {
+		p, value := f.Params[name], resolved[name]
 		if p.Required && strings.TrimSpace(value) == "" {
 			return fmt.Errorf("%s is required", name)
 		}
-		if problem := p.fits(value); problem != "" {
+		if problem := p.Fits(value); problem != "" {
 			return fmt.Errorf("%s %s", name, problem)
 		}
 	}
@@ -136,16 +160,16 @@ func (p Param) onlyDefault() bool {
 // Values are what the parameter can take, for the types that have a few; nil for any.
 func (p Param) Values() []string {
 	switch p.Type {
-	case BoolParam:
-		return BoolValues
-	case ChoiceParam:
+	case BooleanParam:
+		return BooleanValues
+	case OptionParam:
 		return p.Choices
 	}
 	return nil
 }
 
-// fits tells why value is not one the parameter takes, or "".
-func (p Param) fits(value string) string {
+// Fits tells why value is not one the parameter takes, or "".
+func (p Param) Fits(value string) string {
 	switch {
 	case value == "":
 		return ""
@@ -153,6 +177,10 @@ func (p Param) fits(value string) string {
 		return fmt.Sprintf("must be a number, not %q", value)
 	case p.Values() != nil && !slices.Contains(p.Values(), value):
 		return fmt.Sprintf("must be one of %s, not %q", strings.Join(p.Values(), ", "), value)
+	case p.Type == ListParam || p.Type == ObjectParam:
+		if _, err := DecodeJSON(p.Type, value); err != nil {
+			return "must be " + err.Error()
+		}
 	}
 	return ""
 }
@@ -172,18 +200,18 @@ func checkParam(p Param) error {
 	if p.Type != "" && !slices.Contains(ParamTypes, p.Type) {
 		return fmt.Errorf("type %q is one of %s", p.Type, strings.Join(ParamTypes, ", "))
 	}
-	if p.Type == ChoiceParam && len(p.Choices) == 0 {
-		return errors.New("a choice needs its choices")
+	if p.Type == OptionParam && len(p.Choices) == 0 {
+		return errors.New("an option needs its choices")
 	}
-	if problem := p.fits(p.Default); problem != "" {
+	if problem := p.DefaultProblem(); problem != "" {
 		return errors.New("the default " + problem)
 	}
 	return nil
 }
 
 func checkType(kind string) error {
-	if kind != "" && kind != TextParam && kind != NumberParam {
-		return fmt.Errorf("type %q is %s or %s", kind, TextParam, NumberParam)
+	if kind != "" && !slices.Contains(PromptTypes, kind) {
+		return fmt.Errorf("type %q is one of %s", kind, strings.Join(PromptTypes, ", "))
 	}
 	return nil
 }
@@ -209,14 +237,87 @@ func (s Step) validateVariables(kind Kind) error {
 		return checkType(s.Type)
 	case SetStep:
 		for name := range s.Set {
-			if !isVariable(name) {
-				return fmt.Errorf("set name %q must be letters, digits and _ only, and not steps", name)
+			if !IsSetName(name) {
+				return fmt.Errorf("set name %q must be letters, digits and _ only, and not steps, or a field of one as obj.field", name)
 			}
 		}
+		return s.validateSetTypes()
 	case UnsetStep:
 		return validateUnsetNames(s.Unset)
 	}
 	return nil
+}
+
+func (s Step) validateSetTypes() error {
+	for _, name := range slices.Sorted(maps.Keys(s.Types)) {
+		if _, set := s.Set[name]; !set {
+			return fmt.Errorf("types: %s is not among the set's names", name)
+		}
+		if !slices.Contains(SetTypes, s.Types[name]) {
+			return fmt.Errorf("types: %s's type %q is one of %s", name, s.Types[name], strings.Join(SetTypes, ", "))
+		}
+	}
+	return nil
+}
+
+// VariableType is the type a variable has where the flow first gives it one: as a flow variable,
+// or the first set or prompt that writes it; a field's is its JSON value's. "" for a name nothing
+// gives a value.
+func (f Flow) VariableType(name string) string { return f.VariableTypeOutside(name, "") }
+
+// VariableTypeOutside is VariableType without the step at path, as the type a step being changed
+// finds for a name.
+func (f Flow) VariableTypeOutside(name, path string) string {
+	if root, fields := splitField(name); len(fields) > 0 {
+		return jsonKindOf(fieldOf(f.objectValue(root), fields))
+	}
+	if p, ok := f.Params[name]; ok {
+		return cmp.Or(p.Type, VarType)
+	}
+	kind := ""
+	walkSteps(f.Steps, "", "", func(s Step, at string) {
+		switch _, set := s.Set[name]; {
+		case kind != "" || at == path:
+		case set:
+			kind = cmp.Or(given(s.Types[name]), VarType)
+		case s.Kind() == PromptStep && s.Var == name:
+			kind = cmp.Or(given(s.Type), TextParam)
+		}
+	})
+	return kind
+}
+
+// given is a type written for a variable, or "" for none, which inherits.
+func given(kind string) string {
+	if kind == InheritType {
+		return ""
+	}
+	return kind
+}
+
+func setKind(kind, value string) (string, error) {
+	switch kind {
+	case NumberParam:
+		if !fitsType(NumberParam, value) {
+			return "", fmt.Errorf("%q is no number", value)
+		}
+	case BooleanParam:
+		if !slices.Contains(append(BooleanValues, NoneValue), strings.TrimSpace(value)) {
+			return "", fmt.Errorf("%q is not %s", value, strings.Join(BooleanValues, " or "))
+		}
+	case ListParam, ObjectParam:
+		if _, err := DecodeJSON(kind, value); err != nil {
+			return "", fmt.Errorf("%q: %w", value, err)
+		}
+		return kind, nil
+	case "", VarType:
+		for _, json := range []string{ListParam, ObjectParam} {
+			if _, err := DecodeJSON(json, value); err == nil {
+				return json, nil
+			}
+		}
+	}
+	return "", nil
 }
 
 func validateUnsetNames(names []string) error {
@@ -237,36 +338,79 @@ func (x *running) runPrompt(s Step, path string) bool {
 	if err != nil {
 		return x.stop(path, "prompt: "+err.Error(), 1)
 	}
+	question = Unescape(question)
 	fallback, err := x.render(s.Default)
 	if err != nil {
 		return x.stop(path, "default: "+err.Error(), 1)
 	}
-	x.header("?", s.Label(), "→ ."+s.Var)
-	if x.Ask == nil {
+	x.header("?", s.Label(), promptDetail(s, fallback))
+	ask := x.Ask
+	if s.Secret {
+		ask = x.AskSecret
+	}
+	if ask == nil {
 		return x.stop(path, "prompt: nobody is at the terminal to answer", 1)
 	}
 	if x.Attention != nil {
 		x.Attention()
 	}
 	fmt.Fprint(x.Out, "\a")
-	if fallback != "" {
-		question += " [" + fallback + "]"
-	}
 	start := time.Now()
 	for range maxPromptTries {
-		answer := strings.TrimSpace(x.Ask("\x1b[1m" + question + ":\x1b[0m "))
+		answer := strings.TrimSpace(ask("\x1b[1m" + promptText(question) + "\x1b[0m"))
 		if answer == "" {
 			answer = fallback
 		}
-		if s.Type == NumberParam && (answer == "" || !fitsType(NumberParam, answer)) {
-			fmt.Fprintf(x.Out, "\x1b[2m%q is not a number\x1b[0m\n", answer)
+		if x.typeOf(s.Var, s.Type) == NumberParam && (answer == "" || !fitsType(NumberParam, answer)) {
+			fmt.Fprintf(x.Out, "\x1b[2m%q is not a number\x1b[0m\n", shownAnswer(s, answer))
 			continue
 		}
-		x.assign(s.Var, answer)
-		x.result.Steps[path] = StepResult{Status: StatusOK, Duration: time.Since(start), Captures: map[string]string{s.Var: answer}, Message: s.Var + " = " + answer}
+		x.keepAnswer(s, path, answer, time.Since(start))
 		return true
 	}
 	return x.stop(path, fmt.Sprintf("prompt: no number after %d answers", maxPromptTries), 1)
+}
+
+// keepAnswer puts a prompt's answer in its variable and its result; a secret one stays out of
+// the result, and the run masks it from then on.
+func (x *running) keepAnswer(s Step, path, answer string, took time.Duration) {
+	x.assign(s.Var, answer)
+	if given(s.Type) != "" || x.types[s.Var] == "" {
+		x.types[s.Var] = cmp.Or(given(s.Type), TextParam)
+	}
+	result := StepResult{Status: StatusOK, Duration: took, Message: s.Var + " = " + shownAnswer(s, answer)}
+	if s.Secret {
+		x.keepSecret(answer)
+	} else {
+		result.Captures = map[string]string{s.Var: answer}
+	}
+	x.result.Steps[path] = result
+}
+
+// promptText is a prompt as it is written, with a space before the answer unless it ends in one.
+func promptText(question string) string {
+	if question == "" || strings.HasSuffix(question, " ") {
+		return question
+	}
+	return question + " "
+}
+
+// promptDetail tells, beside a prompt's header, the variable its answer goes to and what an empty
+// answer keeps.
+func promptDetail(s Step, fallback string) string {
+	detail := "→ $" + s.Var
+	if fallback != "" {
+		detail += ", empty keeps " + shownAnswer(s, fallback)
+	}
+	return detail
+}
+
+// shownAnswer is an answer as the run shows it: masked for a secret prompt.
+func shownAnswer(s Step, answer string) string {
+	if s.Secret {
+		return secretMask
+	}
+	return answer
 }
 
 // runSet renders every value first and then sets them all, so each reads the variables as they
@@ -274,8 +418,12 @@ func (x *running) runPrompt(s Step, path string) bool {
 func (x *running) runSet(s Step, path string) bool {
 	names := slices.Sorted(maps.Keys(s.Set))
 	values := make(map[string]string, len(names))
+	kinds := make(map[string]string, len(names))
 	for _, name := range names {
 		value, err := x.render(s.Set[name])
+		if _, fields := splitField(name); err == nil && len(fields) == 0 {
+			kinds[name], err = setKind(x.typeOf(name, s.Types[name]), value)
+		}
 		if err != nil {
 			return x.stop(path, "set "+name+": "+err.Error(), 1)
 		}
@@ -284,9 +432,11 @@ func (x *running) runSet(s Step, path string) bool {
 	x.header("=", s.Label(), strings.Join(names, ", "))
 	var shown []string
 	for _, name := range names {
-		x.assign(name, values[name])
-		shown = append(shown, name+" = "+values[name])
-		fmt.Fprintf(x.Out, "\x1b[2m  %s = %s\x1b[0m\n", name, values[name])
+		if err := x.setValue(name, s.Types[name], values[name], kinds[name]); err != nil {
+			return x.stop(path, "set "+name+": "+err.Error(), 1)
+		}
+		shown = append(shown, name+" = "+x.masked(values[name]))
+		x.part(sections.Full, func() { fmt.Fprintf(x.Out, "\x1b[2m  %s = %s\x1b[0m\n", name, x.masked(values[name])) })
 	}
 	x.result.Steps[path] = StepResult{Status: StatusOK, Captures: values, Message: strings.Join(shown, ", ")}
 	return true
@@ -303,4 +453,24 @@ func (x *running) runUnset(s Step, path string) {
 	}
 	x.header("∅", s.Label(), strings.Join(s.Unset, ", "))
 	x.result.Steps[path] = StepResult{Status: StatusOK, Message: "cleared " + strings.Join(s.Unset, ", ")}
+}
+
+var escapes = map[rune]string{'n': "\n", 't': "\t", 'r': "\r", 'e': "\x1b", 'a': "\a", '\\': "\\", '"': "\"", '\'': "'"}
+
+// Unescape reads the escapes a prompt writes as print does, \n a new line and \t a tab; an
+// escape it does not know stays as written.
+func Unescape(text string) string {
+	var out strings.Builder
+	runes := []rune(text)
+	for i := 0; i < len(runes); i++ {
+		if runes[i] == '\\' && i+1 < len(runes) {
+			if e, ok := escapes[runes[i+1]]; ok {
+				out.WriteString(e)
+				i++
+				continue
+			}
+		}
+		out.WriteRune(runes[i])
+	}
+	return out.String()
 }

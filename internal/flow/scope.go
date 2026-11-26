@@ -35,12 +35,38 @@ type Variable struct {
 	Certainty Certainty
 }
 
-// Template is how a template reads the variable.
-func (v Variable) Template() string {
+// Name is how an expression reads the variable: name, or step.field.
+func (v Variable) Name() string {
 	if v.Step == "" {
-		return "{{." + v.Field + "}}"
+		return v.Field
 	}
-	return "{{.steps." + v.Step + "." + v.Field + "}}"
+	return v.Step + "." + v.Field
+}
+
+// Dollar is how a text reads the variable: $name, or $step.field.
+func (v Variable) Dollar() string { return "$" + v.Name() }
+
+// Readable are vars as an expression reads them most simply, the short names first: a step's
+// field is left out where its short name, field, reads that same step; a field a later step set
+// again stays, since only step.field reaches it.
+func Readable(vars []Variable) []Variable {
+	setBy := map[string]string{}
+	for _, v := range vars {
+		if v.Step == "" {
+			setBy[v.Field] = v.Path
+		}
+	}
+	var short, long []Variable
+	for _, v := range vars {
+		path, set := setBy[v.Field]
+		switch {
+		case v.Step == "":
+			short = append(short, v)
+		case !set || path != v.Path:
+			long = append(long, v)
+		}
+	}
+	return append(short, long...)
 }
 
 // Scope lists what a template can read at index of parent's branch (parent "" for the flow's own
@@ -51,7 +77,7 @@ func (f Flow) Scope(parent, branch string, index int, lookup func(id string) (sc
 
 func (f Flow) scope(parent, branch string, index int, lookup func(id string) (script.Script, bool)) *scope {
 	sc := &scope{cleared: map[string]bool{}, ended: map[string]bool{}, lookup: lookup, functions: f.functions}
-	for _, name := range slices.Sorted(maps.Keys(f.Params)) {
+	for _, name := range f.ParamNames() {
 		sc.vars = append(sc.vars, Variable{Field: name})
 	}
 	levels := f.levelsTo(parent, branch, index)
@@ -139,7 +165,8 @@ func (sc *scope) add(s Step, path string, certainty Certainty) {
 	switch s.Kind() {
 	case SetStep:
 		for _, name := range slices.Sorted(maps.Keys(s.Set)) {
-			sc.set(name, path, certainty)
+			root, _ := splitField(name)
+			sc.set(root, path, certainty)
 		}
 	case PromptStep:
 		sc.set(s.Var, path, certainty)

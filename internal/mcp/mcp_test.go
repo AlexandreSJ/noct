@@ -167,7 +167,7 @@ func TestListsHideSecretsAndTellDrafts(t *testing.T) {
 func TestDraftFlowSavesADraft(t *testing.T) {
 	s := newTestServer(t)
 	write(t, filepath.Join(flow.Dir(), "ship.yaml"), "steps: [{run: 'echo old'}]\n")
-	answer, _ := s.call("draft_flow", map[string]any{"name": "ship", "yaml": "steps:\n  - {id: a, run: 'echo {{.steps.b.output}}'}\n  - {id: b, run: 'true'}\n"}, false)
+	answer, _ := s.call("draft_flow", map[string]any{"name": "ship", "yaml": "steps:\n  - {id: a, run: 'echo $b.output'}\n  - {id: b, run: 'true'}\n"}, false)
 	f, err := flow.Load(filepath.Join(flow.Dir(), "ship.yaml"))
 	if err != nil || !f.Draft || len(f.Steps) != 2 {
 		t.Fatalf("saved %+v, %v", f, err)
@@ -195,14 +195,15 @@ func TestDraftScriptSavesADraftWithNotes(t *testing.T) {
 
 func TestFlowScopeAndCheck(t *testing.T) {
 	s := newTestServer(t)
-	write(t, filepath.Join(flow.Dir(), "pair.yaml"), "params: {env: dev}\nsteps:\n  - {id: a, run: printf x, capture: {n: '(x)'}}\n  - {id: b, run: 'echo {{.steps.c.output}}'}\n")
+	write(t, filepath.Join(flow.Dir(), "pair.yaml"), "variables: {env: dev}\nsteps:\n  - {id: a, run: printf x, capture: {n: '(x)'}}\n  - {id: b, run: 'echo $c.output'}\n")
 	scope, _ := s.call("flow_scope", map[string]any{"flow": "pair", "step": "1"}, false)
-	var templates []string
+	var names, texts []string
 	for _, v := range scope["variables"].([]any) {
-		templates = append(templates, v.(map[string]any)["template"].(string))
+		names = append(names, v.(map[string]any)["name"].(string))
+		texts = append(texts, v.(map[string]any)["text"].(string))
 	}
-	if !slices.Contains(templates, "{{.steps.a.n}}") || !slices.Contains(templates, "{{.env}}") {
-		t.Errorf("scope = %q", templates)
+	if !slices.Contains(names, "a.n") || !slices.Contains(names, "env") || !slices.Contains(texts, "$a.n") {
+		t.Errorf("scope = %q %q", names, texts)
 	}
 	check, _ := s.call("check", map[string]any{}, false)
 	if warnings := check["warnings"].([]any); len(warnings) != 1 || !strings.Contains(warnings[0].(string), "there is no step c") {
@@ -418,8 +419,8 @@ func TestSummaryShowsHiddenLinesOnOneLine(t *testing.T) {
 // and get_item tell who calls it, and the agents a step can ask.
 func TestADraftedFunctionWaitsForItsPromotion(t *testing.T) {
 	s := newTestServer(t)
-	write(t, filepath.Join(flow.FunctionsDir(), "health.yaml"), "params: {url: {required: true}}\nsteps: [{run: 'echo 200'}]\nreturns: {status: '{{.output}}'}\n")
-	write(t, filepath.Join(flow.Dir(), "ship.yaml"), "steps:\n  - {id: check, call: health, with: {url: x}}\n  - {run: 'echo {{.status}}'}\n")
+	write(t, filepath.Join(flow.FunctionsDir(), "health.yaml"), "variables: {url: {required: true}}\nsteps: [{run: 'echo 200'}]\nreturns: {status: '$output'}\n")
+	write(t, filepath.Join(flow.Dir(), "ship.yaml"), "steps:\n  - {id: check, call: health, with: {url: x}}\n  - {run: 'echo $status'}\n")
 	listed, _ := s.call("list_flows", map[string]any{}, false)
 	fn := listed["functions"].([]any)[0].(map[string]any)
 	if fn["name"] != "health" || fn["called_by"].([]any)[0] != "ship" || fn["returns"].(map[string]any)["status"] == nil {
@@ -429,11 +430,11 @@ func TestADraftedFunctionWaitsForItsPromotion(t *testing.T) {
 		t.Errorf("agents = %v", agents)
 	}
 	scope, _ := s.call("flow_scope", map[string]any{"flow": "ship", "step": "1"}, false)
-	if !strings.Contains(fmt.Sprint(scope["variables"]), "{{.status}}") {
+	if !strings.Contains(fmt.Sprint(scope["variables"]), "$status") {
 		t.Errorf("the scope after the call lacks its return: %v", scope["variables"])
 	}
 
-	answer, _ := s.call("draft_function", map[string]any{"name": "health", "yaml": "params: {url: {required: true}}\nsteps: [{run: 'echo 500'}]\nreturns: {status: '{{.output}}'}\n"}, false)
+	answer, _ := s.call("draft_function", map[string]any{"name": "health", "yaml": "variables: {url: {required: true}}\nsteps: [{run: 'echo 500'}]\nreturns: {status: '$output'}\n"}, false)
 	if answer["backup"] == nil || answer["called_by"].([]any)[0] != "ship" {
 		t.Errorf("answer = %v", answer)
 	}

@@ -2,7 +2,9 @@ package app
 
 import (
 	"image"
+	"image/color"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -172,5 +174,109 @@ func TestADragLetsGoWhereverTheButtonGoesUp(t *testing.T) {
 	}
 	if steps := loadFlowSteps(t, "moves"); steps[0].ID != "a" {
 		t.Errorf("letting go near where it was picked moved the card: %+v", steps)
+	}
+}
+
+// The details under the chart keep their height whatever block is selected, so the chart,
+// centered on the selection, does not jump up and down as it moves.
+func TestTheChartKeepsItsPlaceAsTheSelectionMoves(t *testing.T) {
+	a, p := openMovesFlow(t)
+	area, pan := p.chartArea, p.pan
+	for range 3 {
+		pressDrawn(a, letter('j'))
+		if p.chartArea != area {
+			t.Fatalf("at %s the chart is %v, it was %v", p.selected, p.chartArea, area)
+		}
+		if p.pan.X != pan.X {
+			t.Errorf("at %s the chart moved sideways: %v, was %v", p.selected, p.pan, pan)
+		}
+	}
+}
+
+// v gives the details' rows to the chart, and v again brings them back.
+func TestVHidesTheDetails(t *testing.T) {
+	a, p := openMovesFlow(t)
+	shown := p.chartArea
+	if p.details.Empty() {
+		t.Fatal("no details under the chart")
+	}
+	pressDrawn(a, letter('v'))
+	if !p.details.Empty() || p.chartArea.Dy() <= shown.Dy() {
+		t.Errorf("v: details %v, chart %v, was %v", p.details, p.chartArea, shown)
+	}
+	pressDrawn(a, letter('j'), letter('v'))
+	if p.details.Empty() || p.chartArea != shown {
+		t.Errorf("v again: details %v, chart %v, want %v", p.details, p.chartArea, shown)
+	}
+}
+
+// g selects the flow's start and G its end, as they go to the top and end of a log.
+func TestGHomeAndEndGoToTheFlowsStartAndEnd(t *testing.T) {
+	a, p := openMovesFlow(t)
+	pressDrawn(a, letter('G'))
+	if p.selected != endKey {
+		t.Errorf("G selected %q, want the end", p.selected)
+	}
+	pressDrawn(a, letter('a'), letter('e'))
+	if p.editor != nil || len(loadFlowSteps(t, "moves")) != 3 {
+		t.Errorf("a or e at the end did something: editor %T", p.editor)
+	}
+	pressDrawn(a, letter('g'))
+	if p.selected != headKey(chartSlot{}) {
+		t.Errorf("g selected %q, want the start", p.selected)
+	}
+	pressDrawn(a, uv.KeyPressEvent{Code: uv.KeyEnd})
+	if p.selected != endKey {
+		t.Errorf("end selected %q, want the end", p.selected)
+	}
+	pressDrawn(a, uv.KeyPressEvent{Code: uv.KeyHome})
+	if p.selected != headKey(chartSlot{}) {
+		t.Errorf("home selected %q, want the start", p.selected)
+	}
+}
+
+// A condition's details lay it out by its logic: each part indented by its level in a shade of
+// the primary color, the operators in the color itself.
+func TestAConditionShowsByItsLogic(t *testing.T) {
+	pal := &palette{
+		selectedRow: uv.Style{Bg: color.RGBA{R: 0xd0, G: 0x80, B: 0x20, A: 0xff}},
+		panelMuted:  uv.Style{Fg: color.RGBA{R: 0x60, G: 0x60, B: 0x60, A: 0xff}},
+	}
+	lines := conditionLines(`ok and exit == 0 or retry`, pal)
+	var texts []string
+	for _, l := range lines {
+		texts = append(texts, l.text)
+	}
+	if want := []string{"    ok", "  and", "    exit == 0", "or", "  retry"}; !slices.Equal(texts, want) {
+		t.Fatalf("lines %q, want %q", texts, want)
+	}
+	primary := orColor(pal.selectedRow.Bg, pal.panelHeading.Fg)
+	if lines[1].style.Fg != primary || lines[3].style.Fg != primary || lines[1].style.Attrs&uv.AttrBold == 0 {
+		t.Errorf("operators %+v %+v, want the primary color, bold", lines[1].style, lines[3].style)
+	}
+	if lines[0].style.Fg == lines[4].style.Fg {
+		t.Errorf("levels 2 and 1 share a shade: %v", lines[0].style.Fg)
+	}
+	if one := conditionLines("ok", pal); len(one) != 1 || one[0].style != pal.panelText {
+		t.Errorf("a plain condition: %+v", one)
+	}
+}
+
+// addStep presses a in the chart and picks kind in the step picker, typing it and enter.
+func addStep(a *App, kind string) {
+	pressDrawn(a, letter('a'))
+	typeDrawn(a, kind)
+	pressDrawn(a, enterPress)
+}
+
+// A text of several lines shows its first in a card, and … for the rest.
+func TestACardShowsTheFirstLineOfAText(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "lines", "steps:\n  - {prompt: \"login>\\nand more\", var: login}\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	chart := chartText(a.currentTab().focusedView().(*inspectPanel).chart)
+	if !strings.Contains(chart, "login> …") || strings.Contains(chart, "and more") {
+		t.Errorf("the prompt's card:\n%s", chart)
 	}
 }

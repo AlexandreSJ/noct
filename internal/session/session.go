@@ -66,6 +66,9 @@ type Pane struct {
 	Command string `json:"command,omitempty"`
 	// Log is a terminal's log, which it goes on writing and shows the end of when it opens again.
 	Log string `json:"log,omitempty"`
+	// Item is what a panel had selected: the inspect's flow, the scripts panel's script. One that
+	// is gone leaves the panel on the first of its list.
+	Item string `json:"item,omitempty"`
 	// Colors are the pane's own over the theme, by the theme file's table and key.
 	Colors map[string]string `json:"colors,omitempty"`
 }

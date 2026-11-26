@@ -50,10 +50,9 @@ func variableValue(f flow.Flow, v flow.Variable, r *flow.Result) string {
 	return step.Captures[v.Field]
 }
 
-// variableName is a variable as the scope pane and the picker show it: the template without
-// its braces.
+// variableName is a variable as the scope pane and the picker show it: $name, or $step.field.
 func variableName(v flow.Variable) string {
-	return strings.TrimSuffix(strings.TrimPrefix(v.Template(), "{{"), "}}")
+	return v.Dollar()
 }
 
 // drawScope frames the variables a block reads, with their last values, under the warnings of
@@ -82,7 +81,7 @@ func (p *inspectPanel) scopeLines(f flow.Flow, r *flow.Result, block chartBlock)
 			lines = append(lines, styledLine{"⚠ " + w.Text, pal.status})
 		}
 	}
-	vars := p.app.scopeAt(f, block)
+	vars := flow.Readable(p.app.scopeAt(f, block))
 	if len(vars) == 0 {
 		lines = append(lines, styledLine{"nothing to read here yet", pal.panelMuted})
 	}
@@ -94,24 +93,4 @@ func (p *inspectPanel) scopeLines(f flow.Flow, r *flow.Result, block chartBlock)
 		lines = append(lines, styledLine{text, pal.panelText})
 	}
 	return append(lines, styledLine{"", pal.panelText}, styledLine{"↻ this pass  ? if a branch ran", pal.panelMuted})
-}
-
-// pickVariable searches the variables a template prompt can read and types the one chosen;
-// closing the search goes back to the prompt.
-func (a *App) pickVariable(f flow.Flow, vars []flow.Variable) {
-	back := a.mode // the prompt or form the variable is typed into
-	var last *flow.Result
-	if r, ran := flow.LastResult(flow.ResultsDir(), f.Name); ran {
-		last = &r
-	}
-	var items []finderItem
-	for _, v := range vars {
-		kind := strings.TrimSpace(certaintyMarks[v.Certainty] + variableValue(f, v, last))
-		items = append(items, finderItem{label: variableName(v), kind: kind, open: func() {
-			a.mode = back
-			a.editTypedText(func(field *textField) { field.insert(v.Template()) })
-		}})
-	}
-	a.openFinderWith("variable", items)
-	a.finder.cancel = func() { a.mode = back }
 }
