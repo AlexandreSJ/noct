@@ -37,7 +37,17 @@ func eval(t *testing.T, text string) any {
 
 func TestExpressionsReadAsWritten(t *testing.T) {
 	for text, want := range map[string]string{
-		`login == expectedLogin and password == expectedPassword`:   "false",
+		`login == expectedLogin and password == expectedPassword`: "false",
+		`ok nand exit == 0`:       "false",
+		`ok nand empty`:           "true",
+		`empty nand nothing.here`: "true",
+		`ok nor empty`:            "false",
+		`empty nor exit != 0`:     "true",
+		`ok nor nothing.here`:     "false",
+		`ok xor empty`:            "true",
+		`ok xor exit == 0`:        "false",
+		`ok xor ok and empty`:     "true",
+		`empty or ok xor ok`:      "false",
 		`login == expectedLogin && !(password == expectedPassword)`: "true",
 		`not ok`:                          "false",
 		`not login == "bob"`:              "true", // not holds the comparison
@@ -181,6 +191,35 @@ func TestParseRefStopsWhereTheReferenceEnds(t *testing.T) {
 		}
 		if text[:n] != want || e.String() != want {
 			t.Errorf("ParseRef(%q) took %q, want %q", text, text[:n], want)
+		}
+	}
+}
+
+func TestAnOutlineSplitsByTheLogic(t *testing.T) {
+	show := func(lines []Line) string {
+		var out []string
+		for _, l := range lines {
+			mark := ""
+			if l.Operator {
+				mark = "*"
+			}
+			out = append(out, strings.Repeat(" ", l.Depth)+mark+l.Text)
+		}
+		return strings.Join(out, "|")
+	}
+	for text, want := range map[string]string{
+		`a and b or c`:                      `  a| *and|  b|*or| c`,
+		`a && b && c`:                       ` a|*&&| b|*&&| c`,
+		`(a or b) and not c`:                `  a| *or|  b|*and| not c`,
+		`ok`:                                `ok`,
+		`((ok))`:                            `ok`,
+		`any(hosts, h => h == a or h == b)`: `any(hosts, h => h == a or h == b)`,
+		`a ?? b or c`:                       `a ?? b or c`,
+		`x xor y and z`:                     ` x|*xor|  y| *and|  z`,
+		`login == "a and b" nand exit == 0`: ` login == "a and b"|*nand| exit == 0`,
+	} {
+		if got := show(Outline(text)); got != want {
+			t.Errorf("Outline(%q) = %q, want %q", text, got, want)
 		}
 	}
 }

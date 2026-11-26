@@ -122,14 +122,18 @@ func (p *parser) lambdaParams() ([]string, bool) {
 func (p *parser) isParam() bool { return p.tok.kind == nameToken && !keywords[p.tok.text] }
 
 // keywords are the names an expression keeps for itself.
-var keywords = map[string]bool{"and": true, "or": true, "not": true, "in": true, "true": true, "false": true, "null": true}
+var keywords = map[string]bool{
+	"and": true, "or": true, "not": true, "nand": true, "nor": true, "xor": true, "in": true,
+	"true": true, "false": true, "null": true,
+}
 
-// levels are the binary operators from the loosest: ??, or, and, the comparisons, the sums and
-// the products. not sits between and and the comparisons, as in Python.
+// levels are the binary operators from the loosest: ??, or and nor, xor, and and nand, the
+// comparisons, the sums and the products. not sits between and and the comparisons, as in Python.
 var levels = [][]string{
 	{"??"},
-	{"or", "||"},
-	{"and", "&&"},
+	{"or", "||", "nor"},
+	{"xor"},
+	{"and", "&&", "nand"},
 	nil, // not
 	{"==", "!=", "<", "<=", ">", ">=", "in"},
 	{"+", "-"},
@@ -137,8 +141,8 @@ var levels = [][]string{
 }
 
 const (
-	notLevel     = 3
-	compareLevel = 4
+	notLevel     = 4
+	compareLevel = 5
 )
 
 func (p *parser) binary(level int) (node, error) {

@@ -13,6 +13,7 @@ import (
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"go.yaml.in/yaml/v3"
 
+	"github.com/AlexandreSJ/noct/internal/expr"
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/layout"
 	"github.com/AlexandreSJ/noct/internal/script"
@@ -492,12 +493,12 @@ func (a *App) stepKindLines(step flow.Step) []styledLine {
 		add("$ "+step.Run, pal.panelText)
 	case flow.IfStep:
 		add("Chooses a branch: then when this is true, else when false.", pal.panelHeading)
-		add(step.If, pal.panelText)
+		lines = append(lines, conditionLines(step.If, pal)...)
 		add(fmt.Sprintf("then: %d steps · else: %d steps", countSteps(step.Then...), countSteps(step.Else...)), pal.panelMuted)
 		lines = append(lines, exportLines(step, pal)...)
 	case flow.SwitchStep:
 		add("Runs the first case that holds this value, else the else:", pal.panelHeading)
-		add(step.Switch, pal.panelText)
+		lines = append(lines, conditionLines(step.Switch, pal)...)
 		labels := branchLabels(step)
 		for i, branch := range step.Branches() {
 			add(fmt.Sprintf("%s: %d steps", labels[i], countSteps(branch.Steps...)), pal.panelMuted)
@@ -510,6 +511,10 @@ func (a *App) stepKindLines(step flow.Step) []styledLine {
 			add("Repeats the steps inside it.", pal.panelHeading)
 		}
 		add(repeatText(step.Repeat), pal.panelText)
+		if until := conditionLines(step.Repeat.Until, pal); len(until) > 1 {
+			add("until:", pal.panelMuted)
+			lines = append(lines, until...)
+		}
 		add("Each pass forgets the results of the pass before.", pal.panelMuted)
 		lines = append(lines, exportLines(step, pal)...)
 	case flow.AgentStep:
@@ -704,6 +709,34 @@ func stepResultLines(r flow.Result, path string, pal *palette) []styledLine {
 		for _, line := range strings.Split(step.Output, "\n") {
 			lines = append(lines, styledLine{line, pal.panelMuted})
 		}
+	}
+	return lines
+}
+
+// conditionShades are how many shades of the primary color a condition's parts take, a level
+// each, from the color toward the dim text, before the next level starts over at the color.
+const conditionShades = 4
+
+// conditionLines lay an expression out by its logic (expr.Outline), a part a line indented by
+// its level, as a and b or c is [a and b] or [c]: each level in its shade of the primary color,
+// and the operators that join them, and, or and the rest, in the color itself. An expression
+// without them is its one line.
+func conditionLines(text string, pal *palette) []styledLine {
+	outline := expr.Outline(text)
+	if len(outline) == 1 {
+		return []styledLine{{text, pal.panelText}}
+	}
+	primary := orColor(pal.selectedRow.Bg, pal.panelHeading.Fg)
+	dim := orColor(pal.panelMuted.Fg, primary)
+	lines := make([]styledLine, len(outline))
+	for i, part := range outline {
+		style := pal.panelText
+		if part.Operator {
+			style.Fg, style.Attrs = primary, uv.AttrBold
+		} else if primary != nil {
+			style.Fg = mix(primary, dim, float64(part.Depth%conditionShades)/(conditionShades-1))
+		}
+		lines[i] = styledLine{strings.Repeat("  ", part.Depth) + part.Text, style}
 	}
 	return lines
 }

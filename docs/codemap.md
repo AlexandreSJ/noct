@@ -201,6 +201,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/expr/eval.go` | Evaluating the tree: the operators, short-circuit `and`/`or`, lambdas |
 | `internal/expr/values.go` | Values: text that reads as a number (`Number`), truth (`Truthy`), equality, text and JSON, fields of a JSON text, a text's lines as a list (`List`) |
 | `internal/expr/funcs.go` | The functions expressions call (`len`, `join`, `map`, `filter`, `match`, …), with their usage for the editor's help (`Functions`) |
+| `internal/expr/outline.go` | An expression laid out by its logic (`Outline`), a part a line by level, for the inspect's details |
 | `internal/flow/param_order.go` | The order of a flow's params: read and written as the YAML has them (`ParamOrder`), and `ParamNames` in that order |
 | `internal/flow/trigger.go` | Triggers (manual, cron, watch, after) in YAML, their validation, globs with `**`, loops of after triggers, which flows have them enabled |
 | `internal/flow/cron.go` | Five-field cron schedules: parsing and matching a minute |

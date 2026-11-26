@@ -19,6 +19,9 @@ the shortcut is `Alt` by default. How to write an entry is in
   step, as in a log.
 - `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
   chart, and shows them again.
+- Flow conditions take `nand`, `nor` and `xor`. The inspect's details show a condition with
+  them, or with `and` and `or`, a part a line indented by its level, as `[a and b] or [c]`: each
+  level in a shade of the primary color, the operators in the color itself.
 - A flow's `prompt` can be `secret: true`: each character typed shows as `•`, the answer stays
   out of the run's result, and the run shows it as `••••`, as in a run line that reads it. The
   prompt's form has a `secret` toggle.

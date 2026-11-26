@@ -127,13 +127,13 @@ func (n binaryNode) eval(e *env) (any, error) {
 		return nil, err
 	}
 	switch n.op { // these may not need the right side
-	case "and", "&&":
+	case "and", "&&", "nand":
 		if !Truthy(left) {
-			return false, nil
+			return n.op == "nand", nil
 		}
-	case "or", "||":
+	case "or", "||", "nor":
 		if Truthy(left) {
-			return true, nil
+			return n.op != "nor", nil
 		}
 	case "??":
 		if !isEmpty(left) {
@@ -152,6 +152,10 @@ func operate(op string, left, right any) (any, error) {
 	switch op {
 	case "and", "&&", "or", "||":
 		return Truthy(right), nil
+	case "nand", "nor": // the left side alone did not decide it
+		return !Truthy(right), nil
+	case "xor":
+		return Truthy(left) != Truthy(right), nil
 	case "??":
 		return right, nil
 	case "==":
