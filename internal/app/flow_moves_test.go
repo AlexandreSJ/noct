@@ -265,14 +265,14 @@ func addStep(a *App, kind string) {
 	pressDrawn(a, enterPress)
 }
 
-// A text of several lines shows its first in a card, and [...] for the rest.
+// A text of several lines shows its first in a card, and … for the rest.
 func TestACardShowsTheFirstLineOfAText(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
 	saveFlow(t, "lines", "steps:\n  - {prompt: \"login>\\nand more\", var: login}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
 	chart := chartText(a.currentTab().focusedView().(*inspectPanel).chart)
-	if !strings.Contains(chart, "login> [...]") || strings.Contains(chart, "and more") {
+	if !strings.Contains(chart, "login> …") || strings.Contains(chart, "and more") {
 		t.Errorf("the prompt's card:\n%s", chart)
 	}
 }

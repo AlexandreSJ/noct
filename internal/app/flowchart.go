@@ -382,14 +382,14 @@ func (s chartStyle) boxText(step flow.Step) []string {
 	return lines[:min(len(lines), boxLines[s.zoom])]
 }
 
-// cardLine is a text of several lines as a card's line shows it: its first, and [...] for the
+// cardLine is a text of several lines as a card's line shows it: its first, and … for the
 // rest.
 func cardLine(text string) string {
 	first, rest, more := strings.Cut(strings.TrimSpace(text), "\n")
 	if !more || strings.TrimSpace(rest) == "" {
 		return first
 	}
-	return strings.TrimRight(first, " ") + " [...]"
+	return strings.TrimRight(first, " ") + " …"
 }
 
 // exportText tells what a block keeps for the steps after it.
