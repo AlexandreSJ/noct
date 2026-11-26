@@ -168,12 +168,14 @@ const (
 
 // piece is a part of a text: text as it is, or a $ reference and the quotes it is in; in a
 // heredoc's body, end is the word that ends it, and dash tells <<-.
+// arithmetic tells a word the shell may read as arithmetic, which runs the $( ) and ` of its text.
 type piece struct {
-	text  string
-	ref   *expr.Expr
-	quote quoting
-	end   string
-	dash  bool
+	text       string
+	ref        *expr.Expr
+	quote      quoting
+	end        string
+	dash       bool
+	arithmetic bool
 }
 
 // splitText reads a text into its parts: what stays as written, and each $ reference to a name
@@ -236,6 +238,7 @@ func (s *splitter) run() ([]piece, error) {
 				return nil, err
 			}
 		case c == '<' && s.opensHeredoc():
+		case c == '(' && s.opensArithmetic():
 		case c == '\n' && s.heredoc != "":
 			s.copy(1)
 			if err := s.heredocBody(); err != nil {
@@ -265,6 +268,17 @@ func (s *splitter) flush() {
 
 // heredocStart is a heredoc's start: <<, <<- and the word that ends it, bare or quoted.
 var heredocStart = regexp.MustCompile(`^<<(-?)[ \t]*(?:'([A-Za-z_]\w*)'|"([A-Za-z_]\w*)"|([A-Za-z_]\w*))`)
+
+// opensArithmetic copies the (( of an arithmetic command, as (( n > 1 )) or for ((;;)), outside
+// quotes in a run line, where a value must be a number as in $(( )).
+func (s *splitter) opensArithmetic() bool {
+	if s.kind != shellText || s.quote != unquoted || !strings.HasPrefix(s.text[s.at:], "((") {
+		return false
+	}
+	s.arithmeticOf, s.quote, s.depth = unquoted, arithmetic, 2
+	s.copy(2)
+	return true
+}
 
 // opensHeredoc copies the << of a heredoc at the cursor, outside quotes in a run line, and keeps
 // the word that ends its body.
@@ -435,15 +449,18 @@ func (s *splitter) dollar() error {
 	if err := s.known.check(ref); err != nil {
 		return fmt.Errorf("$%s: %w", ref, err)
 	}
-	s.add(ref)
+	s.add(ref, 1+n)
 	s.at += 1 + n
 	return nil
 }
 
-// add puts a reference among the pieces, with where it lands.
-func (s *splitter) add(ref *expr.Expr) {
+// add puts a reference of n characters at the cursor among the pieces, with where it lands.
+func (s *splitter) add(ref *expr.Expr, n int) {
 	s.flush()
 	p := piece{ref: ref, quote: s.quote}
+	if s.kind == shellText && (s.quote == unquoted || s.quote == doubleQuoted) {
+		p.arithmetic = arithmeticBefore.MatchString(s.text[:s.at]) || arithmeticAfter.MatchString(s.text[s.at+n:])
+	}
 	if s.quote == heredocText || s.quote == heredocShell {
 		p.end, p.dash = s.heredoc, s.dash
 	}
@@ -461,7 +478,7 @@ func (s *splitter) braces(rest string) error {
 			if s.backtick {
 				return inBacktick
 			}
-			s.add(e)
+			s.add(e, end+2)
 			s.at += 1 + end + 1
 			return nil
 		}
@@ -532,6 +549,11 @@ func render(pieces []piece, kind textKind, scope expr.Scope) (string, error) {
 // quotes, the text of a shell's quoted string inside them, a number in $(( )), a heredoc's text
 // in its body, JSON in a JSON text.
 func (p piece) escape(value any, kind textKind) (string, error) {
+	if p.arithmetic {
+		if err := safeInArithmetic(value); err != nil {
+			return "", err
+		}
+	}
 	quote := p.quote
 	switch {
 	case kind == shellText && quote == unquoted:
@@ -550,6 +572,25 @@ func (p piece) escape(value any, kind textKind) (string, error) {
 		return expr.JSON(value)
 	}
 	return expr.String(value), nil
+}
+
+// arithmeticBefore and arithmeticAfter find a word the shell may read as arithmetic: an operand
+// of -eq and the like, an array's [ ], and the words of let and declare -i.
+var (
+	arithmeticBefore = regexp.MustCompile(`-(?:eq|ne|lt|le|gt|ge)\s+["']?$|[A-Za-z_]\w*\[[^\]\s]*$|(?:^|[;&|({\n]|\b(?:then|do|else)\b)\s*(?:let|(?:declare|typeset|local|export|readonly)\s+(?:-\w+\s+)*-[A-Za-z]*i[A-Za-z]*)\s[^;&|\n]*$`)
+	arithmeticAfter  = regexp.MustCompile(`^["']?\s+-(?:eq|ne|lt|le|gt|ge)\b`)
+)
+
+// safeInArithmetic refuses a value the shell would run a command of where it reads arithmetic: a
+// number goes in, and a text without $ or `, as an array's key.
+func safeInArithmetic(value any) error {
+	if _, ok := expr.Number(value); ok {
+		return nil
+	}
+	if text := expr.String(value); strings.ContainsAny(text, "$`") {
+		return fmt.Errorf("%q is where the shell reads arithmetic (-eq, let, an array's [ ]), which runs what its $ or ` hold", text)
+	}
+	return nil
 }
 
 // inArithmetic is a value in the shell's $(( )), which must be a number: the shell reads any

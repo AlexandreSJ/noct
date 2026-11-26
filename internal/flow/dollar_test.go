@@ -146,3 +146,32 @@ func TestAValueInACommandSubstitutionStaysOneWord(t *testing.T) {
 		}
 	}
 }
+
+// Where the shell reads a word as arithmetic, it runs the $( ) and ` of the word's text, quoted or
+// not: a number goes in, and so does a text without $ or `, as an array's key; any other is
+// refused. In (( )), as in $(( )), only a number.
+func TestAValueTheShellReadsAsArithmeticRunsNothing(t *testing.T) {
+	known := knownNames{vars: map[string]bool{"n": true, "k": true, "bad": true}}
+	vars := map[string]string{"n": "5", "k": "name", "bad": "a[$(touch PWNED)]"}
+	for text, want := range map[string]string{
+		`[[ $n -gt 3 ]]`:                     `[[ '5' -gt 3 ]]`,
+		`(( $n > 1 ))`:                       `(( 5 > 1 ))`,
+		`for ((i=0; i<$n; i++)); do :; done`: `for ((i=0; i<5; i++)); do :; done`,
+		`echo ${arr[$k]}`:                    `echo ${arr['name']}`,
+		`let c=$n+1`:                         `let c='5'+1`,
+		`[[ $bad == x ]]`:                    `[[ 'a[$(touch PWNED)]' == x ]]`,
+	} {
+		got, err := renderText(text, shellText, known, vars, nil, nil)
+		if err != nil || got != want {
+			t.Errorf("%q: got %q (%v), want %q", text, got, err, want)
+		}
+	}
+	for _, text := range []string{
+		`[[ $bad -eq 1 ]]`, `[[ "$bad" -lt 1 ]]`, `[ 1 -ne $bad ]`, `(( $k > 1 ))`, `let c=$bad`,
+		`declare -i c=$bad`, `local -ri c=${bad}`, `echo ${arr[$bad]}`, `arr[$bad]=1`,
+	} {
+		if got, err := renderText(text, shellText, known, vars, nil, nil); err == nil {
+			t.Errorf("%q rendered %q, want it refused", text, got)
+		}
+	}
+}
