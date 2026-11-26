@@ -47,6 +47,7 @@ func (a *App) draw(screen uv.Screen, area uv.Rectangle) {
 	a.drawOverlay(screen, at)
 	if a.mode != normalMode {
 		a.drawRowHovers(screen, at) // over the popup the rows are in
+		a.drawPopupSelection(screen)
 	}
 	a.recordFrame(screen)
 }

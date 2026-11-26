@@ -157,6 +157,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/animation.go` | Animations: what changed since the last frame, the ones running, and drawing them over the frame without touching the programs |
 | `internal/app/hover.go` | Hover: what is under the mouse (a tab's name, a pane's title, a list's row), its animation there and back, and lighting list rows |
 | `internal/app/popup_hover.go` | The rows a click picks in popups (`popupRowAt`), which hovering lights, and the clicks of choices and the search |
+| `internal/app/popup_selection.go` | Dragging over a popup's text to copy it, from the cells its frame showed |
 | `internal/app/effects_sweep.go` | The effects that move or sweep: `slide-left` and `slide-right` in and back out, the `shine` band toward the color that stands out |
 | `internal/app/effects.go` | The animation effects as functions of time: easing, 01 and jitter |
 | `internal/app/stage_preview.go` | The config's rows of the animations (each moment's effect and time) and the stage under them playing the selected moment's effect |

@@ -120,6 +120,7 @@ type App struct {
 	// lastPopup is the popup the last frame drew, which closing it animates. popupArea is where
 	// the popup of the frame being drawn is, kept by drawPanel while drawingPopup.
 	lastPopup    drawnPopup
+	popupSel     *popupSelection
 	popupArea    image.Rectangle
 	drawingPopup bool
 	// paneTitles are where the frame being drawn put each pane's title, which hovering animates.

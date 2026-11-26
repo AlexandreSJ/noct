@@ -30,6 +30,7 @@ the shortcut is `Alt` by default. How to write an entry is in
 - **Flows → leaving a step's form** in the config says what `esc` does with what changed in a
   step's form: `save` (the default), `ask` first, or `discard`. A save that is refused keeps the
   form with why, and `esc` again leaves the step as it was.
+- Dragging over the text of a popup selects it, and letting go copies it, as in a pane.
 - Clickable rows light under the mouse with the hover animation in popups too: the config, the
   commands, the agents, choices and the search, which a click now picks from, and the cards of
   a flow's chart.

@@ -107,6 +107,9 @@ func (a *App) handleKey(key uv.KeyPressEvent) {
 	if a.selection != nil && !a.selection.dragging {
 		a.selection = nil
 	}
+	if a.popupSel != nil && !a.popupSel.dragging {
+		a.popupSel = nil
+	}
 	if context := a.modeKeyContext(); context != "" && !a.prefix.matches(key) {
 		var ok bool
 		if key, ok = a.keymap.resolve(context, key); !ok {
