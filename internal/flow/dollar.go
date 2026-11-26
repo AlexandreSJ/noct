@@ -190,6 +190,9 @@ func splitText(text string, kind textKind, known knownNames) ([]piece, error) {
 		maps.DeleteFunc(known.vars, func(name string, _ bool) bool { return own[name] })
 	}
 	s := splitter{text: text, kind: kind, known: known}
+	if kind == shellText {
+		s.integers = shellIntegers(text)
+	}
 	return s.run()
 }
 
@@ -209,6 +212,10 @@ type splitter struct {
 	// backtick tells a ` ` open, which ends at the first ` of a value, so a value there is
 	// refused.
 	backtick bool
+	// expansions counts the shell's ${ } open, whose offsets and subscripts are arithmetic, so a
+	// value in one is checked as in arithmetic; integers are the names the line declares -i.
+	expansions int
+	integers   map[string]bool
 	// heredoc is the word that ends a heredoc the line opened, whose body starts at the next line;
 	// dash is <<-, whose end may be indented with tabs.
 	heredoc       string
@@ -383,6 +390,9 @@ func (s *splitter) track(c byte) {
 	if s.kind == shellText && s.trackCommand(c) {
 		return
 	}
+	if c == '}' && s.expansions > 0 && s.quote != singleQuoted {
+		s.expansions--
+	}
 	switch {
 	case s.kind == shellText && c == '\'' && s.quote != doubleQuoted:
 		s.quote = map[quoting]quoting{unquoted: singleQuoted, singleQuoted: unquoted}[s.quote]
@@ -459,7 +469,8 @@ func (s *splitter) add(ref *expr.Expr, n int) {
 	s.flush()
 	p := piece{ref: ref, quote: s.quote}
 	if s.kind == shellText && (s.quote == unquoted || s.quote == doubleQuoted) {
-		p.arithmetic = arithmeticBefore.MatchString(s.text[:s.at]) || arithmeticAfter.MatchString(s.text[s.at+n:])
+		p.arithmetic = s.expansions > 0 || s.integerAssigned() ||
+			arithmeticBefore.MatchString(s.text[:s.at]) || arithmeticAfter.MatchString(s.text[s.at+n:])
 	}
 	if s.quote == heredocText || s.quote == heredocShell {
 		p.end, p.dash = s.heredoc, s.dash
@@ -482,6 +493,9 @@ func (s *splitter) braces(rest string) error {
 			s.at += 1 + end + 1
 			return nil
 		}
+	}
+	if s.kind == shellText && s.quote != singleQuoted {
+		s.expansions++
 	}
 	s.copy(2)
 	return nil
@@ -575,11 +589,34 @@ func (p piece) escape(value any, kind textKind) (string, error) {
 }
 
 // arithmeticBefore and arithmeticAfter find a word the shell may read as arithmetic: an operand
-// of -eq and the like, an array's [ ], and the words of let and declare -i.
+// of -eq and the like, an array's [ ], also in arr=([k]=v), $[ ], and the words of let,
+// declare -i and zsh's integer.
 var (
-	arithmeticBefore = regexp.MustCompile(`-(?:eq|ne|lt|le|gt|ge)\s+["']?$|[A-Za-z_]\w*\[[^\]\s]*$|(?:^|[;&|({\n]|\b(?:then|do|else)\b)\s*(?:let|(?:declare|typeset|local|export|readonly)\s+(?:-\w+\s+)*-[A-Za-z]*i[A-Za-z]*)\s[^;&|\n]*$`)
+	arithmeticBefore = regexp.MustCompile(`-(?:eq|ne|lt|le|gt|ge)\s+["']?$|[A-Za-z_]\w*\[[^\]\s]*$|(?:^|[(\s])\[[^\]\s]*$|\$\[[^\]]*$|(?:^|[;&|({\n]|\b(?:then|do|else)\b)\s*(?:let|integer|(?:declare|typeset|local|export|readonly)\s+(?:-\w+\s+)*-[A-Za-z]*i[A-Za-z]*)\s[^;&|\n]*$`)
 	arithmeticAfter  = regexp.MustCompile(`^["']?\s+-(?:eq|ne|lt|le|gt|ge)\b`)
+	// declaredIntegers finds the names declare -i and integer make, whose later name=$x is
+	// arithmetic; assignedName is the name=, or +=, a reference follows.
+	declaredIntegers = regexp.MustCompile(`\b(?:integer|(?:declare|typeset|local|export|readonly)\s+(?:-\w+\s+)*-[A-Za-z]*i[A-Za-z]*(?:\s+-\w+)*)((?:\s+[A-Za-z_]\w*(?:=[^\s;&|]*)?)+)`)
+	assignedName     = regexp.MustCompile(`\b([A-Za-z_]\w*)\+?=["']?$`)
 )
+
+// shellIntegers are the names a run line declares as integers.
+func shellIntegers(run string) map[string]bool {
+	names := map[string]bool{}
+	for _, match := range declaredIntegers.FindAllStringSubmatch(run, -1) {
+		for _, word := range strings.Fields(match[1]) {
+			name, _, _ := strings.Cut(word, "=")
+			names[name] = true
+		}
+	}
+	return names
+}
+
+// integerAssigned tells a reference that gives its value to a name the line declares -i.
+func (s *splitter) integerAssigned() bool {
+	m := assignedName.FindStringSubmatch(s.text[:s.at])
+	return m != nil && s.integers[m[1]]
+}
 
 // safeInArithmetic refuses a value the shell would run a command of where it reads arithmetic: a
 // number goes in, and a text without $ or `, as an array's key.

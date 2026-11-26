@@ -403,8 +403,9 @@ whose arguments are expressions, or any expression in braces, `${count + 1}`.
   `"..."` or a heredoc, it is one word of that command again. Inside `` ` ` `` a value is
   refused, since its first `` ` `` would end the command: write `$( )` there. Where the shell
   reads a word as arithmetic, it runs the `$( )` in the word's text even in quotes, so in
-  `(( ))` a value must be a number, and an operand of `-eq`, `-lt` and the like, a word of `let`
-  or `declare -i` and an array's `[ ]` refuse a value with `$` or `` ` `` that is no number. So
+  `(( ))` a value must be a number, and an operand of `-eq`, `-lt` and the like, a word of `let`,
+  `declare -i` or `integer` (and a later `name=` of one), an array's `[ ]`, `$[ ]` and anything
+  inside the shell's `${ }`, as `${s:$n}`, refuse a value with `$` or `` ` `` that is no number. So
   `echo $msg`, `echo "msg: $msg"` and `echo "$(basename $file)"` never run what the value holds. A program that reads its
   own text (`sh -c '...'`, `jq '...'`) still reads the value as its own code: pass it as an
   argument instead.

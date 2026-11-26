@@ -160,6 +160,8 @@ func TestAValueTheShellReadsAsArithmeticRunsNothing(t *testing.T) {
 		`echo ${arr[$k]}`:                    `echo ${arr['name']}`,
 		`let c=$n+1`:                         `let c='5'+1`,
 		`[[ $bad == x ]]`:                    `[[ 'a[$(touch PWNED)]' == x ]]`,
+		`echo ${x:-$k} ${s:$n}`:              `echo ${x:-'name'} ${s:'5'}`,
+		`declare -i c; d=$bad`:               `declare -i c; d='a[$(touch PWNED)]'`,
 	} {
 		got, err := renderText(text, shellText, known, vars, nil, nil)
 		if err != nil || got != want {
@@ -169,6 +171,8 @@ func TestAValueTheShellReadsAsArithmeticRunsNothing(t *testing.T) {
 	for _, text := range []string{
 		`[[ $bad -eq 1 ]]`, `[[ "$bad" -lt 1 ]]`, `[ 1 -ne $bad ]`, `(( $k > 1 ))`, `let c=$bad`,
 		`declare -i c=$bad`, `local -ri c=${bad}`, `echo ${arr[$bad]}`, `arr[$bad]=1`,
+		`echo ${s:$bad}`, `echo "${s:1:$bad}"`, `arr=([$bad]=1)`, `echo $[$bad + 1]`,
+		`integer c=$bad`, `declare -i c; c=$bad`, `typeset -i c=1; c+=$bad`, `echo ${x:-$bad}`,
 	} {
 		if got, err := renderText(text, shellText, known, vars, nil, nil); err == nil {
 			t.Errorf("%q rendered %q, want it refused", text, got)
