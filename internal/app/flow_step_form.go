@@ -88,7 +88,7 @@ const (
 const stepFormTypeWidth = 9
 
 func (a *App) newStepForm(spec stepFormSpec, vars []flow.Variable, values map[string]string, adding bool, save func(flow.Step) error) *stepForm {
-	form := &stepForm{app: a, spec: spec, save: save, values: values, leaving: cmp.Or(a.config.Flows.LeaveForm, config.LeaveSaves)}
+	form := &stepForm{app: a, spec: spec, save: save, values: values, leaving: cmp.Or(a.config.Flows.LeaveForm, config.LeaveAsks)}
 	form.grid.variables = flow.Readable(vars)
 	form.grid.arranged = spec.named
 	for _, field := range spec.fields {

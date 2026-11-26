@@ -120,7 +120,7 @@ steps:
 	if result := r.Run(f, nil); !result.OK {
 		t.Fatalf("run failed: %s", out)
 	}
-	if !strings.Contains(out.String(), "first z") || !strings.Contains(out.String(), `after ["not", "json"]`) {
+	if !strings.Contains(out.String(), "first z") || !strings.Contains(out.String(), `after ["not","json"]`) {
 		t.Errorf("output:\n%s", out)
 	}
 }

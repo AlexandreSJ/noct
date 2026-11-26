@@ -182,7 +182,7 @@ func TestTheParamsTableAddsEveryType(t *testing.T) {
 			t.Errorf("the help lacks the type %s:\n%s", kind, screen)
 		}
 	}
-	pressDrawn(a, enterPress, letter('j'), letter('j'), letter('j'), enterPress, letter('l'), letter('l'))
+	pressDrawn(a, enterPress, letter('j'), letter('j'), letter('j'), letter('j'), enterPress, letter('l'), letter('l'))
 	if !strings.Contains(screenText(a), "no options") {
 		t.Errorf("an option without options does not say so:\n%s", screenText(a))
 	}
@@ -263,7 +263,7 @@ func TestAParamRowThatIsNotValidWaitsToBeFixed(t *testing.T) {
 	saveFlow(t, "ports", "variables: {env: dev}\nsteps: []\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress, upPress, letter('a'))
 	typeDrawn(a, "port")
-	pressDrawn(a, enterPress, letter('h'), enterPress, letter('j'), enterPress, letter('l'), letter('l'))
+	pressDrawn(a, enterPress, letter('h'), enterPress, letter('j'), letter('j'), enterPress, letter('l'), letter('l'))
 	setCell(a, "x")
 	if !strings.Contains(screenText(a), `✗ value: the value must be a number, not "x"`) {
 		t.Errorf("the table does not say why the row waits:\n%s", screenText(a))

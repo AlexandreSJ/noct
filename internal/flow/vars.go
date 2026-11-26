@@ -28,7 +28,7 @@ const (
 )
 
 // ParamTypes are the types a parameter can have, in the order the inspect offers them.
-var ParamTypes = []string{TextParam, NumberParam, BooleanParam, OptionParam, PathParam, ListParam, ObjectParam}
+var ParamTypes = []string{VarType, TextParam, NumberParam, BooleanParam, OptionParam, PathParam, ListParam, ObjectParam}
 
 const VarType = "var"
 
@@ -46,7 +46,7 @@ const maxPromptTries = 3
 // rest (a: {default: "3", type: number, prompt: First number, required: true}).
 type Param struct {
 	Default string `yaml:"default,omitempty" json:"default,omitempty"`
-	// Type is one of ParamTypes; empty is TextParam.
+	// Type is one of ParamTypes; empty is VarType.
 	Type string `yaml:"type,omitempty" json:"type,omitempty"`
 	// Choices are the values an OptionParam can take.
 	Choices []string `yaml:"choices,omitempty" json:"choices,omitempty"`
@@ -254,7 +254,7 @@ func (s Step) validateSetTypes() error {
 
 func (f Flow) VariableType(name string) string {
 	if p, ok := f.Params[name]; ok {
-		return cmp.Or(p.Type, TextParam)
+		return cmp.Or(p.Type, VarType)
 	}
 	kind := ""
 	walkSteps(f.Steps, "", "", func(s Step, _ string) {

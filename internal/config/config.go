@@ -168,12 +168,12 @@ const (
 	LeaveDiscard = "discard"
 )
 
-var LeaveFormChoices = []string{LeaveSaves, LeaveAsks, LeaveDiscard}
+var LeaveFormChoices = []string{LeaveAsks, LeaveSaves, LeaveDiscard}
 
 func (f Flows) normalized() Flows {
 	f.OutputKB = max(f.OutputKB, 0)
 	if !slices.Contains(LeaveFormChoices, f.LeaveForm) {
-		f.LeaveForm = LeaveSaves
+		f.LeaveForm = LeaveAsks
 	}
 	return f
 }

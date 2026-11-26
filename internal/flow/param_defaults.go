@@ -20,7 +20,7 @@ func isTemplate(text string) bool { return strings.Contains(text, "$") }
 func (f Flow) withDefaults(values map[string]string) (map[string]string, error) {
 	resolved := make(map[string]string, len(values)+len(f.Params))
 	maps.Copy(resolved, values)
-	kinds := f.jsonParams()
+	kinds := map[string]string{}
 	before := map[string]string{}
 	for _, name := range f.ParamNames() {
 		p := f.Params[name]
@@ -36,6 +36,9 @@ func (f Flow) withDefaults(values map[string]string) (map[string]string, error) 
 			value = rendered
 		}
 		resolved[name], before[name] = value, value
+		if kind := p.jsonKind(value); kind != "" {
+			kinds[name] = kind
+		}
 	}
 	return resolved, nil
 }

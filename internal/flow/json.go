@@ -30,15 +30,27 @@ func DecodeJSON(kind, text string) (any, error) {
 	return value, nil
 }
 
-// jsonParams are the params expressions read as JSON, with their types.
-func (f Flow) jsonParams() map[string]string {
+// jsonParams are the params expressions read as JSON, with their kinds: a list or an object
+// by its type, and a var when its value is one.
+func (f Flow) jsonParams(values map[string]string) map[string]string {
 	kinds := map[string]string{}
 	for name, p := range f.Params {
-		if p.Type == ListParam || p.Type == ObjectParam {
-			kinds[name] = p.Type
+		if kind := p.jsonKind(values[name]); kind != "" {
+			kinds[name] = kind
 		}
 	}
 	return kinds
+}
+
+func (p Param) jsonKind(value string) string {
+	switch p.Type {
+	case ListParam, ObjectParam:
+		return p.Type
+	case "", VarType:
+		kind, _ := setKind(VarType, value)
+		return kind
+	}
+	return ""
 }
 
 // readAs is a variable's value as an expression reads it: a list or object param decoded, empty

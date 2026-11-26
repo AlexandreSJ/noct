@@ -397,7 +397,7 @@ steps: [{run: 'true'}]
 	for content, problem := range map[string]string{
 		"variables:\n  a: {type: choice}\nsteps: [{run: 'true'}]\n":                           "needs its choices",
 		"variables:\n  a: {type: bool, default: yes}\nsteps: [{run: 'true'}]\n":               "the default must be one of",
-		"variables:\n  a: {type: date}\nsteps: [{run: 'true'}]\n":                             "one of text, number, boolean, option, path, list, object",
+		"variables:\n  a: {type: date}\nsteps: [{run: 'true'}]\n":                             "one of var, text, number, boolean, option, path, list, object",
 		"variables:\n  a: {type: choice, choices: [x], default: y}\nsteps: [{run: 'true'}]\n": "the default must be one of x",
 	} {
 		if err := parse(t, content).Validate(nil); err == nil || !strings.Contains(err.Error(), problem) {
@@ -437,7 +437,7 @@ steps:
   - set: {free: x}
   - {prompt: Name, var: name}
 `)
-	for name, want := range map[string]string{"hosts": "list", "env": "text", "count": "number", "free": "var", "name": "text", "none": ""} {
+	for name, want := range map[string]string{"hosts": "list", "env": "var", "count": "number", "free": "var", "name": "text", "none": ""} {
 		if got := f.VariableType(name); got != want {
 			t.Errorf("VariableType(%s) = %q, want %q", name, got, want)
 		}

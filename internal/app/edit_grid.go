@@ -226,7 +226,7 @@ func (g *editGrid) navKey(name string) gridOutcome {
 	case "enter":
 		return g.activate()
 	case "space":
-		if c := g.cell(); c != nil && c.kind == toggleCell {
+		if c := g.cell(); c != nil && c.kind != textCell {
 			return g.activate()
 		}
 	case "K", "shift+k", "shift+up":

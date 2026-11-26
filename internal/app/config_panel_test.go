@@ -399,8 +399,7 @@ func TestConfigLinesStayInPlace(t *testing.T) {
 		"row default agent = auto: ollama · qwen3.5:4b @28",
 		"row step output kept = < all (up to 1 MB) > @29",
 		"note in each flow's last result; tests keep 4 KB = ",
-		"row leaving a step's form = < save > @30",
-		"note esc saves what changed, asks first, or leaves the step as it was = ",
+		"row when leaving a step's form = < ask > @30",
 		"row tell when runs end = < system > @31",
 		"note space to test = ",
 		"heading Updates = ",
@@ -440,4 +439,21 @@ func describeConfigLine(line configLine) string {
 		text += fmt.Sprintf(" @%d", line.row)
 	}
 	return text
+}
+
+func TestGAndShiftGGoToTheFirstAndLastSetting(t *testing.T) {
+	a := testApp(t)
+	a.openConfig()
+	press(a, uv.KeyPressEvent{Code: uv.KeyEnd})
+	last := a.configPanel.selected
+	press(a, uv.KeyPressEvent{Code: uv.KeyHome})
+	first := a.configPanel.selected
+	press(a, letter('G'))
+	if a.configPanel.selected != last {
+		t.Errorf("G selected %v, want %v", a.configPanel.selected, last)
+	}
+	press(a, letter('g'))
+	if a.configPanel.selected != first {
+		t.Errorf("g selected %v, want %v", a.configPanel.selected, first)
+	}
 }

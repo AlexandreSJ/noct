@@ -52,6 +52,7 @@ const moveGutter = moveArrowsWidth + 2
 
 // paramTypeNotes say what each type holds, for the help beside the table.
 var paramTypeNotes = map[string]string{
+	flow.VarType:      "any; JSON is read inside",
 	flow.TextParam:    "any text",
 	flow.NumberParam:  "3, -2 or 1.5",
 	flow.BooleanParam: "true or false",
@@ -84,7 +85,7 @@ func (a *App) newParamsTable(f flow.Flow) *paramsTable {
 func paramRow(name string, p flow.Param) gridRow {
 	env, _ := p.EnvName()
 	cells := make([]gridCell, len(paramColumns))
-	cells[paramTypeColumn] = optionCellOf(cmp.Or(p.Type, flow.TextParam), flow.ParamTypes)
+	cells[paramTypeColumn] = optionCellOf(cmp.Or(p.Type, flow.VarType), flow.ParamTypes)
 	cells[paramNameColumn] = textCellOf(name)
 	cells[paramDefaultColumn] = defaultCell(p)
 	cells[paramEnvColumn] = textCellOf(env)
@@ -161,7 +162,7 @@ func (t *paramsTable) param(i int) (string, flow.Param) {
 		Required: cells[paramRequiredColumn].on,
 		Secret:   cells[paramSecretColumn].on,
 	}
-	if kind := cells[paramTypeColumn].value(); kind != flow.TextParam {
+	if kind := cells[paramTypeColumn].value(); kind != flow.VarType {
 		p.Type = kind
 	}
 	switch def := &cells[paramDefaultColumn]; {
@@ -490,7 +491,7 @@ func (t *paramsTable) help() []styledLine {
 		add(pal.panelText, "steps read it as $"+cmp.Or(name, "name"))
 		add(pal.panelMuted, "letters, digits and _")
 	case t.grid.col == paramDefaultColumn:
-		add(pal.panelText, "the value when the run gives none: "+paramTypeNotes[cmp.Or(p.Type, flow.TextParam)])
+		add(pal.panelText, "the value when the run gives none: "+paramTypeNotes[cmp.Or(p.Type, flow.VarType)])
 		add(pal.panelMuted, defaultNote(p))
 	case t.grid.col == paramEnvColumn:
 		add(pal.panelText, "reads this environment variable when it is set, and the run form does not ask")
@@ -596,7 +597,7 @@ func visibleColumns(widths []int, room, focus int) (int, int) {
 
 // paramText tells a param's type and default, as its card shows it, like a declaration.
 func paramText(p flow.Param) string {
-	kind := cmp.Or(p.Type, flow.TextParam)
+	kind := cmp.Or(p.Type, flow.VarType)
 	switch {
 	case p.From != "":
 		kind += " from $" + strings.TrimPrefix(p.From, "env:")

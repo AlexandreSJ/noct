@@ -217,12 +217,13 @@ func TestASetCompletesNamesAndTakesTheirTypes(t *testing.T) {
 	}
 }
 
-// esc saves what changed in a step's form, by default; ask asks first, where n leaves the step
+// esc saves what changed in a step's form; ask, the default, asks first, where n leaves the step
 // as it was; a save esc cannot make keeps the form, and esc again leaves it.
 func TestEscSavesAStepsFormOrAsksFirst(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
 	saveFlow(t, "leave", "steps:\n  - {wait: 5s}\n")
+	a.config.Flows.LeaveForm = config.LeaveSaves
 	pressDrawn(a, prefixPress, letter('i'), tabPress, letter('e'))
 	setCell(a, "7s")
 	pressDrawn(a, escPress)

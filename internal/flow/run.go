@@ -125,7 +125,7 @@ func (r *Runner) start(f Flow, params map[string]string) (*running, error) {
 	x := &running{
 		Runner:   r,
 		vars:     vars,
-		jsonVars: f.jsonParams(),
+		jsonVars: f.jsonParams(vars),
 		known:    f.knownNames(r.Lookup),
 		steps:    map[string]map[string]string{},
 		result:   Result{Flow: f.Name, Start: time.Now(), Steps: map[string]StepResult{}, OK: true},

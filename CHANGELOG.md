@@ -27,13 +27,17 @@ the shortcut is `Alt` by default. How to write an entry is in
   the first variable's name, and `Tab` completes the name of a variable in scope, which brings
   its type.
 - What `Tab` would put in shows dim after the cursor in the inspect's forms and tables.
-- **Flows → leaving a step's form** in the config says what `esc` does with what changed in a
-  step's form: `save` (the default), `ask` first, or `discard`. A save that is refused keeps the
+- **Flows → when leaving a step's form** in the config says what `esc` does with what changed in
+  a step's form: `ask` first (the default), `save`, or `discard`. A save that is refused keeps the
   form with why, and `esc` again leaves the step as it was.
 - Dragging over the text of a popup selects it, and letting go copies it, as in a pane.
 - Clickable rows light under the mouse with the hover animation in popups too: the config, the
   commands, the agents, choices and the search, which a click now picks from, and the cards of
   a flow's chart.
+- A flow variable's type is `var` unless it says another, and new ones start as `var`: its value
+  is what it is, and JSON of a list or an object is read inside, as `cfg.port`.
+- `g` and `G` go to the first and last setting in the config, as `Home` and `End` do.
+- `Space` opens an option's choices in the inspect's forms and tables, as `Enter` does.
 - `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
   chart, and shows them again.
 - Flow conditions take `nand`, `nor` and `xor`. The inspect's details show a condition with

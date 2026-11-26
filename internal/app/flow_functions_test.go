@@ -46,7 +46,7 @@ func TestAFunctionShowsWhoCallsItAndIsCalledFromAStep(t *testing.T) {
 	}
 	pressDrawn(a, enterPress)
 	screen := screenText(a)
-	for _, want := range []string{"used by morning", "↩ greeting = $output", "who  text = world"} {
+	for _, want := range []string{"used by morning", "↩ greeting = $output", "who  var = world"} {
 		if !strings.Contains(screen, want) {
 			t.Errorf("the function's chart lacks %q:\n%s", want, screen)
 		}

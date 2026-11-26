@@ -209,6 +209,10 @@ func (a *App) handleConfigKey(key uv.KeyPressEvent) {
 		a.moveConfigSelection(-1)
 	case "j":
 		a.moveConfigSelection(1)
+	case "g":
+		a.jumpConfigSelection("home")
+	case "G", "shift+g":
+		a.jumpConfigSelection("end")
 	case "left", "h":
 		a.changeSetting(-1)
 	case "right", "l", "enter", "space":
@@ -719,8 +723,7 @@ func (a *App) flowsLines() []configLine {
 	return append(lines, []configLine{
 		{label: "step output kept", value: choiceValue(flowOutputLabel(a.config.Flows.OutputKB)), row: flowsOutputRow},
 		{label: "in each flow's last result; tests keep 4 KB", note: true},
-		{label: "leaving a step's form", value: choiceValue(cmp.Or(a.config.Flows.LeaveForm, config.LeaveSaves)), row: leaveFormRow},
-		{label: "esc saves what changed, asks first, or leaves the step as it was", note: true},
+		{label: "when leaving a step's form", value: choiceValue(cmp.Or(a.config.Flows.LeaveForm, config.LeaveAsks)), row: leaveFormRow},
 		{label: "tell when runs end", value: choiceValue(a.config.Notify), row: notifyRow},
 		{label: "space to test", note: true},
 	}...)
