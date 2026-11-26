@@ -9,11 +9,11 @@ import (
 	"github.com/AlexandreSJ/noct/internal/flow"
 )
 
-// setCell types text over the focused cell's: enter, ctrl+u, the text, and enter.
+// setCell types text over the focused cell's: enter, ctrl+u, the text, and esc.
 func setCell(a *App, text string) {
 	pressDrawn(a, enterPress, clearLine)
 	typeDrawn(a, text)
-	pressDrawn(a, enterPress)
+	pressDrawn(a, escPress)
 }
 
 // e on an if changes its condition in its form, keeping the steps of its branches, and esc
@@ -257,5 +257,30 @@ func TestEscSavesAStepsFormOrAsksFirst(t *testing.T) {
 	}
 	if steps := loadFlowSteps(t, "leave"); steps[0].Wait != "7s" {
 		t.Errorf("the refused value was saved: %+v", steps[0])
+	}
+}
+
+// A form's text takes several lines: enter starts a new one, esc leaves the cell, and a
+// condition not typed in shows laid out by its logic, a part a line.
+func TestAFormsTextTakesLinesAndAConditionShowsByItsLogic(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "lines", "steps: [{run: 'true'}]\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	addStep(a, "if")
+	pressDrawn(a, enterPress)
+	typeDrawn(a, "(ready and up)")
+	pressDrawn(a, enterPress)
+	typeDrawn(a, "or forced")
+	pressDrawn(a, escPress)
+	screen := screenText(a)
+	for _, want := range []string{"  (\n", "      ready\n", "    and\n", "  )\n", "or\n", "  forced"} {
+		if !strings.Contains(screen, want[:len(want)-1]) {
+			t.Errorf("the condition does not show %q:\n%s", want, screen)
+		}
+	}
+	pressDrawn(a, ctrlS)
+	if steps := loadFlowSteps(t, "lines"); len(steps) != 2 || steps[1].If != "(ready and up)\nor forced" {
+		t.Fatalf("steps %+v", steps)
 	}
 }

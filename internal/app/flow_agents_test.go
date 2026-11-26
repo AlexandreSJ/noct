@@ -71,7 +71,7 @@ func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 	}
 	pressDrawn(a, tabPress)
 	typeDrawn(a, " pass?")
-	pressDrawn(a, enterPress, letter('j'))
+	pressDrawn(a, escPress, letter('j'))
 	addItems(a, "pass", "fail")
 	pressDrawn(a, letter('j'))
 	options := form.grid.cell().options

@@ -129,6 +129,7 @@ func (s *stepForm) row(field stepField) gridRow {
 	label := textCellOf(field.label)
 	label.skip, label.names = !s.spec.named, s.spec.named
 	field.cell.template, field.cell.expression = field.template || field.expression, field.expression
+	field.cell.field.multiline = field.cell.kind == textCell && !field.cell.secret
 	row := gridRow{cells: []gridCell{label, field.cell}}
 	if s.spec.types != nil {
 		kind := optionCellOf(cmp.Or(field.kind, s.spec.types[0]), s.spec.types)
@@ -365,7 +366,7 @@ func (s *stepForm) draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 		valueEnd -= stepFormTypeWidth + 2
 	}
 	y := area.Min.Y
-	for _, row := range s.grid.window(area.Dy() - 1) {
+	for _, row := range s.grid.windowFit(area.Dy()-1, s.rowHeight) {
 		if b, ok := s.grid.buttonAt(row); ok {
 			s.grid.drawButton(screen, image.Rect(left, y, area.Max.X-1, y+1), row, b, pal)
 			y++
@@ -374,12 +375,13 @@ func (s *stepForm) draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 		if row == s.grid.row {
 			s.grid.drawMoveArrows(screen, image.Pt(area.Min.X+1, y), pal)
 		}
+		height := min(s.rowHeight(row), area.Max.Y-1-y)
 		s.drawCell(screen, image.Rect(left, y, left+labelWidth, y+1), row, stepFormLabelColumn)
-		s.drawCell(screen, image.Rect(valueX, y, valueEnd, y+1), row, stepFormValueColumn)
+		s.drawCell(screen, image.Rect(valueX, y, valueEnd, y+height), row, stepFormValueColumn)
 		if s.spec.types != nil {
 			s.drawCell(screen, image.Rect(valueEnd+2, y, area.Max.X-1, y+1), row, stepFormTypeColumn)
 		}
-		y++
+		y += height
 	}
 	if !helpBeside {
 		s.drawSuggestions(screen, area, valueX)
@@ -431,11 +433,44 @@ func (s *stepForm) drawCell(screen uv.Screen, rect image.Rectangle, row, column 
 	case listCell:
 		text = listText(cell)
 	}
-	if cell.skip {
+	switch {
+	case cell.skip:
 		drawTextCut(screen, rect.Min.X, rect.Min.Y, rect.Max.X, text, style)
-		return
+	case cell.field.multiline:
+		s.grid.drawBlock(screen, rect, row, column, s.valueLines(cell, style), pal)
+	default:
+		s.grid.drawCell(screen, rect, row, column, text, style, pal)
 	}
-	s.grid.drawCell(screen, rect, row, column, text, style, pal)
+}
+
+const maxCellLines = 12
+
+func (s *stepForm) rowHeight(row int) int {
+	if row >= len(s.grid.rows) {
+		return 1
+	}
+	cell := s.grid.at(row, stepFormValueColumn)
+	if s.grid.editing && s.grid.lit(row, stepFormValueColumn) {
+		return min(cell.field.lineCount(), maxCellLines)
+	}
+	return min(len(s.valueLines(cell, s.app.palette.panelText)), maxCellLines)
+}
+
+// valueLines are how a cell of several lines shows while not typed in: a condition laid out by
+// its logic, other text line by line.
+func (s *stepForm) valueLines(cell *gridCell, style uv.Style) []styledLine {
+	text := cell.value()
+	if !cell.field.multiline {
+		return []styledLine{{text, style}}
+	}
+	if cell.expression && style == s.app.palette.panelText {
+		return conditionLines(text, &s.app.palette)
+	}
+	var lines []styledLine
+	for _, line := range strings.Split(text, "\n") {
+		lines = append(lines, styledLine{line, style})
+	}
+	return lines
 }
 
 // help is the row's note and examples, then the variables in scope: the ones that complete what

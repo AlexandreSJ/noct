@@ -298,8 +298,17 @@ func (g *editGrid) editKey(key uv.KeyPressEvent) gridOutcome {
 	if g.completionKey(name) {
 		return gridNothing
 	}
+	if field := &g.cell().field; field.multiline {
+		switch {
+		case name == "enter":
+			field.insert("\n")
+			return gridNothing
+		case name == "up" && field.moveLine(-1), name == "down" && field.moveLine(1):
+			return gridNothing
+		}
+	}
 	switch name {
-	case "enter", "esc":
+	case "enter", "esc", "ctrl+enter", "alt+enter":
 		return g.stopEdit()
 	case "tab", "shift+tab", "up", "down":
 		out := g.stopEdit()
@@ -548,6 +557,51 @@ func (g *editGrid) travel(from, to *[]gridState) gridOutcome {
 	return gridChanged
 }
 
+// windowFit are the rows shown that fit height lines, each heightOf lines tall, scrolled to keep
+// the focus in sight.
+func (g *editGrid) windowFit(height int, heightOf func(row int) int) []int {
+	shown := g.shown()
+	at := max(slices.Index(shown, g.row), 0)
+	g.top = min(g.top, at)
+	used := func(from, to int) int {
+		sum := 0
+		for _, row := range shown[from : to+1] {
+			sum += heightOf(row)
+		}
+		return sum
+	}
+	for g.top < at && used(g.top, at) > height {
+		g.top++
+	}
+	end, lines := g.top, 0
+	for end < len(shown) && lines+heightOf(shown[end]) <= max(height, heightOf(shown[g.top])) {
+		lines += heightOf(shown[end])
+		end++
+	}
+	return shown[g.top:end]
+}
+
+// drawBlock draws a cell of several lines in rect: the field's lines with the cursor while typed
+// in, else lines, lit while focused.
+func (g *editGrid) drawBlock(screen uv.Screen, rect image.Rectangle, row, col int, lines []styledLine, pal *palette) {
+	g.hit(rect, row, col)
+	field := &g.at(row, col).field
+	switch {
+	case g.lit(row, col) && g.editing:
+		at := field.drawLines(screen, rect, pal.typing(), pal.selectedRow)
+		drawGhost(screen, at, image.Rect(rect.Min.X, at.Y, rect.Max.X, at.Y+1), g.ghost(), pal)
+		return
+	case g.lit(row, col):
+		fillRect(screen, rect, pal.selectedRow)
+		for i := range lines {
+			lines[i].style = pal.selectedRow
+		}
+	}
+	for i, line := range lines[:min(len(lines), rect.Dy())] {
+		drawTextCut(screen, rect.Min.X, rect.Min.Y+i, rect.Max.X, line.text, line.style)
+	}
+}
+
 // window are the rows shown that fit height rows, scrolled to keep the focus in sight.
 func (g *editGrid) window(height int) []int {
 	shown := g.shown()
@@ -651,7 +705,7 @@ func (g *editGrid) click(at image.Point) gridOutcome {
 func (g *editGrid) clickHit(h gridHit, at image.Point) gridOutcome {
 	if g.editing && h.row == g.row && h.col == g.col {
 		c := g.cell()
-		c.field.cursor, c.field.selecting = c.field.posAt(at.X-h.rect.Min.X), false
+		c.field.cursor, c.field.selecting = c.field.posAtIn(at, h.rect), false
 		return gridNothing
 	}
 	out := gridNothing
@@ -667,7 +721,7 @@ func (g *editGrid) clickHit(h gridHit, at image.Point) gridOutcome {
 	g.focus(h.row, h.col)
 	out |= g.activate()
 	if c := g.cell(); g.editing && c != nil {
-		c.field.cursor, c.field.selecting = c.field.posAt(at.X-h.rect.Min.X), false
+		c.field.cursor, c.field.selecting = c.field.posAtIn(at, h.rect), false
 	}
 	return out
 }
@@ -692,7 +746,7 @@ func (g *editGrid) drag(event uv.MouseEvent, at image.Point) {
 	}
 	rect, ok := g.focusRect()
 	if c := g.cell(); g.dragging && ok && c != nil {
-		c.field.cursor = c.field.posAt(at.X - rect.Min.X)
+		c.field.cursor = c.field.posAtIn(at, rect)
 	}
 }
 
@@ -781,7 +835,7 @@ func (g *editGrid) drawCell(screen uv.Screen, rect image.Rectangle, row, col int
 	case g.lit(row, col) && g.editing:
 		field := &g.at(row, col).field
 		end := field.draw(screen, rect.Min.X, rect.Min.Y, rect.Dx(), g.at(row, col).secret, pal.typing(), pal.selectedRow)
-		drawGhost(screen, end-1, rect, g.ghost(), pal)
+		drawGhost(screen, image.Pt(end-1, rect.Min.Y), rect, g.ghost(), pal)
 	case g.lit(row, col):
 		fillRect(screen, rect, pal.selectedRow)
 		drawTextCut(screen, rect.Min.X, rect.Min.Y, rect.Max.X, text, pal.selectedRow)
@@ -795,6 +849,8 @@ func (g *editGrid) hints(idle string) string {
 	switch {
 	case g.menu != nil && g.menu.filter.typing, g.list != nil && g.list.filter.typing:
 		return "{enter} keep  esc clear"
+	case g.editing && g.cell().field.multiline:
+		return "{enter} new line  esc or ctrl+enter done  {tab} next"
 	case g.editing, g.list != nil && g.list.grid.editing:
 		return "{enter} done  {tab} next"
 	case g.menu != nil:
@@ -807,14 +863,14 @@ func (g *editGrid) hints(idle string) string {
 	return idle
 }
 
-func drawGhost(screen uv.Screen, at int, rect image.Rectangle, ghost string, pal *palette) {
-	if ghost == "" || at >= rect.Max.X {
+func drawGhost(screen uv.Screen, at image.Point, rect image.Rectangle, ghost string, pal *palette) {
+	if ghost == "" || at.X >= rect.Max.X {
 		return
 	}
-	drawTextCut(screen, at, rect.Min.Y, rect.Max.X, ghost, pal.panelMuted)
-	if cell := screen.CellAt(at, rect.Min.Y); cell != nil {
+	drawTextCut(screen, at.X, at.Y, rect.Max.X, ghost, pal.panelMuted)
+	if cell := screen.CellAt(at.X, at.Y); cell != nil {
 		cursor := *cell
 		cursor.Style = pal.selectedRow
-		screen.SetCell(at, rect.Min.Y, &cursor)
+		screen.SetCell(at.X, at.Y, &cursor)
 	}
 }

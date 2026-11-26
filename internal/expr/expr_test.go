@@ -210,9 +210,10 @@ func TestAnOutlineSplitsByTheLogic(t *testing.T) {
 	for text, want := range map[string]string{
 		`a and b or c`:                      `  a| *and|  b|*or| c`,
 		`a && b && c`:                       ` a|*&&| b|*&&| c`,
-		`(a or b) and not c`:                `  a| *or|  b|*and| not c`,
+		`(a or b) and not c`:                ` *(|   a|  *or|   b| *)|*and| not c`,
 		`ok`:                                `ok`,
-		`((ok))`:                            `ok`,
+		`((ok))`:                            `((ok))`,
+		`(a and b)`:                         `*(|  a| *and|  b|*)`,
 		`any(hosts, h => h == a or h == b)`: `any(hosts, h => h == a or h == b)`,
 		`a ?? b or c`:                       `a ?? b or c`,
 		`x xor y and z`:                     ` x|*xor|  y| *and|  z`,

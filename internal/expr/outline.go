@@ -15,14 +15,20 @@ var logicLevels = levels[1:notLevel]
 
 // Outline lays an expression out by its logic, so a and b or c reads as [a and b] or [c]: the
 // parts an operator joins go a level deeper than it, and parts joined by the same operator in a
-// row stay side by side. Parentheses around a whole part go. An expression with no logic operator
-// outside parentheses, or one that does not read, is one line.
+// row stay side by side. A part in parentheses with logic inside has them on lines of their own,
+// as operators, around its parts a level deeper. An expression with no logic operator outside
+// parentheses, or one that does not read, is one line.
 func Outline(text string) []Line {
 	return outline(text, 0)
 }
 
 func outline(text string, depth int) []Line {
-	text = unwrapped(strings.TrimSpace(text))
+	text = strings.TrimSpace(text)
+	if inner := unwrapped(text); inner != text && len(logicCuts(inner)) > 0 {
+		lines := []Line{{Depth: depth, Text: "(", Operator: true}}
+		lines = append(lines, outline(inner, depth+1)...)
+		return append(lines, Line{Depth: depth, Text: ")", Operator: true})
+	}
 	cuts := logicCuts(text)
 	if len(cuts) == 0 {
 		return []Line{{Depth: depth, Text: text}}
@@ -81,8 +87,8 @@ func outsideTokens(text string) []token {
 }
 
 func unwrapped(text string) string {
-	for strings.HasPrefix(text, "(") && closes(text) == len(text)-1 {
-		text = strings.TrimSpace(text[1 : len(text)-1])
+	if strings.HasPrefix(text, "(") && closes(text) == len(text)-1 {
+		return strings.TrimSpace(text[1 : len(text)-1])
 	}
 	return text
 }

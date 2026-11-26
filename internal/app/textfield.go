@@ -18,6 +18,9 @@ type textField struct {
 	anchor    int
 	// shown is the first character the last draw showed, to tell which one a click is on.
 	shown int
+	// multiline keeps line breaks, which enter types; top is the first line the last draw showed.
+	multiline bool
+	top       int
 }
 
 func newTextField(text string) textField {
@@ -36,6 +39,9 @@ func (f *textField) insert(text string) {
 	}
 	f.selecting = false
 	runes := []rune(singleLine(text))
+	if f.multiline {
+		runes = []rune(keptLines(text))
+	}
 	f.text = append(f.text[:f.cursor], append(runes, f.text[f.cursor:]...)...)
 	f.cursor += len(runes)
 }
@@ -81,9 +87,9 @@ func (f *textField) handleKey(key uv.KeyPressEvent) bool {
 	case "ctrl+right", "alt+right", "alt+f":
 		f.cursor = f.wordEndAfter()
 	case "home", "ctrl+a":
-		f.cursor = 0
+		f.cursor = f.lineStart()
 	case "end", "ctrl+e":
-		f.cursor = len(f.text)
+		f.cursor = f.lineEnd()
 	case "backspace", "shift+backspace":
 		f.erase(max(f.cursor-1, 0), f.cursor)
 	case "delete", "ctrl+d":
@@ -93,9 +99,9 @@ func (f *textField) handleKey(key uv.KeyPressEvent) bool {
 	case "alt+d", "ctrl+delete":
 		f.erase(f.cursor, f.wordEndAfter())
 	case "ctrl+u":
-		f.erase(0, f.cursor)
+		f.erase(f.lineStart(), f.cursor)
 	case "ctrl+k":
-		f.erase(f.cursor, len(f.text))
+		f.erase(f.cursor, f.lineEnd())
 	default:
 		if !isPlainText(key) {
 			return false

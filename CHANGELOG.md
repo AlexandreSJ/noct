@@ -38,6 +38,9 @@ the shortcut is `Alt` by default. How to write an entry is in
   is what it is, and JSON of a list or an object is read inside, as `cfg.port`.
 - `g` and `G` go to the first and last setting in the config, as `Home` and `End` do.
 - `Space` opens an option's choices in the inspect's forms and tables, as `Enter` does.
+- A step form's text can take several lines: while typing, `Enter` starts a new line, and `esc`,
+  `Ctrl+Enter` or `Alt+Enter` leave the cell. A condition shows laid out by its logic in the
+  form too, its groups in parentheses on lines of their own.
 - `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
   chart, and shows them again.
 - Flow conditions take `nand`, `nor` and `xor`. The inspect's details show a condition with

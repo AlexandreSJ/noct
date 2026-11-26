@@ -141,7 +141,7 @@ func conditionExamples(vars []flow.Variable) []string {
 		examples = append(examples, `match(output, "error"): a regex; contains(output, "done")`)
 	}
 	return append(examples,
-		"and, or, not (&&, ||, !); == != < <= > >=; + - * / %; x in [a, b]",
+		"and, or, not (&&, ||, !), nand, nor, xor; == != < <= > >=; + - * / %; x in [a, b]",
 		`len(x), lower(x), any(list, x => startsWith(x, "web")): ? lists every function`)
 }
 

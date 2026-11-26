@@ -728,7 +728,7 @@ func conditionLines(text string, pal *palette) []styledLine {
 		} else if primary != nil {
 			style.Fg = mix(primary, dim, float64(part.Depth%conditionShades)/(conditionShades-1))
 		}
-		lines[i] = styledLine{strings.Repeat("  ", part.Depth) + part.Text, style}
+		lines[i] = styledLine{strings.Repeat("  ", part.Depth) + strings.Join(strings.Fields(part.Text), " "), style}
 	}
 	return lines
 }
