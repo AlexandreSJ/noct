@@ -16,7 +16,7 @@ import (
 
 const (
 	flowsListHints = "{up}{down} flow  {enter} open  {a} new  {r} run  {f} filter  {?} all keys  {tab} hide list"
-	flowStepHints  = "{up}{down}{left}{right} select  {enter} about  {a} add below  {e} edit  {delete} remove  {r} run  {t} test  {m} move  alt+drag move  {z} undo  {+} {-} zoom  {?} all keys  {tab} list"
+	flowStepHints  = "{up}{down}{left}{right} select  {enter} about  {a} add below  {e} edit  {delete} remove  {r} run  {t} test  {m} move  alt+drag move  {z} undo  {+} {-} zoom  {v} details  {?} all keys  {tab} list"
 	flowMoveHints  = "{up}{down} move the step, in and out of blocks  {m} {enter} {esc} put it down"
 	flowGapHints   = "{up}{down}{left}{right} select  {a} add here  {r} run  {+} {-} zoom  {?} all keys  {tab} list"
 	// flowsListWidth is the list of flows beside the chart, in panels wide enough for both.
@@ -39,6 +39,8 @@ type inspectPanel struct {
 	// anchor is the step a range started at with shift, or "" for the selected step alone.
 	anchor    string
 	showScope bool
+	// hideDetails gives the details' rows under the chart to the chart, until v shows them again.
+	hideDetails bool
 	// moving moves the selected step with the arrows, until m, enter or esc.
 	moving bool
 	// warnings are the flow's, found when it is drawn.
@@ -387,6 +389,8 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 		p.testSelection(f, block, selected)
 	case "s":
 		p.showScope = !p.showScope
+	case "v":
+		p.hideDetails = !p.hideDetails
 	case "enter", "space", "e":
 		switch {
 		case selected && block.params:
@@ -665,6 +669,9 @@ func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 		hints = hintsInOneRow(hints, area.Dx()-1)
 	}
 	rows := drawHints(screen, area, hints, pal.panelMuted)
+	if p.focusChart && p.editor == nil {
+		rows = max(rows, p.chartHintRows(area.Dx()-1))
+	}
 	body := image.Rect(area.Min.X, area.Min.Y, area.Max.X, area.Max.Y-rows)
 	f, _, ok := p.current()
 	if !ok && p.filter.on() {
@@ -723,6 +730,16 @@ func (p *inspectPanel) hints() string {
 		return p.app.hint("flows", flowGapHints)
 	}
 	return p.app.hint("flows", flowStepHints)
+}
+
+// chartHintRows are the most rows the chart's hints take, whatever block is selected: hints
+// that wrap onto more rows for a step than for a gap would move the chart as the selection moves.
+func (p *inspectPanel) chartHintRows(width int) int {
+	rows := 0
+	for _, hints := range []string{flowStepHints, flowGapHints, flowMoveHints} {
+		rows = max(rows, len(wrapHints(p.app.hint("flows", hints), width, maxHintRows)))
+	}
+	return rows
 }
 
 // frameStyles are the styles of the list's or chart's frame: the accent while it has the focus.

@@ -143,6 +143,7 @@ var keyContexts = []keyContext{
 		{"undo", "undo the last change", []string{"z"}},
 		{"redo", "redo what was undone", []string{"y"}},
 		{"scope", "show the scope", []string{"s"}},
+		{"details", "hide or show the details under the chart", []string{"v"}},
 		{"triggers", "triggers on or off", []string{"o"}},
 		{"add-trigger", "add a trigger", []string{"T", "shift+t"}},
 		{"promote", "promote a draft", []string{"P", "shift+p"}},

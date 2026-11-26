@@ -15,6 +15,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - `Space` on **Flows → tell when runs end** in the config sends a test notification, the way a
   run's end is told.
+- `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
+  chart, and shows them again.
 - A flow's `prompt` can be `secret: true`: each character typed shows as `•`, the answer stays
   out of the run's result, and the run shows it as `••••`, as in a run line that reads it. The
   prompt's form has a `secret` toggle.
@@ -127,7 +129,7 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - The mouse wheel scrolls the updates popup (`prefix` + `c`).
 - A flow's chart in the inspect no longer moves up and down as the selection moves: the details
-  under it keep one height for every block.
+  under it keep one height for every block, and the hints keep the rows of the longest.
 - Going to the next tab and back with the arrows keeps the pane you left, the top one of two
   stacked panes too, instead of taking the bottom one.
 

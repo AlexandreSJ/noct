@@ -31,7 +31,7 @@ const (
 func (p *inspectPanel) drawDetails(screen uv.Screen, area image.Rectangle, f flow.Flow, last *flow.Result) image.Rectangle {
 	p.details = image.Rectangle{}
 	block, ok := p.selectedBlock()
-	if !ok || p.carried() != "" { // a card carried has the whole chart to land on
+	if !ok || p.hideDetails || p.carried() != "" { // a card carried has the whole chart to land on
 		return area
 	}
 	width := area.Dx() - 4

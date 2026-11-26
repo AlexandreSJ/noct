@@ -190,3 +190,20 @@ func TestTheChartKeepsItsPlaceAsTheSelectionMoves(t *testing.T) {
 		}
 	}
 }
+
+// v gives the details' rows to the chart, and v again brings them back.
+func TestVHidesTheDetails(t *testing.T) {
+	a, p := openMovesFlow(t)
+	shown := p.chartArea
+	if p.details.Empty() {
+		t.Fatal("no details under the chart")
+	}
+	pressDrawn(a, letter('v'))
+	if !p.details.Empty() || p.chartArea.Dy() <= shown.Dy() {
+		t.Errorf("v: details %v, chart %v, was %v", p.details, p.chartArea, shown)
+	}
+	pressDrawn(a, letter('j'), letter('v'))
+	if p.details.Empty() || p.chartArea != shown {
+		t.Errorf("v again: details %v, chart %v, want %v", p.details, p.chartArea, shown)
+	}
+}
