@@ -156,9 +156,29 @@ const (
 const DefaultApprovalSeconds = 300
 
 // Flows bounds what a flow's last result keeps of each step's output: OutputKB kilobytes, or
-// all of what the templates read when 0.
+// all of what the templates read when 0. LeaveForm is what leaving a step's form in the
+// inspect does with what was changed in it, out of LeaveFormChoices.
 type Flows struct {
-	OutputKB int `toml:"output_kb"`
+	OutputKB  int    `toml:"output_kb"`
+	LeaveForm string `toml:"leave_form"`
+}
+
+// What leaving a step's form changed does: save it, ask whether to, or leave the step as it was.
+const (
+	LeaveSaves   = "save"
+	LeaveAsks    = "ask"
+	LeaveDiscard = "discard"
+)
+
+// LeaveFormChoices are the choices of Flows.LeaveForm, the default first.
+var LeaveFormChoices = []string{LeaveSaves, LeaveAsks, LeaveDiscard}
+
+func (f Flows) normalized() Flows {
+	f.OutputKB = max(f.OutputKB, 0)
+	if !slices.Contains(LeaveFormChoices, f.LeaveForm) {
+		f.LeaveForm = LeaveSaves
+	}
+	return f
 }
 
 // Logs bounds what noct keeps of what programs print: logs not written to for KeepDays go, and
@@ -494,7 +514,7 @@ func (c Config) normalized() Config {
 		c.Logs.PreviewPercent = DefaultPreviewPercent
 	}
 	c.Logs.PreviewPercent = min(max(c.Logs.PreviewPercent, MinPreviewPercent), MaxPreviewPercent)
-	c.Flows.OutputKB = max(c.Flows.OutputKB, 0)
+	c.Flows = c.Flows.normalized()
 	c.MCP = c.MCP.normalized()
 	if !slices.Contains(NotifyChoices, c.Notify) {
 		c.Notify = NotifySystem

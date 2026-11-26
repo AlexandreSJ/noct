@@ -10,12 +10,14 @@ import (
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/flow"
 )
 
 // A step is added or changed in the inspect from one form in place of the chart: a row for each
 // thing it takes, with the variables it can read listed beside them. ctrl+s, or the button after
-// the rows, adds or saves it, and esc leaves it as it was.
+// the rows, adds or saves it; esc saves what changed too, asks first, or leaves the step as it
+// was, as the config's leave_form says.
 
 // stepField is one row of a step form.
 type stepField struct {
@@ -75,6 +77,12 @@ type stepForm struct {
 	message string
 	// values are the variables in scope with their last values, for the help.
 	values map[string]string
+	// leaving is what esc does with what changed since opened, the form's values then: save it,
+	// ask first, while asking is on, or leave the step; refused is on after a save on leaving
+	// was refused, so esc again leaves the step as it was.
+	leaving         string
+	opened          []formValue
+	asking, refused bool
 }
 
 const (
@@ -87,7 +95,7 @@ const (
 const stepFormTypeWidth = 9
 
 func (a *App) newStepForm(spec stepFormSpec, vars []flow.Variable, values map[string]string, adding bool, save func(flow.Step) error) *stepForm {
-	form := &stepForm{app: a, spec: spec, save: save, values: values}
+	form := &stepForm{app: a, spec: spec, save: save, values: values, leaving: cmp.Or(a.config.Flows.LeaveForm, config.LeaveSaves)}
 	form.grid.variables = flow.Readable(vars)
 	form.grid.arranged = spec.named
 	for _, field := range spec.fields {
@@ -102,6 +110,7 @@ func (a *App) newStepForm(spec stepFormSpec, vars []flow.Variable, values map[st
 	if spec.named && len(spec.fields) == 1 && spec.fields[0].label == "" {
 		form.grid.startEdit() // a new set is typed in at once: its first variable's name
 	}
+	form.opened = form.formValues()
 	return form
 }
 
@@ -219,7 +228,11 @@ func (s *stepForm) valueProblem(row int) string {
 func (s *stepForm) title() string { return s.spec.title }
 
 func (s *stepForm) hints() string {
-	return s.grid.hints("{enter} edit  {ctrl+s} save  esc cancel  {?} keys")
+	if s.asking {
+		return "y or {enter} saves  n leaves the step as it was  esc keeps editing"
+	}
+	leave := map[string]string{config.LeaveSaves: "esc saves", config.LeaveAsks: "esc asks", config.LeaveDiscard: "esc cancels"}[s.leaving]
+	return s.grid.hints("{enter} edit  {ctrl+s} save  " + leave + "  {?} keys")
 }
 
 func (s *stepForm) typing() bool { return s.grid.typing() }
@@ -227,18 +240,67 @@ func (s *stepForm) typing() bool { return s.grid.typing() }
 func (s *stepForm) hitAt(at image.Point) (image.Rectangle, bool, bool) { return s.grid.hitAt(at) }
 
 func (s *stepForm) handleKey(key uv.KeyPressEvent) bool {
-	switch name := key.String(); {
+	name := key.String()
+	if s.asking {
+		return s.answer(name)
+	}
+	refused := s.refused
+	s.refused = false
+	switch {
 	case name == "ctrl+s":
 		s.after(s.grid.settle())
 		return s.submit()
 	case s.grid.busy():
 	case name == "esc":
-		return true
+		return refused || s.leave()
 	case name == "?":
 		s.app.showContextKeys("flow-editor", "step form keys")
 		return false
 	}
 	return s.after(s.grid.handleKey(key))
+}
+
+// leave is esc out of the form: what changed is saved, asked about first, or left, as the
+// config says. Nothing changed, it only leaves.
+func (s *stepForm) leave() bool {
+	switch {
+	case s.leaving == config.LeaveDiscard || !s.changed():
+		return true
+	case s.leaving == config.LeaveAsks:
+		s.asking = true
+		return false
+	}
+	return s.saveOnLeaving()
+}
+
+// answer is the key pressed while asking whether to save what changed: y or enter saves, n
+// leaves the step as it was, and any other key goes back to the form.
+func (s *stepForm) answer(name string) bool {
+	s.asking = false
+	switch name {
+	case "y", "enter":
+		return s.saveOnLeaving()
+	case "n":
+		return true
+	}
+	return false
+}
+
+// saveOnLeaving saves on the way out; refused, the form stays with why, and esc again leaves.
+func (s *stepForm) saveOnLeaving() bool {
+	if s.submit() {
+		return true
+	}
+	s.refused = true
+	s.message += "; esc again leaves the step as it was"
+	return false
+}
+
+// changed tells whether the form's values are no longer the ones it opened with.
+func (s *stepForm) changed() bool {
+	return !slices.EqualFunc(s.formValues(), s.opened, func(a, b formValue) bool {
+		return a.name == b.name && a.value == b.value && a.kind == b.kind && slices.Equal(a.items, b.items)
+	})
 }
 
 func (s *stepForm) mouse(event uv.MouseEvent, at image.Point) bool {
@@ -340,6 +402,9 @@ func (s *stepForm) draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 	note, style := s.note(), pal.panelMuted
 	if problem := orDefault(s.message, s.problem(s.grid.row)); problem != "" {
 		note, style = "✗ "+problem, pal.failure
+	}
+	if s.asking {
+		note, style = "save what changed? y saves, n leaves the step as it was", pal.panelHeading
 	}
 	drawTextCut(screen, area.Min.X+1, area.Max.Y-1, area.Max.X-1, note, style)
 	s.grid.drawOverlay(screen, area, pal)

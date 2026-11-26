@@ -399,13 +399,15 @@ func TestConfigLinesStayInPlace(t *testing.T) {
 		"row default agent = auto: ollama · qwen3.5:4b @28",
 		"row step output kept = < all (up to 1 MB) > @29",
 		"note in each flow's last result; tests keep 4 KB = ",
-		"row tell when runs end = < system > @30",
+		"row leaving a step's form = < save > @30",
+		"note esc saves what changed, asks first, or leaves the step as it was = ",
+		"row tell when runs end = < system > @31",
 		"note space to test = ",
 		"heading Updates = ",
-		"row check for new versions = on @31",
+		"row check for new versions = on @32",
 		"note only checks; install with ctrl+space+c = ",
 		"heading Defaults = ",
-		"row reset all to defaults =  @32",
+		"row reset all to defaults =  @33",
 	}
 	var got []string
 	for _, line := range a.configLines() {

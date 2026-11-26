@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/flow"
 )
 
@@ -16,7 +17,7 @@ func setCell(a *App, text string) {
 }
 
 // e on an if changes its condition in its form, keeping the steps of its branches, and esc
-// leaves it as it was.
+// leaves it as it was when the config says to.
 func TestEditingAStepKeepsWhatItsFormDoesNotAsk(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
@@ -31,6 +32,7 @@ func TestEditingAStepKeepsWhatItsFormDoesNotAsk(t *testing.T) {
 	if !strings.Contains(screenText(a), `state == "value"`) {
 		t.Errorf("the if's examples do not use the flow's variables:\n%s", screenText(a))
 	}
+	a.config.Flows.LeaveForm = config.LeaveDiscard
 	pressDrawn(a, enterPress, clearLine, escPress, escPress)
 	if steps := loadFlowSteps(t, "branch"); steps[1].If != "ok" {
 		t.Fatalf("esc changed the if to %q", steps[1].If)
@@ -212,5 +214,47 @@ func TestASetCompletesNamesAndTakesTheirTypes(t *testing.T) {
 	steps := loadFlowSteps(t, "typed")
 	if len(steps) != 1 || steps[0].Set["counter"] != "${counter + 1}" || steps[0].Types["counter"] != "number" {
 		t.Fatalf("set %+v", steps)
+	}
+}
+
+// esc saves what changed in a step's form, by default; ask asks first, where n leaves the step
+// as it was; a save esc cannot make keeps the form, and esc again leaves it.
+func TestEscSavesAStepsFormOrAsksFirst(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "leave", "steps:\n  - {wait: 5s}\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, letter('e'))
+	setCell(a, "7s")
+	pressDrawn(a, escPress)
+	if steps := loadFlowSteps(t, "leave"); steps[0].Wait != "7s" {
+		t.Fatalf("esc did not save: %+v", steps[0])
+	}
+
+	a.config.Flows.LeaveForm = config.LeaveAsks
+	pressDrawn(a, letter('e'))
+	setCell(a, "9s")
+	pressDrawn(a, escPress)
+	if form := openStepForm(t, a); !form.asking || !strings.Contains(screenText(a), "save what changed?") {
+		t.Fatalf("esc did not ask:\n%s", screenText(a))
+	}
+	pressDrawn(a, letter('n'))
+	if steps := loadFlowSteps(t, "leave"); steps[0].Wait != "7s" {
+		t.Errorf("n saved: %+v", steps[0])
+	}
+
+	a.config.Flows.LeaveForm = config.LeaveSaves
+	pressDrawn(a, letter('e'))
+	setCell(a, "soon")
+	pressDrawn(a, escPress)
+	form := openStepForm(t, a)
+	if !strings.Contains(form.message, "esc again") {
+		t.Fatalf("a refused save on leaving: %q", form.message)
+	}
+	pressDrawn(a, escPress)
+	if _, open := a.currentTab().focusedView().(*inspectPanel).editor.(*stepForm); open {
+		t.Error("esc again kept the form")
+	}
+	if steps := loadFlowSteps(t, "leave"); steps[0].Wait != "7s" {
+		t.Errorf("the refused value was saved: %+v", steps[0])
 	}
 }

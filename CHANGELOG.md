@@ -27,6 +27,9 @@ the shortcut is `Alt` by default. How to write an entry is in
   the first variable's name, and `Tab` completes the name of a variable in scope, which brings
   its type.
 - What `Tab` would put in shows dim after the cursor in the inspect's forms and tables.
+- **Flows → leaving a step's form** in the config says what `esc` does with what changed in a
+  step's form: `save` (the default), `ask` first, or `discard`. A save that is refused keeps the
+  form with why, and `esc` again leaves the step as it was.
 - `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
   chart, and shows them again.
 - Flow conditions take `nand`, `nor` and `xor`. The inspect's details show a condition with
