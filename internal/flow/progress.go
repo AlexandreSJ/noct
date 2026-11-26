@@ -32,10 +32,11 @@ func SaveProgress(dir, name, path string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	file := ProgressPath(dir, name)
+	if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
 		return err
 	}
-	return atomicfile.Write(ProgressPath(dir, name), content, 0o600)
+	return atomicfile.Write(file, content, 0o600)
 }
 
 // ReadProgress is where a run of the flow is now, false when none runs.
