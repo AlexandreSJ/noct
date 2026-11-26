@@ -1191,8 +1191,6 @@ func (a *App) configLineStyle(line configLine) uv.Style {
 		return a.palette.panelHeading
 	case line.row == a.configPanel.selected:
 		return a.palette.selectedRow
-	case a.configPanel.hovering && line.row == a.configPanel.hover:
-		return a.palette.focusedTitle
 	}
 	return a.palette.panelText
 }

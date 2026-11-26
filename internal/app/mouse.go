@@ -137,6 +137,7 @@ func (a *App) handleMouseMotion(event uv.MouseEvent) {
 		a.hoverAt(point)
 	case a.mode == configMode:
 		a.hoverConfig(point)
+		a.hoverAt(point)
 	default:
 		hovered := a.hoverAt(point)
 		a.quietMotion = !a.forwardMouse(event) && !hovered
@@ -174,6 +175,10 @@ func (a *App) handleClick(event uv.MouseEvent) {
 		if m.Button == uv.MouseLeft {
 			a.clickAgents(image.Pt(m.X, m.Y))
 		}
+	case choiceMode:
+		a.clickChoice(image.Pt(m.X, m.Y))
+	case finderMode:
+		a.clickFinder(image.Pt(m.X, m.Y))
 	case normalMode, scrollMode:
 		if m.Y == 0 {
 			if index, ok := a.tabAt(m.X); ok {

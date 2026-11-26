@@ -1,7 +1,6 @@
 package app
 
 import (
-	"image"
 	"slices"
 	"strings"
 	"unicode"
@@ -150,9 +149,8 @@ func fuzzyScore(query, text string) (int, bool) {
 
 func (a *App) drawFinder(screen uv.Screen) {
 	f := &a.finder
-	area := image.Rect(0, 0, a.size.X, a.size.Y)
 	hints := a.hint("search", finderHints)
-	inner := a.drawPanel(screen, centeredRect(area, 60, panelHeight(finderResults+3+moreHintRows(hints, 60))), f.title)
+	inner := a.drawPanel(screen, a.finderPanel(), f.title)
 	x := drawText(screen, inner.Min.X+1, inner.Min.Y, inner.Max.X, "› ", a.palette.panelHeading)
 	f.query.draw(screen, x, inner.Min.Y, inner.Max.X-1-x, false, a.palette.typing(), a.palette.selectedRow)
 	first := listFirst(f.first, f.selected, len(f.matches), finderResults)

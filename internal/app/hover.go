@@ -87,6 +87,9 @@ func rowHoverName(id layout.PaneID, row image.Rectangle) string {
 // hoverTargetAt names what is under the mouse, a tab's name, a pane's title or a list's row not
 // selected, with the animation that plays on it; "" when it is none.
 func (a *App) hoverTargetAt(point image.Point) (string, animation) {
+	if a.mode != normalMode {
+		return a.rowHoverAt(point)
+	}
 	if point.Y == 0 {
 		for _, span := range a.tabBar() {
 			if !span.mark && point.X >= span.start && point.X < span.end {
@@ -104,6 +107,10 @@ func (a *App) hoverTargetAt(point image.Point) (string, animation) {
 			return paneHoverName(p.id), animation{pane: p.id, target: target{kind: targetPaneTitle}}
 		}
 	}
+	return a.rowHoverAt(point)
+}
+
+func (a *App) rowHoverAt(point image.Point) (string, animation) {
 	if id, row, selected, ok := a.listRowAt(point); ok && !selected {
 		return rowHoverName(id, row), animation{pane: id, target: target{kind: targetListRow, row: row}}
 	}
@@ -129,8 +136,12 @@ func listRowAt(list image.Rectangle, point image.Point, first, n, selected int) 
 // listRowAt is the list row on screen at point, of the pane shown there, and whether it is the
 // selected one. Rows light only while no popup is over the panes.
 func (a *App) listRowAt(point image.Point) (layout.PaneID, image.Rectangle, bool, bool) {
+	if a.mode != normalMode {
+		row, selected, ok := a.popupRowAt(point)
+		return popupPane, row, selected, ok
+	}
 	t := a.currentTab()
-	if a.mode != normalMode || t == nil || t.isEmpty() {
+	if t == nil || t.isEmpty() {
 		return 0, image.Rectangle{}, false, false
 	}
 	id, ok := t.paneAt(point, a.workspaceArea())

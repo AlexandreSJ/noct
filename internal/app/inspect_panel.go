@@ -980,6 +980,12 @@ func (p *inspectPanel) RowAt(point image.Point) (image.Rectangle, bool, bool) {
 		rect, focused, ok := p.editor.hitAt(point.Add(p.origin))
 		return rect.Sub(p.origin), focused, ok
 	}
+	if p.chart != nil && point.In(p.chartArea) {
+		if block, ok := p.chart.blockAt(point.Sub(p.chartArea.Min).Add(p.pan)); ok {
+			rect := block.rect.Sub(p.pan).Add(p.chartArea.Min).Intersect(p.chartArea)
+			return rect, block.key == p.selected, true
+		}
+	}
 	_, selected, _ := p.selectedRow()
 	return listRowAt(p.list, point, p.first, len(p.rows()), selected)
 }

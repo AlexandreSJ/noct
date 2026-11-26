@@ -4,6 +4,8 @@ import (
 	"image"
 	"testing"
 	"time"
+
+	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
 )
 
 // hoverApp has two tabs, the first active, with hover fading.
@@ -123,5 +125,47 @@ func TestLeavingAPaneTitleLeavesItsBorderAlone(t *testing.T) {
 	border := image.Pt(other.Max.X-3, other.Min.Y)
 	if fg, _ := cellStyleAt(a, border); !colorsEqual(fg, a.palette.unfocusedFrame.Fg) {
 		t.Errorf("as the mouse leaves the title the border is %v, want its own %v", fg, a.palette.unfocusedFrame.Fg)
+	}
+}
+
+// A popup's clickable rows light under the mouse as a pane's list rows do, the config's too.
+func TestHoveringAPopupsRowLightsItAsAListRow(t *testing.T) {
+	a, _ := hoverApp(t)
+	a.openConfig()
+	drawnApp(a)
+	l := a.configLayout()
+	var at image.Point
+	for y := l.list.Min.Y; y < l.list.Max.Y; y++ {
+		if line, ok := l.lineAt(y); ok && line.selectable() && line.row != a.configPanel.selected {
+			at = image.Pt(l.list.Min.X+3, y)
+			break
+		}
+	}
+	a.handleMouse(motion(at.X, at.Y))
+	rewind(a, time.Second)
+	a.advanceAnimations(a.now())
+	fg, _ := cellStyleAt(a, at)
+	if light := orColor(a.palette.selectedRow.Bg, a.palette.selectedRow.Fg); !colorsEqual(fg, light) {
+		t.Errorf("hovered, the config row's text is %v, want the selection's %v", fg, light)
+	}
+}
+
+// A click picks a row of a choice or of the search.
+func TestAClickPicksAChoiceOrASearchResult(t *testing.T) {
+	a := testApp(t)
+	picked := ""
+	a.openChoice("pick", choiceOption{key: "x", label: "one", pick: func() { picked = "one" }}, choiceOption{key: "y", label: "two", pick: func() { picked = "two" }})
+	drawnApp(a)
+	second := a.choiceInner().Min.Add(image.Pt(2, 1))
+	a.handleMouse(uv.MouseClickEvent{X: second.X, Y: second.Y, Button: uv.MouseLeft})
+	if picked != "two" || a.mode != normalMode {
+		t.Errorf("clicked the second choice: picked %q, mode %v", picked, a.mode)
+	}
+	a.openFinderWith("find", []finderItem{{label: "alpha", open: func() { picked = "alpha" }}, {label: "beta", open: func() { picked = "beta" }}})
+	drawnApp(a)
+	beta := a.finderRows().Min.Add(image.Pt(2, 1))
+	a.handleMouse(uv.MouseClickEvent{X: beta.X, Y: beta.Y, Button: uv.MouseLeft})
+	if picked != "beta" || a.mode != normalMode {
+		t.Errorf("clicked beta: picked %q, mode %v", picked, a.mode)
 	}
 }
