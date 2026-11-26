@@ -102,8 +102,8 @@ func drawnField(field *textField, width int, secret bool) (string, int) {
 
 func TestTextFieldDrawsTheCursorOverItsTextWithoutAMark(t *testing.T) {
 	field := newTextField("abcdefghij")
-	if text, at := drawnField(&field, 6, false); text != "fghij" || at != 5 {
-		t.Errorf("at the end: %q, cursor at %d; want the end in view and the cursor after it", text, at)
+	if text, at := drawnField(&field, 6, false); text != "…ghij" || at != 5 {
+		t.Errorf("at the end: %q, cursor at %d; want the end in view, … before it and the cursor after it", text, at)
 	}
 	field.cursor = 2
 	if text, at := drawnField(&field, 6, false); text != "abcde…" || at != 2 {

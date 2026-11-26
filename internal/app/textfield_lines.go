@@ -74,6 +74,9 @@ func (f *textField) posOfLine(line, col int) int {
 func (f *textField) posAtPoint(x, row int) int {
 	line := min(f.top+max(row, 0), f.lineCount()-1)
 	start := f.posOfLine(line, 0)
+	if line == f.cursorLine() {
+		start += f.shown
+	}
 	at, width := start, 0
 	for at < len(f.text) && f.text[at] != '\n' {
 		width += max(ansi.StringWidth(string(f.text[at])), 1)
@@ -94,11 +97,15 @@ func (f *textField) drawLines(screen uv.Screen, rect image.Rectangle, style, cur
 	if at >= f.top+rect.Dy() {
 		f.top = at - rect.Dy() + 1
 	}
+	col := f.cursor - f.lineStart()
+	f.shown = scrolledTo([]rune(lines[at]), col, rect.Dx())
 	for i := f.top; i < len(lines) && i-f.top < rect.Dy(); i++ {
-		drawTextCut(screen, rect.Min.X, rect.Min.Y+i-f.top, rect.Max.X, lines[i], style)
+		start := map[bool]int{true: f.shown}[i == at]
+		origin := image.Pt(rect.Min.X, rect.Min.Y+i-f.top)
+		drawText(screen, origin.X, origin.Y, rect.Max.X, shownFrom([]rune(lines[i]), start, rect.Dx()), style)
+		f.paintLine(screen, origin, rect.Max.X, lines[i], start)
 	}
-	col := []rune(lines[at])[:f.cursor-f.lineStart()]
-	x := min(rect.Min.X+ansi.StringWidth(string(col)), rect.Max.X-1)
+	x := min(rect.Min.X+ansi.StringWidth(string([]rune(lines[at])[f.shown:col])), rect.Max.X-1)
 	under := " "
 	if f.cursor < len(f.text) && f.text[f.cursor] != '\n' {
 		under = string(f.text[f.cursor])

@@ -131,6 +131,12 @@ func (s *stepForm) row(field stepField) gridRow {
 	label.skip, label.names = !s.spec.named, s.spec.named
 	field.cell.template, field.cell.expression = field.template || field.expression, field.expression
 	field.cell.field.multiline = field.cell.kind == textCell && !field.cell.secret
+	switch pal := &s.app.palette; {
+	case field.cell.expression:
+		field.cell.field.paint = logicPaint(pal)
+	case field.cell.escapes:
+		field.cell.field.paint = escapePaint(pal)
+	}
 	field.cell.json = s.spec.types != nil
 	row := gridRow{cells: []gridCell{label, field.cell}}
 	if s.spec.types != nil {

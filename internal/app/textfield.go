@@ -1,6 +1,8 @@
 package app
 
 import (
+	"image"
+	"image/color"
 	"strings"
 	"unicode"
 
@@ -21,6 +23,8 @@ type textField struct {
 	// multiline keeps line breaks, which enter types; top is the first line the last draw showed.
 	multiline bool
 	top       int
+	// paint, when set, colors characters of a line as it is drawn, by their index in the line.
+	paint func(line string) map[int]color.Color
 }
 
 func newTextField(text string) textField {
@@ -194,13 +198,12 @@ func (f *textField) draw(screen uv.Screen, x, y, width int, secret bool, style, 
 	if width <= 0 {
 		return x
 	}
-	start := 0
-	for ansi.StringWidth(string(text[start:f.cursor])) > width-1 {
-		start++
-	}
+	start := scrolledTo(text, f.cursor, width)
 	f.shown = start
-	shown := ansi.Truncate(string(text[start:]), width, "…")
-	end := drawText(screen, x, y, x+width, shown, style)
+	end := drawText(screen, x, y, x+width, shownFrom(text, start, width), style)
+	if !secret {
+		f.paintLine(screen, image.Pt(x, y), x+width, string(text), start)
+	}
 	f.drawSelection(screen, x, y, width, text)
 	under := " "
 	if f.cursor < len(text) {
@@ -305,5 +308,43 @@ func isPasteKey(key uv.KeyPressEvent) bool {
 func (a *App) requestClipboard() {
 	if a.screen != nil {
 		_, _ = a.screen.WriteString("\x1b]52;c;?\x07")
+	}
+}
+
+// scrolledTo is the first character shown of text in width cells with the cursor at cursor in
+// sight, and a cell after it.
+func scrolledTo(text []rune, cursor, width int) int {
+	start := 0
+	for start < cursor && ansi.StringWidth(string(text[start:cursor])) > width-1 {
+		start++
+	}
+	return start
+}
+
+// shownFrom is text from start as width cells show it: … in place of the first character when
+// some are left of it, and … at the end when more follow.
+func shownFrom(text []rune, start, width int) string {
+	shown := string(text[start:])
+	if start > 0 && start < len(text) {
+		shown = "…" + string(text[start+1:])
+	}
+	return ansi.Truncate(shown, width, "…")
+}
+
+// paintLine gives the characters of line its paint colors, as drawn from at with start first.
+func (f *textField) paintLine(screen uv.Screen, at image.Point, maxX int, line string, start int) {
+	if f.paint == nil {
+		return
+	}
+	colors, runes, x := f.paint(line), []rune(line), at.X
+	for i := start; i < len(runes) && x < maxX; i++ {
+		if c, ok := colors[i]; ok && (i > start || start == 0) {
+			if cell := screen.CellAt(x, at.Y); cell != nil {
+				painted := *cell
+				painted.Style.Fg = c
+				screen.SetCell(x, at.Y, &painted)
+			}
+		}
+		x += max(ansi.StringWidth(string(runes[i])), 1)
 	}
 }

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/AlexandreSJ/noct/internal/flow"
 )
@@ -597,11 +596,6 @@ func (g *editGrid) drawBlock(screen uv.Screen, rect image.Rectangle, row, col in
 	switch {
 	case g.lit(row, col) && g.editing:
 		at := field.drawLines(screen, rect, pal.typing(), pal.selectedRow)
-		if cell.escapes {
-			for i, line := range strings.Split(field.String(), "\n")[field.top:] {
-				markEscapes(screen, image.Pt(rect.Min.X, rect.Min.Y+i), rect, line, pal)
-			}
-		}
 		drawGhost(screen, at, image.Rect(rect.Min.X, at.Y, rect.Max.X, at.Y+1), g.ghost(), pal)
 		return
 	case g.lit(row, col):
@@ -613,30 +607,8 @@ func (g *editGrid) drawBlock(screen uv.Screen, rect image.Rectangle, row, col in
 	for i, line := range lines[:min(len(lines), rect.Dy())] {
 		drawTextCut(screen, rect.Min.X, rect.Min.Y+i, rect.Max.X, line.text, line.style)
 		if cell.escapes {
-			markEscapes(screen, image.Pt(rect.Min.X, rect.Min.Y+i), rect, line.text, pal)
+			field.paintLine(screen, image.Pt(rect.Min.X, rect.Min.Y+i), rect.Max.X, line.text, 0)
 		}
-	}
-}
-
-// markEscapes colors each backslash of text drawn at at, and the character after it, in the
-// primary color dimmed.
-func markEscapes(screen uv.Screen, at image.Point, rect image.Rectangle, text string, pal *palette) {
-	if at.Y >= rect.Max.Y {
-		return
-	}
-	fg := shadeStyle(pal, conditionShades/2).Fg
-	runes, x, left := []rune(text), at.X, 0
-	for i := 0; i < len(runes) && x < rect.Max.X; i++ {
-		if left == 0 && runes[i] == '\\' && i+1 < len(runes) {
-			left = 2
-		}
-		if c := screen.CellAt(x, at.Y); c != nil && left > 0 {
-			cell := *c
-			cell.Style.Fg = fg
-			screen.SetCell(x, at.Y, &cell)
-			left--
-		}
-		x += max(ansi.StringWidth(string(runes[i])), 1)
 	}
 }
 

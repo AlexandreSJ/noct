@@ -224,3 +224,14 @@ func TestAnOutlineSplitsByTheLogic(t *testing.T) {
 		}
 	}
 }
+
+func TestLogicMarksFindTheOperatorsAsTyped(t *testing.T) {
+	text := `(a == $b and c) or not d &&`
+	var got []string
+	for _, m := range LogicMarks(text) {
+		got = append(got, text[m[0]:m[1]])
+	}
+	if want := []string{"(", "and", ")", "or", "not", "&&"}; !slices.Equal(got, want) {
+		t.Errorf("marks %q, want %q", got, want)
+	}
+}

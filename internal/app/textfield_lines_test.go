@@ -3,6 +3,7 @@ package app
 import (
 	"image"
 	"image/color"
+	"strings"
 	"testing"
 
 	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
@@ -39,13 +40,41 @@ func TestAnEscapeShowsInTheDimmedPrimaryColor(t *testing.T) {
 		panelMuted:  uv.Style{Fg: color.RGBA{R: 0x60, G: 0x60, B: 0x60, A: 0xff}},
 	}
 	buffer := uv.NewScreenBuffer(20, 1)
-	rect := image.Rect(0, 0, 20, 1)
+	f := newTextField(`a\nb`)
+	f.paint = escapePaint(pal)
 	drawTextCut(buffer, 0, 0, 20, `a\nb`, pal.panelText)
-	markEscapes(buffer, image.Pt(0, 0), rect, `a\nb`, pal)
+	f.paintLine(buffer, image.Pt(0, 0), 20, `a\nb`, 0)
 	want := shadeStyle(pal, conditionShades/2).Fg
 	for x, marked := range []bool{false, true, true, false} {
 		if got := buffer.CellAt(x, 0).Style.Fg; (got == want) != marked {
 			t.Errorf("cell %d: %v, marked %v", x, got, marked)
+		}
+	}
+}
+
+func TestAFieldScrollsToTheCursorWithAnEllipsisBefore(t *testing.T) {
+	buffer := uv.NewScreenBuffer(10, 1)
+	f := newTextField("0123456789abcdef")
+	f.draw(buffer, 0, 0, 10, false, uv.Style{}, uv.Style{})
+	if got := buffer.Render(); !strings.HasPrefix(got, "…") || !strings.Contains(got, "ef") {
+		t.Errorf("the end of the text with the cursor there: %q", got)
+	}
+	f.multiline = true
+	f.insert("\nshort")
+	f.cursor = f.posOfLine(0, 16)
+	lines := uv.NewScreenBuffer(10, 2)
+	f.drawLines(lines, image.Rect(0, 0, 10, 2), uv.Style{}, uv.Style{})
+	if got := lines.Render(); !strings.HasPrefix(got, "…") || !strings.Contains(got, "ef") {
+		t.Errorf("a long line with the cursor at its end: %q", got)
+	}
+}
+
+func TestAConditionsLogicIsColoredAsItIsTyped(t *testing.T) {
+	pal := &palette{selectedRow: uv.Style{Bg: color.RGBA{R: 0xd0, A: 0xff}}}
+	colors := logicPaint(pal)("a and (b)")
+	for i, marked := range []bool{false, false, true, true, true, false, true, false, true} {
+		if _, ok := colors[i]; ok != marked {
+			t.Errorf("rune %d colored %v", i, ok)
 		}
 	}
 }

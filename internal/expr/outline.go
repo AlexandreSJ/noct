@@ -3,6 +3,7 @@ package expr
 import (
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 type Line struct {
@@ -108,4 +109,25 @@ func closes(text string) int {
 		}
 	}
 	return -1
+}
+
+var logicWords = map[string]bool{"and": true, "or": true, "not": true, "nand": true, "nor": true, "xor": true, "&&": true, "||": true, "!": true, "(": true, ")": true}
+
+// LogicMarks are where the logic operators and parentheses of text are, as byte ranges, for an
+// editor to color them as they are typed; what does not read yet is passed over.
+func LogicMarks(text string) [][2]int {
+	var marks [][2]int
+	l := lexer{text: text}
+	for {
+		tok := l.next()
+		switch {
+		case tok.kind == endToken:
+			return marks
+		case tok.kind == badToken:
+			_, size := utf8.DecodeRuneInString(text[tok.at:])
+			l.at = tok.at + max(size, 1)
+		case (tok.kind == opToken || tok.kind == nameToken) && logicWords[tok.text]:
+			marks = append(marks, [2]int{tok.at, tok.end})
+		}
+	}
 }
