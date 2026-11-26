@@ -11,6 +11,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+## v0.4.0 - 2026-11-26
+
 ### Added
 
 - `Space` on **Flows → tell when runs end** in the config sends a test notification, the way a
