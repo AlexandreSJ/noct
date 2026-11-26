@@ -207,3 +207,16 @@ func TestVHidesTheDetails(t *testing.T) {
 		t.Errorf("v again: details %v, chart %v, want %v", p.details, p.chartArea, shown)
 	}
 }
+
+// g selects the flow's start and G its last step, as they go to the top and end of a log.
+func TestGAndShiftGGoToTheFlowsStartAndEnd(t *testing.T) {
+	a, p := openMovesFlow(t)
+	pressDrawn(a, letter('G'))
+	if p.selected != stepKey("2") {
+		t.Errorf("G selected %q, want the last step", p.selected)
+	}
+	pressDrawn(a, letter('g'))
+	if p.selected != headKey(chartSlot{}) {
+		t.Errorf("g selected %q, want the start", p.selected)
+	}
+}

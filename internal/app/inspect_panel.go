@@ -16,9 +16,9 @@ import (
 
 const (
 	flowsListHints = "{up}{down} flow  {enter} open  {a} new  {r} run  {f} filter  {?} all keys  {tab} hide list"
-	flowStepHints  = "{up}{down}{left}{right} select  {enter} about  {a} add below  {e} edit  {delete} remove  {r} run  {t} test  {m} move  alt+drag move  {z} undo  {+} {-} zoom  {v} details  {?} all keys  {tab} list"
+	flowStepHints  = "{up}{down}{left}{right} select  {enter} about  {a} add below  {e} edit  {r} run  {?} all keys  {tab} list"
 	flowMoveHints  = "{up}{down} move the step, in and out of blocks  {m} {enter} {esc} put it down"
-	flowGapHints   = "{up}{down}{left}{right} select  {a} add here  {r} run  {+} {-} zoom  {?} all keys  {tab} list"
+	flowGapHints   = "{up}{down}{left}{right} select  {a} add here  {r} run  {?} all keys  {tab} list"
 	// flowsListWidth is the list of flows beside the chart, in panels wide enough for both.
 	flowsListWidth = 24
 	// panStep is how far shift+arrows move the chart.
@@ -436,6 +436,10 @@ func (p *inspectPanel) chartViewKey(name string) bool {
 		p.moveSelection(-1)
 	case "down", "j":
 		p.moveSelection(1)
+	case "g":
+		p.selectStart()
+	case "G", "shift+g":
+		p.selectLast()
 	case "left", "h":
 		p.moveAcross(-1)
 	case "right", "l":
@@ -580,6 +584,25 @@ func (p *inspectPanel) moveSelection(step int) {
 	i = min(max(i+step, 0), len(order)-1)
 	p.selected = order[i].key
 	p.keepInView(order[i].rect)
+}
+
+// selectStart selects the flow's start, as g goes to the top of a log.
+func (p *inspectPanel) selectStart() {
+	if p.chart == nil {
+		return
+	}
+	if start, ok := p.chart.block(headKey(chartSlot{})); ok {
+		p.anchor, p.selected = "", start.key
+		p.keepInView(start.rect)
+	}
+}
+
+// selectLast selects the block nearest the flow's end, its last step, as G goes to the end of a
+// log.
+func (p *inspectPanel) selectLast() {
+	if p.chart != nil {
+		p.moveSelection(len(p.chart.blocks))
+	}
 }
 
 // moveAcross goes to the nearest block on the left (step -1) or right (step 1) of the selected
