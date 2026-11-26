@@ -137,6 +137,9 @@ steps:
   - unset: [sum, steps.add]       # reads as empty after this
 ```
 
+A secret, from a prompt or a variable, is `••••` wherever the run's result keeps it: a step's
+output, captures, a `set` built from it. The pane still shows what a program prints.
+
 - `variables:` are the values a run starts with (it was `params:`, which no longer loads). Each is
   its default alone, or a mapping with `default`, `type` (`text`, `number`, `boolean`
   for true or false, `option` with its `choices: [a, b]`, `path`, which tab completes in the

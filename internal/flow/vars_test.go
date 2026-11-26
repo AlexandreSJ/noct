@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"slices"
@@ -239,6 +240,22 @@ func TestASecretPromptMasksItsAnswer(t *testing.T) {
 	step := result.Steps["0"]
 	if len(step.Captures) > 0 || strings.Contains(step.Message, "hunter2") || strings.Contains(out.String(), "hunter2") {
 		t.Errorf("the secret shows: %+v\n%s", step, out)
+	}
+
+	// What a step prints, a set keeps or a step captures of a secret stays out of the result.
+	f = parse(t, `steps:
+  - {prompt: 'password:', var: pw, secret: true}
+  - {set: {auth: 'me:$pw'}}
+  - {run: 'echo token=$pw', capture: {token: 'token=(\S+)'}}
+`)
+	result = r.Run(f, nil)
+	for path, step := range result.Steps {
+		if fmt.Sprint(step) != strings.ReplaceAll(fmt.Sprint(step), "hunter2", "") {
+			t.Errorf("step %s keeps the secret: %+v", path, step)
+		}
+	}
+	if !result.OK || result.Steps["1"].Captures["auth"] != "me:••••" {
+		t.Errorf("%+v", result)
 	}
 
 	r.AskSecret = nil

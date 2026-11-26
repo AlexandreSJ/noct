@@ -72,8 +72,9 @@ the shortcut is `Alt` by default. How to write an entry is in
   them, or with `and` and `or`, a part a line indented by its level, as `[a and b] or [c]`: each
   level in a shade of the primary color, the operators in the color itself.
 - A flow's `prompt` can be `secret: true`: each character typed shows as `•`, the answer stays
-  out of the run's result, and the run shows it as `••••`, as in a run line that reads it. The
-  prompt's form has a `secret` toggle.
+  out of the run's result, and the run shows it as `••••`, as in a run line that reads it. What
+  a step prints, captures or sets of a secret, a secret variable's too, is `••••` in the result
+  that the inspect and AI agents read. The prompt's form has a `secret` toggle.
 - A flow's `if`, `until`, `switch` and `each` are expressions, with names alone:
   `if: login == expectedLogin and not ok`. They have `== != < <= > >=`, `and`/`&&`,
   `or`/`||`, `not`/`!`, `+ - * / %`, `in`, `??`, lambdas such as `h => startsWith(h, "web")`

@@ -120,7 +120,24 @@ func (r *Runner) Run(f Flow, params map[string]string) Result {
 	if r.Sections {
 		r.part(sections.Clean, func() { fmt.Fprintln(r.Out, "\n"+exitLine(x.result.Exit, x.reason)) })
 	}
+	x.maskResult()
 	return x.result
+}
+
+// maskResult masks the secret values in what the result keeps of each step, which is saved and
+// read by the inspect and by AI agents through MCP: a step can print a secret, or a set or a
+// function's returns hold one.
+func (x *running) maskResult() {
+	if len(x.secrets) == 0 {
+		return
+	}
+	for path, step := range x.result.Steps {
+		step.Output, step.Message = x.masked(step.Output), x.masked(step.Message)
+		for name, value := range step.Captures {
+			step.Captures[name] = x.masked(value)
+		}
+		x.result.Steps[path] = step
+	}
 }
 
 func exitLine(code int, reason string) string {
