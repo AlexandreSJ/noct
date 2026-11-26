@@ -45,6 +45,10 @@ the shortcut is `Alt` by default. How to write an entry is in
 - A step form's text can take several lines: while typing, `Enter` starts a new line, and `esc`,
   `Ctrl+Enter` or `Alt+Enter` leave the cell. A condition shows laid out by its logic in the
   form too, its groups in parentheses on lines of their own.
+- A set's and a prompt's type is `inherit` for a variable the flow has already, which keeps
+  its type; giving it another one is refused (a `var` takes any). A set can give an object's
+  field a value, as `obj.isOnline: true`, of the field's type in its JSON; a boolean offers
+  `true`, `false` and `none`.
 - A set's or a variable's JSON closes its braces, brackets and quotes as it is typed, `Enter`
   adds the comma, and it shows a member a line, indented, in the colors of conditions. A list
   or an object that reads itself is refused.

@@ -56,7 +56,8 @@ func (f Flow) knownNames(lookup func(id string) (script.Script, bool)) knownName
 			known.vars[field] = isVariable(field)
 		}
 		for name := range s.Set {
-			known.vars[name] = true
+			root, _ := splitField(name)
+			known.vars[root] = true
 		}
 		for _, outer := range s.Export {
 			known.vars[outer] = true

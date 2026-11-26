@@ -33,7 +33,14 @@ var ParamTypes = []string{VarType, TextParam, NumberParam, BooleanParam, OptionP
 
 const VarType = "var"
 
-var SetTypes = []string{VarType, TextParam, NumberParam, BooleanParam, ListParam, ObjectParam}
+var SetTypes = []string{InheritType, VarType, TextParam, NumberParam, BooleanParam, ListParam, ObjectParam}
+
+// InheritType keeps the type a variable has already, or the one its field has in its JSON; a set
+// or prompt without a type inherits when the variable exists.
+const InheritType = "inherit"
+
+// PromptTypes are the types a prompt's answer can have.
+var PromptTypes = []string{InheritType, TextParam, NumberParam}
 
 // legacyParamTypes are the names flows written before ADR-071 use, read as the names now.
 var legacyParamTypes = map[string]string{"bool": BooleanParam, "choice": OptionParam}
@@ -203,8 +210,8 @@ func checkParam(p Param) error {
 }
 
 func checkType(kind string) error {
-	if kind != "" && kind != TextParam && kind != NumberParam {
-		return fmt.Errorf("type %q is %s or %s", kind, TextParam, NumberParam)
+	if kind != "" && !slices.Contains(PromptTypes, kind) {
+		return fmt.Errorf("type %q is one of %s", kind, strings.Join(PromptTypes, ", "))
 	}
 	return nil
 }
@@ -230,8 +237,8 @@ func (s Step) validateVariables(kind Kind) error {
 		return checkType(s.Type)
 	case SetStep:
 		for name := range s.Set {
-			if !isVariable(name) {
-				return fmt.Errorf("set name %q must be letters, digits and _ only, and not steps", name)
+			if !isSetName(name) {
+				return fmt.Errorf("set name %q must be letters, digits and _ only, and not steps, or a field of one as obj.field", name)
 			}
 		}
 		return s.validateSetTypes()
@@ -253,19 +260,38 @@ func (s Step) validateSetTypes() error {
 	return nil
 }
 
-func (f Flow) VariableType(name string) string {
+// VariableType is the type a variable has where the flow first gives it one: as a flow variable,
+// or the first set or prompt that writes it; a field's is its JSON value's. "" for a name nothing
+// gives a value.
+func (f Flow) VariableType(name string) string { return f.VariableTypeOutside(name, "") }
+
+// VariableTypeOutside is VariableType without the step at path, as the type a step being changed
+// finds for a name.
+func (f Flow) VariableTypeOutside(name, path string) string {
+	if root, fields := splitField(name); len(fields) > 0 {
+		return jsonKindOf(fieldOf(f.objectValue(root), fields))
+	}
 	if p, ok := f.Params[name]; ok {
 		return cmp.Or(p.Type, VarType)
 	}
 	kind := ""
-	walkSteps(f.Steps, "", "", func(s Step, _ string) {
+	walkSteps(f.Steps, "", "", func(s Step, at string) {
 		switch _, set := s.Set[name]; {
+		case kind != "" || at == path:
 		case set:
-			kind = cmp.Or(s.Types[name], VarType)
+			kind = cmp.Or(given(s.Types[name]), VarType)
 		case s.Kind() == PromptStep && s.Var == name:
-			kind = cmp.Or(s.Type, TextParam)
+			kind = cmp.Or(given(s.Type), TextParam)
 		}
 	})
+	return kind
+}
+
+// given is a type written for a variable, or "" for none, which inherits.
+func given(kind string) string {
+	if kind == InheritType {
+		return ""
+	}
 	return kind
 }
 
@@ -276,7 +302,7 @@ func setKind(kind, value string) (string, error) {
 			return "", fmt.Errorf("%q is no number", value)
 		}
 	case BooleanParam:
-		if !slices.Contains(BooleanValues, strings.TrimSpace(value)) {
+		if !slices.Contains(append(BooleanValues, NoneValue), strings.TrimSpace(value)) {
 			return "", fmt.Errorf("%q is not %s", value, strings.Join(BooleanValues, " or "))
 		}
 	case ListParam, ObjectParam:
@@ -335,7 +361,7 @@ func (x *running) runPrompt(s Step, path string) bool {
 		if answer == "" {
 			answer = fallback
 		}
-		if s.Type == NumberParam && (answer == "" || !fitsType(NumberParam, answer)) {
+		if x.typeOf(s.Var, s.Type) == NumberParam && (answer == "" || !fitsType(NumberParam, answer)) {
 			fmt.Fprintf(x.Out, "\x1b[2m%q is not a number\x1b[0m\n", shownAnswer(s, answer))
 			continue
 		}
@@ -349,6 +375,9 @@ func (x *running) runPrompt(s Step, path string) bool {
 // the result, and the run masks it from then on.
 func (x *running) keepAnswer(s Step, path, answer string, took time.Duration) {
 	x.assign(s.Var, answer)
+	if given(s.Type) != "" || x.types[s.Var] == "" {
+		x.types[s.Var] = cmp.Or(given(s.Type), TextParam)
+	}
 	result := StepResult{Status: StatusOK, Duration: took, Message: s.Var + " = " + shownAnswer(s, answer)}
 	if s.Secret {
 		x.keepSecret(answer)
@@ -392,8 +421,8 @@ func (x *running) runSet(s Step, path string) bool {
 	kinds := make(map[string]string, len(names))
 	for _, name := range names {
 		value, err := x.render(s.Set[name])
-		if err == nil {
-			kinds[name], err = setKind(s.Types[name], value)
+		if _, fields := splitField(name); err == nil && len(fields) == 0 {
+			kinds[name], err = setKind(x.typeOf(name, s.Types[name]), value)
 		}
 		if err != nil {
 			return x.stop(path, "set "+name+": "+err.Error(), 1)
@@ -403,11 +432,8 @@ func (x *running) runSet(s Step, path string) bool {
 	x.header("=", s.Label(), strings.Join(names, ", "))
 	var shown []string
 	for _, name := range names {
-		x.assign(name, values[name])
-		if kinds[name] != "" {
-			x.jsonVars[name] = kinds[name]
-		} else {
-			delete(x.jsonVars, name)
+		if err := x.setValue(name, s.Types[name], values[name], kinds[name]); err != nil {
+			return x.stop(path, "set "+name+": "+err.Error(), 1)
 		}
 		shown = append(shown, name+" = "+x.masked(values[name]))
 		x.part(sections.Full, func() { fmt.Fprintf(x.Out, "\x1b[2m  %s = %s\x1b[0m\n", name, x.masked(values[name])) })

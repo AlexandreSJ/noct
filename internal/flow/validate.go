@@ -40,6 +40,9 @@ func (f Flow) Validate(lookup func(id string) (script.Script, bool)) error {
 	if err := validateSteps(f.Steps, "", map[string]bool{}, lookup, known); err != nil {
 		return err
 	}
+	if err := f.validateRetyping(); err != nil {
+		return err
+	}
 	return f.validateReturns(known)
 }
 

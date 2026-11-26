@@ -165,7 +165,8 @@ func (sc *scope) add(s Step, path string, certainty Certainty) {
 	switch s.Kind() {
 	case SetStep:
 		for _, name := range slices.Sorted(maps.Keys(s.Set)) {
-			sc.set(name, path, certainty)
+			root, _ := splitField(name)
+			sc.set(root, path, certainty)
 		}
 	case PromptStep:
 		sc.set(s.Var, path, certainty)

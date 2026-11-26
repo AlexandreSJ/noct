@@ -19,7 +19,8 @@ import (
 // id, a capture, the steps inside a block) stays as it was.
 
 // stepFormFor is the form that changes s; false for the kinds changed as YAML, as a script step.
-func (a *App) stepFormFor(f flow.Flow, s flow.Step, vars []flow.Variable) (stepFormSpec, bool) {
+func (a *App) stepFormFor(f flow.Flow, path string, s flow.Step, vars []flow.Variable) (stepFormSpec, bool) {
+	typeOf := func(name string) string { return f.VariableTypeOutside(name, path) }
 	switch s.Kind() {
 	case flow.ScriptStep:
 		if sc, ok := a.scripts.Find(s.Script); ok && len(sc.Params) > 0 {
@@ -39,9 +40,9 @@ func (a *App) stepFormFor(f flow.Flow, s flow.Step, vars []flow.Variable) (stepF
 	case flow.WaitStep:
 		return waitForm(s), true
 	case flow.PromptStep:
-		return promptForm(s), true
+		return promptForm(s, typeOf), true
 	case flow.SetStep:
-		return setForm(s, f.VariableType), true
+		return setForm(s, typeOf), true
 	case flow.UnsetStep:
 		return unsetForm(s), true
 	case flow.AgentStep:
@@ -256,22 +257,33 @@ func waitForm(s flow.Step) stepFormSpec {
 	}
 }
 
-func promptForm(s flow.Step) stepFormSpec {
+func promptForm(s flow.Step, typeOf func(string) string) stepFormSpec {
+	kind := cmp.Or(s.Type, defaultType(s.Var, typeOf, flow.TextParam))
 	return stepFormSpec{
-		title: "prompt",
+		title:  "prompt",
+		typeOf: typeOf,
+		changed: func(g *editGrid) {
+			name, cell := strings.TrimSpace(g.at(1, stepFormValueColumn).value()), g.at(2, stepFormValueColumn)
+			if name != cell.autoFor {
+				cell.autoFor, cell.field = name, newTextField(defaultType(name, typeOf, flow.TextParam))
+			}
+		},
+		problem: func(v []formValue, row int) string {
+			if row != 2 {
+				return ""
+			}
+			return retyped(v[1].value, v[2].value, typeOf)
+		},
 		fields: []stepField{
 			{label: "ask", cell: escapedCellOf(s.Prompt), template: true, check: needed("a question"), note: `shown as written to whoever watches the run, as login:; \n is a new line, \t a tab`},
 			{label: "into", cell: textCellOf(s.Var), check: checkVariable, note: "the variable the answer goes to, new or not"},
-			{label: "type", cell: optionCellOf(orDefault(s.Type, flow.TextParam), []string{flow.TextParam, flow.NumberParam}), note: "a number asks again until the answer is one"},
+			{label: "type", cell: autoCell(optionCellOf(kind, flow.PromptTypes), s.Var), note: "a number asks again until the answer is one; inherit keeps the variable's type"},
 			{label: "default", cell: textCellOf(s.Default), template: true, note: "what an empty answer gives"},
 			{label: "secret", cell: gridCell{kind: toggleCell, on: s.Secret}, note: "the answer shows as • while typed, and the run never shows it"},
 		},
 		build: func(v []formValue) (flow.Step, error) {
-			s.Prompt, s.Var, s.Type, s.Default = v[0].value, v[1].value, v[2].value, v[3].value
-			s.Secret = v[4].value != ""
-			if s.Type == flow.TextParam {
-				s.Type = ""
-			}
+			s.Prompt, s.Var, s.Default = v[0].value, v[1].value, v[3].value
+			s.Type, s.Secret = writtenType(s.Var, v[2].value, typeOf, flow.TextParam), v[4].value != ""
 			return s, nil
 		},
 	}
@@ -283,25 +295,53 @@ func setForm(s flow.Step, typeOf func(name string) string) stepFormSpec {
 	spec := stepFormSpec{title: "set", named: true, rowField: row, adds: "variable", types: flow.SetTypes, typeOf: typeOf}
 	for _, name := range slices.Sorted(maps.Keys(s.Set)) {
 		field := row
-		field.label, field.cell, field.kind = name, textCellOf(s.Set[name]), cmp.Or(s.Types[name], flow.VarType)
+		field.label, field.cell, field.kind = name, textCellOf(s.Set[name]), cmp.Or(s.Types[name], defaultType(name, typeOf, flow.VarType))
 		spec.fields = append(spec.fields, field)
 	}
 	if len(spec.fields) == 0 {
+		row.kind = flow.VarType
 		spec.fields = []stepField{row}
 	}
-	spec.build = func(v []formValue) (flow.Step, error) { return setStep(s, v) }
+	spec.build = func(v []formValue) (flow.Step, error) { return setStep(s, v, typeOf) }
 	return spec
 }
 
-func setStep(s flow.Step, rows []formValue) (flow.Step, error) {
+// defaultType is the type a set or prompt row starts with: inherit for a name the flow has
+// already, fallback for a new one.
+func defaultType(name string, typeOf func(string) string, fallback string) string {
+	if name != "" && typeOf(name) != "" {
+		return flow.InheritType
+	}
+	return fallback
+}
+
+// writtenType is the type a row keeps in the flow: none for inherit, nor for a new name's
+// fallback, which is what no type gives.
+func writtenType(name, kind string, typeOf func(string) string, fallback string) string {
+	if kind == flow.InheritType || kind == fallback && typeOf(name) == "" {
+		return ""
+	}
+	return kind
+}
+
+// retyped tells why kind cannot be a variable's, when the flow gives it another already.
+func retyped(name, kind string, typeOf func(string) string) string {
+	had := typeOf(name)
+	if had == "" || had == flow.VarType || kind == flow.InheritType || kind == had {
+		return ""
+	}
+	return name + " is a " + had + " already: keep inherit, or give the new value another name"
+}
+
+func setStep(s flow.Step, rows []formValue, typeOf func(string) string) (flow.Step, error) {
 	s.Set, s.Types = map[string]string{}, map[string]string{}
 	for _, row := range rows {
 		if row.name == "" {
 			continue
 		}
 		s.Set[row.name] = row.value
-		if row.kind != flow.VarType {
-			s.Types[row.name] = row.kind
+		if kind := writtenType(row.name, row.kind, typeOf, flow.VarType); kind != "" {
+			s.Types[row.name] = kind
 		}
 	}
 	if len(s.Types) == 0 {
@@ -480,5 +520,10 @@ func checkAgentCommand(command string) string {
 func escapedCellOf(text string) gridCell {
 	cell := textCellOf(text)
 	cell.escapes = true
+	return cell
+}
+
+func autoCell(cell gridCell, name string) gridCell {
+	cell.autoFor = name
 	return cell
 }

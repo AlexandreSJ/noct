@@ -97,6 +97,8 @@ type running struct {
 	secrets []string
 	// reason is why the run stopped, for its exit line.
 	reason string
+	// types are the variables' types, which a set or a prompt that inherits keeps.
+	types map[string]string
 }
 
 // Run runs the flow with the parameters given over its defaults. Result.Exit is the exit code of
@@ -153,6 +155,7 @@ func (r *Runner) start(f Flow, params map[string]string) (*running, error) {
 		Runner:   r,
 		vars:     vars,
 		jsonVars: f.jsonParams(vars),
+		types:    f.paramTypes(),
 		known:    f.knownNames(r.Lookup),
 		steps:    map[string]map[string]string{},
 		result:   Result{Flow: f.Name, Start: time.Now(), Steps: map[string]StepResult{}, OK: true},

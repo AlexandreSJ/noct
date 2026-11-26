@@ -2,6 +2,7 @@ package app
 
 import (
 	"image"
+	"slices"
 	"strings"
 	"testing"
 
@@ -198,7 +199,7 @@ func TestAScriptStepAsksItsParamsInOneForm(t *testing.T) {
 }
 
 // A new set is typed in at once; tab completes a variable's name, shown dim before it is put
-// in, and the type the flow gives that variable comes with it.
+// in, and a variable the flow has already inherits its type.
 func TestASetCompletesNamesAndTakesTheirTypes(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
@@ -214,8 +215,8 @@ func TestASetCompletesNamesAndTakesTheirTypes(t *testing.T) {
 	setCell(a, "${counter + 1}")
 	pressDrawn(a, ctrlS)
 	steps := loadFlowSteps(t, "typed")
-	if len(steps) != 1 || steps[0].Set["counter"] != "${counter + 1}" || steps[0].Types["counter"] != "number" {
-		t.Fatalf("set %+v", steps)
+	if len(steps) != 1 || steps[0].Set["counter"] != "${counter + 1}" || len(steps[0].Types) != 0 {
+		t.Fatalf("set %+v, want counter inheriting its type", steps)
 	}
 }
 
@@ -385,3 +386,27 @@ func TestLettersWorkOnAFormsRows(t *testing.T) {
 }
 
 func p(a *App) *inspectPanel { return a.currentTab().focusedView().(*inspectPanel) }
+
+// A set of an object's field inherits the field's type: a boolean takes true, false or none,
+// and giving a variable another type than its own is told.
+func TestASetOfAFieldInheritsItsTypeAndRetypingIsTold(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "fields", "variables:\n  obj: '{\"isOnline\": false}'\n  count: {type: number, default: '1'}\nsteps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	addStep(a, "set")
+	typeDrawn(a, "obj.isOnline")
+	pressDrawn(a, escPress)
+	form := openStepForm(t, a)
+	value := form.grid.at(0, stepFormValueColumn)
+	if kind := form.grid.at(0, stepFormTypeColumn).value(); kind != "inherit" || value.kind != optionCell || !slices.Equal(value.options, []string{"true", "false", "none"}) {
+		t.Fatalf("type %q, value %+v", kind, value)
+	}
+	pressDrawn(a, letter('j'))
+	form.grid.addRow(form.row(form.spec.rowField))
+	form.grid.at(1, stepFormLabelColumn).field = newTextField("count")
+	form.grid.at(1, stepFormTypeColumn).field = newTextField("text")
+	if problem := form.problem(1); !strings.Contains(problem, "count is a number already") {
+		t.Errorf("count as text: %q", problem)
+	}
+}

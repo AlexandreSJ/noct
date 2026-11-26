@@ -51,7 +51,11 @@ type stepFormSpec struct {
 	adds     string
 	types    []string
 	typeOf   func(name string) string
-	build    func(values []formValue) (flow.Step, error)
+	// changed runs when the values change, as a prompt's type follows its variable; problem
+	// tells why a row does not fit with the others.
+	changed func(g *editGrid)
+	problem func(values []formValue, row int) string
+	build   func(values []formValue) (flow.Step, error)
 	// finish, when set, saves the step built in its own way, as adding a custom agent first.
 	finish func(step flow.Step, save func(flow.Step) error) error
 	// saveValues, when set, saves the answers itself, for a form that makes no step, as a
@@ -148,7 +152,7 @@ func (s *stepForm) row(field stepField) gridRow {
 }
 
 func (s *stepForm) fillTypes() {
-	if s.spec.typeOf == nil {
+	if s.spec.typeOf == nil || s.spec.types == nil {
 		return
 	}
 	for i := range s.grid.rows {
@@ -157,9 +161,28 @@ func (s *stepForm) fillTypes() {
 			continue
 		}
 		kind.autoFor = name
-		if known := s.spec.typeOf(name); slices.Contains(s.spec.types, known) {
-			kind.field = newTextField(known)
-		}
+		kind.field = newTextField(defaultType(name, s.spec.typeOf, flow.VarType))
+	}
+	for i := range s.grid.rows {
+		s.shapeValue(i)
+	}
+}
+
+// shapeValue makes a typed row's value the options of a boolean, true, false or none, when its
+// type is one or inherits one, and a text otherwise.
+func (s *stepForm) shapeValue(row int) {
+	name, kind := strings.TrimSpace(s.grid.at(row, stepFormLabelColumn).value()), s.grid.at(row, stepFormTypeColumn).value()
+	if kind == flow.InheritType {
+		kind = s.spec.typeOf(name)
+	}
+	value := s.grid.at(row, stepFormValueColumn)
+	switch boolean := kind == flow.BooleanParam; {
+	case boolean && value.kind != optionCell:
+		*value = optionCellOf(cmp.Or(strings.TrimSpace(value.value()), "false"), append(slices.Clone(flow.BooleanValues), flow.NoneValue))
+	case !boolean && value.kind == optionCell:
+		text := value.value()
+		*value = s.row(s.spec.rowField).cells[stepFormValueColumn]
+		value.field.insert(text)
 	}
 }
 
@@ -200,7 +223,19 @@ func (s *stepForm) problem(row int) string {
 	if row >= len(s.grid.rows) {
 		return ""
 	}
-	return cmp.Or(s.nameProblem(row), s.valueProblem(row), s.readsItself(row))
+	extra := ""
+	if s.spec.problem != nil {
+		extra = s.spec.problem(s.formValues(), row)
+	}
+	return cmp.Or(s.nameProblem(row), s.valueProblem(row), s.readsItself(row), s.retypedRow(row), extra)
+}
+
+func (s *stepForm) retypedRow(row int) string {
+	if s.spec.types == nil || s.spec.typeOf == nil {
+		return ""
+	}
+	name := strings.TrimSpace(s.grid.at(row, stepFormLabelColumn).value())
+	return retyped(name, s.grid.at(row, stepFormTypeColumn).value(), s.spec.typeOf)
 }
 
 func (s *stepForm) readsItself(row int) string {
@@ -322,6 +357,9 @@ func (s *stepForm) after(out gridOutcome) bool {
 	if out&gridChanged != 0 {
 		s.showRows()
 		s.fillTypes()
+		if s.spec.changed != nil {
+			s.spec.changed(&s.grid)
+		}
 	}
 	if out&gridPressed == 0 {
 		return false
@@ -588,7 +626,7 @@ func (p *inspectPanel) addStep(f flow.Flow, at chartBlock) {
 		{label: "repeat", kind: "steps again", open: form(repeatForm(zero))},
 		{label: "for each line", kind: "steps per item", open: form(eachForm(zero))},
 		{label: "wait", kind: "a pause", open: form(waitForm(zero))},
-		{label: "prompt", kind: "asks you", open: form(promptForm(zero))},
+		{label: "prompt", kind: "asks you", open: form(promptForm(zero, f.VariableType))},
 		{label: "set", kind: "gives variables values", open: form(setForm(zero, f.VariableType))},
 		{label: "unset", kind: "clears variables", open: form(unsetForm(zero))},
 	}
@@ -605,7 +643,7 @@ func (p *inspectPanel) editStep(f flow.Flow, path string) {
 	}
 	parent, branch, index := flow.SplitPath(path)
 	vars := f.WithObjectPaths(f.Scope(parent, branch, index, p.app.scripts.Find))
-	spec, ok := p.app.stepFormFor(f, step, vars)
+	spec, ok := p.app.stepFormFor(f, path, step, vars)
 	if !ok {
 		p.app.editFlowStep(f, path)
 		return

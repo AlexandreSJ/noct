@@ -472,3 +472,33 @@ func TestARunMarksItsFullAndCleanViews(t *testing.T) {
 		t.Errorf("full view %q", got)
 	}
 }
+
+// A set gives an object's field a value of the type its JSON has, a set without a type inherits
+// the variable's, and giving a variable another type is refused.
+func TestASetGivesAFieldAndKeepsAVariablesType(t *testing.T) {
+	r, out := testRunner(t, nil)
+	f := parse(t, `
+variables:
+  obj: '{"isOnline": false, "user": {"name": "ana"}}'
+  count: {type: number, default: "1"}
+steps:
+  - set: {obj.isOnline: "true", obj.user.age: "30", count: "2"}
+    types: {obj.user.age: number}
+  - if: obj.isOnline and obj.user.age == 30 and obj.user.name == "ana" and count == 2
+    then: [{run: 'echo fields'}]
+`)
+	if result := r.Run(f, nil); !result.OK || !strings.Contains(out.String(), "fields") {
+		t.Fatalf("ok %v:\n%s", result.OK, out)
+	}
+	bad := parse(t, "variables:\n  count: {type: number, default: '1'}\nsteps:\n  - set: {count: x}\n")
+	if result := r.Run(bad, nil); result.OK {
+		t.Error("an inherited number took x")
+	}
+	retyped := parse(t, "variables:\n  count: {type: number, default: '1'}\nsteps:\n  - set: {count: x}\n    types: {count: text}\n")
+	if err := retyped.Validate(nil); err == nil || !strings.Contains(err.Error(), "inherit") {
+		t.Errorf("a number set as text: %v", err)
+	}
+	if got := f.VariableType("obj.isOnline"); got != "boolean" {
+		t.Errorf("VariableType(obj.isOnline) = %q", got)
+	}
+}

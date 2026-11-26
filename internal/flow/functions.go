@@ -140,7 +140,7 @@ func (x *running) runCall(s Step, path string) bool {
 	x.header("ƒ", s.Label(), "call "+fn.Name)
 	start := time.Now()
 	caller := *x
-	x.vars, x.jsonVars, x.steps, x.blocks = values, fn.jsonParams(values), map[string]map[string]string{}, nil
+	x.vars, x.jsonVars, x.steps, x.blocks, x.types = values, fn.jsonParams(values), map[string]map[string]string{}, nil, fn.paramTypes()
 	x.known = fn.knownNames(x.Lookup)
 	x.depth++
 	ran := x.runSteps(fn.Steps, path, "call")
@@ -154,7 +154,7 @@ func (x *running) runCall(s Step, path string) bool {
 			break
 		}
 	}
-	x.vars, x.jsonVars, x.steps, x.blocks, x.depth = caller.vars, caller.jsonVars, caller.steps, caller.blocks, caller.depth
+	x.vars, x.jsonVars, x.steps, x.blocks, x.depth, x.types = caller.vars, caller.jsonVars, caller.steps, caller.blocks, caller.depth, caller.types
 	x.known = caller.known
 	if !ran {
 		x.result.Steps[path] = StepResult{Status: StatusFailed, Exit: x.result.Exit, Duration: time.Since(start), Message: "function " + fn.Name + " stopped"}
