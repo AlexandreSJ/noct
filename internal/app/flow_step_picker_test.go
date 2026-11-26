@@ -60,3 +60,22 @@ func TestTabInThePickerAddsTheLastStepAgain(t *testing.T) {
 		t.Errorf("the last step added is %v", a.lastStepAdded)
 	}
 }
+
+// The step added last shows dim after what is typed while it starts so, and tab adds it only then.
+func TestThePickersTabFollowsWhatIsTyped(t *testing.T) {
+	a, p := openMovesFlow(t)
+	a.lastStepAdded = []string{"set"}
+	pressDrawn(a, letter('a'), letter('s'))
+	picker := p.editor.(*stepPicker)
+	if ghost, ok := picker.ghost(); !ok || ghost != "et" {
+		t.Errorf("after s the ghost is %q (%v)", ghost, ok)
+	}
+	pressDrawn(a, uv.KeyPressEvent{Code: uv.KeyBackspace}, letter('a'), tabPress)
+	if p.editor != picker {
+		t.Fatalf("tab after a, which set does not start with, opened %T", p.editor)
+	}
+	pressDrawn(a, uv.KeyPressEvent{Code: uv.KeyBackspace}, letter('s'), tabPress)
+	if form, ok := p.editor.(*stepForm); !ok || form.title() != "set" {
+		t.Errorf("s and tab opened %T", p.editor)
+	}
+}

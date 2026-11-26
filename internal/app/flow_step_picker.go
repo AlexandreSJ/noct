@@ -61,6 +61,18 @@ func (s *stepPicker) pick(item finderItem) bool {
 	return true
 }
 
+// ghost is the rest of the step added last after what is typed, while it starts so; tab adds it.
+func (s *stepPicker) ghost() (string, bool) {
+	if len(s.again) == 0 || s.stage > 1 {
+		return "", false
+	}
+	typed := s.list.query.String()
+	if !strings.HasPrefix(strings.ToLower(s.again[0]), strings.ToLower(typed)) {
+		return "", false
+	}
+	return s.again[0][len(typed):], true
+}
+
 func (s *stepPicker) pickAgain() bool {
 	for _, label := range s.again {
 		i := slices.IndexFunc(s.list.items, func(item finderItem) bool { return item.label == label })
@@ -82,7 +94,9 @@ func (s *stepPicker) handleKey(key uv.KeyPressEvent) bool {
 	case "enter":
 		return len(f.matches) > 0 && s.pick(f.matches[f.selected])
 	case "tab":
-		return s.pickAgain()
+		if _, ok := s.ghost(); ok {
+			return s.pickAgain()
+		}
 	case "up", "ctrl+p":
 		f.selected = max(f.selected-1, 0)
 	case "down", "ctrl+n":
@@ -131,7 +145,10 @@ func (s *stepPicker) draw(screen uv.Screen, area image.Rectangle, _ bool) {
 	f, pal := &s.list, s.pal
 	s.box = area.Inset(-1)
 	x := drawText(screen, area.Min.X+1, area.Min.Y, area.Max.X, "› ", pal.panelHeading)
-	f.query.draw(screen, x, area.Min.Y, area.Max.X-1-x, false, pal.typing(), pal.selectedRow)
+	end := f.query.draw(screen, x, area.Min.Y, area.Max.X-1-x, false, pal.typing(), pal.selectedRow)
+	if ghost, ok := s.ghost(); ok {
+		drawGhost(screen, image.Pt(end-1, area.Min.Y), image.Rect(x, area.Min.Y, area.Max.X-1, area.Min.Y+1), ghost, pal)
+	}
 	s.rows = image.Rect(area.Min.X, area.Min.Y+2, area.Max.X, min(area.Min.Y+2+stepPickerRows, area.Max.Y-2))
 	s.first = listFirst(s.first, f.selected, len(f.matches), s.rows.Dy())
 	if len(f.matches) == 0 {
@@ -144,7 +161,7 @@ func (s *stepPicker) draw(screen uv.Screen, area image.Rectangle, _ bool) {
 		}
 		drawRow(screen, s.rows, s.rows.Min.Y+i-s.first, f.matches[i].label, f.matches[i].kind, style)
 	}
-	if len(s.again) > 0 {
+	if _, ok := s.ghost(); ok {
 		drawText(screen, area.Min.X+1, area.Max.Y-1, area.Max.X, "tab adds "+strings.Join(s.again, " ")+" again", pal.panelMuted)
 	}
 }

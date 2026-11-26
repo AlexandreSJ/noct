@@ -20,7 +20,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 - `a` in a flow's chart picks the kind of step in a list centered over the chart, in the panel,
   so noct's prefix and the other panes stay a key away: typing narrows the list, the arrows and
   the wheel move through it, `Enter` or a click adds, and `Tab` adds again the step added last,
-  down to its script or function. A script or a function is picked in the same list.
+  down to its script or function, shown dim after what is typed while it starts so. A script
+  or a function is picked in the same list.
 - A flow's `set` gives its variables types with `types: {count: number}`: `var`, the default,
   is what its value is, a list or an object when it is one in JSON; `text`, `number`, `boolean`,
   `list` and `object` refuse a value of another type. Its form has a type column, starts typing
