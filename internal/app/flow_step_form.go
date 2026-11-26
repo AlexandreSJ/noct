@@ -397,6 +397,7 @@ func (s *stepForm) draw(screen uv.Screen, area image.Rectangle, helpBeside bool)
 		if s.spec.types != nil {
 			s.drawCell(screen, image.Rect(valueEnd+2, y, area.Max.X-1, y+1), row, stepFormTypeColumn)
 		}
+		s.grid.drawMark(screen, image.Rect(left, y, area.Max.X-1, y+height), row)
 		y += height
 	}
 	if !helpBeside {

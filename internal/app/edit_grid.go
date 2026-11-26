@@ -147,6 +147,8 @@ type editGrid struct {
 	buttons []string
 	// arranged rows move with J and K and go with ctrl+delete, as a flow's params.
 	arranged bool
+	// marked are the rows the row keys work on, by index.
+	marked map[int]bool
 	// variables are what template cells complete; suggested is the completion picked.
 	variables []flow.Variable
 	suggested int
@@ -181,7 +183,9 @@ func (g *editGrid) button() (int, bool) {
 }
 
 // busy tells a cell is being typed in, or a menu or list is open: esc closes that first.
-func (g *editGrid) busy() bool { return g.editing || g.menu != nil || g.list != nil }
+func (g *editGrid) busy() bool {
+	return g.editing || g.menu != nil || g.list != nil || len(g.marked) > 0
+}
 
 // typing tells the keys type text as they are pressed, in a cell or a filter.
 func (g *editGrid) typing() bool {
@@ -222,6 +226,9 @@ var gridMoves = func() map[string]func(g *editGrid) {
 }()
 
 func (g *editGrid) navKey(name string) gridOutcome {
+	if out, ok := g.rowKey(name); ok {
+		return out
+	}
 	if move, ok := gridMoves[name]; ok {
 		move(g)
 		return gridNothing
@@ -233,15 +240,13 @@ func (g *editGrid) navKey(name string) gridOutcome {
 		if c := g.cell(); c != nil && c.kind != textCell {
 			return g.activate()
 		}
-	case "K", "shift+k", "shift+up":
+	case "K", "shift+k":
 		return g.moveRow(-1)
-	case "J", "shift+j", "shift+down":
+	case "J", "shift+j":
 		return g.moveRow(1)
-	case "ctrl+delete":
-		return g.removeRow()
-	case "ctrl+z":
+	case "z", "ctrl+z":
 		return g.undo()
-	case "ctrl+y":
+	case "y", "ctrl+y":
 		return g.redo()
 	}
 	return gridNothing
@@ -503,16 +508,6 @@ func (g *editGrid) moveRow(by int) gridOutcome {
 	return gridChanged
 }
 
-func (g *editGrid) removeRow() gridOutcome {
-	if _, onButton := g.button(); !g.arranged || onButton {
-		return gridNothing
-	}
-	g.remember()
-	g.rows = slices.Delete(g.rows, g.row, g.row+1)
-	g.keepFocus()
-	return gridChanged
-}
-
 func (g *editGrid) snapshot() gridState {
 	rows := make([]gridRow, len(g.rows))
 	for i, row := range g.rows {
@@ -702,6 +697,10 @@ func (g *editGrid) mouse(event uv.MouseEvent, at image.Point) gridOutcome {
 	m := event.Mouse()
 	switch event.(type) {
 	case uv.MouseClickEvent:
+		if row, ok := g.rowAt(at); ok && m.Button == uv.MouseLeft && m.Mod&uv.ModCtrl != 0 && g.arranged {
+			g.toggleMark(row)
+			return gridNothing
+		}
 		if m.Button == uv.MouseLeft {
 			out := g.click(at)
 			g.startDrag()

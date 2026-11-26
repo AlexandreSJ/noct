@@ -212,11 +212,11 @@ func (p *inspectPanel) firstShown(flows []flow.Flow) int {
 	return 0
 }
 
-// editorKey gives the key to the editor open, but v, which hides its help, while nothing is typed.
+// editorKey gives the key to the editor open, but i, which hides its help, while nothing is typed.
 func (p *inspectPanel) editorKey(key uv.KeyPressEvent) {
 	editor := p.editor
 	switch {
-	case key.String() == "v" && !editor.typing():
+	case key.String() == "i" && !editor.typing():
 		p.helpHidden = !p.helpHidden
 	case editor.handleKey(key):
 		p.closeDone(editor)

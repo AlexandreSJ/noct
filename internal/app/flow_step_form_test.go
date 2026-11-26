@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	uv "github.com/AlexandreSJ/noct/third_party/ultraviolet"
+
 	"github.com/AlexandreSJ/noct/internal/config"
 	"github.com/AlexandreSJ/noct/internal/flow"
 )
@@ -338,3 +340,48 @@ func TestASetsJSONIsTypedAndShownAsJSON(t *testing.T) {
 		t.Errorf("an object reading itself: %q", form.message)
 	}
 }
+
+// Letters work on a form's rows while nothing is typed: shift+arrows mark rows, d doubles, c and
+// v copy and paste, x cuts, z undoes, esc lets the marks go, and ctrl+click marks one.
+func TestLettersWorkOnAFormsRows(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "rows", "steps:\n  - set: {a: '1', b: '2', c: '3'}\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress, letter('e'))
+	form := openStepForm(t, a)
+	names := func() string {
+		var out []string
+		for _, v := range form.formValues() {
+			out = append(out, v.name)
+		}
+		return strings.Join(out, " ")
+	}
+	pressDrawn(a, uv.KeyPressEvent{Code: uv.KeyDown, Mod: uv.ModShift}, letter('d'))
+	if got := names(); got != "a b a b c" {
+		t.Fatalf("d on a and b marked: %q", got)
+	}
+	pressDrawn(a, letter('z'))
+	if got := names(); got != "a b c" {
+		t.Fatalf("z: %q", got)
+	}
+	pressDrawn(a, letter('x'))
+	if got := names(); got != "a c" {
+		t.Fatalf("x on b: %q", got)
+	}
+	pressDrawn(a, letter('v'))
+	if got := names(); got != "a c b" {
+		t.Fatalf("v after c: %q", got)
+	}
+	row, _ := form.grid.focusRect()
+	pressDrawn(a, letter('k'))
+	a.handleMouse(uv.MouseClickEvent{X: row.Min.X, Y: row.Min.Y, Button: uv.MouseLeft, Mod: uv.ModCtrl})
+	if !form.grid.marked[2] {
+		t.Errorf("ctrl+click did not mark b: %v", form.grid.marked)
+	}
+	pressDrawn(a, escPress)
+	if len(form.grid.marked) != 0 || p(a).editor == nil {
+		t.Errorf("esc: marks %v, editor %v", form.grid.marked, p(a).editor)
+	}
+}
+
+func p(a *App) *inspectPanel { return a.currentTab().focusedView().(*inspectPanel) }

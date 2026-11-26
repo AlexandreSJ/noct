@@ -47,6 +47,12 @@ the shortcut is `Alt` by default. How to write an entry is in
 - An object's fields complete after its name: `obj` shows `.isOnline` dim, and `Tab` puts it in.
 - A flow's `prompt` reads the escapes a print does, as `\n` and `\t`; its form shows them in
   the primary color, dimmed.
+- Letters work on the rows of the inspect's tables and of row forms, as the set's, while nothing
+  is typed: `Shift+↑↓` mark rows and `Ctrl`+click marks one, `esc` lets the marks go; `d`
+  doubles, `c` copies, `x` cuts and `v` pastes the marked rows, or the focused one; `Delete`
+  removes them; `z` and `y` undo and redo.
+- The help beside an inspect editor hides with `i` (it was `v`, which now pastes rows), and
+  `Shift+↑↓` mark rows instead of moving them; `J` and `K` still move a row.
 - `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
   chart, and shows them again.
 - Flow conditions take `nand`, `nor` and `xor`. The inspect's details show a condition with

@@ -391,6 +391,7 @@ func (t *paramsTable) draw(screen uv.Screen, area image.Rectangle, _ bool) {
 				t.grid.drawMoveArrows(screen, image.Pt(area.Min.X+1, y), pal)
 			}
 			t.drawRow(screen, line, row, widths, from, to)
+			t.grid.drawMark(screen, line, row)
 		}
 		y++
 	}
