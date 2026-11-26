@@ -16,7 +16,9 @@ func TestAStepFormCompletesTheShortNames(t *testing.T) {
 	a := testApp(t)
 	a.size = image.Pt(140, 40)
 	saveFlow(t, "done", "variables: {env: dev}\nsteps:\n  - {id: build, run: 'echo v=1', capture: {v: 'v=(\\d)'}}\n  - {id: test, run: 'true'}\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress, letter('a'), letter('c'), enterPress)
+	pressDrawn(a, prefixPress, letter('i'), tabPress, downPress)
+	addStep(a, "command")
+	pressDrawn(a, enterPress)
 	typeDrawn(a, "echo $")
 	screen := screenText(a)
 	for _, want := range []string{"$env", "$output", "$v", "$build.output"} {

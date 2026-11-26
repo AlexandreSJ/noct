@@ -25,8 +25,8 @@ func (a *App) newFunction(folder string, created func(key string)) {
 	})
 }
 
-// pickFunction asks which function a call step runs.
-func (a *App) pickFunction(picked func(fn flow.Flow)) {
+// functionItems are the functions a call step can run, for the step picker to list.
+func (a *App) functionItems(picked func(fn flow.Flow)) []finderItem {
 	var items []finderItem
 	for _, fn := range a.functions {
 		if fn.Problem == nil {
@@ -35,9 +35,8 @@ func (a *App) pickFunction(picked func(fn flow.Flow)) {
 	}
 	if len(items) == 0 {
 		a.statusMessage = a.hint("flows", "no functions yet: {F} in the list of flows makes one")
-		return
 	}
-	a.openFinderWith("function to call", items)
+	return items
 }
 
 // returnLines are what a function's params card lists of its returns.

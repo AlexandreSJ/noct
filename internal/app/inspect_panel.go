@@ -214,11 +214,12 @@ func (p *inspectPanel) firstShown(flows []flow.Flow) int {
 
 // editorKey gives the key to the editor open, but v, which hides its help, while nothing is typed.
 func (p *inspectPanel) editorKey(key uv.KeyPressEvent) {
+	editor := p.editor
 	switch {
-	case key.String() == "v" && !p.editor.typing():
+	case key.String() == "v" && !editor.typing():
 		p.helpHidden = !p.helpHidden
-	case p.editor.handleKey(key):
-		p.closeEditor()
+	case editor.handleKey(key):
+		p.closeDone(editor)
 	default:
 		p.copyFromEditor()
 	}
@@ -235,11 +236,20 @@ func (p *inspectPanel) copyFromEditor() {
 // editorMouse gives the editor open the event, at its point on the screen.
 func (p *inspectPanel) editorMouse(event uv.MouseEvent) {
 	m := event.Mouse()
-	if p.editor.mouse(event, image.Pt(m.X, m.Y).Add(p.origin)) {
-		p.closeEditor()
+	editor := p.editor
+	if editor.mouse(event, image.Pt(m.X, m.Y).Add(p.origin)) {
+		p.closeDone(editor)
 		return
 	}
 	p.copyFromEditor()
+}
+
+// closeDone closes editor, which told it is done, unless it opened another in its place, as the
+// step picker opens the form of the step picked.
+func (p *inspectPanel) closeDone(editor inspectEditor) {
+	if p.editor == editor {
+		p.closeEditor()
+	}
 }
 
 func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
@@ -727,6 +737,16 @@ func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	}
 	if chartArea.Empty() {
 		p.chart, p.chartArea, p.details = nil, image.Rectangle{}, image.Rectangle{}
+		return
+	}
+	if floating, ok := p.editor.(floatingEditor); ok {
+		p.drawFlowChart(screen, chartArea, f)
+		size := floating.boxSize()
+		box := centeredRect(p.chartArea, size.X, size.Y)
+		fillRect(screen, box, p.app.palette.panelText)
+		drawFrame(screen, box, p.editor.title(), p.app.palette.focusedFrame, p.app.palette.focusedTitle)
+		p.editor.draw(screen, box.Inset(1), false)
+		p.chartArea, p.details, p.editorArea = p.chartArea.Sub(area.Min), p.details.Sub(area.Min), box.Sub(area.Min)
 		return
 	}
 	if p.editor != nil {

@@ -389,8 +389,8 @@ func orDefault(value, fallback string) string {
 	return value
 }
 
-// pickScript searches the scripts for the one a step runs.
-func (a *App) pickScript(picked func(flow.Step)) {
+// scriptStepItems are the scripts a step can run, for the step picker to list.
+func (a *App) scriptStepItems(picked func(flow.Step)) []finderItem {
 	var items []finderItem
 	for _, s := range a.scripts.All() {
 		if s.Problem == nil {
@@ -399,9 +399,8 @@ func (a *App) pickScript(picked func(flow.Step)) {
 	}
 	if len(items) == 0 {
 		a.statusMessage = "no scripts yet: create one in the scripts panel (prefix+s)"
-		return
 	}
-	a.openFinderWith("script for the step", items)
+	return items
 }
 
 func (a *App) removeStep(f flow.Flow, path string) {

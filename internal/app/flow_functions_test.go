@@ -27,7 +27,7 @@ func TestAFunctionShowsWhoCallsItAndIsCalledFromAStep(t *testing.T) {
 	saveFunction(t, "greet", "variables: {who: {default: world}}\nsteps:\n  - {id: say, run: 'echo hi $who'}\nreturns: {greeting: '$output'}\n")
 	saveFlow(t, "morning", "steps:\n  - {id: wake, run: 'true'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
-	pressDrawn(a, letter('a'), letter('f'))
+	addStep(a, "function call")
 	typeDrawn(a, "greet")
 	pressDrawn(a, enterPress)
 	setCell(a, "$output")

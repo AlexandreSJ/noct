@@ -52,15 +52,19 @@ func TestInspectBuildsAFlowStepByStep(t *testing.T) {
 	}
 	pressDrawn(a, letter('a'))
 	typeDrawn(a, "explore")
-	pressDrawn(a, enterPress, letter('a'), letter('l'))
+	pressDrawn(a, enterPress)
+	addStep(a, "repeat")
 	setCell(a, "") // no times: until
 	pressDrawn(a, letter('j'))
 	setCell(a, `dice.number != 6`)
-	pressDrawn(a, ctrlS, downPress, letter('a'), letter('s'))
+	pressDrawn(a, ctrlS, downPress)
+	addStep(a, "script")
 	typeDrawn(a, "where")
-	pressDrawn(a, enterPress, letter('a'), letter('i'))
+	pressDrawn(a, enterPress)
+	addStep(a, "if")
 	setCell(a, `where.exit == 0`)
-	pressDrawn(a, ctrlS, downPress, letter('a'), letter('s'))
+	pressDrawn(a, ctrlS, downPress)
+	addStep(a, "script")
 	typeDrawn(a, "dice")
 	pressDrawn(a, enterPress, letter('e'))
 	editPart(t, l, "id: dice\nscript: dice\ncapture: {number: 'number=(\\d)'}\n")
@@ -147,7 +151,7 @@ func TestInspectAddsAboveTheFirstStepAndBelowTheSelected(t *testing.T) {
 }
 
 func addCommand(a *App, command string) {
-	pressDrawn(a, letter('a'), letter('c'))
+	addStep(a, "command")
 	setCell(a, command)
 	pressDrawn(a, ctrlS)
 }

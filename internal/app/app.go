@@ -178,6 +178,9 @@ type App struct {
 	expanded map[string]bool
 	// lastFlow is the flow or function the inspect selected last, which a new inspect opens on.
 	lastFlow string
+	// lastStepAdded is what the step picker picked for the step added last, as [script, deploy],
+	// which its tab picks again.
+	lastStepAdded []string
 	// flowFolders and functionFolders are the folders the flows and functions are kept in, the
 	// empty ones too, by their paths.
 	flowFolders, functionFolders []string

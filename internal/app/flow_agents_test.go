@@ -59,7 +59,7 @@ func TestAnAgentStepIsAddedFromOneForm(t *testing.T) {
 	a.config.Agents = map[string]string{"local": "ollama run qwen"}
 	saveFlow(t, "review", "steps:\n  - {id: test, run: 'echo 3 failed'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
-	pressDrawn(a, letter('a'), letter('a'))
+	addStep(a, "AI agent")
 	form := openStepForm(t, a)
 	if a.mode != normalMode {
 		t.Errorf("the form took noct's mode %v; it belongs to the panel", a.mode)
@@ -108,7 +108,7 @@ func TestAnAgentStepAsksTheDefaultAgentByName(t *testing.T) {
 	a.size = image.Pt(140, 50)
 	saveFlow(t, "review", "steps:\n  - {id: test, run: 'echo 3 failed'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
-	pressDrawn(a, letter('a'), letter('a'))
+	addStep(a, "AI agent")
 	setCell(a, "Is it flaky?")
 	pressDrawn(a, letter('j'), letter('j'))
 	options := openStepForm(t, a).grid.cell().options
@@ -135,7 +135,7 @@ func TestACustomAgentIsAddedToTheConfig(t *testing.T) {
 	a.size = image.Pt(140, 50)
 	saveFlow(t, "review", "steps:\n  - {id: test, run: 'echo 3 failed'}\n")
 	pressDrawn(a, prefixPress, letter('i'), tabPress)
-	pressDrawn(a, letter('a'), letter('a'))
+	addStep(a, "AI agent")
 	setCell(a, "Is it flaky?")
 	pressDrawn(a, letter('j'), letter('j'))
 	if strings.Contains(screenText(a), "command") {

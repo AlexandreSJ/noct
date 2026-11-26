@@ -17,6 +17,10 @@ the shortcut is `Alt` by default. How to write an entry is in
   run's end is told.
 - `g` or `Home` in a flow's chart in the inspect selects its start, and `G` or `End` its last
   step, as in a log.
+- `a` in a flow's chart picks the kind of step in a list centered over the chart, in the panel,
+  so noct's prefix and the other panes stay a key away: typing narrows the list, the arrows and
+  the wheel move through it, `Enter` or a click adds, and `Tab` adds again the step added last,
+  down to its script or function. A script or a function is picked in the same list.
 - `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
   chart, and shows them again.
 - Flow conditions take `nand`, `nor` and `xor`. The inspect's details show a condition with

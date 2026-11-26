@@ -257,3 +257,10 @@ func TestAConditionShowsByItsLogic(t *testing.T) {
 		t.Errorf("a plain condition: %+v", one)
 	}
 }
+
+// addStep presses a in the chart and picks kind in the step picker, typing it and enter.
+func addStep(a *App, kind string) {
+	pressDrawn(a, letter('a'))
+	typeDrawn(a, kind)
+	pressDrawn(a, enterPress)
+}

@@ -84,7 +84,8 @@ func TestEditingASwitchKeepsTheStepsOfItsCases(t *testing.T) {
 func TestAStepFormRefusesWhatDoesNotFit(t *testing.T) {
 	a := testApp(t)
 	saveFlow(t, "pause", "steps: []\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, letter('a'), letter('w'))
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	addStep(a, "wait")
 	setCell(a, "soon")
 	pressDrawn(a, ctrlS)
 	openStepForm(t, a)
@@ -102,7 +103,8 @@ func TestACallStepAsksItsValuesInOneForm(t *testing.T) {
 	a.size = image.Pt(140, 40)
 	saveFlow(t, "ship", "steps: []\n")
 	saveFunction(t, "deploy", "variables:\n  env: {type: option, choices: [dev, prod]}\n  tries: {type: number, default: '1'}\nsteps: [{run: 'true'}]\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, letter('a'), letter('f'))
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	addStep(a, "function call")
 	typeDrawn(a, "deploy")
 	pressDrawn(a, enterPress)
 	setCell(a, "staging")
@@ -122,7 +124,9 @@ func TestACallStepAsksItsValuesInOneForm(t *testing.T) {
 func TestASetStepTakesARowPerVariable(t *testing.T) {
 	a := testApp(t)
 	saveFlow(t, "vars", "steps: []\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, letter('a'), letter('v'), enterPress)
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	addStep(a, "set")
+	pressDrawn(a, enterPress)
 	typeDrawn(a, "a")
 	pressDrawn(a, tabPress)
 	setCell(a, "1")
@@ -152,7 +156,9 @@ func TestFormsKeepStepsAndAskForNames(t *testing.T) {
 	}
 	a := testApp(t)
 	saveFlow(t, "vars", "steps: []\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, letter('a'), letter('v'), enterPress, tabPress)
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	addStep(a, "set")
+	pressDrawn(a, enterPress, tabPress)
 	setCell(a, "1")
 	pressDrawn(a, ctrlS)
 	if !strings.Contains(screenText(a), "a name is needed for this value") || len(loadFlowSteps(t, "vars")) != 0 {
@@ -167,7 +173,8 @@ func TestAScriptStepAsksItsParamsInOneForm(t *testing.T) {
 	a.size = image.Pt(140, 40)
 	saveScript(t, "deploy", "run: echo {{.env}} {{.tag}}\nparams:\n  - {name: env, choices: [dev, prod]}\n  - {name: tag, default: latest}\n")
 	saveFlow(t, "ship", "steps: []\n")
-	pressDrawn(a, prefixPress, letter('i'), tabPress, letter('a'), letter('s'))
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	addStep(a, "script")
 	typeDrawn(a, "deploy")
 	pressDrawn(a, enterPress, ctrlS)
 	if !strings.Contains(screenText(a), "the script needs it") {

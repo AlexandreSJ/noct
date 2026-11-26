@@ -443,20 +443,23 @@ func (p *inspectPanel) addStep(f flow.Flow, at chartBlock) {
 		p.app.reportError(insert(step))
 	}
 	var zero flow.Step
-	p.app.openChoice("add step",
-		choiceOption{key: "s", label: "script", pick: func() { p.app.pickScript(scriptStep) }},
-		choiceOption{key: "f", label: "function call", pick: func() { p.app.pickFunction(call) }},
-		choiceOption{key: "a", label: "AI agent", pick: agentForm},
-		choiceOption{key: "c", label: "command", pick: form(commandForm(zero))},
-		choiceOption{key: "i", label: "if", pick: form(ifForm(zero, vars))},
-		choiceOption{key: "o", label: "switch", pick: form(switchForm(zero))},
-		choiceOption{key: "l", label: "repeat", pick: form(repeatForm(zero))},
-		choiceOption{key: "e", label: "for each line", pick: form(eachForm(zero))},
-		choiceOption{key: "w", label: "wait", pick: form(waitForm(zero))},
-		choiceOption{key: "p", label: "prompt", pick: form(promptForm(zero))},
-		choiceOption{key: "v", label: "set", pick: form(setForm(zero))},
-		choiceOption{key: "u", label: "unset", pick: form(unsetForm(zero))},
-	)
+	var picker *stepPicker
+	kinds := []finderItem{
+		{label: "script", kind: "a saved script", open: func() { picker.show("script for the step", p.app.scriptStepItems(scriptStep)) }},
+		{label: "function call", kind: "a function, with values", open: func() { picker.show("function to call", p.app.functionItems(call)) }},
+		{label: "AI agent", kind: "asks an agent", open: agentForm},
+		{label: "command", kind: "a shell line", open: form(commandForm(zero))},
+		{label: "if", kind: "a branch on a condition", open: form(ifForm(zero, vars))},
+		{label: "switch", kind: "a branch on a value", open: form(switchForm(zero))},
+		{label: "repeat", kind: "steps again", open: form(repeatForm(zero))},
+		{label: "for each line", kind: "steps per item", open: form(eachForm(zero))},
+		{label: "wait", kind: "a pause", open: form(waitForm(zero))},
+		{label: "prompt", kind: "asks you", open: form(promptForm(zero))},
+		{label: "set", kind: "gives variables values", open: form(setForm(zero))},
+		{label: "unset", kind: "clears variables", open: form(unsetForm(zero))},
+	}
+	picker = newStepPicker(&p.app.palette, kinds, p.app.lastStepAdded, func(path []string) { p.app.lastStepAdded = path })
+	p.openEditor(picker)
 }
 
 // editStep changes the step at path in its form, or as YAML in the editor for a script without

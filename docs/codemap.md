@@ -111,6 +111,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/flow_step_form.go` | A step's form in the inspect: its rows, checking them, adding or saving the step, the variables beside it; opening the params table, adding and editing steps from the inspect |
 | `internal/app/flow_setting_forms.go` | The forms for a block's exports, a step's retry and a function's returns, opened from the inspect like a step's form |
 | `internal/app/flow_step_kinds.go` | What each kind of step's form asks (command, if, switch, repeat, for each, wait, prompt, set, unset, call, agent) and how its answers become the step, keeping what it does not ask |
+| `internal/app/flow_step_picker.go` | The step picker: what `a` adds, filtered and picked in a box over the chart, a script or a function next in it, `Tab` adding the last again |
 | `internal/app/flowchart_live.go` | A flow's run on its chart as it goes: the dots going down the arrow out of the step running, and the frames that move them |
 | `internal/app/flow_history.go` | Undo and redo of the inspect's changes to a flow: its file before each change, kept while noct runs |
 | `internal/app/flows.go` | Flow actions: create, run and test steps (as tracked runs), add, edit in the editor, move and remove steps, what a step does and its kept output |
