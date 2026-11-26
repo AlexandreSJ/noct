@@ -116,8 +116,8 @@ var keyContexts = []keyContext{
 		{"down", "next flow, or the step below", []string{"down", "j"}},
 		{"start", "the flow's start, in the chart", []string{"g"}},
 		{"end", "the flow's last step, in the chart", []string{"G", "shift+g"}},
-		{"first", "the first flow", []string{"home"}},
-		{"last", "the last flow", []string{"end"}},
+		{"first", "the first flow, or the flow's start in the chart", []string{"home"}},
+		{"last", "the last flow, or the flow's last step in the chart", []string{"end"}},
 		{"page-up", "a page up of flows", []string{"pgup"}},
 		{"page-down", "a page down of flows", []string{"pgdown"}},
 

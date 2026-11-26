@@ -436,9 +436,9 @@ func (p *inspectPanel) chartViewKey(name string) bool {
 		p.moveSelection(-1)
 	case "down", "j":
 		p.moveSelection(1)
-	case "g":
+	case "g", "home":
 		p.selectStart()
-	case "G", "shift+g":
+	case "G", "shift+g", "end":
 		p.selectLast()
 	case "left", "h":
 		p.moveAcross(-1)

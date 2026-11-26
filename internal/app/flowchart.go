@@ -145,13 +145,18 @@ type chartStyle struct {
 	paramLines []string
 }
 
-const startLabel = "● start"
+// The pills where a flow starts and ends: symmetric, so they sit centered on the line through
+// the chart.
+const (
+	startLabel = "‹ start ›"
+	endLabel   = "‹ end ›"
+)
 
 func buildChart(f flow.Flow, style chartStyle) *flowChart {
 	style.paramLines = append(paramLines(f), returnLines(f)...)
 	body := style.sequence(f.Steps, chartSlot{})
 	start := &chartNode{kind: pillNode, label: startLabel}
-	end := &chartNode{kind: pillNode, label: "◉ end"}
+	end := &chartNode{kind: pillNode, label: endLabel}
 	for _, pill := range []*chartNode{start, end} {
 		pill.w, pill.h = ansi.StringWidth(pill.label), 1
 		pill.center = pill.w / 2

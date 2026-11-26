@@ -15,7 +15,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 - `Space` on **Flows → tell when runs end** in the config sends a test notification, the way a
   run's end is told.
-- `g` in a flow's chart in the inspect selects its start and `G` its last step, as in a log.
+- `g` or `Home` in a flow's chart in the inspect selects its start, and `G` or `End` its last
+  step, as in a log.
 - `v` in a flow's chart in the inspect hides the details under it, giving their rows to the
   chart, and shows them again.
 - A flow's `prompt` can be `secret: true`: each character typed shows as `•`, the answer stays
@@ -67,6 +68,8 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Changed
 
+- A flow's chart starts at `‹ start ›` and ends at `‹ end ›`, centered on its line, in place of
+  `● start` and `◉ end`.
 - The hints under a flow's chart show only the main keys; `?` lists all of them.
 - A flow's `prompt` is shown as written, without a `:` after it (`login:` no longer shows
   `login::`); what an empty answer keeps shows beside the step's name.
