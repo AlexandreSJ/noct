@@ -563,8 +563,8 @@ func render(pieces []piece, kind textKind, scope expr.Scope) (string, error) {
 // quotes, the text of a shell's quoted string inside them, a number in $(( )), a heredoc's text
 // in its body, JSON in a JSON text.
 func (p piece) escape(value any, kind textKind) (string, error) {
-	if p.arithmetic {
-		if err := safeInArithmetic(value); err != nil {
+	if kind == shellText {
+		if err := safeInShell(value, p.arithmetic); err != nil {
 			return "", err
 		}
 	}
@@ -592,12 +592,15 @@ func (p piece) escape(value any, kind textKind) (string, error) {
 // of -eq and the like, an array's [ ], also in arr=([k]=v), $[ ], and the words of let,
 // declare -i and zsh's integer.
 var (
-	arithmeticBefore = regexp.MustCompile(`-(?:eq|ne|lt|le|gt|ge)\s+["']?$|[A-Za-z_]\w*\[[^\]\s]*$|(?:^|[(\s])\[[^\]\s]*$|\$\[[^\]]*$|(?:^|[;&|({\n]|\b(?:then|do|else)\b)\s*(?:let|integer|(?:declare|typeset|local|export|readonly)\s+(?:-\w+\s+)*-[A-Za-z]*i[A-Za-z]*)\s[^;&|\n]*$`)
-	arithmeticAfter  = regexp.MustCompile(`^["']?\s+-(?:eq|ne|lt|le|gt|ge)\b`)
+	arithmeticBefore = regexp.MustCompile(`-(?:eq|ne|lt|le|gt|ge)\s+[^\s;&|]*$|[A-Za-z_]\w*\[[^\]\s]*$|(?:^|[(\s])\[[^\]\s]*$|\$\[[^\]]*$|(?:^|[;&|({\n]|\b(?:then|do|else)\b)\s*(?:let|integer|(?:declare|typeset|local|export|readonly)\s+(?:-\w+\s+)*-[A-Za-z]*i[A-Za-z]*)\s[^;&|\n]*$`)
+	arithmeticAfter  = regexp.MustCompile(`^[^\s;&|]*\s+-(?:eq|ne|lt|le|gt|ge)\b`)
 	// declaredIntegers finds the names declare -i and integer make, whose later name=$x is
 	// arithmetic; assignedName is the name=, or +=, a reference follows.
 	declaredIntegers = regexp.MustCompile(`\b(?:integer|(?:declare|typeset|local|export|readonly)\s+(?:-\w+\s+)*-[A-Za-z]*i[A-Za-z]*(?:\s+-\w+)*)((?:\s+[A-Za-z_]\w*(?:=[^\s;&|]*)?)+)`)
-	assignedName     = regexp.MustCompile(`\b([A-Za-z_]\w*)\+?=["']?$`)
+	assignedName     = regexp.MustCompile(`\b([A-Za-z_]\w*)\+?=[^\s;&|]*$`)
+	// subscriptCommand is a text shaped as a[$(cmd)], which the shell runs where it reads a name,
+	// as [[ -v ]] and printf -v do, besides arithmetic.
+	subscriptCommand = regexp.MustCompile("\\[[^\\]]*(?:\\$\\(|`)")
 )
 
 // shellIntegers are the names a run line declares as integers.
@@ -618,13 +621,18 @@ func (s *splitter) integerAssigned() bool {
 	return m != nil && s.integers[m[1]]
 }
 
-// safeInArithmetic refuses a value the shell would run a command of where it reads arithmetic: a
-// number goes in, and a text without $ or `, as an array's key.
-func safeInArithmetic(value any) error {
+// safeInShell refuses a value the shell would run a command of: one shaped as a[$(cmd)] anywhere
+// in a run line, and where it reads arithmetic, any with $ or `. A number always goes in, and a
+// text without them, as an array's key.
+func safeInShell(value any, arithmetic bool) error {
 	if _, ok := expr.Number(value); ok {
 		return nil
 	}
-	if text := expr.String(value); strings.ContainsAny(text, "$`") {
+	text := expr.String(value)
+	switch {
+	case subscriptCommand.MatchString(text):
+		return fmt.Errorf("%q holds a [$( )] or [`], which the shell runs where it reads a name or arithmetic", text)
+	case arithmetic && strings.ContainsAny(text, "$`"):
 		return fmt.Errorf("%q is where the shell reads arithmetic (-eq, let, an array's [ ]), which runs what its $ or ` hold", text)
 	}
 	return nil

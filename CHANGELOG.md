@@ -92,7 +92,8 @@ the shortcut is `Alt` by default. How to write an entry is in
   `'...'`, `$(( ))` or a heredoc, and one word again inside a `$( )`, so a value never runs as a
   command. A value between backticks is refused: write `$( )` there. Where the shell reads a word
   as arithmetic, a value must be a number in `(( ))`, and in `-eq`, `let`, `declare -i`, an
-  array's `[ ]` and the shell's `${ }` it may not hold a `$` or a backtick unless it is one. Typing a name in a step
+  array's `[ ]` and the shell's `${ }` it may not hold a `$` or a backtick unless it is one. A
+  value shaped as `a[$(cmd)]` is refused anywhere in a run line. Typing a name in a step
   form completes the variables and the functions.
 - Flow variables can be a `list` or an `object`: JSON that holds lists and objects at any depth.
   Steps read inside them, as `hosts[0]` and `cfg.db.port`, and `$hosts` alone writes the JSON

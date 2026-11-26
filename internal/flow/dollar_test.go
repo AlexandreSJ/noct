@@ -151,17 +151,17 @@ func TestAValueInACommandSubstitutionStaysOneWord(t *testing.T) {
 // not: a number goes in, and so does a text without $ or `, as an array's key; any other is
 // refused. In (( )), as in $(( )), only a number.
 func TestAValueTheShellReadsAsArithmeticRunsNothing(t *testing.T) {
-	known := knownNames{vars: map[string]bool{"n": true, "k": true, "bad": true}}
-	vars := map[string]string{"n": "5", "k": "name", "bad": "a[$(touch PWNED)]"}
+	known := knownNames{vars: map[string]bool{"n": true, "k": true, "cmd": true, "bad": true}}
+	vars := map[string]string{"n": "5", "k": "name", "cmd": "$(touch PWNED)", "bad": "a[$(touch PWNED)]"}
 	for text, want := range map[string]string{
 		`[[ $n -gt 3 ]]`:                     `[[ '5' -gt 3 ]]`,
 		`(( $n > 1 ))`:                       `(( 5 > 1 ))`,
 		`for ((i=0; i<$n; i++)); do :; done`: `for ((i=0; i<5; i++)); do :; done`,
 		`echo ${arr[$k]}`:                    `echo ${arr['name']}`,
 		`let c=$n+1`:                         `let c='5'+1`,
-		`[[ $bad == x ]]`:                    `[[ 'a[$(touch PWNED)]' == x ]]`,
+		`[[ $cmd == x ]]`:                    `[[ '$(touch PWNED)' == x ]]`,
 		`echo ${x:-$k} ${s:$n}`:              `echo ${x:-'name'} ${s:'5'}`,
-		`declare -i c; d=$bad`:               `declare -i c; d='a[$(touch PWNED)]'`,
+		`declare -i c; d=$cmd`:               `declare -i c; d='$(touch PWNED)'`,
 	} {
 		got, err := renderText(text, shellText, known, vars, nil, nil)
 		if err != nil || got != want {
@@ -169,10 +169,13 @@ func TestAValueTheShellReadsAsArithmeticRunsNothing(t *testing.T) {
 		}
 	}
 	for _, text := range []string{
-		`[[ $bad -eq 1 ]]`, `[[ "$bad" -lt 1 ]]`, `[ 1 -ne $bad ]`, `(( $k > 1 ))`, `let c=$bad`,
-		`declare -i c=$bad`, `local -ri c=${bad}`, `echo ${arr[$bad]}`, `arr[$bad]=1`,
-		`echo ${s:$bad}`, `echo "${s:1:$bad}"`, `arr=([$bad]=1)`, `echo $[$bad + 1]`,
-		`integer c=$bad`, `declare -i c; c=$bad`, `typeset -i c=1; c+=$bad`, `echo ${x:-$bad}`,
+		`[[ $cmd -eq 1 ]]`, `[[ "$cmd" -lt 1 ]]`, `[ 1 -ne $cmd ]`, `(( $k > 1 ))`, `let c=$cmd`,
+		`declare -i c=$cmd`, `local -ri c=${cmd}`, `echo ${arr[$cmd]}`, `arr[$cmd]=1`,
+		`echo ${s:$cmd}`, `echo "${s:1:$cmd}"`, `arr=([$cmd]=1)`, `echo $[$cmd + 1]`,
+		`integer c=$cmd`, `declare -i c; c=$cmd`, `typeset -i c=1; c+=$cmd`, `echo ${x:-$cmd}`,
+		`[[ 1 -eq 0$cmd ]]`, `[[ x$cmd -eq 1 ]]`, `declare -i c; c=1$cmd`,
+		// a[$( )] runs where the shell reads a name too, so it is refused anywhere
+		`[[ -v $bad ]]`, `printf -v $bad x`, `echo "$bad"`, `echo '$bad'`, `echo $bad`,
 	} {
 		if got, err := renderText(text, shellText, known, vars, nil, nil); err == nil {
 			t.Errorf("%q rendered %q, want it refused", text, got)
