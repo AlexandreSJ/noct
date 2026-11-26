@@ -161,7 +161,7 @@ the shortcut is `Alt` by default. How to write an entry is in
   items too. `+ add variable`, the last row, adds a variable;
   `J`/`K` move one, `Ctrl+Delete` removes it and `Ctrl+Z`/`Ctrl+Y` undo and redo. The table is
   saved as it changes; a cell that keeps its row from being saved turns red and says why. What a
-  click would work lights under the mouse, as a list's rows do. `v`
+  click would work lights under the mouse, as a list's rows do. `i`
   hides the help beside it, and `esc` closes it.
 - Variables keep the order they are written in, in the run form and the variables card too.
 - Adding a step (`a`) or changing one (`e`) in the inspect fills one form in place of the chart
