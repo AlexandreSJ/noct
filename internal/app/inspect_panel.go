@@ -252,6 +252,28 @@ func (p *inspectPanel) closeDone(editor inspectEditor) {
 	}
 }
 
+// panelKey runs the keys of the whole panel, list and chart alike, and tells whether name was
+// one; hasFlow tells a flow is selected.
+func (p *inspectPanel) panelKey(name string, hasFlow bool) bool {
+	switch name {
+	case "ctrl+d":
+		p.close()
+	case "tab", "shift+tab":
+		p.listHidden = !p.listHidden && hasFlow
+		p.focusChart = p.listHidden
+	case "?":
+		p.app.showContextKeys("flows", "inspect keys",
+			"enter or space opens a folder of the list; h closes it, or goes up to the folder it is in",
+			"m on a flow or folder asks where it goes: a / puts it in folders, none takes it out; dragging a flow onto a folder moves it there",
+			"click selects a block; a double click tells about it",
+			"alt+drag (or ctrl+drag) carries a card: the dashed outline is where it lands",
+			"drag pans the chart; the wheel scrolls it, or the details under it")
+	default:
+		return false
+	}
+	return true
+}
+
 func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
 	if p.editor != nil {
 		p.editorKey(key)
@@ -262,21 +284,7 @@ func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
 	}
 	name := key.String()
 	f, _, ok := p.current()
-	switch name {
-	case "ctrl+d":
-		p.close()
-		return
-	case "tab", "shift+tab":
-		p.listHidden = !p.listHidden && ok
-		p.focusChart = p.listHidden
-		return
-	case "?":
-		p.app.showContextKeys("flows", "inspect keys",
-			"enter or space opens a folder of the list; h closes it, or goes up to the folder it is in",
-			"m on a flow or folder asks where it goes: a / puts it in folders, none takes it out; dragging a flow onto a folder moves it there",
-			"click selects a block; a double click tells about it",
-			"alt+drag (or ctrl+drag) carries a card: the dashed outline is where it lands",
-			"drag pans the chart; the wheel scrolls it, or the details under it")
+	if p.panelKey(name, ok) {
 		return
 	}
 	if row, _, selected := p.selectedRow(); selected && row.entry == nil && !p.focusChart {
@@ -287,15 +295,27 @@ func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
 		p.listKey(name, f)
 		return
 	}
+	switch {
+	case p.flowKey(name, f):
+	case p.focusChart:
+		p.chartKey(name, f)
+	default:
+		p.listKey(name, f)
+	}
+}
+
+// flowKey runs the keys that act on the selected flow, the list's and the chart's alike, and
+// tells whether name was one.
+func (p *inspectPanel) flowKey(name string, f flow.Flow) bool {
 	if f.Function && slices.Contains([]string{"r", "p", "T", "shift+t"}, name) && !(name == "r" && p.paramsSelected()) {
 		p.app.notice = "function " + f.Name + " runs when a flow calls it; a call step in a flow does"
-		return
+		return true
 	}
 	switch name {
 	case "r":
 		if p.paramsSelected() && f.Function {
 			p.editReturns(f)
-			return
+			return true
 		}
 		p.app.runFlow(f)
 	case "p":
@@ -307,12 +327,9 @@ func (p *inspectPanel) SendKey(key uv.KeyPressEvent) {
 	case "P", "shift+p":
 		p.app.promoteFlow(f)
 	default:
-		if p.focusChart {
-			p.chartKey(name, f)
-		} else {
-			p.listKey(name, f)
-		}
+		return false
 	}
+	return true
 }
 
 // toggleTriggers turns the flow's triggers on or off on this machine.
@@ -406,23 +423,12 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 	case "v":
 		p.hideDetails = !p.hideDetails
 	case "enter", "space", "e":
-		switch {
-		case selected && block.params:
-			p.openParams(f)
-		case name == "e":
-			if selected && !block.isInsertion() {
-				p.stepKey(name, f, block.path)
-			}
-		case selected && !block.isInsertion():
-			p.app.aboutStep(f, block.path, p.result(f))
+		if selected {
+			p.openBlock(name, f, block)
 		}
 	case "a":
-		switch {
-		case selected && block.params:
-			p.openParams(f)
-			p.editor.(*paramsTable).addParam()
-		case selected:
-			p.addStep(f, block)
+		if selected {
+			p.addToBlock(f, block)
 		}
 	default:
 		if p.chartViewKey(name) {
@@ -432,6 +438,30 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 			p.stepKey(name, f, block.path)
 		}
 	}
+}
+
+// openBlock opens the selected block: the variables' table, a step's form with e, or what a step
+// did.
+func (p *inspectPanel) openBlock(name string, f flow.Flow, block chartBlock) {
+	switch {
+	case block.params:
+		p.openParams(f)
+	case block.isInsertion():
+	case name == "e":
+		p.stepKey(name, f, block.path)
+	default:
+		p.app.aboutStep(f, block.path, p.result(f))
+	}
+}
+
+// addToBlock adds a variable on the variables card, and a step anywhere else.
+func (p *inspectPanel) addToBlock(f flow.Flow, block chartBlock) {
+	if block.params {
+		p.openParams(f)
+		p.editor.(*paramsTable).addParam()
+		return
+	}
+	p.addStep(f, block)
 }
 
 // escapeChart drops the range anchor first, and leaves the chart when there is none.
