@@ -356,10 +356,10 @@ func (s chartStyle) boxText(step flow.Step) []string {
 		lines = append(lines, step.Call)
 		lines = append(lines, withText(step.With)...)
 	case flow.IfStep:
-		lines = append(lines, strings.TrimSpace(step.If))
+		lines = append(lines, strings.Join(strings.Fields(step.If), " "))
 		lines = append(lines, exportText(step.Export)...)
 	case flow.SwitchStep:
-		lines = append(lines, strings.TrimSpace(step.Switch))
+		lines = append(lines, strings.Join(strings.Fields(step.Switch), " "))
 		lines = append(lines, exportText(step.Export)...)
 	case flow.WaitStep:
 		lines = append(lines, step.Wait)
@@ -376,7 +376,20 @@ func (s chartStyle) boxText(step flow.Step) []string {
 	if step.Retry != nil {
 		lines = append(lines, retryText(step.Retry))
 	}
+	for i, line := range lines {
+		lines[i] = cardLine(line)
+	}
 	return lines[:min(len(lines), boxLines[s.zoom])]
+}
+
+// cardLine is a text of several lines as a card's line shows it: its first, and [...] for the
+// rest.
+func cardLine(text string) string {
+	first, rest, more := strings.Cut(strings.TrimSpace(text), "\n")
+	if !more || strings.TrimSpace(rest) == "" {
+		return first
+	}
+	return strings.TrimRight(first, " ") + " [...]"
 }
 
 // exportText tells what a block keeps for the steps after it.
@@ -685,7 +698,7 @@ func paramLines(f flow.Flow) []string {
 			lines = append(lines, fmt.Sprintf("… %d more", len(names)-i))
 			break
 		}
-		lines = append(lines, name+"  "+paramText(f.Params[name]))
+		lines = append(lines, cardLine(name+"  "+paramText(f.Params[name])))
 	}
 	return lines
 }
