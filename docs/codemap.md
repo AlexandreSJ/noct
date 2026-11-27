@@ -65,7 +65,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/updates_test.go` | Tests of the updates popup, the tab bar's version, installing, restarting and the read-only case |
 | `internal/app/client.go` | Daemon side of an attached terminal: decoding its keys, drawing to it (synchronized updates only when the terminal has mode 2026), greeting connections |
 | `internal/app/scroll.go` | Scroll mode through a terminal's history: vim's keys and the arrows, shared with the logs preview; any other key leaves |
-| `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), the folder a new terminal opens in (`terminalDir`), tabs and panes: open panels and tabs, focus, stacking, move across tabs, close, detach (in any session) |
+| `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), the folder a new terminal opens in (`terminalDir`), tabs and panes: open panels and tabs (a new tab after the current one), move a tab along the bar, focus, stacking, move across tabs, close, detach (in any session) |
 | `internal/app/view.go` | The `view` interface a pane shows: a terminal or a noct panel |
 | `internal/app/scripts_panel.go` | Scripts panel: list with versions, details and notes (with their images), its filter, keys to run, edit, create, delete |
 | `internal/app/scripts.go` | Script actions: reload the library, run (form or not) as a tracked run with its log and exit code, create, edit in the configured editor, rename, delete |
@@ -76,7 +76,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/help.go` | Help for the focused terminal's foreground program (prefix+?) |
 | `internal/app/home.go` | Home screen (no tabs or an empty tab): title, raven, intro and when it plays (animate intro), per-character flicker on hover, shortcuts reveal and timer |
 | `internal/app/raven2.ascii` | The raven logo embedded in the binary |
-| `internal/app/keys.go` | Key routing by mode, command and move modes, the shortcuts table and popup |
+| `internal/app/keys.go` | Key routing by mode, command, move and move-tab modes, the shortcuts table and popup |
 | `internal/app/lock.go` | The lock (prefix+b): which commands it holds back and the hint on how to unlock |
 | `internal/app/prompt.go` | Text prompt (tab and panel rename, new folder) and yes/no confirmation (quit, delete) |
 | `internal/app/choice.go` | A choice of a few options (new directory or script) |

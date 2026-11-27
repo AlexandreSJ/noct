@@ -49,11 +49,11 @@ func TestACommandBindAsksItsValuesAndClosesWhenItEndsWell(t *testing.T) {
 func TestAPrefixBindRunsAfterThePrefix(t *testing.T) {
 	a := testApp(t, newTab(1, &fakeView{}))
 	a.config.CustomBinds = []config.CustomBind{
-		{Key: "prefix m", Name: "hello", Command: "printf hello"},
+		{Key: "prefix z", Name: "hello", Command: "printf hello"},
 		{Key: "prefix x", Name: "taken", Command: "printf no"},
 	}
 	l := recordLaunches(a)
-	press(a, prefixPress, letter('m'))
+	press(a, prefixPress, letter('z'))
 	if run := l.last(t); run.argv[2] != "printf hello" {
 		t.Fatalf("ran %q", run.argv)
 	}

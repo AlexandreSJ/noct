@@ -188,9 +188,22 @@ func (a *App) startScripts(id layout.PaneID, _ image.Rectangle) (view, error) {
 	return &scriptsPanel{app: a, close: func() { a.detachView(id) }}, nil
 }
 
+// openEmptyTab opens a tab right after the current one.
 func (a *App) openEmptyTab() {
-	a.session.tabs = append(a.session.tabs, newEmptyTab())
-	a.session.activeTab = len(a.session.tabs) - 1
+	at := min(a.session.activeTab+1, len(a.session.tabs))
+	a.session.tabs = slices.Insert(a.session.tabs, at, newEmptyTab())
+	a.session.activeTab = at
+}
+
+// moveTab moves the current tab step places along the tab bar, stopping at its ends.
+func (a *App) moveTab(step int) {
+	from := a.session.activeTab
+	to := from + step
+	if from < 0 || from >= len(a.session.tabs) || to < 0 || to >= len(a.session.tabs) {
+		return
+	}
+	a.session.tabs[from], a.session.tabs[to] = a.session.tabs[to], a.session.tabs[from]
+	a.session.activeTab = to
 }
 
 func (a *App) selectTab(index int) {

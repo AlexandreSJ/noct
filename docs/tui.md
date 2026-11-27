@@ -70,7 +70,7 @@ No modo noct:
 | `←↑↓→` / `hjkl` | focus | Painel ao lado; em `←`/`→`, passa da borda para a tab anterior/seguinte | continua | 0 |
 | `Tab` / `Shift+Tab` | tab: change | Próxima tab / tab anterior (circular) | continua | 0 |
 | `1`–`9` | go to tab | Ir para a tab N | continua | 0 |
-| `t` | new tab | Nova tab com o painel escolhido no config (terminal por padrão; ou vazia, ADR-039) | termina | 0 |
+| `t` | new tab | Nova tab logo depois da atual, com o painel escolhido no config (terminal por padrão; ou vazia, ADR-039) | termina | 0 |
 | `T` | open a template | Lista dos templates com a miniatura do layout: `Enter` abre como tab nova, `e` edita o arquivo, `r` renomeia, `d` apaga (ADR-052) | popup | 5 |
 | `R` | save the tab as a template | Grava a tab como template: nome, e em cada terminal com comando `< ask >` (`run`, `ask`, `none`); um nome que existe pergunta antes | popup | 5 |
 | `p` | new panel | Painel de terminal: divide o painel com foco; na home, abre uma tab | termina | 0 |
@@ -78,6 +78,7 @@ No modo noct:
 | `i` | inspect flows | Inspect: fluxos e o fluxograma, do mesmo jeito que `p` | termina | 2 |
 | `v` | logs and calendar | Logs por dia com o calendário, do mesmo jeito que `p` | termina | 2 |
 | `a` | move | Modo mover: setas ou `hjkl` movem o painel; `Esc` ou `Enter` terminam | modo mover | 0 |
+| `m` | move tab | Modo mover tab: `←`/`→` ou `h`/`l` levam a tab uma casa na barra, parando nas pontas; `Esc` ou `Enter` terminam | modo mover tab | 0 |
 | `n` | resize | Modo resize: setas aumentam ou diminuem o painel | modo resize | 1 |
 | `w` | stacked or split | Empilhar o painel com foco e os de baixo na coluna, ou dividir a pilha de novo | termina | 2 |
 | `f` | fullscreen | Mostrar só o painel com foco, ou o layout de novo | termina | 1 |

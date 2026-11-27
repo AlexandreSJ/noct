@@ -74,7 +74,7 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 |---|---|
 | Setas ou `hjkl` | Mover entre painéis; passando da borda, para a tab seguinte ou anterior |
 | `Tab` / `Shift+Tab` | Trocar de tab |
-| `t` | Nova tab, com terminal ou o painel escolhido no config |
+| `t` | Nova tab logo depois da atual, com terminal ou o painel escolhido no config |
 | `p` | Novo painel de terminal: divide o painel atual, ou abre uma tab na home |
 | `s` | Novo scripts panel: seus scripts, para rodar, editar e criar |
 | `i` | Inspect: seus fluxos como fluxogramas, para montar passo a passo, rodar e revisar |
@@ -84,6 +84,7 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `o` | Sessões: abrir, criar, renomear, fechar e apagar, e `f` filtra pelo nome |
 | `y` | MCP: aprovar o que uma IA pede para rodar e adicionar o noct a um cliente de IA |
 | `a` | Mover o painel com as setas, inclusive para outra tab |
+| `m` | Mover a tab na barra de tabs com `←`/`→` ou `h`/`l`; `Enter` ou `Esc` terminam |
 | `n` | Redimensionar o painel com as setas |
 | `w` | Empilhar os painéis do grupo com foco, como no zellij: o painel com foco ocupa a altura e os outros viram uma linha de título cada; de novo para dividir |
 | `f` | Fullscreen: mostrar só o painel com foco, ou o layout de novo |

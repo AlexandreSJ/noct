@@ -49,6 +49,7 @@ var keyContexts = []keyContext{
 		{"sessions", "sessions", []string{"o"}},
 		{"program-help", "program help", []string{"?"}},
 		{"move", "move", []string{"a"}},
+		{"move-tab", "move the tab", []string{"m"}},
 		{"resize", "resize", []string{"n"}},
 		{"stack", "stacked or split", []string{"w"}},
 		{"fullscreen", "fullscreen", []string{"f"}},
@@ -69,6 +70,11 @@ var keyContexts = []keyContext{
 		{"down", "move down", []string{"down", "j"}},
 		{"up", "move up", []string{"up", "k"}},
 		{"right", "move right", []string{"right", "l"}},
+		{"done", "done", []string{"enter"}},
+	}},
+	{id: "move-tab", label: "move tab", actions: []keyAction{
+		{"left", "move the tab left", []string{"left", "h"}},
+		{"right", "move the tab right", []string{"right", "l"}},
 		{"done", "done", []string{"enter"}},
 	}},
 	{id: "resize", label: "resize", actions: []keyAction{
@@ -522,7 +528,7 @@ func parseKeyMods(parts []string) (uv.KeyMod, bool) {
 
 // modeKeyContexts are the contexts of noct's modes; normal mode's is the focused panel's.
 var modeKeyContexts = map[mode]string{
-	commandMode: "commands", moveMode: "move", resizeMode: "resize", scrollMode: "scroll",
+	commandMode: "commands", moveMode: "move", tabMoveMode: "move-tab", resizeMode: "resize", scrollMode: "scroll",
 	confirmMode: "confirm", infoMode: "info", choiceMode: "choice", finderMode: "search",
 	promptMode: "prompt", formMode: "form", scriptFormMode: "script-form", configMode: "config",
 	mcpMode: "mcp", sessionsMode: "sessions", updatesMode: "updates",

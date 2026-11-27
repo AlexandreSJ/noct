@@ -58,6 +58,8 @@ func (a *App) drawModeOverlay(screen uv.Screen) {
 		a.drawShortcutsPopup(screen, "commands", "commands", commandShortcuts, a.shortcutNote())
 	case moveMode:
 		a.drawShortcutsPopup(screen, "move", "move", moveShortcuts, "")
+	case tabMoveMode:
+		a.drawShortcutsPopup(screen, "move tab", "move-tab", tabMoveShortcuts, "")
 	case resizeMode:
 		a.drawShortcutsPopup(screen, "resize", "resize", resizeShortcuts, "")
 	case choiceMode:

@@ -172,7 +172,7 @@ func TestTabAndShiftTabChangeTabs(t *testing.T) {
 
 func TestUnknownKeyInCommandModeIsIgnored(t *testing.T) {
 	a := testApp(t, sideBySideTab(1, 2))
-	press(a, prefixPress, letter('m'))
+	press(a, prefixPress, letter('z'))
 	if a.mode != commandMode {
 		t.Error("an unknown key left command mode")
 	}

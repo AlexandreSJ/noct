@@ -36,6 +36,7 @@ const (
 	templatesMode                // the templates, to open one as a new tab
 	setupMode                    // noct setup: keys, themes, animations, demo, AI clients, binds
 	agentsMode                   // the config's default agent: the agents and their models
+	tabMoveMode                  // arrows move the tab along the tab bar
 )
 
 // shortcut is one command as listed in the popups and on the home screen.
@@ -61,6 +62,7 @@ var commandShortcuts = []shortcut{
 	{"o", "sessions", false},
 	{"?", "program help", true},
 	{"a", "move", true},
+	{"m", "move tab", true},
 	{"n", "resize", true},
 	{"w", "stacked or split", true},
 	{"f", "fullscreen", true},
@@ -82,6 +84,11 @@ var commandShortcuts = []shortcut{
 
 var moveShortcuts = []shortcut{
 	{"←↓↑→ hjkl", "move pane", true},
+	{"esc", "done", true},
+}
+
+var tabMoveShortcuts = []shortcut{
+	{"← → h l", "move tab", true},
 	{"esc", "done", true},
 }
 
@@ -129,6 +136,8 @@ func (a *App) dispatchModeKey(key uv.KeyPressEvent) {
 		a.handleCommandKey(key)
 	case moveMode:
 		a.handleMoveKey(key)
+	case tabMoveMode:
+		a.handleTabMoveKey(key)
 	case promptMode:
 		a.handlePromptKey(key)
 	case configMode:
@@ -264,6 +273,11 @@ func (a *App) runAction(name string) {
 	switch name {
 	case "t":
 		a.openNewTab()
+	case "m":
+		if a.currentTab() != nil {
+			a.mode = tabMoveMode
+			return
+		}
 	case "u":
 		a.openFloating()
 	case "d":
@@ -360,6 +374,17 @@ func (a *App) handleMoveKey(key uv.KeyPressEvent) {
 		return
 	}
 	if name == "esc" || name == "enter" || a.prefix.matches(key) {
+		a.mode = normalMode
+	}
+}
+
+// handleTabMoveKey moves the tab a place left or right with each arrow, until esc or enter.
+func (a *App) handleTabMoveKey(key uv.KeyPressEvent) {
+	name := key.String()
+	switch heading, ok := arrowHeadings[name]; {
+	case ok && (heading == layout.Left || heading == layout.Right):
+		a.moveTab(tabStep(heading))
+	case name == "esc" || name == "enter" || a.prefix.matches(key):
 		a.mode = normalMode
 	}
 }

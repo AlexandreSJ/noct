@@ -54,10 +54,10 @@ func TestACustomBindAfterThePrefix(t *testing.T) {
 	if c := a.configPanel.bindCapture; c.custom == nil || c.problem == "" {
 		t.Fatalf("prefix x was taken: %+v", c)
 	}
-	press(a, letter('m'), letter('f'))
+	press(a, letter('z'), letter('f'))
 	typeText(a, "demo-deploy")
 	press(a, enterPress, enterPress)
-	want := []config.CustomBind{{Key: "prefix m", Name: "demo-deploy", Flow: "demo-deploy"}}
+	want := []config.CustomBind{{Key: "prefix z", Name: "demo-deploy", Flow: "demo-deploy"}}
 	if !slices.Equal(a.config.CustomBinds, want) {
 		t.Errorf("binds %+v, want %+v", a.config.CustomBinds, want)
 	}

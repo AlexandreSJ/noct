@@ -74,7 +74,7 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 |---|---|
 | Arrows or `hjkl` | Move between panes; past the edge, into the next or previous tab |
 | `Tab` / `Shift+Tab` | Change tab |
-| `t` | New tab, with a terminal or the panel chosen in the config |
+| `t` | New tab right after the current one, with a terminal or the panel chosen in the config |
 | `p` | New terminal panel: splits the current pane, or opens a tab on the home screen |
 | `s` | New scripts panel: your saved scripts, to run, edit and create |
 | `i` | Inspect: your flows as flowcharts, to build step by step, run and review |
@@ -84,6 +84,7 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `o` | Sessions: open, create, rename, close and delete them, and `f` filters them by name |
 | `y` | MCP: approve what an AI asks to run, and add noct to an AI client |
 | `a` | Move the pane with the arrows, even into another tab |
+| `m` | Move the tab along the tab bar with `←`/`→` or `h`/`l`; `Enter` or `Esc` ends |
 | `n` | Resize the pane with the arrows |
 | `w` | Stack the panes of the focused group, as in zellij: the focused one takes the height, the others show as a title row each; again to split them |
 | `f` | Fullscreen: show only the focused pane, or the layout again |
