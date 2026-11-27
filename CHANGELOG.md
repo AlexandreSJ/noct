@@ -13,9 +13,10 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ### Added
 
-- `prefix` + `m` moves the tab along the tab bar: `←`/`→` or `h`/`l` take it a place, and
-  `Enter` or `Esc` ends. A bind of yours on `prefix` + `m` is now refused as a noct command:
-  give it another key in the config.
+- `prefix` + `m` (or `shortcut` + `m`, or **move tab** in the search) moves the tab along the
+  tab bar: `←`/`→` or `h`/`l` take it a place, and `Enter` or `Esc` ends. A bind of yours on
+  `prefix` + `m` is now refused as a noct command: give it another key in the config.
+- The search (`prefix` + `Space`) finds **lock shortcuts** too, which locks them or unlocks them.
 
 ### Changed
 

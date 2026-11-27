@@ -17,8 +17,8 @@ type panelKind struct {
 }
 
 // panelKinds are the panels the keys open, in the order the config offers them for a new tab.
-// A kind added here opens with its key and is one of a new tab's choices; its key also needs a
-// line in commandShortcuts and a place in actionKeys, which a test checks.
+// A kind added here opens with its key and is one of a new tab's choices; its key also needs an
+// action in keyContexts' "commands" and a line in commandShortcuts, which tests check.
 var panelKinds = []panelKind{
 	{config.NewTabTerminal, "p", func(a *App) viewStarter { return a.startTerminal }},
 	{"scripts", "s", func(a *App) viewStarter { return a.startScripts }},

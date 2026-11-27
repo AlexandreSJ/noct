@@ -104,9 +104,6 @@ var arrowHeadings = map[string]layout.Heading{
 	"h": layout.Left, "l": layout.Right, "k": layout.Up, "j": layout.Down,
 }
 
-// actionKeys are the noct mode commands that act, as opposed to moving around.
-var actionKeys = []string{"t", "T", "p", "s", "i", "v", "g", "space", "'", "y", "o", "?", "a", "n", "w", "f", "r", "e", "P", "R", "u", "D", "x", ",", "c", "d", "q"}
-
 var tabNumberKeys = map[string]int{"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}
 
 func (a *App) handleKey(key uv.KeyPressEvent) {
@@ -285,7 +282,9 @@ func (a *App) runAction(name string) {
 			a.detachClient("detached")
 		}
 	default:
-		a.runTabAction(name)
+		if !a.runTabAction(name) {
+			a.statusMessage = "no command for " + name // a command in keyContexts that nothing runs
+		}
 		return
 	}
 	a.mode = normalMode
@@ -294,6 +293,8 @@ func (a *App) runAction(name string) {
 // runModalAction runs the commands that open something with a mode of its own, which they set.
 func (a *App) runModalAction(name string) bool {
 	switch name {
+	case lockKey:
+		a.toggleLock()
 	case ",":
 		a.openConfig()
 	case "c":
@@ -321,19 +322,19 @@ func (a *App) runModalAction(name string) bool {
 	return true
 }
 
-// runTabAction runs the commands that act on the current tab. A tab without panes, opened empty,
-// can only be renamed or closed.
-func (a *App) runTabAction(name string) {
+// runTabAction runs the commands that act on the current tab, and tells whether name is one. A
+// tab without panes, opened empty, can only be renamed or closed; without a tab, none acts.
+func (a *App) runTabAction(name string) bool {
 	t := a.currentTab()
 	if t == nil {
-		return
+		return true
 	}
 	if t.isEmpty() && name != "r" {
 		if name == "x" {
 			a.session.removeTabIfEmpty(t)
 		}
 		a.mode = normalMode
-		return
+		return true
 	}
 	switch name {
 	case "x":
@@ -362,7 +363,10 @@ func (a *App) runTabAction(name string) {
 		a.startPaneRename()
 	case scrollKey:
 		a.startScroll()
+	default:
+		return false
 	}
+	return true
 }
 
 func (a *App) handleMoveKey(key uv.KeyPressEvent) {

@@ -21,6 +21,7 @@
 - `third_party/` holds patched copies of two Charm libraries; change them only as `third_party/README.md` says.
 - Inspect editing happens in the panel (`inspectEditor`), never in a chain of prompts; a new step kind gets its form in `internal/app/flow_step_kinds.go` (ADR-071).
 - Editor hints fit one row (`hintsInOneRow`); what does not fit goes to `?`.
+- A noct command (`prefix` + key) is one action in `keyContexts`' `commands` (`internal/app/keymap.go`): the direct shortcut, the search and the popup click take it from there through `actionKeys`, never a list of their own. It still needs its row in `commandShortcuts` and its case in `runAction`; `TestEveryCommandIsWiredEverywhere` fails until both exist. A command that moves around instead of acting goes in `nonActingCommands`.
 - Inspect editors are `editGrid`s: navigate first, `enter` or a click edits; new editor keys go in the `flow-editor` context, never `alt` (noct's direct shortcut).
 - List a flow's params with `f.ParamNames()`, never by sorting `f.Params`: their order is the user's.
 - Flow conditions (`if`, `until`, `switch`, `each`) are expressions with bare names (`build.ok and not done`); texts read `$name`; `{{ }}` is never a flow template; `<id>.…` only where `flow.Readable` keeps it (ADR-074).

@@ -115,7 +115,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/flowchart_live.go` | A flow's run on its chart as it goes: the dots going down the arrow out of the step running, and the frames that move them |
 | `internal/app/flow_history.go` | Undo and redo of the inspect's changes to a flow: its file before each change, kept while noct runs |
 | `internal/app/flows.go` | Flow actions: create, run and test steps (as tracked runs), add, edit in the editor, move and remove steps, what a step does and its kept output |
-| `internal/app/keymap.go` | Changeable keys: the contexts and their actions (`keyContexts`), the keymap built from the config, turning a pressed key into the default one a handler knows, hints written with the keys as they are |
+| `internal/app/keymap.go` | Changeable keys: the contexts and their actions (`keyContexts`), the commands that act (`actionKeys`, derived from them, and `nonActingCommands`), the keymap built from the config, turning a pressed key into the default one a handler knows, hints written with the keys as they are |
 | `internal/app/binds.go` | The config's binds page: a row per action, taking a key with conflicts, moving keys between actions, reset, ? listing its keys |
 | `internal/app/custom_binds.go` | The user's own binds: which key each takes and why one cannot be used, running a command, a script or a flow on it |
 | `internal/app/custom_binds_page.go` | The custom section of the binds page: adding a bind (key, kind, what it runs, name), editing and removing one |

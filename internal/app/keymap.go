@@ -348,6 +348,31 @@ var keyContexts = []keyContext{
 	}},
 }
 
+// nonActingCommands are the commands of the "commands" context that move around instead of
+// acting: they keep noct mode on, and navigate runs them, never runAction. Every other command
+// acts, and is in the search and on the direct shortcut, but the lock, which the direct shortcut
+// leaves to the program (alt+b is the shell's word back).
+var nonActingCommands = map[string]bool{
+	"focus-left": true, "focus-down": true, "focus-up": true, "focus-right": true,
+	"next-tab": true, "previous-tab": true,
+}
+
+// actionKeys are the default keys of the commands that act, which runAction runs. They come
+// from keyContexts, so a command added there is a command everywhere: after the prefix, with
+// the direct shortcut, in the search and on its popup row (TestEveryCommandIsWiredEverywhere).
+var actionKeys = commandActionKeys()
+
+func commandActionKeys() []string {
+	c, _ := keyContextNamed("commands")
+	var keys []string
+	for _, action := range c.actions {
+		if !nonActingCommands[action.id] {
+			keys = append(keys, action.defaults...)
+		}
+	}
+	return keys
+}
+
 func keyContextNamed(id string) (keyContext, bool) {
 	i := slices.IndexFunc(keyContexts, func(c keyContext) bool { return c.id == id })
 	if i < 0 {
