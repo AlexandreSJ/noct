@@ -17,6 +17,11 @@ the shortcut is `Alt` by default. How to write an entry is in
   tab bar: `←`/`→` or `h`/`l` take it a place, and `Enter` or `Esc` ends. A bind of yours on
   `prefix` + `m` is now refused as a noct command: give it another key in the config.
 - The search (`prefix` + `Space`) finds **lock shortcuts** too, which locks them or unlocks them.
+- A session opened again (after closing it, or `prefix` + `q` and `noct`) brings each noct panel
+  back as it was left. The inspect keeps its filter, the step selected and what `v`, `Tab`, `s`
+  and `i` hid or showed. An editor left open opens again with what was typed and not saved, except
+  a secret's text. The logs keep the day, the log selected and how it was shown, and the scripts
+  panel keeps its filter.
 
 ### Changed
 

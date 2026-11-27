@@ -76,6 +76,9 @@ type logsPanel struct {
 	order    string
 	selected int
 	shown    logsShown
+	// selectedLog is the log of the row selected, and restoreLog the one a restored session
+	// selects once the list is read.
+	selectedLog, restoreLog string
 
 	// preview is the selected log, beside the calendar and the list.
 	preview logPreview
@@ -469,8 +472,15 @@ func (p *logsPanel) current(rows []logRow) (logRow, bool) {
 		p.selected = 0
 		return logRow{}, false
 	}
+	if p.restoreLog != "" {
+		if i := slices.IndexFunc(rows, func(r logRow) bool { return r.entry.Path == p.restoreLog }); i >= 0 {
+			p.selected = i
+		}
+		p.restoreLog = ""
+	}
 	p.selected = min(max(p.selected, 0), len(rows)-1)
 	row := rows[p.selected]
+	p.selectedLog = row.entry.Path
 	if (p.allDays || p.filter != "") && p.focusList {
 		p.day = dateOf(lastWrite(row.entry))
 	}

@@ -41,7 +41,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/pane/sync.go` | Holds back a synchronized-output frame (mode 2026) until it ends, so it never shows half drawn |
 | `internal/pane/images.go` | Writes image placeholder cells at the cursor and moves it as kitty does |
 | `internal/pane/keys.go` | Key encodings the emulator lacks (modified navigation keys) |
-| `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again (a terminal with its command and log), names, what the command line lists |
+| `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again (a terminal with its command and log, a panel with how it was left), names, what the command line lists |
 | `internal/theme/theme.go` | Theme components, colors (hex, terminal indexes, following the background) and the themes noct comes with, each with dark and light colors |
 | `internal/theme/foreign.go` | Themes of other terminals (kitty, Ghostty, base16) read as noct themes: background, text, the 16 colors and the components from them |
 | `internal/theme/files.go` | User themes: the themes folder, reading theme files built on a base (with their `[ansi]` colors), and writing only what differs from it |
@@ -56,6 +56,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/layout/neighbor.go` | Directional focus: the nearest pane in a direction, preferring the one a stack shows and the one used last |
 | `internal/app/app.go` | App state, event loop, frame pacing, attach (to the session asked for)/detach, config loading, shutdown |
 | `internal/app/sessions.go` | Sessions: create, switch, close (keeping the layout), delete, rename; the command line's list and delete |
+| `internal/app/panel_state.go` | How the inspect, logs and scripts panels were left, saved with the session and set again when it opens: selection, toggles, the editor open and its unsaved rows (`draft`), never a secret's text |
 | `internal/app/sessions_saved.go` | Saving sessions to `sessions.json` and opening a closed one again: tabs, panes, views and their directories; the session of each terminal's log |
 | `internal/app/rerun.go` | The box over a reopened terminal offering to run again what it ran (enter types it, esc forgets it); typing text into a view |
 | `internal/app/sessions_popup.go` | Sessions popup (prefix+o): the sessions by last use, keys to open, create, rename, close and delete |

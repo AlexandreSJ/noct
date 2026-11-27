@@ -12,6 +12,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/layout"
 	"github.com/AlexandreSJ/noct/internal/pty"
+	saved "github.com/AlexandreSJ/noct/internal/session"
 )
 
 const (
@@ -74,6 +75,10 @@ type inspectPanel struct {
 	// the params tables closed with rows not saved.
 	editor      inspectEditor
 	paramDrafts map[string]*paramsTable
+	// editing is what opened the editor, to open it again in a session restored; reopen is the
+	// editor a restored session left open, opened once the chart has its blocks.
+	editing string
+	reopen  *saved.InspectState
 	// helpHidden gives an editor the room of the help beside it; origin is where the panel was
 	// last drawn and editorArea where the editor was, as the editor takes its clicks.
 	helpHidden bool
@@ -790,6 +795,9 @@ func (p *inspectPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	}
 	p.drawFlowChart(screen, chartArea, f)
 	p.chartArea, p.details = p.chartArea.Sub(area.Min), p.details.Sub(area.Min)
+	if p.reopen != nil {
+		p.reopenEditor(f)
+	}
 }
 
 func (p *inspectPanel) hints() string {
