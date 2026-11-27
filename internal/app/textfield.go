@@ -1,6 +1,8 @@
 package app
 
 import (
+	"github.com/AlexandreSJ/noct/internal/secret"
+
 	"image"
 	"image/color"
 	"strings"
@@ -190,10 +192,10 @@ func (f *textField) wordEndAfter() int {
 // draw shows what of the field fits width cells at x, y in style, its text scrolled to keep the
 // cursor in view and the cell under the cursor in cursor's colors, and returns where it ends. No
 // mark goes in the text, so moving the cursor never shifts what is read.
-func (f *textField) draw(screen uv.Screen, x, y, width int, secret bool, style, cursor uv.Style) int {
+func (f *textField) draw(screen uv.Screen, x, y, width int, hidden bool, style, cursor uv.Style) int {
 	text := f.text
-	if secret {
-		text = []rune(strings.Repeat("•", len(text)))
+	if hidden {
+		text = []rune(secret.Typed(string(text)))
 	}
 	if width <= 0 {
 		return x
@@ -201,7 +203,7 @@ func (f *textField) draw(screen uv.Screen, x, y, width int, secret bool, style, 
 	start := scrolledTo(text, f.shown, f.cursor, width)
 	f.shown = start
 	end := drawText(screen, x, y, x+width, shownFrom(text, start, width), style)
-	if !secret {
+	if !hidden {
 		f.paintLine(screen, image.Pt(x, y), x+width, string(text), start)
 	}
 	f.drawSelection(screen, x, y, width, text)

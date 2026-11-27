@@ -19,6 +19,7 @@ import (
 
 	"github.com/AlexandreSJ/noct/internal/expr"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/secret"
 	"github.com/AlexandreSJ/noct/internal/sections"
 )
 
@@ -194,15 +195,7 @@ func (x *running) keepSecret(value string) {
 }
 
 // masked is a text the run shows with its secret values masked.
-func (x *running) masked(text string) string {
-	for _, secret := range x.secrets {
-		text = strings.ReplaceAll(text, secret, secretMask)
-	}
-	return text
-}
-
-// secretMask stands for a secret value where the run would show it.
-const secretMask = "••••"
+func (x *running) masked(text string) string { return secret.Hide(text, x.secrets) }
 
 // runSteps runs a list of steps, reporting false when the flow must stop.
 func (x *running) runSteps(steps []Step, parent, branch string) bool {

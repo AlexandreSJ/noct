@@ -7,6 +7,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/charmbracelet/x/term"
+
+	"github.com/AlexandreSJ/noct/internal/secret"
 )
 
 // Keys a masked answer reads as it is typed.
@@ -18,9 +20,6 @@ const (
 	keyEscape    = 0x1b
 	keyDelete    = 0x7f
 )
-
-// mask stands for each character of a secret answer, as the forms show secrets.
-const mask = "•"
 
 // terminalAskSecret asks on the terminal and reads the answer with each character shown as •,
 // for a secret prompt; without a terminal there is nobody to ask.
@@ -92,7 +91,7 @@ func (l *maskedLine) take(c byte) (done, interrupted bool) {
 	case c >= 0x20:
 		l.text = append(l.text, c)
 		if utf8.RuneStart(c) {
-			fmt.Fprint(l.out, mask)
+			fmt.Fprint(l.out, secret.Dot)
 		}
 	}
 	return false, false

@@ -11,6 +11,12 @@ the shortcut is `Alt` by default. How to write an entry is in
 
 ## Unreleased
 
+### Fixed
+
+- A secret variable's value, its default or a secret prompt's last answer, shows as `••••` in
+  the inspect's scope and in the variables beside a step's form, as everywhere else; so do a
+  secret prompt's default in its details and a secret param's default in a step's notes.
+
 ## v0.4.0 - 2026-11-26
 
 ### Added

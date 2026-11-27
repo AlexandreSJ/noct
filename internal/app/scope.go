@@ -26,8 +26,17 @@ func (a *App) scopeAt(f flow.Flow, b chartBlock) []flow.Variable {
 	return f.Scope(parent, branch, index, a.scripts.Find)
 }
 
-// variableValue is what a variable was in the flow's last run, or "" when unknown.
+// variableValue is what a variable was in the flow's last run, or "" when unknown, masked for
+// a secret.
 func variableValue(f flow.Flow, v flow.Variable, r *flow.Result) string {
+	value := lastValue(f, v, r)
+	if v.Step == "" {
+		return f.Shown(v.Field, value)
+	}
+	return value
+}
+
+func lastValue(f flow.Flow, v flow.Variable, r *flow.Result) string {
 	if v.Step == "" && v.Path == "" {
 		return f.Params[v.Field].Default
 	}

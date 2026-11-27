@@ -12,6 +12,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/naming"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/secret"
 )
 
 // The forms of each kind of step: what each asks, and how its answers become the step. Each
@@ -399,7 +400,7 @@ func scriptParamNote(p script.Param) string {
 	case p.From != "":
 		note += "; empty reads $" + strings.TrimPrefix(p.From, "env:")
 	case p.Default != "":
-		note += "; empty takes " + p.Default
+		note += "; empty takes " + secret.Show(p.Default, p.Secret)
 	}
 	return note
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/layout"
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/secret"
 )
 
 // stepHints heads the file a step is edited in.
@@ -585,7 +586,7 @@ func (a *App) promptStepLines(step flow.Step) []styledLine {
 		{"the answer goes to $" + step.Var, pal.panelText},
 	}
 	if step.Default != "" {
-		lines = append(lines, styledLine{"an empty answer keeps " + step.Default, pal.panelMuted})
+		lines = append(lines, styledLine{"an empty answer keeps " + secret.Show(step.Default, step.Secret), pal.panelMuted})
 	}
 	if step.Type == flow.NumberParam {
 		lines = append(lines, styledLine{"asks again until the answer is a number", pal.panelMuted})

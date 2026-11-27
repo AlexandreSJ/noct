@@ -14,6 +14,7 @@ import (
 
 	"github.com/AlexandreSJ/noct/internal/flow"
 	"github.com/AlexandreSJ/noct/internal/naming"
+	"github.com/AlexandreSJ/noct/internal/secret"
 )
 
 // A flow's params are edited in the inspect as a table, a param a row, like declarations in code:
@@ -444,7 +445,7 @@ func (t *paramsTable) cellText(i, c int) string {
 	case cell.kind == listCell:
 		return listText(cell)
 	case cell.secret:
-		return strings.Repeat("•", len(cell.field.text))
+		return secret.Typed(string(cell.field.text))
 	}
 	return cell.value()
 }
@@ -614,8 +615,8 @@ func paramText(p flow.Param) string {
 		kind += " " + strings.Join(p.Choices, "|")
 	}
 	text := kind
-	if p.Default != "" && !p.Secret {
-		text += " = " + p.Default
+	if p.Default != "" {
+		text += " = " + secret.Show(p.Default, p.Secret)
 	}
 	if p.Required {
 		text += " required"

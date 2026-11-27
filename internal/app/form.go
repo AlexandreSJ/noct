@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/AlexandreSJ/noct/internal/script"
+	"github.com/AlexandreSJ/noct/internal/secret"
 )
 
 const (
@@ -150,7 +151,7 @@ func (f *paramsForm) formValue(p script.Param) string {
 	case len(p.Choices) > 0:
 		return choiceValue(value)
 	case p.Secret:
-		return strings.Repeat("•", len([]rune(value)))
+		return secret.Typed(value)
 	}
 	return value
 }
@@ -160,7 +161,7 @@ func commandPreview(s script.Script, values map[string]string) string {
 	shown := maps.Clone(values)
 	for _, p := range s.Params {
 		if p.Secret || p.From != "" {
-			shown[p.Name] = "••••"
+			shown[p.Name] = secret.Mask
 		}
 	}
 	command, err := s.Command(shown)

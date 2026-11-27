@@ -13,6 +13,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/AlexandreSJ/noct/internal/naming"
+	"github.com/AlexandreSJ/noct/internal/secret"
 	"github.com/AlexandreSJ/noct/internal/sections"
 )
 
@@ -405,13 +406,24 @@ func promptDetail(s Step, fallback string) string {
 	return detail
 }
 
-// shownAnswer is an answer as the run shows it: masked for a secret prompt.
-func shownAnswer(s Step, answer string) string {
-	if s.Secret {
-		return secretMask
+// IsSecret tells a variable whose value noct never shows: a secret param, or one a secret
+// prompt answers anywhere in the flow.
+func (f Flow) IsSecret(name string) bool {
+	if p, ok := f.Params[name]; ok && p.Secret {
+		return true
 	}
-	return answer
+	found := false
+	walkSteps(f.Steps, "", "", func(s Step, _ string) {
+		found = found || s.Kind() == PromptStep && s.Secret && s.Var == name
+	})
+	return found
 }
+
+// Shown is a variable's value as noct shows it, masked when the variable is a secret.
+func (f Flow) Shown(name, value string) string { return secret.Show(value, f.IsSecret(name)) }
+
+// shownAnswer is an answer as the run shows it: masked for a secret prompt.
+func shownAnswer(s Step, answer string) string { return secret.Show(answer, s.Secret) }
 
 // runSet renders every value first and then sets them all, so each reads the variables as they
 // were before the step.
