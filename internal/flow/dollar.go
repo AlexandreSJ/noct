@@ -129,6 +129,18 @@ func parseExpression(text string, known knownNames) (*expr.Expr, error) {
 	return e, known.check(e)
 }
 
+// parsePrint reads a print's values, expressions apart by commas, checking the names they read.
+func parsePrint(text string, known knownNames) (*expr.Expr, error) {
+	if strings.Contains(text, "{{") {
+		return nil, errors.New("{{ }} is no template: write the values alone, as \"hello, \" + name")
+	}
+	e, err := expr.ParseItems(text)
+	if err != nil {
+		return nil, err
+	}
+	return e, known.check(e)
+}
+
 // oldActions are the {{ }} of a text, and the .names inside them.
 var (
 	oldActions = regexp.MustCompile(`\{\{.*?\}\}`)

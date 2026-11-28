@@ -237,7 +237,7 @@ func TestNewScriptFromTheForm(t *testing.T) {
 	openScriptsPanel(t, a)
 	save := uv.KeyPressEvent{Code: 's', Mod: uv.ModCtrl}
 
-	press(a, letter('n'), letter('s'))
+	press(a, letter('a'))
 	typeText(a, "smoke")
 	press(a, save)
 	if a.mode != scriptFormMode || a.statusMessage == "" {

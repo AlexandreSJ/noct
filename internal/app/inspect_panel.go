@@ -19,6 +19,7 @@ const (
 	flowsListHints = "{up}{down} flow  {enter} open  {a} new  {r} run  {f} filter  {?} all keys  {tab} hide list"
 	flowStepHints  = "{up}{down}{left}{right} select  {enter} about  {a} add below  {e} edit  {r} run  {?} all keys  {tab} list"
 	flowMoveHints  = "{up}{down} move the step, in and out of blocks  {m} {enter} {esc} put it down"
+	flowPanHints   = "{up}{down}{left}{right} pan the chart  {0} center  {w} {enter} {esc} done"
 	flowGapHints   = "{up}{down}{left}{right} select  {a} add here  {r} run  {?} all keys  {tab} list"
 	// flowsListWidth is the list of flows beside the chart, in panels wide enough for both.
 	flowsListWidth = 24
@@ -44,6 +45,8 @@ type inspectPanel struct {
 	hideDetails bool
 	// moving moves the selected step with the arrows, until m, enter or esc.
 	moving bool
+	// panning moves the chart with the arrows or hjkl, until w, enter or esc.
+	panning bool
 	// warnings are the flow's, found when it is drawn.
 	warnings []flow.Warning
 	// run is a run opened from the logs, shown instead of the flow's last one.
@@ -176,7 +179,7 @@ func (p *inspectPanel) filterKey(key uv.KeyPressEvent) bool {
 		return used
 	}
 	switch name := key.String(); {
-	case isFilterKey(name) && !p.moving:
+	case isFilterKey(name) && !p.moving && !p.panning:
 		p.filter.start()
 		p.focusChart, p.listHidden = false, false
 		return true
@@ -268,10 +271,10 @@ func (p *inspectPanel) panelKey(name string, hasFlow bool) bool {
 		p.focusChart = p.listHidden
 	case "?":
 		p.app.showContextKeys("flows", "inspect keys",
-			"enter or space opens a folder of the list; h closes it, or goes up to the folder it is in",
-			"m on a flow or folder asks where it goes: a / puts it in folders, none takes it out; dragging a flow onto a folder moves it there",
+			"enter or space opens a directory of the list; h closes it, or goes up to the directory it is in",
+			"m on a flow or directory asks where it goes: a / puts it in directories, none takes it out; dragging a flow onto a directory moves it there",
 			"click selects a block; a double click tells about it",
-			"alt+drag (or ctrl+drag) carries a card: the dashed outline is where it lands",
+			"alt+drag  ctrl+drag  carry a card: the dashed outline is where it lands",
 			"drag pans the chart; the wheel scrolls it, or the details under it")
 	default:
 		return false
@@ -405,6 +408,10 @@ func (p *inspectPanel) chartKey(name string, f flow.Flow) {
 		p.moveKey(name, f)
 		return
 	}
+	if p.panning {
+		p.panKey(name)
+		return
+	}
 	block, selected := p.selectedBlock()
 	if selected && block.end && !slices.Contains([]string{"z", "y", "esc", "s", "v"}, name) {
 		p.chartViewKey(name) // the end takes no step
@@ -493,8 +500,8 @@ func (p *inspectPanel) chartViewKey(name string) bool {
 		p.moveAcross(-1)
 	case "right", "l":
 		p.moveAcross(1)
-	case "ctrl+up", "ctrl+down", "ctrl+left", "ctrl+right":
-		p.panBy(arrowHeadings[strings.TrimPrefix(name, "ctrl+")])
+	case "w":
+		p.panning = true
 	case "+", "=":
 		p.setZoom(p.zoom + 1)
 	case "-":
@@ -551,6 +558,26 @@ func (p *inspectPanel) moveKey(name string, f flow.Flow) {
 		}
 	case "m", "enter", "esc", "space":
 		p.moving = false
+	}
+}
+
+// panHeadings are the keys that pan the chart in its pan mode.
+var panHeadings = map[string]layout.Heading{
+	"up": layout.Up, "k": layout.Up, "down": layout.Down, "j": layout.Down,
+	"left": layout.Left, "h": layout.Left, "right": layout.Right, "l": layout.Right,
+}
+
+// panKey pans the chart with the arrows or hjkl; 0 centers it, and w, enter or esc end.
+func (p *inspectPanel) panKey(name string) {
+	switch name {
+	case "0":
+		p.centered = true
+	case "w", "enter", "esc", "space":
+		p.panning = false
+	default:
+		if heading, ok := panHeadings[name]; ok {
+			p.panBy(heading)
+		}
 	}
 }
 
@@ -810,6 +837,9 @@ func (p *inspectPanel) hints() string {
 	if p.moving {
 		return p.app.hint("flows", flowMoveHints)
 	}
+	if p.panning {
+		return p.app.hint("flows", flowPanHints)
+	}
 	if block, ok := p.selectedBlock(); ok && block.isInsertion() {
 		return p.app.hint("flows", flowGapHints)
 	}
@@ -820,7 +850,7 @@ func (p *inspectPanel) hints() string {
 // that wrap onto more rows for a step than for a gap would move the chart as the selection moves.
 func (p *inspectPanel) chartHintRows(width int) int {
 	rows := 0
-	for _, hints := range []string{flowStepHints, flowGapHints, flowMoveHints} {
+	for _, hints := range []string{flowStepHints, flowGapHints, flowMoveHints, flowPanHints} {
 		rows = max(rows, len(wrapHints(p.app.hint("flows", hints), width, maxHintRows)))
 	}
 	return rows

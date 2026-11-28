@@ -99,6 +99,10 @@ type Step struct {
 
 	Wait string `yaml:"wait,omitempty"`
 
+	// Print writes its values to the run's output, as print does in a program: expressions apart
+	// by commas, written one after the other with a space between.
+	Print string `yaml:"print,omitempty"`
+
 	// Prompt asks whoever watches the run, shown as it is written, and keeps the answer in the
 	// variable Var; an empty answer keeps Default. Type number asks again until the answer is a
 	// number. Secret masks the answer as it is typed and keeps it out of the run's result.
@@ -288,6 +292,7 @@ const (
 	PromptStep  Kind = "prompt"
 	SetStep     Kind = "set"
 	UnsetStep   Kind = "unset"
+	PrintStep   Kind = "print"
 )
 
 // Kind is what the step does, or "" when it sets none or more than one kind.
@@ -325,6 +330,9 @@ func (s Step) Kind() Kind {
 	}
 	if len(s.Unset) > 0 {
 		kinds = append(kinds, UnsetStep)
+	}
+	if s.Print != "" {
+		kinds = append(kinds, PrintStep)
 	}
 	if len(kinds) != 1 {
 		return ""
@@ -422,7 +430,7 @@ func FilePath(dir, name string) string {
 // with / between folders.
 func ValidName(kind, name string) error {
 	if !naming.IsValidPath(name) {
-		return fmt.Errorf("%s name %q: use letters, digits, . - _, and / to put it in a folder", kind, name)
+		return fmt.Errorf("%s name %q: use letters, digits, . - _, and / to put it in a directory", kind, name)
 	}
 	return nil
 }
@@ -444,7 +452,7 @@ func Find(flows []Flow, name string) (Flow, bool) {
 	return Flow{}, false
 }
 
-const exactlyOne = "a step sets exactly one of script, call, agent, run, if, repeat, wait, prompt, set and unset"
+const exactlyOne = "a step sets exactly one of script, call, agent, run, if, repeat, wait, prompt, set, unset and print"
 
 // Create writes a new, empty flow called name in dir; a name with / makes its folders.
 func Create(dir, name string) (Flow, error) {

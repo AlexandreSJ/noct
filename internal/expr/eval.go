@@ -31,9 +31,11 @@ type (
 		op      string
 		operand node
 	}
+	// text is a + that joins as texts, as one side is a quoted text: "1" + "1" is 11.
 	binaryNode struct {
 		op          string
 		left, right node
+		text        bool
 	}
 	listNode   struct{ items []node }
 	objectNode struct {
@@ -143,6 +145,9 @@ func (n binaryNode) eval(e *env) (any, error) {
 	right, err := n.right.eval(e)
 	if err != nil {
 		return nil, err
+	}
+	if n.text {
+		return String(left) + String(right), nil
 	}
 	return operate(n.op, left, right)
 }

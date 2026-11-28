@@ -566,7 +566,7 @@ func (s *stepForm) variableLine(name string) string {
 
 // openEditor shows editor in place of the chart, with the keys going to it.
 func (p *inspectPanel) openEditor(kind string, editor inspectEditor) {
-	p.editor, p.editing, p.focusChart, p.moving = editor, kind, true, false
+	p.editor, p.editing, p.focusChart, p.moving, p.panning = editor, kind, true, false, false
 }
 
 // closeEditor goes back to the chart; a params table with rows it could not save is kept for the
@@ -644,6 +644,7 @@ func (p *inspectPanel) addStep(f flow.Flow, at chartBlock) {
 		{label: "prompt", kind: "asks you", open: form(promptForm(zero, f.VariableType))},
 		{label: "set", kind: "gives variables values", open: form(setForm(zero, f.VariableType))},
 		{label: "unset", kind: "clears variables", open: form(unsetForm(zero))},
+		{label: "print", kind: "writes values", open: form(printForm(zero))},
 	}
 	picker = newStepPicker(&p.app.palette, kinds, p.app.lastStepAdded, func(path []string) { p.app.lastStepAdded = path })
 	p.openEditor(editingAdd, picker)

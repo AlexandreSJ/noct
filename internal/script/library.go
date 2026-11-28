@@ -168,7 +168,7 @@ func (l *Library) addLinked(path, personal string) {
 		return
 	}
 	if _, err := os.Stat(dir); err != nil {
-		l.Problems = append(l.Problems, fmt.Errorf("folder %s: %w", path, err))
+		l.Problems = append(l.Problems, fmt.Errorf("directory %s: %w", path, err))
 		return
 	}
 	l.addFolder(filepath.Base(dir), dir, LinkedFolder)
@@ -225,16 +225,17 @@ func loadScript(dir, folder string) Script {
 	return s
 }
 
-func CreateFolder(root, name string) (string, error) {
-	if !naming.IsValid(name) {
-		return "", fmt.Errorf("folder name %q: use letters, digits, '.', '-' and '_'", name)
+// CreateFolder makes the directory at path, ops/db, in root, and the directories around it.
+func CreateFolder(root, path string) (string, error) {
+	if !naming.IsValidPath(path) {
+		return "", fmt.Errorf("directory %q: letters, digits, . - _, and / between directories", path)
 	}
-	dir := filepath.Join(root, name)
+	dir := filepath.Join(root, filepath.FromSlash(path))
 	if _, err := os.Stat(dir); err == nil {
-		return "", fmt.Errorf("%s already exists", name)
+		return "", fmt.Errorf("%s already exists", path)
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("creating folder %s: %w", name, err)
+		return "", fmt.Errorf("creating directory %s: %w", path, err)
 	}
 	return dir, nil
 }
@@ -244,7 +245,7 @@ func DeleteFolder(f Folder) error {
 		return fmt.Errorf("refusing to delete %q", f.Dir)
 	}
 	if err := os.RemoveAll(f.Dir); err != nil {
-		return fmt.Errorf("deleting folder %s: %w", f.Name, err)
+		return fmt.Errorf("deleting directory %s: %w", f.Name, err)
 	}
 	return nil
 }

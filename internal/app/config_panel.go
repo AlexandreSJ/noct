@@ -862,7 +862,7 @@ func commandNote(command string) string {
 // scriptsDirNote says that the scripts folder does not exist yet.
 func scriptsDirNote(typed string) string {
 	if _, err := os.Stat(script.ResolveDir(typed)); err != nil {
-		return "folder not found; it is created with the first script"
+		return "directory not found; it is created with the first script"
 	}
 	return ""
 }

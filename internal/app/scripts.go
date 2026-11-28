@@ -71,37 +71,11 @@ func (a *App) setExpanded(dir string, expanded bool) {
 	a.scriptsLoaded++ // panels keep their selection on the same row
 }
 
-// createInLibrary asks whether to make a folder or a script; the script goes into folder.
-func (a *App) createInLibrary(folder *script.Folder) {
-	a.openChoice("new",
-		choiceOption{key: "d", label: "directory", pick: func() { a.newFolder(folder) }},
-		choiceOption{key: "s", label: "script", pick: func() { a.openScriptForm(nil, folder) }},
-	)
-}
-
-// newFolder asks for a name and makes a folder of scripts in parent, or in the scripts folder.
-func (a *App) newFolder(parent *script.Folder) {
-	root, title := a.scriptsDir(), "new folder"
-	if parent != nil {
-		root, title = parent.Dir, "new folder in "+parent.Name
-	}
-	a.openPrompt(title, "", "{enter} create  esc cancel  letters, digits, . - _", func(name string) {
-		if _, err := script.CreateFolder(root, name); err != nil {
-			a.statusMessage = err.Error()
-			return
-		}
-		if parent != nil {
-			a.setExpanded(parent.Dir, true) // to show the folder made in it
-		}
-		a.reloadScripts()
-	})
-}
-
 // linkFolder asks for the path of a folder of scripts anywhere and shows it in noct.
 func (a *App) linkFolder() {
-	a.openPrompt("add a folder of scripts", "", "{enter} add  esc cancel  paste its path; ~ is your home", func(path string) {
+	a.openPrompt("add a directory of scripts", "", "{enter} add  esc cancel  paste its path; ~ is your home", func(path string) {
 		if info, err := os.Stat(script.ResolveDir(path)); err != nil || !info.IsDir() {
-			a.statusMessage = "not a folder: " + path
+			a.statusMessage = "not a directory: " + path
 			return
 		}
 		next := a.config
@@ -115,9 +89,9 @@ func (a *App) linkFolder() {
 func (a *App) removeFolder(f script.Folder) {
 	switch {
 	case f.Kind != script.GroupFolder && f.Parent != "":
-		a.statusMessage = f.Name + " is inside a folder noct only shows: change it where it is"
+		a.statusMessage = f.Name + " is inside a directory noct only shows: change it where it is"
 	case f.Kind == script.GroupFolder:
-		a.askToConfirm(fmt.Sprintf("delete folder %s and its %d scripts?", f.Name, len(f.Scripts)), func() {
+		a.askToConfirm(fmt.Sprintf("delete directory %s and its %d scripts?", f.Name, len(f.Scripts)), func() {
 			if err := script.DeleteFolder(f); err != nil {
 				a.statusMessage = err.Error()
 			}
@@ -133,7 +107,7 @@ func (a *App) removeFolder(f script.Folder) {
 			a.reloadScripts()
 		})
 	default:
-		a.statusMessage = "the project's folder belongs to the project: remove .noct/scripts there"
+		a.statusMessage = "the project's directory belongs to the project: remove .noct/scripts there"
 	}
 }
 

@@ -38,6 +38,31 @@ func Parse(text string) (*Expr, error) {
 	return &Expr{root: root, text: text}, nil
 }
 
+// ParseItems reads text as expressions apart by commas, as a print's: "total:", count. It
+// evaluates to the list of their values, one item for each.
+func ParseItems(text string) (*Expr, error) {
+	if strings.TrimSpace(text) == "" {
+		return nil, fmt.Errorf("the expression is empty")
+	}
+	p := newParser(text)
+	var items []node
+	for {
+		item, err := p.expression()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+		if !p.is(",") {
+			break
+		}
+		p.advance()
+	}
+	if p.tok.kind != endToken {
+		return nil, p.errorf("the values are apart by commas")
+	}
+	return &Expr{root: listNode{items: items}, text: text}, nil
+}
+
 // ParseRef reads the expression a $ in a text starts, without the $: a name and the fields and
 // indexes right after it, $build.output or $hosts[0], or a function's call with its arguments,
 // $join(hosts, ", "). A dot that no name follows ends it, as at the end of a sentence. It tells

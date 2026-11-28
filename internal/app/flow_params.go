@@ -58,7 +58,7 @@ var paramTypeNotes = map[string]string{
 	flow.NumberParam:  "3, -2 or 1.5",
 	flow.BooleanParam: "true or false",
 	flow.OptionParam:  "one of its options",
-	flow.PathParam:    "a file or folder",
+	flow.PathParam:    "a file or directory",
 	flow.ListParam:    `JSON: ["a", "b"]`,
 	flow.ObjectParam:  `JSON: {"key": "value"}`,
 }

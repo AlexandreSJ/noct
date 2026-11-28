@@ -13,7 +13,6 @@ import (
 
 var (
 	shiftDownPress = uv.KeyPressEvent{Code: uv.KeyDown, Mod: uv.ModShift}
-	ctrlRightPress = uv.KeyPressEvent{Code: uv.KeyRight, Mod: uv.ModCtrl}
 )
 
 // screenText draws the app and gives the screen as text, a line per row.
@@ -38,7 +37,7 @@ func screenText(a *App) string {
 const threeSteps = "steps:\n  - {id: one, run: printf 1}\n  - {id: two, run: 'echo $one.output'}\n  - {id: three, run: printf 3}\n"
 
 // Shift+down selects the next step too, t tests the range, and esc leaves just the step;
-// ctrl+arrows pan the chart.
+// w pans the chart with the arrows until esc.
 func TestInspectTestsARangeOfSteps(t *testing.T) {
 	a := testApp(t)
 	l := recordLaunches(a)
@@ -57,9 +56,14 @@ func TestInspectTestsARangeOfSteps(t *testing.T) {
 	}
 	p := a.currentTab().views[inspect].(*inspectPanel)
 	pan := p.pan
-	pressDrawn(a, ctrlRightPress)
-	if p.pan.X <= pan.X || !p.focusChart {
-		t.Errorf("ctrl+right: pan %v → %v, chart focused %v", pan, p.pan, p.focusChart)
+	pressDrawn(a, letter('w'), rightPress)
+	if p.pan.X <= pan.X || !p.focusChart || !p.panning {
+		t.Errorf("w right: pan %v → %v, chart focused %v, panning %v", pan, p.pan, p.focusChart, p.panning)
+	}
+	selected := p.selected
+	pressDrawn(a, letter('j'), escPress)
+	if p.panning || p.selected != selected || !p.focusChart {
+		t.Errorf("j esc while panning: panning %v, selected %q (was %q), chart focused %v", p.panning, p.selected, selected, p.focusChart)
 	}
 }
 

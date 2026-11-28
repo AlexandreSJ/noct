@@ -15,7 +15,7 @@ Locais:
 
 - `~/.local/share/noct/scripts/` (ou `$XDG_DATA_HOME/noct/scripts/`): pessoais. O local pode ser trocado no config (`Scripts → location`).
 - **Pastas de scripts** dentro dela: uma subpasta sem `script.yaml` é uma pasta que agrupa scripts (ex.: `scripts/tests-noct/greet/`), e pode ter outras pastas dentro, em qualquer profundidade (`scripts/ops/db/backup/`); pastas vinculadas e a do projeto também (ADR-072).
-- **Pastas vinculadas:** qualquer pasta de scripts em outro lugar, adicionada pelo caminho (`a` no scripts panel; fica em `script_folders` no config). Os arquivos continuam onde estão.
+- **Pastas vinculadas:** qualquer pasta de scripts em outro lugar, adicionada pelo caminho (`L` no scripts panel; fica em `script_folders` no config). Os arquivos continuam onde estão.
 - `.noct/scripts/` do projeto: o mais próximo, subindo a partir do diretório em que o `noct` foi aberto, como o git acha o repositório. Aparece como a pasta `project`.
 
 O nome do script é o nome da sua pasta: letras, dígitos, `.`, `-` e `_`. O **ID** de um script é o caminho das pastas e o nome (`ops/db/backup`), ou só `nome` fora delas; é por ele que valores lembrados, histórico de execuções e `noct -s` o identificam. Scripts com o mesmo nome em pastas diferentes convivem.
@@ -61,7 +61,11 @@ O **scripts panel** (`prefixo` + `s`) lista os scripts com a versão do programa
 | `↑↓` / `jk`, `g` / `G`, clique, roda do mouse | Selecionar |
 | `Enter` | Rodar: abre o formulário de parâmetros, se houver algum a perguntar |
 | `e` | Editar no formulário: nome, script (a linha `run`) e descrição |
-| `n` / `Ctrl+N` | Novo script, no mesmo formulário vazio |
+| `a` / `n` / `Ctrl+N` | Novo script, no mesmo formulário, com o caminho do diretório selecionado no nome; uma `/` no nome cria diretórios (`ops/db/backup`) |
+| `N` | Novo diretório, partindo do selecionado; uma `/` cria os de dentro |
+| `m` | Mover ou renomear o script ou o diretório pelo caminho; os fluxos que rodam o script e os valores lembrados dele vão junto |
+| `c` | Copiar o script para outro caminho |
+| arrastar | Um script solto num diretório vai para ele; abaixo das linhas, para fora de todos |
 | `Ctrl+O` | Abrir a pasta dos scripts no gerenciador de arquivos do config (padrão: um terminal na pasta) |
 | `Delete` | Apagar, depois de confirmar |
 | `f` / `/` | Filtrar: o que se digita deixa só os scripts com todas as palavras no nome, na descrição, na pasta ou na linha `run`, com as pastas abertas (uma pasta cujo nome casa fica inteira). `Enter` mantém o filtro, `esc` o limpa |
@@ -72,7 +76,7 @@ A biblioteca é relida ao abrir um scripts panel, quando o editor fecha e depois
 
 **Scripts quebrados.** Um script que não carrega (YAML ou template com erro) continua na lista, com `✗` e `broken` no lugar da versão; ao lado aparece o erro. `Enter` não o roda, e `e` o abre direto no editor para corrigir. Antes de cada edição (formulário ou editor), o noct guarda o `script.yaml` que funciona em `script.yaml.bak`, e nunca sobrescreve essa cópia com uma versão quebrada. Quando o editor fecha deixando o script quebrado, a barra de tabs mostra o erro e onde está a última versão que funcionava. `noct ls` mostra os quebrados com `✗`, e `noct check` os lista.
 
-**Formulário do script** (`e`, `n`). Em cima, `name` e `program`, digitados na própria linha. Embaixo, quatro caixas com bordas próprias, duas a duas, cada uma com metade da largura: `script` (a linha `run`) ao lado de `description`, e `params` ao lado de `notes`. `Enter` numa caixa abre só aquela parte no editor do config (padrão `vim`; ver [tui.md](tui.md)); ao fechar o editor, a parte volta para a caixa e o formulário reaparece, para editar a próxima. `Tab` segue a ordem, as setas andam pelas caixas como estão dispostas, `Ctrl+S` salva tudo e `Esc` descarta.
+**Formulário do script** (`e`, `a`). Em cima, `name` e `program`, digitados na própria linha. Embaixo, quatro caixas com bordas próprias, duas a duas, cada uma com metade da largura: `script` (a linha `run`) ao lado de `description`, e `params` ao lado de `notes`. `Enter` numa caixa abre só aquela parte no editor do config (padrão `vim`; ver [tui.md](tui.md)); ao fechar o editor, a parte volta para a caixa e o formulário reaparece, para editar a próxima. `Tab` segue a ordem, as setas andam pelas caixas como estão dispostas, `Ctrl+S` salva tudo e `Esc` descarta.
 
 `params` é editado como a lista YAML de parâmetros (com um exemplo comentado quando ainda não há nenhum). Salvar valida o conjunto: nome, script não vazio, `params` que é YAML válido e todo `{{.nome}}` do script correspondendo a um parâmetro. Salvar reescreve no `script.yaml` só o que mudou, mantendo os comentários, grava `notes.md` e renomeia a pasta se o nome mudou (os valores lembrados vão junto).
 
@@ -82,7 +86,7 @@ A biblioteca é relida ao abrir um scripts panel, quando o editor fecha e depois
 
 **Execução.** O script roda num terminal de verdade ao lado do painel, com foco nele, então prompts, cores e `Ctrl+C` funcionam. Uma linha de estado embaixo, na cor das dicas e fora da seleção de texto, mostra `running`; quando o script termina, o painel continua aberto com a saída, o título mostra `✓` ou `✗ <código>`, `r` roda de novo e `Enter`/`Esc`/`q` fecham. A saída fica gravada em `~/.local/state/noct/logs/<data>/`, como a dos terminais.
 
-**Pastas na lista.** As pastas vêm sempre primeiro, em ordem alfabética, e começam fechadas (`+`); abertas (`-`), mostram seus scripts logo abaixo, atrás de uma barra vertical `│`. Depois vêm os scripts fora de pastas. A pasta onde a seleção está (ela mesma ou um script dela) aparece, com sua barra, na cor de acento. `Enter`, `Space` ou um clique abrem e fecham uma pasta; `←` fecha (ou, num script dentro de pasta, volta para a pasta) e `→` abre. `n` pergunta o que criar: `directory` (`d`, uma pasta na pasta de scripts) ou `script` (`s`, na pasta selecionada ou na do script selecionado); `a` adiciona uma pasta vinculada e `Ctrl+O` abre a pasta selecionada. `Delete` numa pasta apaga a pasta e seus scripts (depois de confirmar); numa pasta vinculada, só deixa de mostrá-la.
+**Pastas na lista.** As pastas vêm sempre primeiro, em ordem alfabética, e começam fechadas (`+`); abertas (`-`), mostram seus scripts logo abaixo, atrás de uma barra vertical `│`. Depois vêm os scripts fora de pastas. A pasta onde a seleção está (ela mesma ou um script dela) aparece, com sua barra, na cor de acento. `Enter`, `Space` ou um clique abrem e fecham uma pasta; `←` fecha (ou, num script dentro de pasta, volta para a pasta) e `→` abre. `a` cria um script e `N` um diretório, partindo da pasta selecionada (ou da do script selecionado), como no inspect (ADR-072); `L` adiciona uma pasta vinculada e `Ctrl+O` abre a pasta selecionada. A interface chama as pastas de *directories*. `Delete` numa pasta apaga a pasta e seus scripts (depois de confirmar); numa pasta vinculada, só deixa de mostrá-la.
 
 **Ordem da lista.** A ordem vale dentro de cada pasta e para os scripts fora delas. Alfabética por padrão; o config (`Scripts → sort`) troca para a última edição ou a última execução. Cada execução, pela TUI ou por `noct -s`, entra em `~/.local/state/noct/runs.json` (nome e horário), que guarda só as últimas 1000.
 

@@ -9,13 +9,13 @@ reasons behind it are in [fluxos.md](fluxos.md) and [scripts.md](scripts.md); th
 | What | Path | Name used in YAML |
 |---|---|---|
 | Flow | `~/.local/share/noct/flows/<name>.yaml` | `<name>` (from the file name) |
-| Flow in folders | `~/.local/share/noct/flows/<folder>/<name>.yaml` | `<folder>/<name>`, as `ops/deploy` |
-| Function | `~/.local/share/noct/functions/<name>.yaml`, or in folders | `<name>` or `<folder>/<name>`, in `call:` |
+| Flow in directories | `~/.local/share/noct/flows/<directory>/<name>.yaml` | `<directory>/<name>`, as `ops/deploy` |
+| Function | `~/.local/share/noct/functions/<name>.yaml`, or in directories | `<name>` or `<directory>/<name>`, in `call:` |
 | Script | `~/.local/share/noct/scripts/<name>/script.yaml` | `<name>` |
-| Script in folders | `~/.local/share/noct/scripts/<folder>/<name>/script.yaml` | `<folder>/<name>`, as `ops/db/backup` |
+| Script in directories | `~/.local/share/noct/scripts/<directory>/<name>/script.yaml` | `<directory>/<name>`, as `ops/db/backup` |
 | Script notes (optional) | `notes.md` beside `script.yaml` | — |
 
-Folders nest at any depth. A flow, function or script inside them is named by its path,
+Directories nest at any depth. A flow, function or script inside them is named by its path,
 `noct flow run ops/deploy`, and by its name alone while no other one has it (`call: greet`
 finds `utils/greet`).
 
@@ -113,6 +113,7 @@ A step sets exactly one of these:
 | `prompt: <text>` | Asks the user on the run's terminal, the text shown as written; the answer goes to a variable | `var` (required), `default`, `type`, `secret` |
 | `set: {name: <text>}` | Gives variables, new or not, a value | `types: {name: number}`: `var` (the default: a list or an object when its value is one in JSON, else text), `text`, `number`, `boolean`, `list`, `object` |
 | `unset: [name, steps.build]` | Clears variables and a step's results | — |
+| `print: <expressions>` | Writes values on a line of the run's output, as `print` does in a program | — |
 
 `id` is optional on any step; give one to every step something later reads.
 
@@ -323,7 +324,7 @@ returns:
 
 A flow reads values two ways (ADR-074):
 
-- **`if`, `until`, `switch` and `each` are expressions**: names alone, no `$`, `.` or `{{ }}`.
+- **`if`, `until`, `switch`, `each` and `print` are expressions**: names alone, no `$`, `.` or `{{ }}`.
 
   ```yaml
   - if: login == expectedLogin and password == expectedPassword
@@ -362,12 +363,17 @@ and objects `{key: value}`. From the loosest to the tightest:
 | `or`, `\|\|` / `and`, `&&` | Join conditions; the right side is read only when needed |
 | `not x` | Holds the comparison after it, as in Python: `not a == b` is `not (a == b)` |
 | `== != < <= > >=`, `in`, `not in` | Compare, one at a time; `x in [a, b]`, `"db" in name`, `key in obj` |
-| `+ -` / `* / %` | Sum and the rest; `+` joins two texts or two lists |
+| `+ -` / `* / %` | Sum and the rest; `+` joins texts or two lists |
 | `!x`, `-x` | Holds only the value after it: `!a == b` is `(!a) == b` |
 
 - **Every value a flow keeps is text**, so a text that reads as a number is a number to compare
   and count with: `exit == 0`, `count + 1`, `"10" > "9"`. Anything else compares as text, exactly:
   `Bug` is not `bug` (`lower(x)`).
+- **A text written in quotes stays a text for `+`**, as in a program: `"1" + "1"` is `11`, and so
+  is `"n: " + count + 1` read left to right (`n: 31`); `"n: " + (count + 1)` is `n: 4`. So is
+  `string(x)`. A variable's value is not quoted, so `count + 1` counts.
+- **In quotes**, `\"` and `\'` write the quote instead of ending the text, `\\` a `\`, `\n` a new
+  line and `\t` a tab.
 - **A condition holds** unless it is `false`, `null`, `0`, empty, `"false"`, `"0"`, or an empty
   list or object.
 - **Lambdas**, `x => ...` or `(item, i) => ...`, are for `map`, `filter`, `any`, `all` and `find`.
@@ -416,6 +422,24 @@ whose arguments are expressions, or any expression in braces, `${count + 1}`.
   is: `docker ps --format '{{.Names}}'`.
 - A name that is both a variable and a step's id cannot be read with a field (`build.output`):
   `noct check` says so; rename one, or write `steps.build.output`.
+
+### Print
+
+`print` writes values on a line of the run's output, in both its clean and full views, as
+`print` does in a program. It is an expression, or several apart by commas, each written with a
+space between:
+
+```yaml
+- print: '"deployed " + version + " to", len(hosts), "hosts"'   # deployed 1.4 to 3 hosts
+- print: '"1" + "1", 1 + 1'                                     # 11 2
+- print: '''it\''s'', "a \"quote\"", ok'                          # it's a "quote" true
+```
+
+- A text goes in quotes, `"..."` or `'...'`; `+` joins texts and adds numbers (see above).
+- `true` and `false` print as words, a number without a needless `.0`, a list or an object as JSON,
+  and nothing (null, an empty variable) as nothing.
+- A secret prints as `••••`. A name the flow does not know fails the step.
+- In YAML, wrap the whole value in single quotes and double each `'` inside it, as above.
 
 ### Scope
 
@@ -480,7 +504,7 @@ that terminal instead.
 triggers:
   - manual                                        # also run by hand; starts nothing
   - cron: "0 9 * * 1-5"                           # minute hour day month weekday
-  - watch: {paths: ["src/**/*.go"], debounce: 2s} # globs; ** is any folders
+  - watch: {paths: ["src/**/*.go"], debounce: 2s} # globs; ** is any directories
   - after: {flow: deploy, status: ok}             # status: ok, failed, or left out for either
 steps: [...]
 ```

@@ -27,14 +27,14 @@ func Folders(dir string) []string {
 // CreateFolder makes the folder at path, ops/db, in dir.
 func CreateFolder(dir, path string) error {
 	if !naming.IsValidPath(path) {
-		return fmt.Errorf("folder %q: letters, digits, . - _, and / between folders", path)
+		return fmt.Errorf("directory %q: letters, digits, . - _, and / between directories", path)
 	}
 	full := filepath.Join(dir, filepath.FromSlash(path))
 	if _, err := os.Stat(full); err == nil {
 		return fmt.Errorf("%s already exists", path)
 	}
 	if err := os.MkdirAll(full, 0o755); err != nil {
-		return fmt.Errorf("creating folder %s: %w", path, err)
+		return fmt.Errorf("creating directory %s: %w", path, err)
 	}
 	return nil
 }
@@ -45,7 +45,7 @@ func DeleteFolder(dir, path string) error {
 		return fmt.Errorf("refusing to delete %q", path)
 	}
 	if err := os.RemoveAll(filepath.Join(dir, filepath.FromSlash(path))); err != nil {
-		return fmt.Errorf("deleting folder %s: %w", path, err)
+		return fmt.Errorf("deleting directory %s: %w", path, err)
 	}
 	return nil
 }
@@ -127,7 +127,7 @@ func renameKept(from, to string) error {
 func MoveFolder(dir, from, to string, flows []Flow) ([]Flow, error) {
 	switch {
 	case !naming.IsValidPath(from) || !naming.IsValidPath(to):
-		return nil, fmt.Errorf("folder %q: letters, digits, . - _, and / between folders", to)
+		return nil, fmt.Errorf("directory %q: letters, digits, . - _, and / between directories", to)
 	case to == from || strings.HasPrefix(to+"/", from+"/"):
 		return nil, fmt.Errorf("%s cannot go inside itself", from)
 	}
@@ -136,10 +136,10 @@ func MoveFolder(dir, from, to string, flows []Flow) ([]Flow, error) {
 		return nil, fmt.Errorf("%s already exists", to)
 	}
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		return nil, fmt.Errorf("moving folder %s: %w", from, err)
+		return nil, fmt.Errorf("moving directory %s: %w", from, err)
 	}
 	if err := os.Rename(filepath.Join(dir, filepath.FromSlash(from)), target); err != nil {
-		return nil, fmt.Errorf("moving folder %s: %w", from, err)
+		return nil, fmt.Errorf("moving directory %s: %w", from, err)
 	}
 	var moved []Flow
 	var problems []error
@@ -159,12 +159,24 @@ func MoveFolder(dir, from, to string, flows []Flow) ([]Flow, error) {
 // RenameCalls makes the call steps of the flows that run the function from run it as to, and
 // saves them, telling which changed.
 func RenameCalls(flows []Flow, from, to string) ([]string, error) {
+	return renameSteps(flows, func(s *Step) *string { return &s.Call }, func(name string) bool { return name == from }, to)
+}
+
+// RenameScripts makes the script steps of the flows that run a script moved, those whose script
+// is runs tells, run it as to, its ID now, and saves them, telling which changed.
+func RenameScripts(flows []Flow, runs func(id string) bool, to string) ([]string, error) {
+	return renameSteps(flows, func(s *Step) *string { return &s.Script }, func(id string) bool { return id != "" && runs(id) }, to)
+}
+
+// renameSteps gives the steps whose field names something from the name to, saving the flows
+// they are in and telling which changed.
+func renameSteps(flows []Flow, field func(*Step) *string, from func(string) bool, to string) ([]string, error) {
 	var changed []string
 	var problems []error
 	for _, f := range flows {
 		var paths []string
 		walkSteps(f.Steps, "", "", func(s Step, path string) {
-			if s.Call == from {
+			if from(*field(&s)) {
 				paths = append(paths, path)
 			}
 		})
@@ -179,7 +191,7 @@ func RenameCalls(flows []Flow, from, to string) ([]string, error) {
 		fresh.Name, fresh.Function = f.Name, f.Function
 		for _, path := range paths {
 			if s := fresh.step(path); s != nil {
-				s.Call = to
+				*field(s) = to
 			}
 		}
 		problems = append(problems, fresh.Save())

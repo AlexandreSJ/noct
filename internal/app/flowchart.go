@@ -372,6 +372,8 @@ func (s chartStyle) boxText(step flow.Step) []string {
 		lines = append(lines, withText(step.Set)...)
 	case flow.UnsetStep:
 		lines = append(lines, strings.Join(step.Unset, ", "))
+	case flow.PrintStep:
+		lines = append(lines, strings.Join(strings.Fields(step.Print), " "))
 	}
 	if len(step.Capture) > 0 {
 		lines = append(lines, "capture "+strings.Join(slices.Sorted(maps.Keys(step.Capture)), ", "))
@@ -516,6 +518,7 @@ var stepKinds = map[flow.Kind]struct{ mark, name string }{
 	flow.PromptStep:  {"? ", "asks you"},
 	flow.SetStep:     {"= ", "set"},
 	flow.UnsetStep:   {"∅ ", "unset"},
+	flow.PrintStep:   {"» ", "print"},
 }
 
 // kindShown is the kind a card names at its right, or "" when the step's name already says it, as

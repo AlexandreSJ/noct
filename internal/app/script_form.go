@@ -67,6 +67,8 @@ func (a *App) openScriptForm(original *script.Script, folder *script.Folder) {
 	fields := script.Fields{}
 	if original != nil {
 		fields = script.FieldsOf(*original)
+	} else {
+		fields.Name = pathIn(folder) // a / in the name puts the script in directories
 	}
 	f.fields = [scriptFieldCount]string{fields.Name, fields.Program, fields.Run, fields.Description, script.FormatParams(fields.Params), fields.Notes}
 	a.scriptForm = f
@@ -221,11 +223,12 @@ func (a *App) writeFormScript(f *scriptForm) (script.Script, error) {
 		return script.Script{}, err
 	}
 	if f.original == nil {
-		root := a.scriptsDir()
-		if f.folder != nil {
-			root = f.folder.Dir
+		dir, err := a.libraryDir(values.Name)
+		if err != nil {
+			return script.Script{}, err
 		}
-		return script.Create(root, values, a.config.ScriptHints)
+		values.Name = filepath.Base(dir)
+		return script.Create(filepath.Dir(dir), values, a.config.ScriptHints)
 	}
 	if err := script.Backup(*f.original); err != nil {
 		return script.Script{}, err
