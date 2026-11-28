@@ -73,8 +73,8 @@ func TestKeymapChangedKeyStandsForTheDefault(t *testing.T) {
 	if got, ok := resolved(t, k, "scripts", "x"); !ok || got != "e" {
 		t.Errorf("x gave %q (%v), want the edit key e", got, ok)
 	}
-	if got, ok := resolved(t, k, "scripts", "e"); !ok || got != "n" {
-		t.Errorf("e gave %q (%v), want new's n, as the config moved it there", got, ok)
+	if got, ok := resolved(t, k, "scripts", "e"); !ok || got != "a" {
+		t.Errorf("e gave %q (%v), want new's a, as the config moved it there", got, ok)
 	}
 	if _, ok := resolved(t, k, "scripts", "n"); ok {
 		t.Error("n still does something after new moved to e")

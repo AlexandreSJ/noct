@@ -41,7 +41,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/pane/sync.go` | Holds back a synchronized-output frame (mode 2026) until it ends, so it never shows half drawn |
 | `internal/pane/images.go` | Writes image placeholder cells at the cursor and moves it as kitty does |
 | `internal/pane/keys.go` | Key encodings the emulator lacks (modified navigation keys) |
-| `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again (a terminal with its command and log), names, what the command line lists |
+| `internal/session/session.go` | Saved sessions (`sessions.json`): tabs as layout shapes and panes that can open again (a terminal with its command and log, a panel with how it was left), names, what the command line lists |
 | `internal/theme/theme.go` | Theme components, colors (hex, terminal indexes, following the background) and the themes noct comes with, each with dark and light colors |
 | `internal/theme/foreign.go` | Themes of other terminals (kitty, Ghostty, base16) read as noct themes: background, text, the 16 colors and the components from them |
 | `internal/theme/files.go` | User themes: the themes folder, reading theme files built on a base (with their `[ansi]` colors), and writing only what differs from it |
@@ -56,6 +56,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/layout/neighbor.go` | Directional focus: the nearest pane in a direction, preferring the one a stack shows and the one used last |
 | `internal/app/app.go` | App state, event loop, frame pacing, attach (to the session asked for)/detach, config loading, shutdown |
 | `internal/app/sessions.go` | Sessions: create, switch, close (keeping the layout), delete, rename; the command line's list and delete |
+| `internal/app/panel_state.go` | How the inspect, logs and scripts panels were left, saved with the session and set again when it opens: selection, toggles, the editor open and its unsaved rows (`draft`), never a secret's text |
 | `internal/app/sessions_saved.go` | Saving sessions to `sessions.json` and opening a closed one again: tabs, panes, views and their directories; the session of each terminal's log |
 | `internal/app/rerun.go` | The box over a reopened terminal offering to run again what it ran (enter types it, esc forgets it); typing text into a view |
 | `internal/app/sessions_popup.go` | Sessions popup (prefix+o): the sessions by last use, keys to open, create, rename, close and delete |
@@ -67,7 +68,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/scroll.go` | Scroll mode through a terminal's history: vim's keys and the arrows, shared with the logs preview; any other key leaves |
 | `internal/app/workspace.go` | Starting programs in panes (shells remembered for their session), the folder a new terminal opens in (`terminalDir`), tabs and panes: open panels and tabs (a new tab after the current one), move a tab along the bar, focus, stacking, move across tabs, close, detach (in any session) |
 | `internal/app/view.go` | The `view` interface a pane shows: a terminal or a noct panel |
-| `internal/app/scripts_panel.go` | Scripts panel: list with versions, details and notes (with their images), its filter, keys to run, edit, create, delete |
+| `internal/app/scripts_panel.go` | Scripts panel: list with versions, details and notes (with their images), its filter, keys to run, edit, delete |
+| `internal/app/scripts_organize.go` | Organizing the scripts panel as the inspect's list: new scripts (a) and directories (N) at a path, moving or renaming scripts and directories (m, dragging) with their remembered values and the flows that run them, copies (c) |
 | `internal/app/scripts.go` | Script actions: reload the library, run (form or not) as a tracked run with its log and exit code, create, edit in the configured editor, rename, delete |
 | `internal/app/form.go` | Parameters form shown before a script runs, or a flow (`p` in the inspect) |
 | `internal/app/run_view.go` | A script's run: its terminal plus a status line, held open with the exit code |
@@ -88,7 +90,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/app/logs_search.go` | Searching the log shown (`/`, `n`, `N`, its matches lit) and filtering its lines (`f`) |
 | `internal/app/library_watch.go` | Reading scripts and flows again while a panel shows them and their files changed on disk |
 | `internal/app/tree_list.go` | The rows of a list of items in folders inside folders (`treeList`), for the scripts panel and the inspect: open folders, the filter, counts, the bars of each level |
-| `internal/app/inspect_folders.go` | Organizing the inspect's list: new folders (N), moving or renaming flows, functions and folders (m, dragging), copies (c), deleting folders |
+| `internal/app/inspect_folders.go` | Organizing the inspect's list: new directories (N), moving or renaming flows, functions and directories (m, dragging), copies (c), deleting directories |
 | `internal/app/inspect_list.go` | The inspect's list in folders: flows by their folders, functions under ƒ functions, the selected row (a folder or the flow), its keys and new flows in a folder |
 | `internal/app/inspect_panel.go` | Inspect panel (prefix+i): framed list of flows (tab hides it, f filters it) and the selected flowchart, keys, step ranges and tests, panning, zoom, clicks and double clicks, alt+drag carrying a card to its place |
 | `internal/app/inspect_details.go` | The details under the inspect's chart: the selected block's kind, whole text and run, scrolled by the wheel |
@@ -178,7 +180,8 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `.github/workflows/ci.yml`, `.githooks/pre-push`, `Makefile` (`hooks`) | Checks before a release: `make check` on GitHub for every pushed branch and pull request, and locally on each pushed commit, which also stops a version tag off the tip of `main` or without its CHANGELOG section |
 | `.github/workflows/release.yml`, `Makefile` (`dist`, `release-notes`), `CHANGELOG.md` | Releases: a pushed `vX.Y.Z` tag runs the checks, builds the archives and checksums, and publishes the GitHub release with the tag's CHANGELOG section, which noct's updates read (ADR-047) |
 | `internal/script/script.go` | A script: load, validate (params and outputs), render its command line, create and delete; `WalkFields`, the template field walker |
-| `internal/script/library.go` | The library: personal scripts, folders of scripts (in the scripts folder, linked, project), IDs, lookups |
+| `internal/script/library.go` | The library: personal scripts, directories of scripts (in the scripts directory, linked, project), IDs, lookups, new directories at a path |
+| `internal/script/move.go` | Moving a script or a directory of scripts, and copying a script |
 | `internal/script/edit.go` | Creating a script (with optional hints) and updating it from the form's fields, keeping the rest of the YAML; params as YAML text |
 | `internal/script/values.go` | Starting values of parameters, checking them, remembered values file |
 | `internal/script/history.go` | The list of recent runs of scripts and flows (the last 1000), with exit code, log and session, and sorting scripts by name, edit or last run |
@@ -190,7 +193,7 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `cmd/noct/agents.go` | `noct agents`: the agents, which are ready, the default, and one to start from when none is; `noct agents default <name>` saves the config's agent |
 | `internal/flow/functions.go` | Functions: their folder, loading them with the flows (`LoadWithFunctions`), checking calls, who calls each (`Callers`), running a call in a scope of its own |
 | `internal/flow/progress.go` | The step a run is on, kept beside the flow's last result while it runs, for the inspect's live view |
-| `internal/flow/run.go` | Running a flow step by step in a terminal: commands, if, repeat, wait, captures (and scripts' outputs), expect |
+| `internal/flow/run.go` | Running a flow step by step in a terminal: commands, if, repeat, wait, print, captures (and scripts' outputs), expect |
 | `internal/flow/result.go` | A run's result with each step's output and status; saving and loading the last one |
 | `internal/flow/try.go` | Testing a range of sibling steps over the last result (its steps' fields and variables), and merging what they did into it |
 | `internal/flow/vars.go` | Params with a type (text, number, boolean, option, path, list, object; `bool` and `choice` read as before), required and a label, and checking values; running prompt, set and unset steps |
@@ -198,12 +201,12 @@ Keep this table current: add a row when you add a package or a main file, and fi
 | `internal/sections/sections.go` | Marks of the parts of a program's output only one view shows (a flow run's full and clean views), and the filter that gives a view's part |
 | `internal/flow/json.go` | List and object variables: decoding their JSON, lists and objects inside each other, for expressions to read inside and print whole as JSON; a list's items as the inspect edits them (`ListItems`, `ItemsJSON`) |
 | `internal/flow/dollar.go` | How a flow reads values (ADR-074): the names it knows (`knownNames`), its expressions (`parseExpression`), the `$` references of a text (`splitText`, following a run line's quotes, `$(( ))` and heredocs) rendered escaped where they land (`renderText`), the run's scope (`scopeOf`), and old `{{ }}` refused (`oldTemplate`) |
-| `internal/flow/move.go` | Flows and functions as files in folders: `Folders`, `CreateFolder`, `DeleteFolder`, `Copy`, `Rename` and `MoveFolder` (with the last result and triggers), `RenameCalls` |
+| `internal/flow/move.go` | Flows and functions as files in folders: `Folders`, `CreateFolder`, `DeleteFolder`, `Copy`, `Rename` and `MoveFolder` (with the last result and triggers), `RenameCalls`, and `RenameScripts` for a script moved |
 | `internal/flow/param_defaults.go` | Variables' defaults read over the variables before them (`withDefaults`, `DefaultProblem`) |
-| `internal/expr/expr.go` | noct's expressions (ADR-074): `Parse`, `ParseRef` for a `$` in a text, `Eval` over a `Scope`, and the names one reads (`Names`) |
+| `internal/expr/expr.go` | noct's expressions (ADR-074): `Parse`, `ParseItems` for a print's values apart by commas, `ParseRef` for a `$` in a text, `Eval` over a `Scope`, and the names one reads (`Names`) |
 | `internal/expr/lex.go` | The tokens of an expression: names, numbers, quoted texts, operators |
 | `internal/expr/parse.go` | The parser: operators by precedence (`not` as in Python, `!` as in JS), fields, indexes, calls, lists, objects and lambdas |
-| `internal/expr/eval.go` | Evaluating the tree: the operators, short-circuit `and`/`or`, lambdas |
+| `internal/expr/eval.go` | Evaluating the tree: the operators (a `+` with a quoted text joins texts, ADR-076), short-circuit `and`/`or`, lambdas |
 | `internal/expr/values.go` | Values: text that reads as a number (`Number`), truth (`Truthy`), equality, text and JSON, fields of a JSON text, a text's lines as a list (`List`) |
 | `internal/expr/funcs.go` | The functions expressions call (`len`, `join`, `map`, `filter`, `match`, …), with their usage for the editor's help (`Functions`) |
 | `internal/expr/outline.go` | An expression laid out by its logic (`Outline`), a part a line by level, for the inspect's details |

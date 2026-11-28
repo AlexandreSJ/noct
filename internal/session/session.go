@@ -69,8 +69,63 @@ type Pane struct {
 	// Item is what a panel had selected: the inspect's flow, the scripts panel's script. One that
 	// is gone leaves the panel on the first of its list.
 	Item string `json:"item,omitempty"`
+	// Filter is what a panel's list was filtered by.
+	Filter string `json:"filter,omitempty"`
+	// Inspect and Logs are how those panels were left, to open again at the same point.
+	Inspect *InspectState `json:"inspect,omitempty"`
+	Logs    *LogsState    `json:"logs,omitempty"`
 	// Colors are the pane's own over the theme, by the theme file's table and key.
 	Colors map[string]string `json:"colors,omitempty"`
+}
+
+// InspectState is what the inspect showed of its flow: the block selected, what was hidden or
+// shown, and the editor open, with what was typed in it and not saved.
+type InspectState struct {
+	Selected    string `json:"selected,omitempty"`
+	Chart       bool   `json:"chart,omitempty"`
+	ListHidden  bool   `json:"list_hidden,omitempty"`
+	Scope       bool   `json:"scope,omitempty"`
+	HideDetails bool   `json:"hide_details,omitempty"`
+	HelpHidden  bool   `json:"help_hidden,omitempty"`
+	Zoom        int    `json:"zoom"`
+	// Editing is the editor open: params, step, add, export, retry or returns.
+	Editing string `json:"editing,omitempty"`
+	Draft   *Draft `json:"draft,omitempty"`
+}
+
+// Draft is an editor's rows as they were typed, a secret's text left out, and its focused cell.
+type Draft struct {
+	Rows []DraftRow `json:"rows"`
+	Row  int        `json:"row,omitempty"`
+	Col  int        `json:"col,omitempty"`
+}
+
+type DraftRow struct {
+	Key   string      `json:"key,omitempty"`
+	Cells []DraftCell `json:"cells"`
+}
+
+type DraftCell struct {
+	Kind   int      `json:"kind"`
+	Text   string   `json:"text,omitempty"`
+	On     bool     `json:"on,omitempty"`
+	Items  []string `json:"items,omitempty"`
+	Marked int      `json:"marked,omitempty"`
+	// Secret marks a cell whose text is left out; AutoFor is the name its type was filled for.
+	Secret  bool   `json:"secret,omitempty"`
+	AutoFor string `json:"auto_for,omitempty"`
+}
+
+// LogsState is the logs panel as it was left: the day, the log selected and how it was shown.
+type LogsState struct {
+	Day       string `json:"day,omitempty"`
+	Log       string `json:"log,omitempty"`
+	FocusList bool   `json:"focus_list,omitempty"`
+	AllDays   bool   `json:"all_days,omitempty"`
+	Order     string `json:"order,omitempty"`
+	Shown     int    `json:"shown,omitempty"`
+	Preview   bool   `json:"preview,omitempty"`
+	Times     bool   `json:"times,omitempty"`
 }
 
 type Frame struct {

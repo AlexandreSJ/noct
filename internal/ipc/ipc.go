@@ -275,7 +275,7 @@ func checkPrivateDir(dir string) error {
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
 	if !info.IsDir() || !ok || int(stat.Uid) != os.Getuid() || info.Mode().Perm()&0o077 != 0 {
-		return fmt.Errorf("the socket directory %s must be a folder only this user can access", dir)
+		return fmt.Errorf("the socket directory %s must be one only this user can access", dir)
 	}
 	return nil
 }

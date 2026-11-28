@@ -45,8 +45,9 @@ func (f Flow) listWarnings(steps []Step, parent, branch string, lookup func(id s
 // read is a text of a step that reads values: an expression, or a text with $ references.
 type read struct {
 	text string
-	// expression is a condition or value read as an expression; shell, a run line.
-	expression, shell bool
+	// expression is a condition or value read as an expression; shell, a run line; items, a
+	// print's values apart by commas.
+	expression, shell, items bool
 }
 
 // reads are the texts of the step read before it runs, in a stable order, without the repeat's
@@ -61,6 +62,9 @@ func (s Step) reads() []read {
 		if text != "" {
 			reads = append(reads, read{text: text, expression: true})
 		}
+	}
+	if s.Print != "" {
+		reads = append(reads, read{text: s.Print, expression: true, items: true})
 	}
 	for _, text := range s.texts() {
 		reads = append(reads, read{text: text, shell: s.textKind(text) == shellText})
@@ -215,7 +219,11 @@ var dottedNames = regexp.MustCompile(`\$([A-Za-z_]\w*)\.([A-Za-z_]\w*)`)
 // exprs are the expressions the read holds: itself, or a text's $ references.
 func (r read) exprs(known knownNames) []*expr.Expr {
 	if r.expression {
-		e, err := expr.Parse(r.text)
+		parse := expr.Parse
+		if r.items {
+			parse = expr.ParseItems
+		}
+		e, err := parse(r.text)
 		if err != nil {
 			return nil
 		}

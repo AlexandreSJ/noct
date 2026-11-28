@@ -14,7 +14,7 @@ import (
 
 // newFunction asks a new function's name, starting with folder, and makes it, empty.
 func (a *App) newFunction(folder string, created func(key string)) {
-	a.openPrompt("new function", folder, "{enter} create  esc cancel  letters, digits, . - _  / for folders", func(name string) {
+	a.openPrompt("new function", folder, "{enter} create  esc cancel  letters, digits, . - _  / for directories", func(name string) {
 		f, err := flow.CreateFunction(flow.FunctionsDir(), name)
 		if err != nil {
 			a.statusMessage = err.Error()

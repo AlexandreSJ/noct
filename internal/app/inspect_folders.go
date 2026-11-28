@@ -60,7 +60,7 @@ func (p *inspectPanel) newFolder(row inspectRow) {
 	if isFunctionRow(row) {
 		id = functionFolders
 	}
-	p.app.openPrompt("new folder", rowFolder(row), "{enter} create  esc cancel  letters, digits, . - _  / for folders", func(path string) {
+	p.app.openPrompt("new directory", rowFolder(row), "{enter} create  esc cancel  letters, digits, . - _  / for directories", func(path string) {
 		path = strings.Trim(path, "/")
 		if err := flow.CreateFolder(dir, path); err != nil {
 			p.app.statusMessage = err.Error()
@@ -84,15 +84,15 @@ func (p *inspectPanel) revealFolder(id string) {
 func (p *inspectPanel) moveRow(row inspectRow) {
 	switch {
 	case row.folder == functionFolders && row.entry == nil:
-		p.app.notice = "ƒ functions holds every function: move the folders in it"
+		p.app.notice = "ƒ functions holds every function: move the directories in it"
 	case row.entry != nil:
 		f := *row.entry
-		p.app.openPrompt("move "+kindOf(f)+" "+f.Name, f.Name, "{enter} move  esc cancel  a / puts it in folders, none takes it out", func(to string) {
+		p.app.openPrompt("move "+kindOf(f)+" "+f.Name, f.Name, "{enter} move  esc cancel  a / puts it in directories, none takes it out", func(to string) {
 			p.moveEntry(f, strings.Trim(to, "/"))
 		})
 	default:
 		from := strings.TrimSuffix(folderPath(row.folder), "/")
-		p.app.openPrompt("move folder "+from, from, "{enter} move  esc cancel  its flows go with it", func(to string) {
+		p.app.openPrompt("move directory "+from, from, "{enter} move  esc cancel  its flows go with it", func(to string) {
 			p.moveFolder(row, from, strings.Trim(to, "/"))
 		})
 	}
@@ -164,13 +164,13 @@ func (p *inspectPanel) moveFolder(row inspectRow, from, to string) {
 	id := strings.TrimSuffix(row.folder, from) + to
 	p.rowKey = id
 	p.revealFolder(id)
-	p.app.notice = "folder " + from + " is now " + to
+	p.app.notice = "directory " + from + " is now " + to
 }
 
 // copyEntry asks for a name and copies the flow or function there.
 func (p *inspectPanel) copyEntry(row inspectRow) {
 	if row.entry == nil {
-		p.app.notice = "c copies a flow or a function; m moves a folder"
+		p.app.notice = "c copies a flow or a function; m moves a directory"
 		return
 	}
 	f := *row.entry
@@ -178,7 +178,7 @@ func (p *inspectPanel) copyEntry(row inspectRow) {
 	if f.Function {
 		dir = flow.FunctionsDir()
 	}
-	p.app.openPrompt("copy "+kindOf(f)+" "+f.Name+" as", f.Name+"-copy", "{enter} copy  esc cancel  a / puts it in folders", func(to string) {
+	p.app.openPrompt("copy "+kindOf(f)+" "+f.Name+" as", f.Name+"-copy", "{enter} copy  esc cancel  a / puts it in directories", func(to string) {
 		copied, err := f.Copy(dir, strings.Trim(to, "/"))
 		if err != nil {
 			p.app.statusMessage = err.Error()
@@ -193,13 +193,13 @@ func (p *inspectPanel) copyEntry(row inspectRow) {
 // deleteFolder asks, then removes a folder with everything in it.
 func (p *inspectPanel) deleteFolder(row inspectRow) {
 	if row.folder == functionFolders {
-		p.app.notice = "ƒ functions holds every function: delete the folders in it"
+		p.app.notice = "ƒ functions holds every function: delete the directories in it"
 		return
 	}
 	path := strings.TrimSuffix(folderPath(row.folder), "/")
-	question := "delete the empty folder " + path + "?"
+	question := "delete the empty directory " + path + "?"
 	if row.count > 0 {
-		question = fmt.Sprintf("delete folder %s and the %d in it?", path, row.count)
+		question = fmt.Sprintf("delete directory %s and the %d in it?", path, row.count)
 	}
 	p.app.askToConfirm(question, func() {
 		if err := flow.DeleteFolder(rowDir(row), path); err != nil {

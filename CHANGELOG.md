@@ -17,11 +17,34 @@ the shortcut is `Alt` by default. How to write an entry is in
   tab bar: `←`/`→` or `h`/`l` take it a place, and `Enter` or `Esc` ends. A bind of yours on
   `prefix` + `m` is now refused as a noct command: give it another key in the config.
 - The search (`prefix` + `Space`) finds **lock shortcuts** too, which locks them or unlocks them.
+- A session opened again (after closing it, or `prefix` + `q` and `noct`) brings each noct panel
+  back as it was left. The inspect keeps its filter, the step selected and what `v`, `Tab`, `s`
+  and `i` hid or showed. An editor left open opens again with what was typed and not saved, except
+  a secret's text. The logs keep the day, the log selected and how it was shown, and the scripts
+  panel keeps its filter.
+- A **print** step writes values on a line of a flow run's output, as `print` does in a program:
+  `print: '"deployed " + version + " to", len(hosts), "hosts"'`. Commas write several values with
+  a space between; `true` and `false` print as words, lists and objects as JSON, and a secret as
+  `••••`. Its form explains the rules beside it.
+- The scripts panel organizes scripts as the inspect does flows, in directories at any depth: `a`
+  creates a script and `N` a directory, both starting in the directory selected (a `/` in the
+  name makes directories), `m` moves or renames a script or a directory, `c` copies a script, and
+  dragging a script onto a directory moves it there. Flows that run a moved script, and its
+  remembered values, follow it.
 
 ### Changed
 
 - A new tab (`prefix` + `t`) opens right after the current one instead of at the end of the
   tab bar.
+- In a flow's expressions, `+` with a text written in quotes joins texts, as in a program:
+  `"1" + "1"` is `11`, where it was `2`. A variable that reads as a number still counts:
+  `count + 1`. Inside quotes, `\"` and `\'` write the quote.
+- The scripts panel links a directory of scripts from elsewhere with `L` (it was `a`, which now
+  creates a script); `n` no longer asks whether to create a directory or a script.
+- Screens, prompts and messages say **directory** where they said *folder*.
+- The inspect pans its chart in a pan mode: `w`, then the arrows or `h` `j` `k` `l`, until `w`,
+  `Enter` or `Esc`. `Ctrl` with the arrows no longer pans, so a prefix of `Ctrl` alone does not
+  clash with it.
 
 ### Fixed
 

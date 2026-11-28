@@ -379,7 +379,7 @@ func TestConfigLinesStayInPlace(t *testing.T) {
 		"heading Scripts = ",
 		"typed location = /nonexistent/noct-scripts @19",
 		"note enter edit · ctrl+c copy = ",
-		"note folder not found; it is created with the first script = ",
+		"note directory not found; it is created with the first script = ",
 		"row hints in new scripts = on @20",
 		"row sort = < alphabetical > @21",
 		"heading Logs = ",

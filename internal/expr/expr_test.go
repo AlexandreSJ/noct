@@ -54,6 +54,13 @@ func TestExpressionsReadAsWritten(t *testing.T) {
 		`!ok == false`:                    "true", // ! holds only the value
 		`exit == 0`:                       "true",
 		`count + 1`:                       "4",
+		`"1" + "1"`:                       "11", // a quoted text stays a text
+		`count + "1"`:                     "31",
+		`"n: " + count + 1`:               "n: 31",
+		`"n: " + (count + 1)`:             "n: 4",
+		`1 + 2 + "a"`:                     "3a",
+		`string(count) + 1`:               "31",
+		`'it\'s ' + "a \"quote\""`:        `it's a "quote"`,
 		`count * 2 - 1`:                   "5",
 		`count % 2`:                       "1",
 		`10 % 4 == 2`:                     "true",
@@ -233,5 +240,31 @@ func TestLogicMarksFindTheOperatorsAsTyped(t *testing.T) {
 	}
 	if want := []string{"(", "and", ")", "or", "not", "&&"}; !slices.Equal(got, want) {
 		t.Errorf("marks %q, want %q", got, want)
+	}
+}
+
+func TestItemsAreTheValuesApartByCommas(t *testing.T) {
+	scope := func(name string) (any, bool) { return map[string]any{"count": "3"}[name], name == "count" }
+	for text, want := range map[string]string{
+		`"total:", count + 1`:    `["total:",4]`,
+		`"a, b"`:                 `["a, b"]`,
+		`count, "1" + "1", true`: `["3","11",true]`,
+	} {
+		e, err := ParseItems(text)
+		if err != nil {
+			t.Fatalf("ParseItems(%q): %v", text, err)
+		}
+		value, err := e.Eval(scope)
+		if err != nil {
+			t.Fatalf("Eval(%q): %v", text, err)
+		}
+		if got := String(value); got != want {
+			t.Errorf("%s gives %s, want %s", text, got, want)
+		}
+	}
+	for _, text := range []string{"", `"a",`, `"a" "b"`} {
+		if _, err := ParseItems(text); err == nil {
+			t.Errorf("ParseItems(%q) reads, want a problem", text)
+		}
 	}
 }

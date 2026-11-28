@@ -33,8 +33,8 @@ Usage:
   noct run, -s, --script <script> [name=value ...]
                                     run a script in this terminal; parameters not given
                                     are asked, or keep their defaults without a terminal.
-                                    <script> is its name, or folder/name inside a folder
-  noct ls                           list the scripts, their program version and folder
+                                    <script> is its name, or directory/name inside a directory
+  noct ls                           list the scripts, their program version and directory
   noct flow run <flow> [--steps <first>..<last>] [name=value ...]
                                     run a flow in this terminal, step by step; --steps
                                     tests only those steps (paths like 2 or 0/steps/1),

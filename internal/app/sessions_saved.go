@@ -89,11 +89,11 @@ func (a *App) savedPane(t *tab, id layout.PaneID) (saved.Pane, bool) {
 	p := saved.Pane{ID: id, Name: t.paneNames[id], Colors: t.paneColors[id].saved()}
 	switch v := t.views[id].(type) {
 	case *scriptsPanel:
-		p.Kind, p.Item = saved.Scripts, v.selectedKey
+		p.Kind, p.Item, p.Filter = saved.Scripts, v.selectedKey, v.filter.query()
 	case *inspectPanel:
-		p.Kind, p.Item = saved.Inspect, v.flowName
+		p.Kind, p.Item, p.Filter, p.Inspect = saved.Inspect, v.flowName, v.filter.query(), v.savedState()
 	case *logsPanel:
-		p.Kind = saved.Logs
+		p.Kind, p.Filter, p.Logs = saved.Logs, v.filter, v.savedState()
 	default:
 		sh := a.shells[id]
 		if sh == nil {
@@ -184,19 +184,25 @@ func (a *App) restoreView(id layout.PaneID, p saved.Pane) (view, error) {
 		return v, err
 	case saved.Scripts:
 		v, err := a.startScripts(id, area)
-		if panel, ok := v.(*scriptsPanel); ok && p.Item != "" {
-			panel.selectedKey = p.Item // found again on the first look at the list
+		if panel, ok := v.(*scriptsPanel); ok {
+			panel.selectedKey = cmp.Or(p.Item, panel.selectedKey) // found again on the first look at the list
+			panel.filter.field = newTextField(p.Filter)
 		}
 		return v, err
 	case saved.Inspect:
 		a.lastFlow = cmp.Or(a.lastFlow, p.Item)
 		v, err := a.startInspect(id, area)
-		if panel, ok := v.(*inspectPanel); ok && p.Item != "" {
-			panel.flowName = p.Item
+		if panel, ok := v.(*inspectPanel); ok {
+			panel.flowName = cmp.Or(p.Item, panel.flowName)
+			panel.restoreState(p.Inspect, p.Filter)
 		}
 		return v, err
 	case saved.Logs:
-		return a.startLogs(id, area)
+		v, err := a.startLogs(id, area)
+		if panel, ok := v.(*logsPanel); ok {
+			panel.restoreState(p.Logs, p.Filter)
+		}
+		return v, err
 	}
 	return nil, nil
 }

@@ -165,11 +165,26 @@ func (p *parser) binary(level int) (node, error) {
 		if err != nil {
 			return nil, err
 		}
-		left = binaryNode{op: op, left: left, right: right}
+		left = binaryNode{op: op, left: left, right: right, text: op == "+" && (isText(left) || isText(right))}
 		if _, again := p.isAny(levels[compareLevel]...); again && level == compareLevel {
 			return nil, p.errorf("one comparison at a time: join them with and")
 		}
 	}
+}
+
+// isText tells a value written as a text: a quoted text, string( ), or a + that joins texts. A
+// variable's text that reads as a number is not one, so count + 1 counts.
+func isText(n node) bool {
+	switch n := n.(type) {
+	case literal:
+		_, quoted := n.value.(string)
+		return quoted
+	case callNode:
+		return n.name == "string"
+	case binaryNode:
+		return n.text
+	}
+	return false
 }
 
 // binaryOp reads an operator of the level, not in among the comparisons.

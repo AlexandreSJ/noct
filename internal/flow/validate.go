@@ -326,6 +326,11 @@ func (s Step) validateTemplates(known knownNames) error {
 			return fmt.Errorf("%s: %w", text, err)
 		}
 	}
+	if s.Print != "" {
+		if _, err := parsePrint(s.Print, known); err != nil {
+			return fmt.Errorf("print %s: %w", s.Print, err)
+		}
+	}
 	for _, text := range s.texts() {
 		if err := oldTemplate(text, known); err != nil {
 			return err

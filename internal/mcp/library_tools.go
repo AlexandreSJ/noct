@@ -36,7 +36,7 @@ func libraryTools(d Deps) []Tool {
 			Params: []Param{
 				{Name: "flow", Type: "string", Description: "The flow's name."},
 				{Name: "function", Type: "string", Description: "The function's name."},
-				{Name: "script", Type: "string", Description: "The script's id: name, or folders/name (ops/db/backup)."},
+				{Name: "script", Type: "string", Description: "The script's id: name, or directories/name (ops/db/backup)."},
 			},
 			Run: noWait(d.getItem),
 		},
@@ -59,7 +59,7 @@ func libraryTools(d Deps) []Tool {
 			Name: "draft_flow", Title: "Write a flow as a draft", Policy: config.PolicyAllow,
 			Description: "Creates or replaces a flow from its YAML, marked as a draft: it runs, by hand or by trigger, only after the user reviews and promotes it in noct. Replacing a flow that was not a draft keeps a copy as <name>.yaml.bak. Answers the problems and scope warnings found.",
 			Params: []Param{
-				{Name: "name", Type: "string", Description: "The flow's name: letters, digits, . - _, with / to put it in folders (ops/deploy)", Required: true},
+				{Name: "name", Type: "string", Description: "The flow's name: letters, digits, . - _, with / to put it in directories (ops/deploy)", Required: true},
 				{Name: "yaml", Type: "string", Description: "The whole flow file: description, variables, triggers, steps.", Required: true},
 			},
 			Summary: func(args json.RawMessage) string { return argText(args, "name", "yaml") },
@@ -69,7 +69,7 @@ func libraryTools(d Deps) []Tool {
 			Name: "draft_function", Title: "Write a function as a draft", Policy: config.PolicyAllow,
 			Description: "Creates or replaces a function (variables, steps, returns) from its YAML, marked as a draft: no flow runs it, and flows that call it have a problem, until the user reviews and promotes it in noct. Replacing a function that was not a draft keeps a copy as <name>.yaml.bak; the answer names the flows that call it.",
 			Params: []Param{
-				{Name: "name", Type: "string", Description: "The function's name: letters, digits, . - _, with / to put it in folders (utils/greet)", Required: true},
+				{Name: "name", Type: "string", Description: "The function's name: letters, digits, . - _, with / to put it in directories (utils/greet)", Required: true},
 				{Name: "yaml", Type: "string", Description: "The whole function file: description, variables, steps, returns.", Required: true},
 			},
 			Summary: func(args json.RawMessage) string { return argText(args, "name", "yaml") },
@@ -79,7 +79,7 @@ func libraryTools(d Deps) []Tool {
 			Name: "draft_script", Title: "Write a script as a draft", Policy: config.PolicyAllow,
 			Description: "Creates or replaces one of the user's scripts from its script.yaml (and notes.md), marked as a draft: it runs only after the user promotes it. Replacing a script keeps a copy of its script.yaml as script.yaml.bak.",
 			Params: []Param{
-				{Name: "name", Type: "string", Description: "The script's name, or folders/name to put it in folders (ops/db/backup).", Required: true},
+				{Name: "name", Type: "string", Description: "The script's name, or directories/name to put it in directories (ops/db/backup).", Required: true},
 				{Name: "yaml", Type: "string", Description: "The script.yaml: description, run, params, outputs.", Required: true},
 				{Name: "notes", Type: "string", Description: "notes.md: how and why to use it; left as it is when omitted."},
 			},
@@ -480,7 +480,7 @@ func (d Deps) draftScript(args json.RawMessage) (any, error) {
 		return nil, err
 	}
 	if !naming.IsValidPath(ask.Name) {
-		return nil, fmt.Errorf("script name %q: name, or folders/name, each letters, digits, . - _", ask.Name)
+		return nil, fmt.Errorf("script name %q: name, or directories/name, each letters, digits, . - _", ask.Name)
 	}
 	parts := strings.Split(ask.Name, "/")
 	content, err := markedDraft(ask.YAML)

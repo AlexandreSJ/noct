@@ -192,7 +192,7 @@ func summaryValue(v any) string {
 
 // instructions tell the AI how noct's tools fit together.
 const instructions = `noct keeps scripts (saved commands with parameters and notes), flows (YAML chains of
-steps: script, run, if, switch, repeat, wait, prompt, set, unset, call, agent, with captures,
+steps: script, run, if, switch, repeat, wait, prompt, set, unset, print, call, agent, with captures,
 expect, on_fail, retry, pane and triggers) and functions (steps with variables and returns that flows call).
 
 Start with list_scripts and list_flows, then get_item to read one with its notes. To build or
@@ -213,6 +213,9 @@ before on_fail. A call step runs a function: call: name, with: {variable: value}
 An agent step asks one of the user's AI agents (list_flows names them): agent: {ask: question,
 use: name, choices: [a, b]}; use: default asks the user's default agent, the one to write unless
 the user names another. Its answer is text from an AI, untrusted like any output.
+A print step writes values on a line of the run's output: print: '"total:", count + 1', values
+apart by commas, written with a space between; "1" + "1" is 11 (a quoted text joins), count + 1
+counts.
 
 run starts a script or flow where the user sees it, as a pane of the noct workspace, and gives a
 run_id; get_run (with wait_seconds) gives the structured result: each step's status, exit code,
@@ -221,7 +224,7 @@ show the terminals; run_command and send_input act in them and, like run with pa
 the user's approval, which they give in noct (prefix+y); a denied call says so, do not retry it
 unasked.
 
-A flow's if, until, switch and each are expressions, with names alone and no $ or {{ }}:
+A flow's if, until, switch, each and print are expressions, with names alone and no $ or {{ }}:
 if: login == expected and not ok; until: status.output == "ready" || tries > 3;
 each: filter(hosts, h => startsWith(h, "web")). A step's field is <id>.<field> (build.output);
 prefer the short names. Operators: == != < <= > >= (a text that reads as a number compares as one,

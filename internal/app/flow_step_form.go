@@ -565,8 +565,8 @@ func (s *stepForm) variableLine(name string) string {
 }
 
 // openEditor shows editor in place of the chart, with the keys going to it.
-func (p *inspectPanel) openEditor(editor inspectEditor) {
-	p.editor, p.focusChart, p.moving = editor, true, false
+func (p *inspectPanel) openEditor(kind string, editor inspectEditor) {
+	p.editor, p.editing, p.focusChart, p.moving, p.panning = editor, kind, true, false, false
 }
 
 // closeEditor goes back to the chart; a params table with rows it could not save is kept for the
@@ -581,17 +581,17 @@ func (p *inspectPanel) closeEditor() {
 			p.paramDrafts[entryKey(table.flow)] = table
 		}
 	}
-	p.editor = nil
+	p.editor, p.editing = nil, ""
 }
 
 // openParams edits the flow's params as a table, as it was left when rows were not saved.
 func (p *inspectPanel) openParams(f flow.Flow) {
 	if draft, ok := p.paramDrafts[entryKey(f)]; ok {
 		draft.flow = f
-		p.openEditor(draft)
+		p.openEditor(editingParams, draft)
 		return
 	}
-	p.openEditor(p.app.newParamsTable(f))
+	p.openEditor(editingParams, p.app.newParamsTable(f))
 }
 
 // addStep asks what kind of step to add where the selected block is: at a gap or into an empty
@@ -612,7 +612,7 @@ func (p *inspectPanel) addStep(f flow.Flow, at chartBlock) {
 		return err
 	}
 	form := func(spec stepFormSpec) func() {
-		return func() { p.openEditor(p.app.newStepForm(spec, vars, p.lastValues(f, vars), true, insert)) }
+		return func() { p.openEditor(editingAdd, p.app.newStepForm(spec, vars, p.lastValues(f, vars), true, insert)) }
 	}
 	agentForm := func() { form(p.app.agentForm(flow.Step{}))() } // built when picked: finding the agents runs programs
 	call := func(fn flow.Flow) {
@@ -644,26 +644,34 @@ func (p *inspectPanel) addStep(f flow.Flow, at chartBlock) {
 		{label: "prompt", kind: "asks you", open: form(promptForm(zero, f.VariableType))},
 		{label: "set", kind: "gives variables values", open: form(setForm(zero, f.VariableType))},
 		{label: "unset", kind: "clears variables", open: form(unsetForm(zero))},
+		{label: "print", kind: "writes values", open: form(printForm(zero))},
 	}
 	picker = newStepPicker(&p.app.palette, kinds, p.app.lastStepAdded, func(path []string) { p.app.lastStepAdded = path })
-	p.openEditor(picker)
+	p.openEditor(editingAdd, picker)
 }
 
 // editStep changes the step at path in its form, or as YAML in the editor for a script without
 // params or a call to a function without them.
 func (p *inspectPanel) editStep(f flow.Flow, path string) {
+	if _, ok := f.Step(path); ok && !p.editStepForm(f, path) {
+		p.app.editFlowStep(f, path)
+	}
+}
+
+// editStepForm opens the step's form, telling false for a step that has none.
+func (p *inspectPanel) editStepForm(f flow.Flow, path string) bool {
 	step, ok := f.Step(path)
 	if !ok {
-		return
+		return false
 	}
 	parent, branch, index := flow.SplitPath(path)
 	vars := f.WithObjectPaths(f.Scope(parent, branch, index, p.app.scripts.Find))
 	spec, ok := p.app.stepFormFor(f, path, step, vars)
 	if !ok {
-		p.app.editFlowStep(f, path)
-		return
+		return false
 	}
-	p.openEditor(p.app.newStepForm(spec, vars, p.lastValues(f, vars), false, p.replaceStep(f, path, step)))
+	p.openEditor(editingStep, p.app.newStepForm(spec, vars, p.lastValues(f, vars), false, p.replaceStep(f, path, step)))
+	return true
 }
 
 // replaceStep saves a changed step in the place of original at path, unless the flow moved or

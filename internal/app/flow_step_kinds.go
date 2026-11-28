@@ -46,6 +46,8 @@ func (a *App) stepFormFor(f flow.Flow, path string, s flow.Step, vars []flow.Var
 		return setForm(s, typeOf), true
 	case flow.UnsetStep:
 		return unsetForm(s), true
+	case flow.PrintStep:
+		return printForm(s), true
 	case flow.AgentStep:
 		return a.agentForm(s), true
 	case flow.CallStep:
@@ -253,6 +255,31 @@ func waitForm(s flow.Step) stepFormSpec {
 		fields: []stepField{{label: "for", cell: textCellOf(orDefault(s.Wait, "5s")), check: func(v string) string { return needed("a duration")(v) + checkDuration(v) }, note: "as 5s, 1m30s"}},
 		build: func(v []formValue) (flow.Step, error) {
 			s.Wait = v[0].value
+			return s, nil
+		},
+	}
+}
+
+// printRules tell, in the print form's help, how a print reads what it writes.
+var printRules = []string{
+	`• "hello, " + name: a text goes in quotes, "..." or '...'`,
+	`• "1" + "1" is 11: + joins texts; 1 + 1 is 2: + adds numbers`,
+	`• count + 1: a variable that reads as a number counts as one`,
+	`• "total:", count: commas write each value, a space between`,
+	`• \" \' \\ write the quote or the \ itself; \n a new line, \t a tab`,
+	`• true and false as words; a list or an object as JSON`,
+	`• names alone, no $: name, build.output, hosts[0], len(hosts)`,
+}
+
+func printForm(s flow.Step) stepFormSpec {
+	return stepFormSpec{
+		title: "print",
+		fields: []stepField{{
+			label: "print", cell: textCellOf(s.Print), expression: true, check: needed("what to print"),
+			note: "writes values on a line of the run's output, as print does in a program", examples: printRules,
+		}},
+		build: func(v []formValue) (flow.Step, error) {
+			s.Print = v[0].value
 			return s, nil
 		},
 	}

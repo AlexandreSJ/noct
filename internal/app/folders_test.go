@@ -52,13 +52,9 @@ func TestNewScriptGoesIntoTheSelectedFolder(t *testing.T) {
 	saveScriptIn(t, filepath.Join(script.PersonalDir(), "tests"), "smoke", "run: true\n")
 	openScriptsPanel(t, a)
 
-	press(a, enterPress, downPress, letter('n')) // open tests, then on tests/smoke
-	if a.mode != choiceMode {
-		t.Fatalf("n: mode %v, want the choice of what to create", a.mode)
-	}
-	press(a, letter('s'))
-	if a.scriptForm.folder == nil || a.scriptForm.folder.Name != "tests" {
-		t.Fatalf("new script folder %v", a.scriptForm.folder)
+	press(a, enterPress, downPress, letter('a')) // open tests, then on tests/smoke
+	if a.mode != scriptFormMode || a.scriptForm.fields[nameField] != "tests/" {
+		t.Fatalf("a: mode %v, name %q, want the form starting in tests/", a.mode, a.scriptForm.fields[nameField])
 	}
 	typeText(a, "load")
 	press(a, tabPress, tabPress, enterPress)
@@ -73,7 +69,7 @@ func TestMakingAndLinkingFolders(t *testing.T) {
 	a := testApp(t)
 	panel := openScriptsPanel(t, a)
 
-	press(a, letter('n'), downPress, upPress, enterPress) // directory is the first choice
+	press(a, letter('N'))
 	typeText(a, "suites")
 	press(a, enterPress)
 	if info, err := os.Stat(filepath.Join(script.PersonalDir(), "suites")); err != nil || !info.IsDir() {
@@ -82,7 +78,7 @@ func TestMakingAndLinkingFolders(t *testing.T) {
 
 	elsewhere := t.TempDir()
 	saveScriptIn(t, elsewhere, "shared", "run: true\n")
-	press(a, letter('a'))
+	press(a, letter('L'))
 	typeText(a, elsewhere)
 	press(a, enterPress)
 	if len(a.config.ScriptFolders) != 1 {

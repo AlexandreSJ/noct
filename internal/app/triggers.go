@@ -128,7 +128,7 @@ func (a *App) addTrigger(f flow.Flow) {
 			})
 		}},
 		choiceOption{key: "w", label: "files changing", pick: func() {
-			a.openPrompt("watch", "", "{enter} add  esc cancel  paths or globs, ** any folders, space between", func(text string) {
+			a.openPrompt("watch", "", "{enter} add  esc cancel  paths or globs, ** any directories, space between", func(text string) {
 				add(flow.Trigger{Watch: &flow.Watch{Paths: strings.Fields(text)}})
 			})
 		}},

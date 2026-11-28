@@ -100,7 +100,7 @@ func (p *inspectPanel) exportStep(f flow.Flow, path string) {
 	}
 	inside := s.Branches()[0]
 	vars := f.Scope(path, inside.Name, len(inside.Steps), p.app.scripts.Find)
-	p.openEditor(p.app.newStepForm(exportForm(s), vars, p.lastValues(f, vars), false, p.replaceStep(f, path, s)))
+	p.openEditor(editingExport, p.app.newStepForm(exportForm(s), vars, p.lastValues(f, vars), false, p.replaceStep(f, path, s)))
 }
 
 func (p *inspectPanel) retryStep(f flow.Flow, path string) {
@@ -109,10 +109,10 @@ func (p *inspectPanel) retryStep(f flow.Flow, path string) {
 		p.app.statusMessage = "only a script, command or agent step retries"
 		return
 	}
-	p.openEditor(p.app.newStepForm(retryForm(s), nil, nil, false, p.replaceStep(f, path, s)))
+	p.openEditor(editingRetry, p.app.newStepForm(retryForm(s), nil, nil, false, p.replaceStep(f, path, s)))
 }
 
 func (p *inspectPanel) editReturns(f flow.Flow) {
 	vars := f.Scope("", "", len(f.Steps), p.app.scripts.Find)
-	p.openEditor(p.app.newStepForm(p.app.returnsForm(f), vars, p.lastValues(f, vars), false, nil))
+	p.openEditor(editingReturns, p.app.newStepForm(p.app.returnsForm(f), vars, p.lastValues(f, vars), false, nil))
 }

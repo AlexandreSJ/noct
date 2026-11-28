@@ -23,7 +23,7 @@ import (
 // stepHints heads the file a step is edited in.
 const stepHints = `# One step: script (with, capture, expect, on_fail, retry, timeout), run (capture, expect,
 # on_fail, retry, timeout), if (then, else), switch (cases: - is: value, steps; else), repeat
-# (times, each with as, or until with max; every; steps) or wait (5s, 1m).
+# (times, each with as, or until with max; every; steps), wait (5s, 1m) or print ('"total:", count').
 # timeout stops a script or run step that runs longer: 30s, 10m, 1h30m. retry: 3 runs a failed
 # step again up to 3 times; retry: {max: 3, every: 10s} waits between tries.
 # Templates read $output, $exit, $ok and captures by name, $build.output an earlier step's;
@@ -53,7 +53,7 @@ func (a *App) scriptDescription(id string) string {
 // newFlow asks for a name, starting with folder, and creates an empty flow, telling created its
 // name; a / in the name puts it in a folder, which it makes.
 func (a *App) newFlow(folder string, created func(name string)) {
-	a.openPrompt("new flow", folder, "{enter} create  esc cancel  letters, digits, . - _  / for folders", func(name string) {
+	a.openPrompt("new flow", folder, "{enter} create  esc cancel  letters, digits, . - _  / for directories", func(name string) {
 		f, err := flow.Create(flow.Dir(), name)
 		if err != nil {
 			a.statusMessage = err.Error()
@@ -532,6 +532,12 @@ func (a *App) stepKindLines(step flow.Step) []styledLine {
 	case flow.UnsetStep:
 		add("Clears variables and steps' results; they read as empty after it:", pal.panelHeading)
 		add(strings.Join(step.Unset, ", "), pal.panelText)
+	case flow.PrintStep:
+		add("Writes these values on a line of the run's output:", pal.panelHeading)
+		add(step.Print, pal.panelText)
+		for _, rule := range printRules {
+			add(rule, pal.panelMuted)
+		}
 	}
 	return lines
 }

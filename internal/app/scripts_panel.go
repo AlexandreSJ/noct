@@ -19,7 +19,7 @@ import (
 // minDetailsWidth is the narrowest panel that shows the selected script's details beside the list.
 const minDetailsWidth = 70
 
-const scriptsHints = "{enter} run  {e} edit  {n} new  {f} filter  {?} all keys  {ctrl+d} close"
+const scriptsHints = "{enter} run  {e} edit  {a} new  {N} directory  {m} move  {f} filter  {?} all keys  {ctrl+d} close"
 
 // scriptsPanel lists the saved scripts, with the selected one's details and notes beside them.
 // Folders come first, closed until opened, each followed by its scripts behind a bar. It is where the
@@ -49,6 +49,8 @@ type scriptsPanel struct {
 	images noteImages
 	// filter narrows the list to the scripts that hold what is typed, their folders open.
 	filter listFilter
+	// drag is a script pressed in the list, to drop on a directory.
+	drag *scriptDrag
 }
 
 // panelRow is a line of the list: a folder (script nil), or a script, inside folder when set,
@@ -145,7 +147,7 @@ func (p *scriptsPanel) filterKey(key uv.KeyPressEvent) bool {
 		p.reselect()
 		return true
 	case name == "?":
-		p.app.showContextKeys("scripts", "scripts keys", "click selects a script, or opens or closes a folder")
+		p.app.showContextKeys("scripts", "scripts keys", "click selects a script, or opens or closes a directory; drag a script onto a directory to move it there")
 		return true
 	}
 	return false
@@ -178,7 +180,7 @@ func (p *scriptsPanel) SendKey(key uv.KeyPressEvent) {
 	case "ctrl+d":
 		p.close()
 		return
-	case "a":
+	case "L", "shift+l":
 		p.app.linkFolder()
 		return
 	}
@@ -187,8 +189,7 @@ func (p *scriptsPanel) SendKey(key uv.KeyPressEvent) {
 	}
 	row, ok := p.current()
 	switch {
-	case name == "n" || name == "ctrl+n":
-		p.app.createInLibrary(row.folder)
+	case p.organizeKey(name, row, ok):
 	case name == "ctrl+o":
 		dir := p.app.scriptsDir()
 		if row.folder != nil {
@@ -277,7 +278,7 @@ func (p *scriptsPanel) Draw(screen uv.Screen, area uv.Rectangle) {
 	}
 	if !ok {
 		drawCentered(screen, body, body.Min.Y+body.Dy()/2-1, "no scripts yet", pal.panelHeading)
-		drawCentered(screen, body, body.Min.Y+body.Dy()/2+1, p.app.hint("scripts", "{n} creates a script or a directory, {a} adds a folder"), pal.panelMuted)
+		drawCentered(screen, body, body.Min.Y+body.Dy()/2+1, p.app.hint("scripts", "{a} creates a script, {N} a directory, {L} links one from anywhere"), pal.panelMuted)
 		return
 	}
 	list := body
@@ -308,12 +309,11 @@ func (p *scriptsPanel) WantsMouseAt(point image.Point) bool {
 func (p *scriptsPanel) SendMouse(event uv.MouseEvent) {
 	p.current() // the list may have changed since the last click: find the selection first
 	m := event.Mouse()
+	if p.listMouse(event, image.Pt(m.X, m.Y)) {
+		return
+	}
 	rows := p.rows()
 	switch event.(type) {
-	case uv.MouseClickEvent:
-		if image.Pt(m.X, m.Y).In(p.list) && m.Button == uv.MouseLeft {
-			p.clickRow(rows, p.first+m.Y-p.list.Min.Y)
-		}
 	case uv.MouseWheelEvent:
 		switch m.Button {
 		case uv.MouseWheelUp:
@@ -493,8 +493,8 @@ func (p *scriptsPanel) drawNoteImage(screen uv.Screen, area image.Rectangle, pat
 func (p *scriptsPanel) drawFolder(screen uv.Screen, area image.Rectangle, f script.Folder) {
 	pal := &p.app.palette
 	about := map[script.FolderKind]string{
-		script.GroupFolder:   "A folder of your scripts. del deletes it with its scripts.",
-		script.LinkedFolder:  "A folder added by its path. del stops showing it; its files stay.",
+		script.GroupFolder:   "A directory of your scripts. del deletes it with its scripts.",
+		script.LinkedFolder:  "A directory added by its path. del stops showing it; its files stay.",
 		script.ProjectFolder: "The scripts of the project noct was opened in (.noct/scripts).",
 	}[f.Kind]
 	drawLines(screen, area, area.Min.Y, []styledLine{

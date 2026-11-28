@@ -304,15 +304,7 @@ func Rename(s Script, name string) (Script, error) {
 	if !naming.IsValid(name) {
 		return Script{}, fmt.Errorf("script name %q: use letters, digits, '.', '-' and '_'", name)
 	}
-	dir := filepath.Join(filepath.Dir(s.Dir), name)
-	if _, err := os.Stat(dir); err == nil {
-		return Script{}, fmt.Errorf("script %s already exists", name)
-	}
-	if err := os.Rename(s.Dir, dir); err != nil {
-		return Script{}, fmt.Errorf("renaming script %s: %w", s.Name, err)
-	}
-	s.Name, s.Dir = name, dir
-	return s, nil
+	return MoveTo(s, filepath.Join(filepath.Dir(s.Dir), name))
 }
 
 // BackupName is the copy of script.yaml kept from before the last edit.

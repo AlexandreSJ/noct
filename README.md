@@ -43,7 +43,7 @@ noct keeps it all in one place:
 
 ## Install
 
-On Linux or macOS, download the archive for your system (`linux` or `darwin`, `amd64` or `arm64`) from the [latest release](https://github.com/AlexandreSJ/noct/releases/latest) and put `noct` on your `PATH`. A folder you own, like `~/.local/bin`, lets noct update itself without `sudo`:
+On Linux or macOS, download the archive for your system (`linux` or `darwin`, `amd64` or `arm64`) from the [latest release](https://github.com/AlexandreSJ/noct/releases/latest) and put `noct` on your `PATH`. A directory you own, like `~/.local/bin`, lets noct update itself without `sudo`:
 
 ```sh
 tar -xzf noct_v0.1.1_linux_amd64.tar.gz noct
@@ -89,14 +89,14 @@ Press the prefix key, `Ctrl+Space`, to enter **noct mode**. In noct mode, moving
 | `w` | Stack the panes of the focused group, as in zellij: the focused one takes the height, the others show as a title row each; again to split them |
 | `f` | Fullscreen: show only the focused pane, or the layout again |
 | `u` | New floating panel with a terminal, over the others; drag its border with the left button to move it, with the right one to resize it |
-| `D` | Duplicate the focused terminal: a new one beside it, in the same folder, offering to run the same program |
+| `D` | Duplicate the focused terminal: a new one beside it, in the same directory, offering to run the same program |
 | `r` | Rename the tab |
 | `e` | Rename the pane; an empty name gives back the program's |
 | `g` | Scroll the terminal's history with vim's keys and the arrows; any other key goes back to live |
 | `d` | Detach; programs keep running |
 | `x` | Close the pane; a tab closes with its last pane, unless the config keeps empty tabs |
 | `c` | Updates: what is new in each version and, when a newer one is out, installing it |
-| `,` | Config: prefix key, the keys of every screen, direct shortcuts, theme, dark or light mode, background, mouse, your own binds, what a new tab opens and whether it closes when empty, editor, file manager, scripts folder, how long and how much of the logs to keep, how much step output flows keep |
+| `,` | Config: prefix key, the keys of every screen, direct shortcuts, theme, dark or light mode, background, mouse, your own binds, what a new tab opens and whether it closes when empty, editor, file manager, scripts directory, how long and how much of the logs to keep, how much step output flows keep |
 | `q` | Quit, after asking: `Enter` or `q` again |
 | `b` | Lock the shortcuts, so programs get them; moving around still works. Again to unlock |
 | `Esc` | Cancel |
@@ -138,9 +138,9 @@ params:
     remember: true
 ```
 
-Scripts can be grouped in folders inside the scripts folder, and any other folder of scripts can be added by its path (`a` in the scripts panel); folders come first in the list, closed (`+`) until `Enter` opens them (`-`), and `n` asks whether to create a directory or a script. A script in a folder is `folder/name`.
+Scripts can be grouped in directories inside the scripts directory, at any depth, and any other directory of scripts can be linked by its path (`L` in the scripts panel); directories come first in the list, closed (`+`) until `Enter` opens them (`-`). A script in a directory is `directory/name`, as `ops/db/backup`. The scripts panel organizes them as the inspect does flows: `a` creates a script and `N` a directory, both starting in the directory selected, where a `/` in the name makes directories; `m` moves or renames a script or a directory, `c` copies a script, `Delete` removes one, and dragging a script onto a directory moves it there. Flows that run a moved script, and its remembered values, follow it.
 
-In the scripts panel, `Enter` asks for the parameters and runs the script in a terminal beside it, which stays open with the exit code; `r` in the run pane runs it again. In the list, `e` opens a script's form, where `Enter` edits each part (command line, description, parameters, notes) alone in your editor (vim by default) and `Ctrl+S` saves; `n` creates one, `Ctrl+O` opens the scripts folder, `f` filters the list and `?` shows every key. The scripts folder, the editor and the file manager are set in the config. The full format is in [docs/scripts.md](docs/scripts.md) (Portuguese).
+In the scripts panel, `Enter` asks for the parameters and runs the script in a terminal beside it, which stays open with the exit code; `r` in the run pane runs it again. In the list, `e` opens a script's form, where `Enter` edits each part (command line, description, parameters, notes) alone in your editor (vim by default) and `Ctrl+S` saves; `a` creates one, `Ctrl+O` opens the scripts directory, `f` filters the list and `?` shows every key. The scripts directory, the editor and the file manager are set in the config. The full format is in [docs/scripts.md](docs/scripts.md) (Portuguese).
 
 ## Flows
 
@@ -169,7 +169,7 @@ claude mcp add noct -- noct mcp
 | `noct sessions` | List the sessions: open or closed, tabs, last use |
 | `noct kill <session>` | Delete a session: its programs stop and its layout is forgotten |
 | `noct run <script> [name=value ...]` (or `-s`) | Run a script in this terminal |
-| `noct ls` | List the scripts, their program version and folder |
+| `noct ls` | List the scripts, their program version and directory |
 | `noct flow run <flow> [name=value ...]` | Run a flow in this terminal, step by step |
 | `noct flow ls` | List the flows, with their triggers on or off |
 | `noct enable <flow>` / `disable <flow>` | Turn a flow's triggers on or off |
@@ -199,7 +199,7 @@ The daemon keeps running the version it started with. After rebuilding noct, qui
 
 ## Updates
 
-The tab bar shows noct's version before the session's name, and once a day noct checks GitHub for a new release: when one is out, it shows next to the version (`noct v0.1.0 ↑ v0.2.0`). `Ctrl+Space` `c` opens the updates: the changelog of every version, `u` to install the newest and, once installed, `r` to restart into it; your sessions open again as they were, and programs in panes can be run again with `Enter`. Nothing is installed or restarted until you press a key. When noct lives in a folder you cannot write, like `/usr/local/bin`, the popup shows the command that installs it with `sudo`, and `y` copies it to paste in a terminal. The daily check can be turned off in the config (**Updates → check for new versions**). From the shell, `noct update` does the same. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
+The tab bar shows noct's version before the session's name, and once a day noct checks GitHub for a new release: when one is out, it shows next to the version (`noct v0.1.0 ↑ v0.2.0`). `Ctrl+Space` `c` opens the updates: the changelog of every version, `u` to install the newest and, once installed, `r` to restart into it; your sessions open again as they were, and programs in panes can be run again with `Enter`. Nothing is installed or restarted until you press a key. When noct lives in a directory you cannot write, like `/usr/local/bin`, the popup shows the command that installs it with `sudo`, and `y` copies it to paste in a terminal. The daily check can be turned off in the config (**Updates → check for new versions**). From the shell, `noct update` does the same. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Documentation
 

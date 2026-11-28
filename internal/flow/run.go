@@ -237,6 +237,8 @@ func (x *running) runStep(s Step, path string) bool {
 		return true
 	case WaitStep:
 		return x.runWait(s, path)
+	case PrintStep:
+		return x.runPrint(s, path)
 	}
 	return x.stop(path, exactlyOne, 1)
 }
@@ -249,6 +251,19 @@ func (x *running) runWait(s Step, path string) bool {
 		return x.stopTimedOut(path)
 	}
 	x.result.Steps[path] = StepResult{Status: StatusOK, Duration: d}
+	return true
+}
+
+// runPrint writes the values of a print step on a line of the run's output, in both views.
+func (x *running) runPrint(s Step, path string) bool {
+	text, err := x.printed(s.Print)
+	if err != nil {
+		return x.stop(path, "print: "+err.Error(), 1)
+	}
+	shown := x.masked(text)
+	x.header("»", s.Label(), "")
+	fmt.Fprintln(x.Out, shown)
+	x.result.Steps[path] = StepResult{Status: StatusOK, Message: shown}
 	return true
 }
 
@@ -638,6 +653,24 @@ func (x *running) evaluate(text string) (any, error) {
 		return nil, err
 	}
 	return e.Eval(scopeOf(known, x.vars, x.jsonVars, x.steps))
+}
+
+// printed is what a print writes: each of its values as text, apart by a space.
+func (x *running) printed(text string) (string, error) {
+	known := x.known.with(x.vars, x.steps)
+	e, err := parsePrint(text, known)
+	if err != nil {
+		return "", err
+	}
+	value, err := e.Eval(scopeOf(known, x.vars, x.jsonVars, x.steps))
+	if err != nil {
+		return "", err
+	}
+	var parts []string
+	for _, item := range value.([]any) {
+		parts = append(parts, expr.String(item))
+	}
+	return strings.Join(parts, " "), nil
 }
 
 // condition evaluates an expression as a condition: see expr.Truthy.

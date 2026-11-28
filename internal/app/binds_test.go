@@ -55,7 +55,7 @@ func TestBindAddsAKeyAndTakesItFromAnother(t *testing.T) {
 	press(a, letter('a'), letter('n'))
 	var warned bool
 	for _, line := range a.configLines() {
-		warned = warned || line.warning && strings.Contains(line.label, "n is new script or directory")
+		warned = warned || line.warning && strings.Contains(line.label, "n is new script, in the directory selected")
 	}
 	if !warned {
 		t.Error("no warning that n is taken")
@@ -64,8 +64,8 @@ func TestBindAddsAKeyAndTakesItFromAnother(t *testing.T) {
 	if keys := a.config.Keys["scripts"]["edit"]; !slices.Equal(keys, []string{"e", "n"}) {
 		t.Errorf("edit keys %v, want e and n", keys)
 	}
-	if keys := a.config.Keys["scripts"]["new"]; !slices.Equal(keys, []string{"ctrl+n"}) {
-		t.Errorf("new keys %v, want only ctrl+n left", keys)
+	if keys := a.config.Keys["scripts"]["new"]; !slices.Equal(keys, []string{"a", "ctrl+n"}) {
+		t.Errorf("new keys %v, want a and ctrl+n left", keys)
 	}
 }
 

@@ -95,7 +95,7 @@ Como no tmux, **o daemon desenha para o terminal do cliente** (ADR-017):
 | `<projeto>/.noct/scripts/`, `.../flows/` | Scripts e fluxos do projeto, versionados no git e compartilhados com o time |
 | `~/.local/state/noct/logs/<data>/<hora>-<nome>.log` | Saída crua de cada execução (scripts, fluxos, comandos da IA) e, com `[logs] terminals` ligado, de cada terminal (`pane<N>`, numerado dentro do dia: o primeiro terminal de cada dia é `pane1`), até 10 MiB + um arquivo `.1` com o anterior; ao lado, `.days` com os dias, depois do primeiro, em que o log teve saída, e `.log.times` (e `.log.1.times`) com quando cada linha começou, um registro `linha época` por segundo com saída |
 | `~/.local/state/noct/daemon.log` | Mensagens do daemon |
-| `~/.local/state/noct/sessions.json` | As sessões: nome, criação, último uso e, por tab, o layout e os painéis que reabrem (shells com o diretório, o comando que rodavam e o log, painéis do noct) (ADR-037, ADR-046) |
+| `~/.local/state/noct/sessions.json` | As sessões: nome, criação, último uso e, por tab, o layout e os painéis que reabrem (shells com o diretório, o comando que rodavam e o log, painéis do noct como foram deixados) (ADR-037, ADR-046, ADR-075) |
 | `~/.local/state/noct/updates.json` | A última procura de releases: as releases com o changelog, quando foi, o `ETag` e até quando esperar o limite do GitHub (ADR-047) |
 | `~/.local/state/noct/params.json`, `runs.json` | Últimos valores dos parâmetros; as últimas 1000 execuções de scripts (fase 1) |
 | `~/.local/state/noct/runs.json` | As últimas 1000 execuções de scripts e fluxos: quando, código de saída e log (ADR-029) |

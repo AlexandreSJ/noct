@@ -43,7 +43,7 @@ O noct junta tudo num lugar só:
 
 ## Instalação
 
-Em Linux ou macOS, baixe o arquivo do seu sistema (`linux` ou `darwin`, `amd64` ou `arm64`) na [última release](https://github.com/AlexandreSJ/noct/releases/latest) e coloque o `noct` no `PATH`. Uma pasta sua, como `~/.local/bin`, deixa o noct se atualizar sem `sudo`:
+Em Linux ou macOS, baixe o arquivo do seu sistema (`linux` ou `darwin`, `amd64` ou `arm64`) na [última release](https://github.com/AlexandreSJ/noct/releases/latest) e coloque o `noct` no `PATH`. Um diretório seu, como `~/.local/bin`, deixa o noct se atualizar sem `sudo`:
 
 ```sh
 tar -xzf noct_v0.1.1_linux_amd64.tar.gz noct
@@ -89,14 +89,14 @@ Aperte a tecla prefixo, `Ctrl+Space`, para entrar no **modo noct**. Nele, a nave
 | `w` | Empilhar os painéis do grupo com foco, como no zellij: o painel com foco ocupa a altura e os outros viram uma linha de título cada; de novo para dividir |
 | `f` | Fullscreen: mostrar só o painel com foco, ou o layout de novo |
 | `u` | Novo painel flutuante com terminal, sobre os outros; arraste a borda com o botão esquerdo para mover e com o direito para redimensionar |
-| `D` | Duplica o terminal com foco: um novo ao lado, na mesma pasta, oferecendo rodar o mesmo programa |
+| `D` | Duplica o terminal com foco: um novo ao lado, no mesmo diretório, oferecendo rodar o mesmo programa |
 | `r` | Renomear a tab |
 | `e` | Renomear o painel; um nome vazio volta ao do programa |
 | `g` | Rolar o histórico do terminal com as teclas do vim e as setas; qualquer outra tecla volta ao vivo |
 | `d` | Desconectar; os programas continuam |
 | `x` | Fechar o painel; a tab fecha junto com o último painel, a não ser que o config mantenha tabs vazias |
 | `c` | Atualizações: o que há de novo em cada versão e, quando sai uma mais nova, instalá-la |
-| `,` | Config: tecla prefixo, as teclas de cada tela, atalhos diretos, tema, modo escuro ou claro, fundo, mouse, suas binds, o que uma tab nova abre e se ela fecha quando fica vazia, editor, gerenciador de arquivos, pasta dos scripts, por quanto tempo e quanto guardar dos logs, quanto da saída dos passos os fluxos guardam |
+| `,` | Config: tecla prefixo, as teclas de cada tela, atalhos diretos, tema, modo escuro ou claro, fundo, mouse, suas binds, o que uma tab nova abre e se ela fecha quando fica vazia, editor, gerenciador de arquivos, diretório dos scripts, por quanto tempo e quanto guardar dos logs, quanto da saída dos passos os fluxos guardam |
 | `q` | Sair, depois de confirmar: `Enter` ou `q` de novo |
 | `b` | Travar os atalhos, para os programas recebê-los; andar continua valendo. De novo destrava |
 | `Esc` | Cancelar |
@@ -138,9 +138,9 @@ params:
     remember: true
 ```
 
-Scripts podem ser agrupados em pastas dentro da pasta de scripts, e qualquer outra pasta de scripts pode ser adicionada pelo caminho (`a` no scripts panel); as pastas vêm primeiro na lista, fechadas (`+`) até `Enter` abri-las (`-`), e `n` pergunta se cria um diretório ou um script. Um script numa pasta é `pasta/nome`.
+Scripts podem ser agrupados em diretórios dentro do diretório de scripts, em qualquer nível, e qualquer outro diretório de scripts pode ser vinculado pelo caminho (`L` no scripts panel); os diretórios vêm primeiro na lista, fechados (`+`) até `Enter` abri-los (`-`). Um script num diretório é `diretório/nome`, como `ops/db/backup`. O scripts panel os organiza como o inspect faz com os fluxos: `a` cria um script e `N` um diretório, os dois partindo do diretório selecionado, onde uma `/` no nome cria diretórios; `m` move ou renomeia um script ou um diretório, `c` copia um script, `Delete` remove, e arrastar um script até um diretório o move para lá. Os fluxos que rodam um script movido, e os valores lembrados dele, vão junto.
 
-No scripts panel, `Enter` pergunta os parâmetros e roda o script num terminal ao lado, que fica aberto com o código de saída; `r` no painel da execução roda de novo. Na lista, `e` abre o formulário do script, onde `Enter` edita cada parte (linha de comando, descrição, parâmetros, notas) sozinha no seu editor (vim por padrão) e `Ctrl+S` salva; `n` cria um, `Ctrl+O` abre a pasta dos scripts, `f` filtra a lista e `?` mostra todas as teclas. A pasta dos scripts, o editor e o gerenciador de arquivos ficam no config. O formato completo está em [docs/scripts.md](docs/scripts.md).
+No scripts panel, `Enter` pergunta os parâmetros e roda o script num terminal ao lado, que fica aberto com o código de saída; `r` no painel da execução roda de novo. Na lista, `e` abre o formulário do script, onde `Enter` edita cada parte (linha de comando, descrição, parâmetros, notas) sozinha no seu editor (vim por padrão) e `Ctrl+S` salva; `a` cria um, `Ctrl+O` abre o diretório dos scripts, `f` filtra a lista e `?` mostra todas as teclas. O diretório dos scripts, o editor e o gerenciador de arquivos ficam no config. O formato completo está em [docs/scripts.md](docs/scripts.md).
 
 ## Fluxos
 
@@ -169,7 +169,7 @@ claude mcp add noct -- noct mcp
 | `noct sessions` | Lista as sessões: aberta ou fechada, tabs, último uso |
 | `noct kill <sessão>` | Apaga uma sessão: os programas param e o layout é esquecido |
 | `noct run <script> [nome=valor ...]` (ou `-s`) | Roda um script neste terminal |
-| `noct ls` | Lista os scripts, a versão do programa e a pasta |
+| `noct ls` | Lista os scripts, a versão do programa e o diretório |
 | `noct flow run <fluxo> [nome=valor ...]` | Roda um fluxo neste terminal, passo a passo |
 | `noct flow ls` | Lista os fluxos, com os triggers ligados ou não |
 | `noct enable <fluxo>` / `disable <fluxo>` | Liga ou desliga os triggers de um fluxo |
@@ -199,7 +199,7 @@ O daemon continua rodando a versão com que começou. Depois de recompilar o noc
 
 ## Atualizações
 
-A barra de tabs mostra a versão do noct antes do nome da sessão, e uma vez por dia o noct procura uma release nova no GitHub: quando sai uma, ela aparece ao lado da versão (`noct v0.1.0 ↑ v0.2.0`). `Ctrl+Space` `c` abre as atualizações: o changelog de cada versão, `u` para instalar a mais nova e, depois de instalada, `r` para reiniciar nela; as sessões reabrem como estavam, e os programas dos painéis podem rodar de novo com `Enter`. Nada é instalado nem reiniciado antes de você apertar uma tecla. Quando o noct está numa pasta que você não pode gravar, como `/usr/local/bin`, o popup mostra o comando que instala com `sudo`, e `y` o copia para colar num terminal. A procura diária pode ser desligada no config (**Updates → check for new versions**). No shell, `noct update` faz o mesmo. O que mudou em cada versão está no [CHANGELOG.md](CHANGELOG.md).
+A barra de tabs mostra a versão do noct antes do nome da sessão, e uma vez por dia o noct procura uma release nova no GitHub: quando sai uma, ela aparece ao lado da versão (`noct v0.1.0 ↑ v0.2.0`). `Ctrl+Space` `c` abre as atualizações: o changelog de cada versão, `u` para instalar a mais nova e, depois de instalada, `r` para reiniciar nela; as sessões reabrem como estavam, e os programas dos painéis podem rodar de novo com `Enter`. Nada é instalado nem reiniciado antes de você apertar uma tecla. Quando o noct está num diretório que você não pode gravar, como `/usr/local/bin`, o popup mostra o comando que instala com `sudo`, e `y` o copia para colar num terminal. A procura diária pode ser desligada no config (**Updates → check for new versions**). No shell, `noct update` faz o mesmo. O que mudou em cada versão está no [CHANGELOG.md](CHANGELOG.md).
 
 ## Documentação
 

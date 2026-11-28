@@ -413,3 +413,28 @@ func TestASetOfAFieldInheritsItsTypeAndRetypingIsTold(t *testing.T) {
 		t.Errorf("count as text: %q", problem)
 	}
 }
+
+// A print is added from its form, which tells its rules beside it, and its card shows what it
+// prints.
+func TestAPrintStepIsAddedFromItsFormWithItsRules(t *testing.T) {
+	a := testApp(t)
+	a.size = image.Pt(140, 40)
+	saveFlow(t, "hello", "variables: {name: {default: ana}}\nsteps: []\n")
+	pressDrawn(a, prefixPress, letter('i'), tabPress)
+	addStep(a, "print")
+	screen := screenText(a)
+	for _, want := range []string{`"1" + "1" is 11`, `\" \' \\ write the quote`, "• true and false"} {
+		if !strings.Contains(screen, want) {
+			t.Errorf("the help does not tell %q:\n%s", want, screen)
+		}
+	}
+	setCell(a, `"hello, " + name`)
+	pressDrawn(a, ctrlS)
+	steps := loadFlowSteps(t, "hello")
+	if len(steps) != 1 || steps[0].Print != `"hello, " + name` {
+		t.Fatalf("steps %+v", steps)
+	}
+	if chart := chartText(a.currentTab().focusedView().(*inspectPanel).chart); !strings.Contains(chart, `» print`) || !strings.Contains(chart, `"hello, " + name`) {
+		t.Errorf("the print's card:\n%s", chart)
+	}
+}
